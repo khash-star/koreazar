@@ -99,7 +99,8 @@ function PagesContent() {
         <>
             <Routes>
                 {/* All pages with Layout */}
-                <Route path="/" element={<Layout currentPageName={currentPage}><AdminAllListings /></Layout>} />
+                <Route path="/" element={<Layout currentPageName={currentPage}><Home /></Layout>} />
+                <Route path="/Home" element={<Layout currentPageName={currentPage}><Home /></Layout>} />
                 <Route path="/AdminAllListings" element={<Layout currentPageName={currentPage}><AdminAllListings /></Layout>} />
                 <Route path="/AdminBannerRequests" element={<Layout currentPageName={currentPage}><AdminBannerRequests /></Layout>} />
                 <Route path="/AdminBanners" element={<Layout currentPageName={currentPage}><AdminBanners /></Layout>} />
@@ -108,7 +109,6 @@ function PagesContent() {
                 <Route path="/admin" element={<Layout currentPageName={currentPage}><AdminPanel /></Layout>} />
                 <Route path="/CreateListing" element={<Layout currentPageName={currentPage}><CreateListing /></Layout>} />
                 <Route path="/EditListing" element={<Layout currentPageName={currentPage}><EditListing /></Layout>} />
-                <Route path="/Home" element={<Layout currentPageName={currentPage}><Home /></Layout>} />
                 <Route path="/ListingDetail" element={<Layout currentPageName={currentPage}><ListingDetail /></Layout>} />
                 <Route path="/MyListings" element={<Layout currentPageName={currentPage}><MyListings /></Layout>} />
                 <Route path="/RequestBannerAd" element={<Layout currentPageName={currentPage}><RequestBannerAd /></Layout>} />
