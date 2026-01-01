@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Public images folder (listings, banners) - anyone can read
+    match /public/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // User-specific uploads
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Listings images
+    match /listings/{listingId}/{allPaths=**} {
+      allow read: if true; // Anyone can read listing images
+      allow write: if request.auth != null; // Authenticated users can upload
+    }
+    
+    // Banners
+    match /banners/{allPaths=**} {
+      allow read: if true; // Anyone can read banners
+      allow write: if request.auth != null; // Only authenticated users can upload
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

@@ -1,0 +1,241 @@
+// Firebase Authentication Service
+// Base44 auth.* функцийг Firebase Auth-аар солих
+
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail
+} from 'firebase/auth';
+import { auth } from '@/firebase/config';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '@/firebase/config';
+
+/**
+ * Нэвтрэх (Email/Password)
+ * @param {string} email - Имэйл хаяг
+ * @param {string} password - Нууц үг
+ * @returns {Promise<User>} Firebase User object
+ */
+export const login = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Бүртгүүлэх (Email/Password)
+ * @param {string} email - Имэйл хаяг
+ * @param {string} password - Нууц үг
+ * @param {string} displayName - Хэрэглэгчийн нэр (optional)
+ * @returns {Promise<User>} Firebase User object
+ */
+export const register = async (email, password, displayName = null) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Display name тохируулах (хэрэв байгаа бол)
+    if (displayName) {
+      try {
+        await updateProfile(user, { displayName });
+      } catch (error) {
+        console.warn('Failed to update profile:', error);
+        // Continue even if profile update fails
+      }
+    }
+
+    // Firestore дээр user document үүсгэх (offline байвал алдаа гаргахгүй)
+    try {
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        displayName: displayName || user.email.split('@')[0],
+        role: 'user',
+        createdAt: new Date(),
+        phone: '',
+        kakao_id: '',
+        wechat_id: '',
+        whatsapp: '',
+        facebook: ''
+      });
+    } catch (firestoreError) {
+      // Ignore offline errors - Firestore will sync when online
+      if (firestoreError.code === 'unavailable' || firestoreError.message?.includes('offline')) {
+        console.warn('Firestore offline - user data will sync when online');
+      } else {
+        console.error('Failed to create user document in Firestore:', firestoreError);
+        // Continue even if Firestore fails - user is still created in Auth
+      }
+    }
+
+    return user;
+  } catch (error) {
+    console.error('Register error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Гарах
+ * @returns {Promise<void>}
+ */
+export const logout = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Нууц үг сэргээх имэйл илгээх
+ * @param {string} email - Имэйл хаяг
+ * @returns {Promise<void>}
+ */
+export const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * Одоогийн хэрэглэгчийн мэдээлэл авах
+ * Base44: base44.auth.me()
+ * @returns {Promise<User | null>} User object эсвэл null
+ */
+export const getCurrentUser = async () => {
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      resolve(user);
+    });
+  });
+};
+
+/**
+ * Хэрэглэгчийн Firestore дээрх мэдээлэл авах
+ * @param {string} uid - User ID
+ * @returns {Promise<Object | null>} User data эсвэл null
+ */
+export const getUserData = async (uid) => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (userDoc.exists()) {
+      return { id: userDoc.id, ...userDoc.data() };
+    }
+    return null;
+  } catch (error) {
+    // Ignore offline errors - Firestore will work when online
+    if (error.code === 'unavailable' || error.message?.includes('offline')) {
+      console.warn('Firestore offline - user data will sync when online');
+      return null;
+    }
+    console.error('Error getting user data:', error);
+    return null;
+  }
+};
+
+/**
+ * Хэрэглэгчийн бүрэн мэдээлэл авах (Auth + Firestore)
+ * Base44: base44.auth.me() -тэй адил
+ * @returns {Promise<Object | null>} User object with Firestore data
+ */
+export const getMe = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return null;
+
+    const userData = await getUserData(user.uid);
+    if (!userData) {
+      // Хэрэв Firestore дээр байхгүй бол үүсгэх (offline байвал skip)
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email,
+          displayName: user.displayName || user.email.split('@')[0],
+          role: 'user',
+          createdAt: new Date()
+        });
+      } catch (error) {
+        // Ignore offline errors
+        if (error.code === 'unavailable' || error.message?.includes('offline')) {
+          console.warn('Firestore offline - user data will sync when online');
+        }
+      }
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email.split('@')[0],
+        role: 'user'
+      };
+    }
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      ...userData
+    };
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+};
+
+/**
+ * Нэвтэрсэн эсэхийг шалгах
+ * Base44: base44.auth.isAuthenticated()
+ * @returns {boolean}
+ */
+export const isAuthenticated = () => {
+  return !!auth.currentUser;
+};
+
+/**
+ * Auth state өөрчлөлтийг хянах (subscribe)
+ * @param {Function} callback - Callback function
+ * @returns {Function} Unsubscribe function
+ */
+export const onAuthChange = (callback) => {
+  return onAuthStateChanged(auth, callback);
+};
+
+/**
+ * Login хуудас руу чиглүүлэх
+ * Base44: base44.auth.redirectToLogin(redirectUrl)
+ * @param {string} redirectUrl - Нэвтрэсний дараа чиглүүлэх URL (optional)
+ */
+export const redirectToLogin = (redirectUrl = null) => {
+  const currentPath = window.location.pathname + window.location.search;
+  const targetUrl = redirectUrl || currentPath;
+  
+  // Use React Router navigate if available, otherwise use window.location
+  if (targetUrl && targetUrl !== '/Login' && !targetUrl.includes('/Login')) {
+    window.location.href = `/Login?redirect=${encodeURIComponent(targetUrl)}`;
+  } else {
+    window.location.href = '/Login';
+  }
+};
+
+/**
+ * Админ эрх шалгах
+ * @returns {Promise<boolean>} Админ эсэх
+ */
+export const isAdmin = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return false;
+    
+    const userData = await getUserData(user.uid);
+    return userData?.role === 'admin';
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+};
+
