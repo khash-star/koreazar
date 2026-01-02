@@ -293,6 +293,12 @@ export default function Home() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem asChild>
+                      <Link to={createPageUrl('Profile')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Профайл</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to={createPageUrl('MyListings')} className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
                         <span>Миний зар</span>
@@ -319,6 +325,12 @@ export default function Home() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl('Profile')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Профайл</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl('MyListings')} className="cursor-pointer">
                         <User className="mr-2 h-4 w-4" />

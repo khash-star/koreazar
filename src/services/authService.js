@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { doc, setDoc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 /**
@@ -295,6 +295,42 @@ export const getUserByEmail = async (email) => {
   } catch (error) {
     console.error('Error getting user by email:', error);
     return null;
+  }
+};
+
+/**
+ * Хэрэглэгчийн мэдээллийг засах
+ * @param {string} uid - User ID
+ * @param {Object} data - Засах мэдээлэл
+ * @returns {Promise<void>}
+ */
+export const updateUserData = async (uid, data) => {
+  try {
+    const user = auth.currentUser;
+    if (!user || user.uid !== uid) {
+      throw new Error('Зөвхөн өөрийн мэдээллийг засах боломжтой');
+    }
+    
+    const userRef = doc(db, 'users', uid);
+    
+    // Update Firestore
+    await updateDoc(userRef, {
+      ...data,
+      updatedAt: new Date()
+    });
+    
+    // Update Firebase Auth displayName if provided
+    if (data.displayName) {
+      try {
+        await updateProfile(user, { displayName: data.displayName });
+      } catch (error) {
+        console.warn('Failed to update Firebase Auth profile:', error);
+        // Continue even if Auth update fails
+      }
+    }
+  } catch (error) {
+    console.error('Error updating user data:', error);
+    throw error;
   }
 };
 
