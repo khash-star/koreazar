@@ -82,6 +82,7 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
  */
 export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
   try {
+    console.log('filterListings called with:', { filters, orderByField, limitCount });
     const listingsRef = collection(db, 'listings');
     const conditions = [];
     
@@ -89,18 +90,28 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     Object.keys(filters).forEach(key => {
       if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
         conditions.push(where(key, '==', filters[key]));
+        console.log(`Added where condition: ${key} == ${filters[key]}`);
       }
     });
     
     // Handle order by (support '-' prefix for descending)
     const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
+    console.log(`Order by: ${orderField} ${orderDirection}`);
     
     // Build query
-    let q = query(listingsRef, ...conditions, orderBy(orderField, orderDirection), limit(limitCount));
-    const querySnapshot = await getDocs(q);
+    let q;
+    if (conditions.length > 0) {
+      q = query(listingsRef, ...conditions, orderBy(orderField, orderDirection), limit(limitCount));
+    } else {
+      q = query(listingsRef, orderBy(orderField, orderDirection), limit(limitCount));
+    }
     
-    return querySnapshot.docs.map(doc => {
+    console.log('Executing Firestore query...');
+    const querySnapshot = await getDocs(q);
+    console.log(`Query returned ${querySnapshot.docs.length} documents`);
+    
+    const result = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -110,8 +121,16 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
         listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
       };
     });
+    
+    console.log('filterListings result:', result);
+    return result;
   } catch (error) {
     console.error('Error filtering listings:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 };

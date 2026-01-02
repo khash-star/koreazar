@@ -25,16 +25,32 @@ export default function AdminPanel() {
   const [message, setMessage] = useState('');
   const [sendResult, setSendResult] = useState(null);
 
-  const { data: pendingListings = [] } = useQuery({
+  const { data: pendingListings = [], isLoading: pendingLoading, error: pendingError } = useQuery({
     queryKey: ['pending-count'],
-    queryFn: () => filterListings({ status: 'pending' }),
+    queryFn: async () => {
+      console.log('Fetching pending listings...');
+      const result = await filterListings({ status: 'pending' });
+      console.log('Pending listings result:', result);
+      return result;
+    },
     enabled: userData?.role === 'admin',
+    onError: (error) => {
+      console.error('Error fetching pending listings:', error);
+    }
   });
 
-  const { data: vipListings = [] } = useQuery({
+  const { data: vipListings = [], isLoading: vipLoading, error: vipError } = useQuery({
     queryKey: ['vip-listings-count'],
-    queryFn: () => filterListings({ listing_type: 'vip', status: 'active' }),
+    queryFn: async () => {
+      console.log('Fetching VIP listings...');
+      const result = await filterListings({ listing_type: 'vip', status: 'active' });
+      console.log('VIP listings result:', result);
+      return result;
+    },
     enabled: userData?.role === 'admin',
+    onError: (error) => {
+      console.error('Error fetching VIP listings:', error);
+    }
   });
 
   const { data: unreadMessagesCount = 0 } = useQuery({
@@ -150,7 +166,13 @@ export default function AdminPanel() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-gray-600 mb-1">Шинэ зар</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
+                    {pendingLoading ? (
+                      <Loader2 className="w-6 h-6 text-yellow-600 animate-spin" />
+                    ) : pendingError ? (
+                      <p className="text-sm text-red-600">Алдаа</p>
+                    ) : (
+                      <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
+                    )}
                   </div>
                   <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
                 </div>
@@ -165,7 +187,13 @@ export default function AdminPanel() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-gray-600 mb-1">VIP зар</p>
-                    <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
+                    {vipLoading ? (
+                      <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                    ) : vipError ? (
+                      <p className="text-sm text-red-600">Алдаа</p>
+                    ) : (
+                      <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
+                    )}
                   </div>
                   <Star className="w-8 h-8 text-purple-500 opacity-50" />
                 </div>
