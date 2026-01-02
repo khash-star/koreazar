@@ -383,7 +383,7 @@ export default function AIBot() {
             </div>
             {remainingRequests !== null && (
               <div className="text-right">
-                <p className="text-xs text-gray-500">Өдрийн үлдэгдэл</p>
+                <p className="text-xs text-gray-500">Өдрийг сайхан өнгөрүүлээрэй</p>
                 <p className={`text-sm font-semibold ${remainingRequests === 0 ? 'text-red-600' : remainingRequests < 5 ? 'text-orange-600' : 'text-green-600'}`}>
                   {remainingRequests} / {DAILY_LIMIT}
                 </p>
