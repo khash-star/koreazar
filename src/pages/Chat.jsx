@@ -177,15 +177,21 @@ export default function Chat() {
   }, [actualConversationId, queryClient]);
 
   const { data: otherUser } = useQuery({
-    queryKey: ['otherUser', conversation, adminEmail],
+    queryKey: ['otherUser', conversation?.id, adminEmail],
     queryFn: async () => {
       if (!conversation || !user?.email) return null;
       const otherEmail = conversation.participant_1 === userEmail 
         ? conversation.participant_2 
         : conversation.participant_1;
       
-      // Check if other user is admin
-      const isAdmin = adminEmail && otherEmail === adminEmail;
+      // Get admin email if not already set
+      let currentAdminEmail = adminEmail;
+      if (!currentAdminEmail) {
+        currentAdminEmail = await getAdminEmail();
+      }
+      
+      // Check if other user is admin - use currentAdminEmail to ensure consistency
+      const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
       
       // Get user from Firestore users collection
       try {

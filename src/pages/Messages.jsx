@@ -36,9 +36,15 @@ export default function Messages() {
   }, [user, userData]);
 
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['conversations', userEmail],
+    queryKey: ['conversations', userEmail, adminEmail],
     queryFn: async () => {
       if (!userEmail) return [];
+      
+      // Get admin email if not already set
+      let currentAdminEmail = adminEmail;
+      if (!currentAdminEmail) {
+        currentAdminEmail = await getAdminEmail();
+      }
       
       // Get user conversations (either participant_1 or participant_2)
       const convs1 = await filterConversations({ participant_1: userEmail });
@@ -49,8 +55,8 @@ export default function Messages() {
         const otherEmail = conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1;
         const unreadCount = conv.participant_1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
         
-        // Check if other user is admin
-        const isAdmin = adminEmail && otherEmail === adminEmail;
+        // Check if other user is admin - use currentAdminEmail to ensure consistency
+        const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
         
         return {
           ...conv,
