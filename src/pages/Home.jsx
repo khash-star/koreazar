@@ -283,7 +283,11 @@ export default function Home() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      <User className="w-4 h-4 mr-1" />
+                      {userData?.role === 'admin' ? (
+                        <img src="/admin_logo.png" alt="Admin" className="w-4 h-4 mr-1 object-contain" />
+                      ) : (
+                        <User className="w-4 h-4 mr-1" />
+                      )}
                       <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
                     </Button>
                   </DropdownMenuTrigger>
@@ -306,7 +310,11 @@ export default function Home() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      <User className="w-4 h-4 mr-1" />
+                      {userData?.role === 'admin' ? (
+                        <img src="/admin_logo.png" alt="Admin" className="w-4 h-4 mr-1 object-contain" />
+                      ) : (
+                        <User className="w-4 h-4 mr-1" />
+                      )}
                       <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
                     </Button>
                   </DropdownMenuTrigger>

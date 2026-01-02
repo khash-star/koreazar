@@ -129,6 +129,11 @@ export default function AdminPanel() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
+            <img 
+              src="/admin_logo.png" 
+              alt="Admin Logo" 
+              className="w-10 h-10 object-contain"
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-900">Админ удирдлага</h1>
               <p className="text-sm text-gray-500">Зарууд болон системийн удирдлага</p>
