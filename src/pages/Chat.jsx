@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { redirectToLogin, getMe } from '@/services/authService';
+import { redirectToLogin, getMe, getAdminEmail } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getConversation, listMessages, createMessage, updateConversation, findConversation, createConversation } from '@/services/conversationService';
 import { getListing } from '@/services/listingService';
@@ -29,8 +29,18 @@ export default function Chat() {
   const [actualConversationId, setActualConversationId] = useState(conversationId);
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [adminEmail, setAdminEmail] = useState(null);
   
   const userEmail = userData?.email || user?.email;
+
+  // Get admin email
+  useEffect(() => {
+    const fetchAdminEmail = async () => {
+      const email = await getAdminEmail();
+      setAdminEmail(email);
+    };
+    fetchAdminEmail();
+  }, []);
   
   useEffect(() => {
     if (!user && !userData) {
@@ -139,20 +149,29 @@ export default function Chat() {
   }, [actualConversationId, queryClient]);
 
   const { data: otherUser } = useQuery({
-    queryKey: ['otherUser', conversation],
+    queryKey: ['otherUser', conversation, adminEmail],
     queryFn: async () => {
       if (!conversation || !user?.email) return null;
       const otherEmail = conversation.participant_1 === userEmail 
         ? conversation.participant_2 
         : conversation.participant_1;
       
+      // Check if other user is admin
+      const isAdmin = adminEmail && otherEmail === adminEmail;
+      
       // Get user from Firestore users collection
       try {
         const userData = await getMe();
         // For now, return basic user info - can be extended later
-        return { email: otherEmail, displayName: otherEmail.split('@')[0] };
+        return { 
+          email: otherEmail, 
+          displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
+        };
       } catch (error) {
-        return { email: otherEmail, displayName: otherEmail.split('@')[0] };
+        return { 
+          email: otherEmail, 
+          displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
+        };
       }
     },
     enabled: !!conversation && !!user?.email

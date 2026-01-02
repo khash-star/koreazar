@@ -15,7 +15,7 @@ import { mn } from 'date-fns/locale';
 import { Timestamp } from 'firebase/firestore';
 
 export default function Messages() {
-  const { user, userData } = useAuth();
+  const { user, userData, isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const userEmail = userData?.email || user?.email;
   const [adminEmail, setAdminEmail] = useState(null);
@@ -49,9 +49,15 @@ export default function Messages() {
         const otherEmail = conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1;
         const unreadCount = conv.participant_1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
         
+        // Check if other user is admin
+        const isAdmin = adminEmail && otherEmail === adminEmail;
+        
         return {
           ...conv,
-          otherUser: { email: otherEmail, displayName: otherEmail.split('@')[0] },
+          otherUser: { 
+            email: otherEmail, 
+            displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
+          },
           unreadCount
         };
       });
@@ -76,6 +82,12 @@ export default function Messages() {
   );
 
   const handleMessageAdmin = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated || !user || !userData) {
+      redirectToLogin(window.location.href);
+      return;
+    }
+    
     if (!adminEmail || !userEmail) return;
     
     try {
