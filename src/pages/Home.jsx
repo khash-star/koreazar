@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
@@ -29,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const listingsRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
@@ -84,11 +85,24 @@ export default function Home() {
     const categoryFromUrl = urlParams.get('category') || '';
     const scrollTo = urlParams.get('scroll');
     
-    setFilters(prev => ({
-      ...prev,
-      category: categoryFromUrl,
-      subcategory: ''
-    }));
+    // If navigating to Home without category parameter, clear all filters
+    if (location.pathname === '/Home' && !categoryFromUrl) {
+      setFilters({
+        category: '',
+        subcategory: '',
+        search: '',
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        condition: ''
+      });
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        category: categoryFromUrl,
+        subcategory: ''
+      }));
+    }
 
     if (scrollTo === 'listings') {
       setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
@@ -99,7 +113,7 @@ export default function Home() {
     if (!hasSeenWelcome) {
       setShowWelcome(true);
     }
-  }, []);
+  }, [location.pathname, location.search]);
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
