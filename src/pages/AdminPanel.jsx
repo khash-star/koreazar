@@ -4,10 +4,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell, Users, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sendMessageToAllUsers, filterConversations } from '@/services/conversationService';
+import { getAllUsers } from '@/services/authService';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +26,8 @@ export default function AdminPanel() {
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [message, setMessage] = useState('');
   const [sendResult, setSendResult] = useState(null);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
 
   const { data: pendingListings = [], isLoading: pendingLoading, error: pendingError } = useQuery({
     queryKey: ['pending-count'],
@@ -81,6 +85,18 @@ export default function AdminPanel() {
     enabled: !!userData?.email && userData?.role === 'admin',
     refetchInterval: 5000 // Refresh every 5 seconds
   });
+
+  const { data: allUsers = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['all-users'],
+    queryFn: () => getAllUsers(),
+    enabled: userData?.role === 'admin' && showUserSearch,
+  });
+
+  const filteredUsers = allUsers.filter(user => 
+    user.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.displayName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.phone?.includes(userSearchTerm)
+  );
 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageText) => {
@@ -351,8 +367,104 @@ export default function AdminPanel() {
               <p className="text-sm text-gray-600">Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх</p>
             </div>
           </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            whileHover={{ y: -4, scale: 1.02 }}
+            onClick={() => setShowUserSearch(true)}
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
+                <Users className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Хэрэглэгч хайх</h2>
+                <p className="text-sm text-gray-500">Хэрэглэгч хайх, мэдээлэл үзэх</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm text-gray-600">Имэйл, нэр, утасны дугаараар хайх</p>
+            </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* User Search Dialog */}
+      <Dialog open={showUserSearch} onOpenChange={setShowUserSearch}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Хэрэглэгч хайх</DialogTitle>
+            <DialogDescription>
+              Имэйл, нэр, утасны дугаараар хэрэглэгч хайх
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                placeholder="Имэйл, нэр, утасны дугаар..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            {usersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {filteredUsers.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">Хэрэглэгч олдсонгүй</p>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <motion.div
+                      key={user.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-gray-900">
+                              {user.displayName || user.email?.split('@')[0] || 'Нэргүй'}
+                            </h3>
+                            {user.role === 'admin' && (
+                              <span className="px-2 py-0.5 text-xs bg-amber-500 text-white rounded">Админ</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 mb-1">{user.email}</p>
+                          {user.phone && (
+                            <p className="text-sm text-gray-500 mb-1">📞 {user.phone}</p>
+                          )}
+                          {user.createdAt && (
+                            <p className="text-xs text-gray-400">
+                              Бүртгүүлсэн: {new Date(user.createdAt?.seconds * 1000 || user.createdAt).toLocaleDateString('mn-MN')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowUserSearch(false);
+              setUserSearchTerm('');
+            }}>
+              Хаах
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Send Message Dialog */}
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
