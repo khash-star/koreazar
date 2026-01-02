@@ -4,7 +4,7 @@ import { filterListings } from '@/services/listingService';
 import { filterBannerAds } from '@/services/bannerService';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -16,6 +16,7 @@ import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import Banner from '@/components/Banner';
 import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const listingsRef = useRef(null);
@@ -23,6 +24,7 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const { isAuthenticated } = useAuth();
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -188,10 +190,18 @@ export default function Home() {
       
       {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-3 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-sm md:text-lg font-bold tracking-wide">
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+          <h1 className="text-sm md:text-lg font-bold tracking-wide flex-1 text-center">
             🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
           </h1>
+          {!isAuthenticated && (
+            <Link to={createPageUrl('Login')} className="md:hidden ml-2">
+              <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                <User className="w-4 h-4 mr-1" />
+                <span className="text-xs">Нэвтрэх</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

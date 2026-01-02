@@ -116,7 +116,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Bottom Navigation (Mobile) - Only on Home */}
       {showNav && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
-          <div className={`flex items-center ${userData?.role === 'admin' ? 'justify-between' : 'justify-around'} py-2`}>
+          <div className={`flex items-center justify-around py-2`}>
             <Link
               to={createPageUrl('Home')}
               className={`flex flex-col items-center py-2 px-6 ${
@@ -175,7 +175,7 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-xs mt-1">Зар нэмэх</span>
             </Link>
 
-            {isAuthenticated ? (
+            {isAuthenticated && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -201,14 +201,6 @@ export default function Layout({ children, currentPageName }) {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <Link
-                to={createPageUrl('Login')}
-                className="flex flex-col items-center py-2 px-6 text-gray-500"
-              >
-                <User className="w-6 h-6" />
-                <span className="text-xs mt-1">Нэвтрэх</span>
-              </Link>
             )}
 
             {userData?.role === 'admin' && (
