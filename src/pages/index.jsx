@@ -112,6 +112,7 @@ function PagesContent() {
                 <Route path="/ListingDetail" element={<Layout currentPageName={currentPage}><ListingDetail /></Layout>} />
                 <Route path="/MyListings" element={<Layout currentPageName={currentPage}><MyListings /></Layout>} />
                 <Route path="/RequestBannerAd" element={<Layout currentPageName={currentPage}><RequestBannerAd /></Layout>} />
+                <Route path="/requestbannerad" element={<Layout currentPageName={currentPage}><RequestBannerAd /></Layout>} />
                 <Route path="/SavedListings" element={<Layout currentPageName={currentPage}><SavedListings /></Layout>} />
                 <Route path="/UpgradeListing" element={<Layout currentPageName={currentPage}><UpgradeListing /></Layout>} />
                 <Route path="/Messages" element={<Layout currentPageName={currentPage}><Messages /></Layout>} />
@@ -127,7 +128,9 @@ export default function Pages() {
             <Routes>
                 {/* Auth pages first - before any base44 SDK imports */}
                 <Route path="/Login" element={<Login />} />
+                <Route path="/login" element={<Login />} />
                 <Route path="/Register" element={<Register />} />
+                <Route path="/register" element={<Register />} />
                 
                 {/* All other routes */}
                 <Route path="/*" element={<PagesContent />} />

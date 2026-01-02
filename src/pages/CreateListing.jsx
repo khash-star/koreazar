@@ -72,6 +72,9 @@ export default function CreateListing() {
 
   const availableSubcategories = formData.category ? subcategoryConfig[formData.category] || [] : [];
 
+  // Get user email early to avoid undefined errors
+  const userEmail = userData?.email || firebaseUser?.email || user?.email;
+
   // Check authentication and auto-fill user data
   React.useEffect(() => {
     // Wait for auth to finish loading
@@ -221,7 +224,6 @@ export default function CreateListing() {
       return;
     }
     
-    const userEmail = userData?.email || firebaseUser?.email;
     if (!userEmail) {
       alert('Хэрэглэгчийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.');
       redirectToLogin(window.location.href);
