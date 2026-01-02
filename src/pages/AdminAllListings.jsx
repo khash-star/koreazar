@@ -38,9 +38,22 @@ export default function AdminAllListings() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const { data: listings = [], isLoading } = useQuery({
+  const { data: listings = [], isLoading, error } = useQuery({
     queryKey: ['admin-all-listings'],
-    queryFn: () => listListings('-created_date', 500),
+    queryFn: async () => {
+      console.log('AdminAllListings: Fetching all listings...');
+      try {
+        const result = await listListings('-created_date', 500);
+        console.log('AdminAllListings: Fetched listings:', result);
+        return result;
+      } catch (err) {
+        console.error('AdminAllListings: Error fetching listings:', err);
+        throw err;
+      }
+    },
+    onError: (error) => {
+      console.error('AdminAllListings: Query error:', error);
+    }
   });
 
   const deleteMutation = useMutation({
@@ -170,6 +183,19 @@ export default function AdminAllListings() {
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-red-600 text-lg mb-2">Алдаа гарлаа</p>
+            <p className="text-gray-500 text-sm mb-4">{error.message || 'Зар татахад алдаа гарлаа'}</p>
+            <Button onClick={() => window.location.reload()}>Дахин оролдох</Button>
+          </div>
+        ) : filteredListings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <p className="text-gray-500 text-lg mb-2">Зар олдсонгүй</p>
+            <p className="text-gray-400 text-sm">
+              {searchTerm ? 'Хайлтын үр дүн олдсонгүй' : 'Одоогоор зар байхгүй байна'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">

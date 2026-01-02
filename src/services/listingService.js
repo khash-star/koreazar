@@ -48,15 +48,25 @@ const convertTimestamp = (value) => {
  */
 export const listListings = async (orderByField = 'created_date', limitCount = 100) => {
   try {
+    console.log('listListings called with:', { orderByField, limitCount });
     const listingsRef = collection(db, 'listings');
+    
+    // Handle order by (support '-' prefix for descending)
+    const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
+    const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
+    console.log(`Order by: ${orderField} ${orderDirection}`);
+    
     const q = query(
       listingsRef,
-      orderBy(orderByField, orderByField.startsWith('-') ? 'desc' : 'asc'),
+      orderBy(orderField, orderDirection),
       limit(limitCount)
     );
-    const querySnapshot = await getDocs(q);
     
-    return querySnapshot.docs.map(doc => {
+    console.log('Executing Firestore query for listListings...');
+    const querySnapshot = await getDocs(q);
+    console.log(`Query returned ${querySnapshot.docs.length} documents`);
+    
+    const result = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -66,8 +76,16 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
         listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
       };
     });
+    
+    console.log('listListings result:', result);
+    return result;
   } catch (error) {
     console.error('Error listing listings:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 };
