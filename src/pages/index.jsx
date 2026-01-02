@@ -32,6 +32,7 @@ import Chat from "./Chat";
 
 import Login from "./Login";
 import Register from "./Register";
+import Profile from "./Profile";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -67,6 +68,8 @@ const PAGES = {
     Messages: Messages,
     
     Chat: Chat,
+    
+    Profile: Profile,
     
 }
 
@@ -123,6 +126,8 @@ function PagesContent() {
                 <Route path="/UpgradeListing" element={<Layout currentPageName={currentPage}><UpgradeListing /></Layout>} />
                 <Route path="/Messages" element={<Layout currentPageName={currentPage}><Messages /></Layout>} />
                 <Route path="/Chat" element={<Layout currentPageName={currentPage}><Chat /></Layout>} />
+                <Route path="/Profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
+                <Route path="/profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
             </Routes>
         </>
     );
