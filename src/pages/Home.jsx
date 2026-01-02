@@ -243,7 +243,7 @@ export default function Home() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
                       <User className="w-4 h-4 mr-1" />
-                      <span className="text-xs">Профайл</span>
+                      <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -266,7 +266,7 @@ export default function Home() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
                       <User className="w-4 h-4 mr-1" />
-                      <span className="text-xs">Профайл</span>
+                      <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
