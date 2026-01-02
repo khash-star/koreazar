@@ -335,12 +335,20 @@ export default function Chat() {
           </Link>
           
           <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-              {otherUser?.full_name?.[0]?.toUpperCase() || '?'}
-            </div>
+            {otherUser?.displayName === 'АДМИН' ? (
+              <img 
+                src="/admin_logo.png" 
+                alt="Admin Logo" 
+                className="w-10 h-10 object-contain"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
+                {otherUser?.displayName?.[0]?.toUpperCase() || otherUser?.email?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
             <div>
               <h2 className="font-semibold text-gray-900">
-                {otherUser?.full_name || otherUser?.email || 'Уншиж байна...'}
+                {otherUser?.displayName || otherUser?.email || 'Уншиж байна...'}
               </h2>
               {listing && (
                 <p className="text-xs text-gray-500">
