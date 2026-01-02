@@ -82,6 +82,34 @@ export default function Chat() {
     enabled: !!actualConversationId
   });
 
+  // Mark conversation as read when viewing
+  useEffect(() => {
+    if (!conversation || !userEmail) return;
+    
+    const markAsRead = async () => {
+      try {
+        // Determine which unread count to reset
+        const isParticipant1 = conversation.participant_1 === userEmail;
+        const unreadField = isParticipant1 ? 'unread_count_p1' : 'unread_count_p2';
+        const currentUnread = conversation[unreadField] || 0;
+        
+        // Only update if there are unread messages
+        if (currentUnread > 0) {
+          await updateConversation(conversation.id, {
+            [unreadField]: 0
+          });
+          // Invalidate queries to refresh counts
+          queryClient.invalidateQueries(['conversations', userEmail]);
+          queryClient.invalidateQueries(['conversation', actualConversationId]);
+        }
+      } catch (error) {
+        console.error('Error marking conversation as read:', error);
+      }
+    };
+    
+    markAsRead();
+  }, [conversation, userEmail, actualConversationId, queryClient]);
+
   // Real-time listener for messages
   useEffect(() => {
     if (!actualConversationId) {
