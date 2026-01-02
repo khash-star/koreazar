@@ -259,3 +259,18 @@ export const getAllUsers = async () => {
   }
 };
 
+/**
+ * Админий имэйлийг олох
+ * @returns {Promise<string|null>} Админий имэйл эсвэл null
+ */
+export const getAdminEmail = async () => {
+  try {
+    const users = await getAllUsers();
+    const admin = users.find(user => user.role === 'admin');
+    return admin?.email || null;
+  } catch (error) {
+    console.error('Error getting admin email:', error);
+    return null;
+  }
+};
+

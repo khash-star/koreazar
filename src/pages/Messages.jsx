@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin } from '@/services/authService';
+import { redirectToLogin, getAdminEmail } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
-import { filterConversations, listConversations } from '@/services/conversationService';
+import { filterConversations, listConversations, findConversation, createConversation } from '@/services/conversationService';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { MessageCircle, Search, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Search, ArrowLeft, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { Timestamp } from 'firebase/firestore';
 
 export default function Messages() {
   const { user, userData } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const userEmail = userData?.email || user?.email;
+  const [adminEmail, setAdminEmail] = useState(null);
+
+  // Get admin email
+  useEffect(() => {
+    const fetchAdminEmail = async () => {
+      const email = await getAdminEmail();
+      setAdminEmail(email);
+    };
+    fetchAdminEmail();
+  }, []);
 
   useEffect(() => {
     if (!user && !userData) {
@@ -58,6 +69,38 @@ export default function Messages() {
       conv.last_message?.toLowerCase().includes(searchLower)
     );
   });
+
+  // Check if user has conversation with admin
+  const hasAdminConversation = conversations.some(conv => 
+    conv.otherUser.email === adminEmail
+  );
+
+  const handleMessageAdmin = async () => {
+    if (!adminEmail || !userEmail) return;
+    
+    try {
+      // Find or create conversation with admin
+      let conversation = await findConversation(userEmail, adminEmail);
+      
+      if (!conversation) {
+        conversation = await createConversation({
+          participant_1: userEmail,
+          participant_2: adminEmail,
+          last_message: '',
+          last_message_date: Timestamp.now(),
+          last_message_sender: userEmail,
+          unread_count_p1: 0,
+          unread_count_p2: 0
+        });
+      }
+      
+      // Navigate to chat with admin
+      window.location.href = createPageUrl(`Chat?conversationId=${conversation.id}&otherUserEmail=${adminEmail}`);
+    } catch (error) {
+      console.error('Error creating conversation with admin:', error);
+      alert('Админд мессеж илгээхэд алдаа гарлаа. Дахин оролдоно уу.');
+    }
+  };
 
   if (!user) {
     return (
@@ -171,9 +214,32 @@ export default function Messages() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {searchQuery ? 'Хайлтын үр дүн олдсонгүй' : 'Мессеж байхгүй байна'}
             </h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 mb-6">
               {searchQuery ? 'Өөр хайлт хийж үзнэ үү' : 'Зар дээр дарж зарын эзэнтэй холбогдоорой'}
             </p>
+            {adminEmail && !hasAdminConversation && (
+              <Button
+                onClick={handleMessageAdmin}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Админд мессеж илгээх
+              </Button>
+            )}
+          </div>
+        )}
+        
+        {/* Message Admin Button - Always visible at top */}
+        {adminEmail && !hasAdminConversation && filteredConversations.length > 0 && (
+          <div className="mt-4 mb-4">
+            <Button
+              onClick={handleMessageAdmin}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              variant="default"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Админд мессеж илгээх
+            </Button>
           </div>
         )}
       </div>
