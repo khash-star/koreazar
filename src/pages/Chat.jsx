@@ -336,26 +336,30 @@ export default function Chat() {
           
           <div className="flex items-center gap-3 flex-1">
             {otherUser?.displayName === 'АДМИН' ? (
-              <img 
-                src="/admin_logo.png" 
-                alt="Admin Logo" 
-                className="w-10 h-10 object-contain"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-                {otherUser?.displayName?.[0]?.toUpperCase() || otherUser?.email?.[0]?.toUpperCase() || '?'}
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/admin_logo.png" 
+                  alt="Admin Logo" 
+                  className="w-full h-full object-contain"
+                />
               </div>
+            ) : (
+              <>
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                  {otherUser?.displayName?.[0]?.toUpperCase() || otherUser?.email?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-gray-900 truncate">
+                    {otherUser?.displayName || otherUser?.email || 'Уншиж байна...'}
+                  </h2>
+                  {listing && (
+                    <p className="text-xs text-gray-500 truncate">
+                      Зар: {listing.title}
+                    </p>
+                  )}
+                </div>
+              </>
             )}
-            <div>
-              <h2 className="font-semibold text-gray-900">
-                {otherUser?.displayName || otherUser?.email || 'Уншиж байна...'}
-              </h2>
-              {listing && (
-                <p className="text-xs text-gray-500">
-                  Зар: {listing.title}
-                </p>
-              )}
-            </div>
           </div>
         </div>
       </div>
