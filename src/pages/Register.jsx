@@ -22,18 +22,71 @@ export default function Register() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
     setError('');
+    
+    // Real-time email validation
+    if (name === 'email') {
+      if (!value || !value.trim()) {
+        setEmailError('Имэйл хаяг заавал оруулах шаардлагатай.');
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value.trim())) {
+          setEmailError('Имэйл хаяг буруу форматтай байна.');
+        } else {
+          setEmailError('');
+        }
+      }
+    } else {
+      setEmailError('');
+    }
+    
+    // Real-time phone validation
+    if (name === 'phone' && value && value.trim()) {
+      const phoneDigits = value.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d+$/.test(phoneDigits)) {
+        setPhoneError('Утасны дугаар зөвхөн тоо байх ёстой.');
+      } else if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+        setPhoneError('Утасны дугаар .');
+      } else {
+        setPhoneError('');
+      }
+    } else if (name === 'phone') {
+      setPhoneError('');
+    }
   };
 
   const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Бүх талбарыг бөглөнө үү.');
+    // Email заавал шаардлагатай
+    if (!formData.email || !formData.email.trim()) {
+      setError('Имэйл хаяг заавал оруулах шаардлагатай.');
+      setEmailError('Имэйл хаяг заавал оруулах шаардлагатай.');
+      return false;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const trimmedEmail = formData.email.trim();
+    if (!emailRegex.test(trimmedEmail)) {
+      setError('Имэйл хаяг буруу форматтай байна.');
+      setEmailError('Имэйл хаяг буруу форматтай байна.');
+      return false;
+    }
+    
+    // Clear email error if valid
+    setEmailError('');
+
+    // Password заавал шаардлагатай
+    if (!formData.password || !formData.confirmPassword) {
+      setError('Нууц үг заавал оруулах шаардлагатай.');
       return false;
     }
 
@@ -47,11 +100,28 @@ export default function Register() {
       return false;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError('Имэйл хаяг буруу форматтай байна.');
-      return false;
+    // Утасны дугаар validation (хэрэв оруулсан бол)
+    if (formData.phone && formData.phone.trim()) {
+      // Зөвхөн тоонуудыг авах (зураас, зай, хаалт зэргийг арилгах)
+      const phoneDigits = formData.phone.replace(/[\s\-\(\)\+]/g, '');
+      
+      // Зөвхөн тоо байгаа эсэхийг шалгах
+      if (!/^\d+$/.test(phoneDigits)) {
+        setError('Утасны дугаар зөвхөн тоо байх ёстой.');
+        setPhoneError('Утасны дугаар зөвхөн тоо байх ёстой.');
+        return false;
+      }
+      
+      // 8-11 оронтой байх ёстой
+      if (phoneDigits.length < 8 || phoneDigits.length > 11) {
+        setError('Утасны дугаар 8-11 оронтой байх ёстой.');
+        setPhoneError('Утасны дугаар 8-11 оронтой байх ёстой.');
+        return false;
+      }
     }
+    
+    // Clear phone error if valid
+    setPhoneError('');
 
     return true;
   };
@@ -140,9 +210,16 @@ export default function Register() {
                 type="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="010-1234-5678"
+                placeholder="01012345678 (8-11 орон)"
                 autoComplete="tel"
+                pattern="[0-9\s\-\(\)\+]{8,15}"
+                className={phoneError ? 'border-red-500' : ''}
               />
+              {phoneError ? (
+                <p className="text-xs text-red-500">{phoneError}</p>
+              ) : (
+                <p className="text-xs text-gray-500">8-11 оронтой тоо</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Имэйл *</Label>
@@ -152,10 +229,22 @@ export default function Register() {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
+                onBlur={(e) => {
+                  if (e.target.value && !emailError) {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(e.target.value.trim())) {
+                      setEmailError('Имэйл хаяг буруу форматтай байна.');
+                    }
+                  }
+                }}
                 placeholder="name@example.com"
                 required
                 autoComplete="email"
+                className={emailError ? 'border-red-500' : ''}
               />
+              {emailError && (
+                <p className="text-xs text-red-500">{emailError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Нууц үг *</Label>
