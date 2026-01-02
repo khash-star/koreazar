@@ -58,6 +58,10 @@ export default function ListingCard({ listing }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
+    },
+    onError: (error) => {
+      console.error('Error saving listing:', error);
+      alert('Зар хадгалахад алдаа гарлаа. Дахин оролдоно уу.');
     }
   });
 

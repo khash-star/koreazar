@@ -81,8 +81,13 @@ export default function ListingDetail() {
     mutationFn: async () => {
       if (isSaved) {
         const saved = savedListings.find(s => s.listing_id === listingId);
-        await deleteSavedListing(saved.id);
+        if (saved) {
+          await deleteSavedListing(saved.id);
+        }
       } else {
+        if (!userEmail) {
+          throw new Error('User email is required');
+        }
         await createSavedListing({ 
           listing_id: listingId,
           created_by: userEmail 
@@ -91,6 +96,10 @@ export default function ListingDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
+    },
+    onError: (error) => {
+      console.error('Error saving listing:', error);
+      alert('Зар хадгалахад алдаа гарлаа. Дахин оролдоно уу.');
     }
   });
 
