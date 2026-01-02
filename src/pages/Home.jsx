@@ -214,36 +214,63 @@ export default function Home() {
             🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
           </h1>
           {!isAuthenticated ? (
-            <Link to={createPageUrl('Login')} className="md:hidden ml-2">
-              <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                <User className="w-4 h-4 mr-1" />
-                <span className="text-xs">Нэвтрэх</span>
-              </Button>
-            </Link>
+            <>
+              <Link to={createPageUrl('Login')} className="ml-2">
+                <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                  <User className="w-4 h-4 mr-1" />
+                  <span className="text-xs">Нэвтрэх</span>
+                </Button>
+              </Link>
+            </>
           ) : (
-            <div className="md:hidden ml-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                    <User className="w-4 h-4 mr-1" />
-                    <span className="text-xs">Профайл</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link to={createPageUrl('MyListings')} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Миний зар</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Гарах</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <>
+              <div className="md:hidden ml-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                      <User className="w-4 h-4 mr-1" />
+                      <span className="text-xs">Профайл</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl('MyListings')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Миний зар</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Гарах</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="hidden md:block ml-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                      <User className="w-4 h-4 mr-1" />
+                      <span className="text-xs">Профайл</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to={createPageUrl('MyListings')} className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Миний зар</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Гарах</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -523,12 +550,21 @@ export default function Home() {
         }
         </h2>
         </div>
-        <Link to={createPageUrl('CreateListing')}>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
-        <Plus className="w-5 h-5 mr-2" />
-        Зар нэмэх
-        </Button>
-        </Link>
+        {isAuthenticated ? (
+          <Link to={createPageUrl('CreateListing')}>
+            <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
+              <Plus className="w-5 h-5 mr-2" />
+              Зар нэмэх
+            </Button>
+          </Link>
+        ) : (
+          <Link to={createPageUrl('Login')}>
+            <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
+              <Plus className="w-5 h-5 mr-2" />
+              Зар нэмэх
+            </Button>
+          </Link>
+        )}
         </div>
 
           {isLoading ? (
@@ -583,12 +619,21 @@ export default function Home() {
               <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h3>
                 <p className="text-gray-500 mb-6">Шүүлтүүрээ өөрчилж үзнэ үү</p>
-                <Link to={createPageUrl('CreateListing')}>
-                  <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Эхний зараа нэмэх
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link to={createPageUrl('CreateListing')}>
+                    <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Эхний зараа нэмэх
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to={createPageUrl('Login')}>
+                    <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                      <Plus className="w-5 h-5 mr-2" />
+                      Эхний зараа нэмэх
+                    </Button>
+                  </Link>
+                )}
             </motion.div>
           )}
         </section>

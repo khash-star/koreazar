@@ -167,9 +167,17 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-xs mt-1">Мессеж</span>
             </Link>
 
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Link
                 to={createPageUrl('CreateListing')}
+                className="flex flex-col items-center py-2 px-3 text-gray-500"
+              >
+                <PlusCircle className="w-6 h-6" />
+                <span className="text-xs mt-1">Зар нэмэх</span>
+              </Link>
+            ) : (
+              <Link
+                to={createPageUrl('Login')}
                 className="flex flex-col items-center py-2 px-3 text-gray-500"
               >
                 <PlusCircle className="w-6 h-6" />
