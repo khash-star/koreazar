@@ -316,3 +316,73 @@ export const deleteSavedListing = async (id) => {
   }
 };
 
+/**
+ * Бүх хэрэглэгчдэд мессеж явуулах (зөвхөн админ)
+ * @param {string} adminEmail - Админий имэйл
+ * @param {string} message - Мессежийн агуулга
+ * @returns {Promise<Object>} Амжилттай илгээсэн мессежүүдийн тоо
+ */
+export const sendMessageToAllUsers = async (adminEmail, message) => {
+  try {
+    const { getAllUsers } = await import('@/services/authService');
+    const users = await getAllUsers();
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const user of users) {
+      // Админд мессеж явуулахгүй
+      if (user.email === adminEmail) continue;
+      
+      try {
+        // Conversation олох эсвэл үүсгэх
+        let conversation = await findConversation(adminEmail, user.email);
+        
+        if (!conversation) {
+          // Шинэ conversation үүсгэх
+          conversation = await createConversation({
+            participant_1: adminEmail,
+            participant_2: user.email,
+            last_message: message,
+            last_message_date: Timestamp.now(),
+            last_message_sender: adminEmail,
+            unread_count_p1: 0,
+            unread_count_p2: 1 // Хүлээн авагч unread count
+          });
+        } else {
+          // Conversation update хийх
+          await updateConversation(conversation.id, {
+            last_message: message,
+            last_message_date: Timestamp.now(),
+            last_message_sender: adminEmail,
+            unread_count_p2: (conversation.unread_count_p2 || 0) + 1
+          });
+        }
+        
+        // Мессеж үүсгэх
+        await createMessage({
+          conversation_id: conversation.id,
+          sender_email: adminEmail,
+          receiver_email: user.email,
+          message: message,
+          is_read: false
+        });
+        
+        successCount++;
+      } catch (error) {
+        console.error(`Error sending message to ${user.email}:`, error);
+        errorCount++;
+      }
+    }
+    
+    return {
+      successCount,
+      errorCount,
+      totalUsers: users.length - 1 // Админийг тооцохгүй
+    };
+  } catch (error) {
+    console.error('Error sending messages to all users:', error);
+    throw error;
+  }
+};
+

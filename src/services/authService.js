@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 /**
@@ -237,6 +237,25 @@ export const isAdmin = async () => {
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
+  }
+};
+
+/**
+ * Бүх хэрэглэгчдийг авах (зөвхөн админ)
+ * @returns {Promise<Array>} Бүх хэрэглэгчдийн жагсаалт
+ */
+export const getAllUsers = async () => {
+  try {
+    const usersRef = collection(db, 'users');
+    const querySnapshot = await getDocs(usersRef);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error getting all users:', error);
+    throw error;
   }
 };
 

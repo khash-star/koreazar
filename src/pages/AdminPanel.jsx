@@ -1,21 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { filterListings } from '@/services/listingService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { sendMessageToAllUsers } from '@/services/conversationService';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2 } from 'lucide-react';
 
 export default function AdminPanel() {
   const { userData, loading: authLoading } = useAuth();
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [message, setMessage] = useState('');
+  const [sendResult, setSendResult] = useState(null);
 
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['pending-count'],
     queryFn: () => filterListings({ status: 'pending' }),
     enabled: userData?.role === 'admin',
   });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageText) => {
+      const adminEmail = userData?.email;
+      if (!adminEmail) throw new Error('Admin email not found');
+      return await sendMessageToAllUsers(adminEmail, messageText);
+    },
+    onSuccess: (result) => {
+      setSendResult(result);
+      setMessage('');
+      setTimeout(() => {
+        setShowMessageDialog(false);
+        setSendResult(null);
+      }, 3000);
+    },
+    onError: (error) => {
+      console.error('Error sending messages:', error);
+      alert('Мессеж илгээхэд алдаа гарлаа. Дахин оролдоно уу.');
+    }
+  });
+
+  const handleSendMessage = () => {
+    if (!message.trim()) {
+      alert('Мессеж оруулна уу.');
+      return;
+    }
+    sendMessageMutation.mutate(message.trim());
+  };
 
   if (authLoading) {
     return (
@@ -155,8 +197,90 @@ export default function AdminPanel() {
               </div>
             </motion.div>
           </Link>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            whileHover={{ y: -4, scale: 1.02 }}
+            onClick={() => setShowMessageDialog(true)}
+            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center">
+                <MessageSquare className="w-6 h-6 text-pink-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Бүх хэрэглэгчдэд мессеж</h2>
+                <p className="text-sm text-gray-500">Бүх хэрэглэгчдэд мессеж илгээх</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-sm text-gray-600">Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх</p>
+            </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Send Message Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Бүх хэрэглэгчдэд мессеж илгээх</DialogTitle>
+            <DialogDescription>
+              Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх. Мессеж нь хэрэглэгчдийн мессеж хайрцагт харагдах болно.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder="Мессежийн агуулга..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={6}
+              className="resize-none"
+            />
+            {sendResult && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  ✅ Амжилттай илгээсэн: {sendResult.successCount} хэрэглэгч
+                  {sendResult.errorCount > 0 && (
+                    <span className="text-red-600"> | Алдаа: {sendResult.errorCount}</span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMessageDialog(false);
+                setMessage('');
+                setSendResult(null);
+              }}
+              disabled={sendMessageMutation.isPending}
+            >
+              Цуцлах
+            </Button>
+            <Button
+              onClick={handleSendMessage}
+              disabled={sendMessageMutation.isPending || !message.trim()}
+            >
+              {sendMessageMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Илгээж байна...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Илгээх
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
