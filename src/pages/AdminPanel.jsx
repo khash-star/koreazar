@@ -393,7 +393,13 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-600">Имэйл, нэр, утасны дугаараар хайх</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Имэйл, нэр, утасны дугаараар хайх</p>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Нийт хэрэглэгч</p>
+                  <p className="text-2xl font-bold text-indigo-600">{usersLoading ? '...' : allUsers.length}</p>
+                </div>
+              </div>
             </div>
           </motion.div>
         </div>
