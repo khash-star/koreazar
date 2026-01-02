@@ -4,10 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { sendMessageToAllUsers } from '@/services/conversationService';
+import { sendMessageToAllUsers, filterConversations } from '@/services/conversationService';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,41 @@ export default function AdminPanel() {
     queryKey: ['pending-count'],
     queryFn: () => filterListings({ status: 'pending' }),
     enabled: userData?.role === 'admin',
+  });
+
+  const { data: vipListings = [] } = useQuery({
+    queryKey: ['vip-listings-count'],
+    queryFn: () => filterListings({ listing_type: 'vip', status: 'active' }),
+    enabled: userData?.role === 'admin',
+  });
+
+  const { data: unreadMessagesCount = 0 } = useQuery({
+    queryKey: ['admin-unread-messages', userData?.email],
+    queryFn: async () => {
+      if (!userData?.email) return 0;
+      
+      try {
+        // Get all conversations where admin is participant
+        const convs1 = await filterConversations({ participant_1: userData.email });
+        const convs2 = await filterConversations({ participant_2: userData.email });
+        const allConvs = [...convs1, ...convs2];
+        
+        // Calculate total unread count for admin
+        const totalUnread = allConvs.reduce((sum, conv) => {
+          const unread = conv.participant_1 === userData.email 
+            ? (conv.unread_count_p1 || 0)
+            : (conv.unread_count_p2 || 0);
+          return sum + unread;
+        }, 0);
+        
+        return totalUnread;
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+        return 0;
+      }
+    },
+    enabled: !!userData?.email && userData?.role === 'admin',
+    refetchInterval: 5000 // Refresh every 5 seconds
   });
 
   const sendMessageMutation = useMutation({
@@ -87,15 +122,79 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to={createPageUrl('Home')}>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Админ удирдлага</h1>
-            <p className="text-sm text-gray-500">Зарууд болон системийн удирдлага</p>
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-4 mb-4">
+            <Link to={createPageUrl('Home')}>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Админ удирдлага</h1>
+              <p className="text-sm text-gray-500">Зарууд болон системийн удирдлага</p>
+            </div>
+          </div>
+          
+          {/* Dashboard Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Link to={createPageUrl('AdminNewListings')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border border-yellow-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Шинэ зар</p>
+                    <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+            
+            <Link to={createPageUrl('AdminAllListings')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border border-purple-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">VIP зар</p>
+                    <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
+                  </div>
+                  <Star className="w-8 h-8 text-purple-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+            
+            <Link to={createPageUrl('Messages')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Мессеж</p>
+                    <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
+                  </div>
+                  <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+            
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setShowMessageDialog(true)}
+              className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200 cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 mb-1">Мессеж илгээх</p>
+                  <p className="text-sm font-semibold text-green-600">Бүх хэрэглэгч</p>
+                </div>
+                <Send className="w-8 h-8 text-green-500 opacity-50" />
+              </div>
+            </motion.div>
           </div>
         </div>
       </div>
