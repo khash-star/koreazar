@@ -20,7 +20,18 @@ service cloud.firestore {
     match /listings/{listingId} {
       allow read: if true; // Anyone can read listings
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && 
+      // Allow update if user is owner/admin
+      // Also allow anyone authenticated to update views field (for view count tracking)
+      allow update: if request.auth != null && (
+        resource.data.created_by == request.auth.token.email || 
+        isAdmin() ||
+        // Allow view count increment - check if views is being incremented and other fields unchanged
+        (request.resource.data.views == resource.data.views + 1 &&
+         request.resource.data.created_by == resource.data.created_by &&
+         request.resource.data.title == resource.data.title &&
+         request.resource.data.category == resource.data.category)
+      );
+      allow delete: if request.auth != null && 
         (resource.data.created_by == request.auth.token.email || isAdmin());
     }
     

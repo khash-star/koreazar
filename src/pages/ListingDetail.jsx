@@ -110,12 +110,28 @@ export default function ListingDetail() {
     saveMutation.mutate();
   };
 
-  // Update view count
+  // Update view count (only once per user per 24 hours)
   useEffect(() => {
-    if (listing) {
-      updateListing(listing.id, {
-        views: (listing.views || 0) + 1
-      }).catch(err => console.error('Error updating view count:', err));
+    if (listing && listing.id) {
+      const viewedKey = `listing_viewed_${listing.id}`;
+      const viewedTimestamp = localStorage.getItem(viewedKey);
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+      
+      // Check if user has viewed this listing in the last 24 hours
+      const hasViewedRecently = viewedTimestamp && (now - parseInt(viewedTimestamp)) < twentyFourHours;
+      
+      // Only increment view count if user hasn't viewed this listing in the last 24 hours
+      if (!hasViewedRecently) {
+        updateListing(listing.id, {
+          views: (listing.views || 0) + 1
+        }).catch(err => {
+          console.error('Error updating view count:', err);
+        });
+        
+        // Mark as viewed in localStorage with current timestamp
+        localStorage.setItem(viewedKey, now.toString());
+      }
     }
   }, [listing?.id]);
 
