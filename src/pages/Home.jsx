@@ -3,7 +3,7 @@ import { filterListings } from '@/services/listingService';
 import { filterBannerAds } from '@/services/bannerService';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -26,6 +26,9 @@ import {
 import { LogOut } from 'lucide-react';
 import { logout } from '@/services/authService';
 import { useNavigate } from 'react-router-dom';
+import { filterConversations } from '@/services/conversationService';
+import { filterListings } from '@/services/listingService';
+import { filterConversations } from '@/services/conversationService';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -208,6 +211,46 @@ export default function Home() {
     queryFn: () => filterListings({ status: 'active' }, '-created_date', 20), // Limit to 20 for counts
   });
 
+  // Admin dashboard stats
+  const { data: pendingListings = [] } = useQuery({
+    queryKey: ['admin-pending-count'],
+    queryFn: () => filterListings({ status: 'pending' }),
+    enabled: userData?.role === 'admin',
+  });
+
+  const { data: vipListings = [] } = useQuery({
+    queryKey: ['admin-vip-count'],
+    queryFn: () => filterListings({ listing_type: 'vip', status: 'active' }),
+    enabled: userData?.role === 'admin',
+  });
+
+  const { data: unreadMessagesCount = 0 } = useQuery({
+    queryKey: ['admin-unread-messages-home', userData?.email],
+    queryFn: async () => {
+      if (!userData?.email) return 0;
+      
+      try {
+        const convs1 = await filterConversations({ participant_1: userData.email });
+        const convs2 = await filterConversations({ participant_2: userData.email });
+        const allConvs = [...convs1, ...convs2];
+        
+        const totalUnread = allConvs.reduce((sum, conv) => {
+          const unread = conv.participant_1 === userData.email 
+            ? (conv.unread_count_p1 || 0)
+            : (conv.unread_count_p2 || 0);
+          return sum + unread;
+        }, 0);
+        
+        return totalUnread;
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+        return 0;
+      }
+    },
+    enabled: !!userData?.email && userData?.role === 'admin',
+    refetchInterval: 5000
+  });
+
   const categoryCounts = allListings.reduce((acc, listing) => {
     acc[listing.category] = (acc[listing.category] || 0) + 1;
     return acc;
@@ -288,6 +331,58 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Admin Dashboard Stats */}
+      {userData?.role === 'admin' && (
+        <div className="max-w-7xl mx-auto px-4 mt-12 md:mt-14 mb-4">
+          <div className="grid grid-cols-3 gap-3">
+            <Link to={createPageUrl('AdminNewListings')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border border-yellow-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Шинэ зар</p>
+                    <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+            
+            <Link to={createPageUrl('AdminAllListings')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border border-purple-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">VIP зар</p>
+                    <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
+                  </div>
+                  <Star className="w-8 h-8 text-purple-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+            
+            <Link to={createPageUrl('Messages')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Мессеж</p>
+                    <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
+                  </div>
+                  <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
+                </div>
+              </motion.div>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Hero Banner Grid */}
       {bannerAds.length > 0 && (
