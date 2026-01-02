@@ -16,14 +16,34 @@ import Banner from '@/components/Banner';
 import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { LogOut } from 'lucide-react';
+import { logout } from '@/services/authService';
+import { useNavigate } from 'react-router-dom';
 
 export default function Home() {
+  const navigate = useNavigate();
   const listingsRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userData } = useAuth();
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/Home');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -193,13 +213,37 @@ export default function Home() {
           <h1 className="text-sm md:text-lg font-bold tracking-wide flex-1 text-center">
             🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
           </h1>
-          {!isAuthenticated && (
+          {!isAuthenticated ? (
             <Link to={createPageUrl('Login')} className="md:hidden ml-2">
               <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
                 <User className="w-4 h-4 mr-1" />
                 <span className="text-xs">Нэвтрэх</span>
               </Button>
             </Link>
+          ) : (
+            <div className="md:hidden ml-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                    <User className="w-4 h-4 mr-1" />
+                    <span className="text-xs">Профайл</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link to={createPageUrl('MyListings')} className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Миний зар</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Гарах</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
       </div>

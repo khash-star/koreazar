@@ -167,40 +167,14 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-xs mt-1">Мессеж</span>
             </Link>
 
-            <Link
-              to={createPageUrl('CreateListing')}
-              className="flex flex-col items-center py-2 px-3 text-gray-500"
-            >
-              <PlusCircle className="w-6 h-6" />
-              <span className="text-xs mt-1">Зар нэмэх</span>
-            </Link>
-
             {isAuthenticated && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`flex flex-col items-center py-2 px-6 ${
-                      currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
-                    }`}
-                  >
-                    <User className="w-6 h-6" />
-                    <span className="text-xs mt-1">Профайл</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 mb-2">
-                  <DropdownMenuItem asChild>
-                    <Link to={createPageUrl('MyListings')} className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Миний зар</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Гарах</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Link
+                to={createPageUrl('CreateListing')}
+                className="flex flex-col items-center py-2 px-3 text-gray-500"
+              >
+                <PlusCircle className="w-6 h-6" />
+                <span className="text-xs mt-1">Зар нэмэх</span>
+              </Link>
             )}
 
             {userData?.role === 'admin' && (
