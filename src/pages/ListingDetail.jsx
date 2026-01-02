@@ -54,7 +54,7 @@ export default function ListingDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const { user, userData } = useAuth();
+  const { user, userData, isAuthenticated } = useAuth();
 
   const { data: listing, isLoading, error } = useQuery({
     queryKey: ['listing', listingId],
@@ -396,7 +396,13 @@ export default function ListingDetail() {
                     </a>
                   ) : (
                     <Button
-                      onClick={() => setShowPhone(true)}
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          redirectToLogin();
+                        } else {
+                          setShowPhone(true);
+                        }
+                      }}
                       className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
                     >
                       <Phone className="w-5 h-5 mr-2" />
@@ -462,7 +468,13 @@ export default function ListingDetail() {
               </a>
             ) : (
               <Button
-                onClick={() => setShowPhone(true)}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    redirectToLogin();
+                  } else {
+                    setShowPhone(true);
+                  }
+                }}
                 className="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600"
               >
                 <Phone className="w-5 h-5 mr-2" />
