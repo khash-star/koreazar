@@ -34,6 +34,7 @@ import Login from "./Login";
 import Register from "./Register";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const PAGES = {
     
@@ -91,6 +92,11 @@ function _getCurrentPage(url) {
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
+    
+    // Scroll to top when route changes
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [location.pathname]);
     
     // Login болон Register хуудсууд Layout-аас гадуур байх
     const isAuthPage = currentPage === 'Login' || currentPage === 'Register';
