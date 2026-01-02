@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { filterListings } from '@/services/listingService';
+import { filterListings, listListings } from '@/services/listingService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell, Users, Search } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell, Users, Search, TrendingUp, Eye, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sendMessageToAllUsers, filterConversations } from '@/services/conversationService';
 import { getAllUsers } from '@/services/authService';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   Dialog,
   DialogContent,
@@ -98,6 +99,47 @@ export default function AdminPanel() {
     queryFn: () => filterListings({}, '-created_date', 1000),
     enabled: userData?.role === 'admin' && showUserSearch,
   });
+
+  const { data: allListingsForStats = [] } = useQuery({
+    queryKey: ['all-listings-stats'],
+    queryFn: () => listListings('-created_date', 1000),
+    enabled: userData?.role === 'admin',
+  });
+
+  // Calculate statistics
+  const totalViews = allListingsForStats.reduce((sum, listing) => sum + (listing.views || 0), 0);
+  const loggedInUsers = allUsers.filter(user => user.email).length;
+  
+  // Category statistics
+  const categoryStats = allListingsForStats.reduce((acc, listing) => {
+    const category = listing.category || 'Бусад';
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Status statistics
+  const statusStats = allListingsForStats.reduce((acc, listing) => {
+    const status = listing.status || 'unknown';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Prepare chart data
+  const categoryChartData = Object.entries(categoryStats).map(([name, value]) => ({
+    name: name.length > 10 ? name.substring(0, 10) + '...' : name,
+    value,
+    fullName: name
+  })).sort((a, b) => b.value - a.value).slice(0, 10);
+
+  const statusChartData = Object.entries(statusStats).map(([name, value]) => ({
+    name: name === 'active' ? 'Идэвхтэй' : 
+          name === 'pending' ? 'Хүлээгдэж' : 
+          name === 'rejected' ? 'Татгалзсан' : 
+          name === 'sold' ? 'Зарагдсан' : name,
+    value
+  }));
+
+  const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   const filteredUsers = allUsers.filter(user => 
     user.email?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -252,6 +294,143 @@ export default function AdminPanel() {
               </div>
             </motion.div>
           </div>
+        </div>
+      </div>
+
+      {/* Statistics Section */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Статистик</h2>
+          <p className="text-gray-500">Сайтын үйл ажиллагааны мэдээлэл</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Сайтад хандсан</p>
+                <p className="text-3xl font-bold text-gray-900">{totalViews.toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mt-1">Бүх заруудын үзсэн тоо</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                <Eye className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Нэвтэрсэн хэрэглэгч</p>
+                <p className="text-3xl font-bold text-gray-900">{loggedInUsers}</p>
+                <p className="text-xs text-gray-400 mt-1">Бүртгэлтэй хэрэглэгч</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <LogIn className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Нийт зар</p>
+                <p className="text-3xl font-bold text-gray-900">{allListingsForStats.length}</p>
+                <p className="text-xs text-gray-400 mt-1">Бүх заруудын тоо</p>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-amber-600" />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Category Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Заруудын категори</h3>
+            {categoryChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={categoryChartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    fontSize={12}
+                  />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name, props) => [value, props.payload.fullName]}
+                  />
+                  <Legend />
+                  <Bar dataKey="value" fill="#f59e0b" name="Тоо" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-400">
+                Өгөгдөл байхгүй
+              </div>
+            )}
+          </motion.div>
+
+          {/* Status Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Заруудын статус</h3>
+            {statusChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={statusChartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-400">
+                Өгөгдөл байхгүй
+              </div>
+            )}
+          </motion.div>
         </div>
       </div>
 
