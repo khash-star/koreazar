@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
 import { redirectToLogin } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getListing, updateListing } from '@/services/listingService';

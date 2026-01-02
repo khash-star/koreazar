@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
 import { uploadFile } from '@/services/storageService';
 import { getListing, updateListing } from '@/services/listingService';
 import { useQuery, useMutation } from '@tanstack/react-query';

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
 import { filterListings } from '@/services/listingService';
 import { filterBannerAds } from '@/services/bannerService';
 import { useQuery } from '@tanstack/react-query';
