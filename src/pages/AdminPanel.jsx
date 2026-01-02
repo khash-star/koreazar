@@ -28,6 +28,7 @@ export default function AdminPanel() {
   const [sendResult, setSendResult] = useState(null);
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const { data: pendingListings = [], isLoading: pendingLoading, error: pendingError } = useQuery({
     queryKey: ['pending-count'],
@@ -438,7 +439,8 @@ export default function AdminPanel() {
                         key={user.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+                        onClick={() => setSelectedUser({ ...user, listings: userListings, activeListings, pendingListings, totalListings })}
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -515,6 +517,172 @@ export default function AdminPanel() {
               setShowUserSearch(false);
               setUserSearchTerm('');
             }}>
+              Хаах
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Profile Dialog */}
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Хэрэглэгчийн профайл</DialogTitle>
+            <DialogDescription>
+              Хэрэглэгчийн дэлгэрэнгүй мэдээлэл
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-bold">
+                    {(selectedUser.displayName || selectedUser.email?.split('@')[0] || 'U')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xl font-bold text-gray-900">
+                        {selectedUser.displayName || selectedUser.email?.split('@')[0] || 'Нэргүй'}
+                      </h3>
+                      {selectedUser.role === 'admin' && (
+                        <span className="px-2 py-0.5 text-xs bg-amber-500 text-white rounded">Админ</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{selectedUser.email}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Үндсэн мэдээлэл</h4>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-500">Имэйл</p>
+                      <p className="text-sm text-gray-900">{selectedUser.email}</p>
+                    </div>
+                    {selectedUser.phone && (
+                      <div>
+                        <p className="text-xs text-gray-500">Утасны дугаар</p>
+                        <p className="text-sm text-gray-900">📞 {selectedUser.phone}</p>
+                      </div>
+                    )}
+                    {selectedUser.createdAt && (
+                      <div>
+                        <p className="text-xs text-gray-500">Бүртгүүлсэн огноо</p>
+                        <p className="text-sm text-gray-900">
+                          {new Date(selectedUser.createdAt?.seconds * 1000 || selectedUser.createdAt).toLocaleDateString('mn-MN', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-gray-500">Эрх</p>
+                      <p className="text-sm text-gray-900">
+                        <span className={`px-2 py-0.5 rounded ${selectedUser.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
+                          {selectedUser.role === 'admin' ? 'Админ' : 'Хэрэглэгч'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Заруудын статистик</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center p-2 bg-gray-50 rounded">
+                      <p className="text-xs text-gray-500">Нийт</p>
+                      <p className="text-lg font-bold text-gray-900">{selectedUser.totalListings || 0}</p>
+                    </div>
+                    <div className="text-center p-2 bg-green-50 rounded">
+                      <p className="text-xs text-gray-500">Идэвхтэй</p>
+                      <p className="text-lg font-bold text-green-600">{selectedUser.activeListings || 0}</p>
+                    </div>
+                    <div className="text-center p-2 bg-yellow-50 rounded">
+                      <p className="text-xs text-gray-500">Хүлээгдэж</p>
+                      <p className="text-lg font-bold text-yellow-600">{selectedUser.pendingListings || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {(selectedUser.kakao_id || selectedUser.wechat_id || selectedUser.whatsapp || selectedUser.facebook) && (
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Сошиал мэдээлэл</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {selectedUser.kakao_id && (
+                      <div className="p-2 bg-yellow-50 rounded border border-yellow-200">
+                        <p className="text-xs text-gray-500">Kakao ID</p>
+                        <p className="text-sm font-medium text-yellow-700">{selectedUser.kakao_id}</p>
+                      </div>
+                    )}
+                    {selectedUser.wechat_id && (
+                      <div className="p-2 bg-green-50 rounded border border-green-200">
+                        <p className="text-xs text-gray-500">WeChat ID</p>
+                        <p className="text-sm font-medium text-green-700">{selectedUser.wechat_id}</p>
+                      </div>
+                    )}
+                    {selectedUser.whatsapp && (
+                      <div className="p-2 bg-emerald-50 rounded border border-emerald-200">
+                        <p className="text-xs text-gray-500">WhatsApp</p>
+                        <p className="text-sm font-medium text-emerald-700">{selectedUser.whatsapp}</p>
+                      </div>
+                    )}
+                    {selectedUser.facebook && (
+                      <div className="p-2 bg-blue-50 rounded border border-blue-200">
+                        <p className="text-xs text-gray-500">Facebook</p>
+                        <p className="text-sm font-medium text-blue-700 break-all">{selectedUser.facebook}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedUser.listings && selectedUser.listings.length > 0 && (
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Зарууд ({selectedUser.listings.length})</h4>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {selectedUser.listings.slice(0, 10).map((listing) => (
+                      <div key={listing.id} className="p-2 bg-gray-50 rounded border border-gray-200">
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{listing.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs px-2 py-0.5 rounded ${
+                            listing.status === 'active' ? 'bg-green-100 text-green-700' :
+                            listing.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            listing.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {listing.status === 'active' ? 'Идэвхтэй' :
+                             listing.status === 'pending' ? 'Хүлээгдэж' :
+                             listing.status === 'rejected' ? 'Татгалзсан' :
+                             listing.status}
+                          </span>
+                          {listing.listing_type === 'vip' && (
+                            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded">VIP</span>
+                          )}
+                          {listing.listing_type === 'featured' && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">Онцгой</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {selectedUser.listings.length > 10 && (
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        +{selectedUser.listings.length - 10} илүү зар...
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedUser(null)}>
               Хаах
             </Button>
           </DialogFooter>
