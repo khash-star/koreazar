@@ -89,7 +89,7 @@ export default function AdminPanel() {
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ['all-users'],
     queryFn: () => getAllUsers(),
-    enabled: userData?.role === 'admin' && showUserSearch,
+    enabled: userData?.role === 'admin',
   });
 
   const filteredUsers = allUsers.filter(user => 
@@ -173,7 +173,7 @@ export default function AdminPanel() {
           </div>
           
           {/* Dashboard Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Link to={createPageUrl('AdminNewListings')}>
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -230,6 +230,24 @@ export default function AdminPanel() {
                 </div>
               </motion.div>
             </Link>
+            
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setShowUserSearch(true)}
+              className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl p-3 border border-indigo-200 cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-600 mb-1">Хэрэглэгч</p>
+                  {usersLoading ? (
+                    <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+                  ) : (
+                    <p className="text-2xl font-bold text-indigo-600">{allUsers.length}</p>
+                  )}
+                </div>
+                <Users className="w-8 h-8 text-indigo-500 opacity-50" />
+              </div>
+            </motion.div>
             
             <motion.div
               whileHover={{ scale: 1.02 }}
