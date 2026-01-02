@@ -10,7 +10,7 @@ import {
   sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 
 /**
@@ -270,6 +270,30 @@ export const getAdminEmail = async () => {
     return admin?.email || null;
   } catch (error) {
     console.error('Error getting admin email:', error);
+    return null;
+  }
+};
+
+/**
+ * Email-аар хэрэглэгчийн мэдээлэл авах
+ * @param {string} email - Хэрэглэгчийн имэйл
+ * @returns {Promise<Object|null>} User data эсвэл null
+ */
+export const getUserByEmail = async (email) => {
+  try {
+    if (!email) return null;
+    
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email), limit(1));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting user by email:', error);
     return null;
   }
 };

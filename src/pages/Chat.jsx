@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { redirectToLogin, getMe, getAdminEmail } from '@/services/authService';
+import { redirectToLogin, getMe, getAdminEmail, getUserByEmail } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getConversation, listMessages, createMessage, updateConversation, findConversation, createConversation } from '@/services/conversationService';
 import { getListing } from '@/services/listingService';
@@ -190,23 +190,22 @@ export default function Chat() {
         currentAdminEmail = await getAdminEmail();
       }
       
-      // Check if other user is admin - use currentAdminEmail to ensure consistency
+      // Check if other user is admin
       const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
       
-      // Get user from Firestore users collection
-      try {
-        const userData = await getMe();
-        // For now, return basic user info - can be extended later
-        return { 
-          email: otherEmail, 
-          displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
-        };
-      } catch (error) {
-        return { 
-          email: otherEmail, 
-          displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
-        };
+      // Get user data from Firestore
+      let displayName;
+      if (isAdmin) {
+        displayName = 'АДМИН';
+      } else {
+        const userData = await getUserByEmail(otherEmail);
+        displayName = userData?.displayName || otherEmail.split('@')[0];
       }
+      
+      return { 
+        email: otherEmail, 
+        displayName: displayName
+      };
     },
     enabled: !!conversation && !!user?.email
   });

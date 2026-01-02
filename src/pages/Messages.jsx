@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin, getAdminEmail } from '@/services/authService';
+import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import { filterConversations, listConversations, findConversation, createConversation } from '@/services/conversationService';
 import { useQuery } from '@tanstack/react-query';
@@ -51,18 +51,36 @@ export default function Messages() {
       const convs2 = await filterConversations({ participant_2: userEmail });
       const allConvs = [...convs1, ...convs2];
       
+      // Get user data for all other users in conversations
+      const otherEmails = [...new Set(allConvs.map(conv => 
+        conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1
+      ))];
+      
+      // Fetch user data for all other users
+      const userDataMap = new Map();
+      await Promise.all(otherEmails.map(async (email) => {
+        if (email === currentAdminEmail) {
+          userDataMap.set(email, { displayName: 'АДМИН' });
+        } else {
+          const userData = await getUserByEmail(email);
+          userDataMap.set(email, {
+            displayName: userData?.displayName || email.split('@')[0]
+          });
+        }
+      }));
+      
       return allConvs.map(conv => {
         const otherEmail = conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1;
         const unreadCount = conv.participant_1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
         
-        // Check if other user is admin - use currentAdminEmail to ensure consistency
-        const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
+        // Get display name from user data map
+        const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
         
         return {
           ...conv,
           otherUser: { 
             email: otherEmail, 
-            displayName: isAdmin ? 'АДМИН' : (otherEmail.split('@')[0])
+            displayName: userInfo.displayName
           },
           unreadCount
         };
