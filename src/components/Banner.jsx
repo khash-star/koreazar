@@ -29,6 +29,8 @@ export default function Banner({ imageUrl, link, title, className = "" }) {
         src={bannerData.imageUrl}
         alt={bannerData.title}
         className="w-full h-full object-cover"
+        crossOrigin="anonymous"
+        loading="lazy"
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent group-hover:from-black/30 transition-all" />
       <div className="absolute top-2 right-2 bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">
