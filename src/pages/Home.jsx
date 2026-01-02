@@ -3,7 +3,7 @@ import { filterListings } from '@/services/listingService';
 import { filterBannerAds } from '@/services/bannerService';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -263,9 +263,9 @@ export default function Home() {
       <WelcomeModal isOpen={showWelcome} onClose={handleCloseWelcome} />
       
       {/* Fixed Header */}
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-3 z-50 shadow-lg">
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-2 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-          <h1 className="text-sm md:text-lg font-bold tracking-wide flex-1 text-center">
+          <h1 className="text-xs md:text-sm font-bold tracking-wide flex-1 text-center">
             🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
           </h1>
           {!isAuthenticated ? (
@@ -279,6 +279,17 @@ export default function Home() {
             </>
           ) : (
             <>
+              {/* AI Bot Icon Button */}
+              <Link to={createPageUrl('AIBot')} className="ml-2">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 rounded-full w-10 h-10"
+                  title="AI Туслах"
+                >
+                  <Bot className="w-5 h-5" />
+                </Button>
+              </Link>
               <div className="md:hidden ml-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -352,7 +363,7 @@ export default function Home() {
 
       {/* Admin Dashboard Stats */}
       {userData?.role === 'admin' && (
-        <div className="max-w-7xl mx-auto px-4 mt-12 md:mt-14 mb-4">
+        <div className="max-w-7xl mx-auto px-4 mt-4 mb-4">
           <div className="grid grid-cols-3 gap-3">
             <Link to={createPageUrl('AdminNewListings')}>
               <motion.div

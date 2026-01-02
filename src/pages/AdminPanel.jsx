@@ -4,12 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell, Users, Search, TrendingUp, Eye, LogIn } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Bell, Users, Search, TrendingUp, Eye, LogIn, Bot, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { sendMessageToAllUsers, filterConversations } from '@/services/conversationService';
 import { getAllUsers } from '@/services/authService';
+import { getAllUsersUsageStats, getUsageStatsRange } from '@/services/aiUsageService';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   Dialog,
@@ -98,6 +99,26 @@ export default function AdminPanel() {
     queryKey: ['all-listings-for-user-stats'],
     queryFn: () => filterListings({}, '-created_date', 1000),
     enabled: userData?.role === 'admin' && showUserSearch,
+  });
+
+  // AI Usage Statistics
+  const { data: aiUsageStats = null, isLoading: aiUsageLoading } = useQuery({
+    queryKey: ['ai-usage-stats-today'],
+    queryFn: () => getAllUsersUsageStats(new Date()),
+    enabled: userData?.role === 'admin',
+    refetchInterval: 30000 // Refresh every 30 seconds
+  });
+
+  // AI Usage Statistics for last 7 days
+  const { data: aiUsageStatsWeek = null } = useQuery({
+    queryKey: ['ai-usage-stats-week'],
+    queryFn: () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+      return getUsageStatsRange(startDate, endDate);
+    },
+    enabled: userData?.role === 'admin',
   });
 
   const { data: allListingsForStats = [] } = useQuery({
@@ -358,6 +379,108 @@ export default function AdminPanel() {
               </div>
             </div>
           </motion.div>
+        </div>
+
+        {/* AI Usage Statistics */}
+        <div className="mt-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Ботны Статистик</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Өнөөдрийн хүсэлт</p>
+                  {aiUsageLoading ? (
+                    <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" />
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-900">{aiUsageStats?.total_requests || 0}</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">Идэвхтэй хэрэглэгч: {aiUsageStats?.active_users || 0}</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-emerald-600" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Нийт Token</p>
+                  {aiUsageLoading ? (
+                    <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-900">
+                      {aiUsageStats?.total_tokens ? (aiUsageStats.total_tokens / 1000).toFixed(1) + 'K' : '0'}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">Өнөөдөр</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Тооцоолсон зардал</p>
+                  {aiUsageLoading ? (
+                    <Loader2 className="w-6 h-6 text-orange-600 animate-spin" />
+                  ) : (
+                    <p className="text-3xl font-bold text-gray-900">
+                      ${aiUsageStats?.total_cost ? aiUsageStats.total_cost.toFixed(4) : '0.0000'}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">Өнөөдөр</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-orange-600" />
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">7 хоногийн нийт</p>
+                  {aiUsageStatsWeek ? (
+                    <>
+                      <p className="text-3xl font-bold text-gray-900">{aiUsageStatsWeek.total_requests || 0}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        ${aiUsageStatsWeek.total_cost ? aiUsageStatsWeek.total_cost.toFixed(4) : '0.0000'}
+                      </p>
+                    </>
+                  ) : (
+                    <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
+                  )}
+                </div>
+                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
 
         {/* Charts */}

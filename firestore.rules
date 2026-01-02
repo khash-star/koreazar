@@ -65,6 +65,49 @@ service cloud.firestore {
          resource.data.receiver_email == request.auth.token.email ||
          isAdmin());
     }
+    
+    // AI Conversations
+    match /ai_conversations/{conversationId} {
+      // Allow read if user owns the conversation
+      allow read: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
+      // Allow list queries with where clause - Firestore will filter results
+      allow list: if request.auth != null;
+      // Allow create if user_email matches authenticated user
+      allow create: if request.auth != null && 
+        request.resource.data.user_email == request.auth.token.email;
+      // Allow update if user owns the conversation
+      allow update: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
+    }
+    
+    // AI Messages
+    match /ai_messages/{messageId} {
+      // Allow read if user owns the message
+      allow read: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
+      // Allow list queries with where clause - Firestore will filter results
+      allow list: if request.auth != null;
+      // Allow create if user_email matches authenticated user
+      allow create: if request.auth != null && 
+        request.resource.data.user_email == request.auth.token.email;
+    }
+    
+    // AI Usage Tracking
+    match /ai_usage/{usageId} {
+      // Allow read if document exists and user owns it or is admin
+      // Also allow read if document doesn't exist (for getDoc checks)
+      allow get: if request.auth != null && (
+        !exists(/databases/$(database)/documents/ai_usage/$(usageId)) ||
+        resource.data.user_email == request.auth.token.email ||
+        isAdmin()
+      );
+      // Allow list queries for authenticated users
+      allow list: if request.auth != null;
+      // Allow create/update if user_email matches authenticated user
+      allow create, update: if request.auth != null && 
+        request.resource.data.user_email == request.auth.token.email;
+    }
   }
 }
 

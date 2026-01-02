@@ -33,6 +33,7 @@ import Chat from "./Chat";
 import Login from "./Login";
 import Register from "./Register";
 import Profile from "./Profile";
+import AIBot from "./AIBot";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -70,6 +71,8 @@ const PAGES = {
     Chat: Chat,
     
     Profile: Profile,
+    
+    AIBot: AIBot,
     
 }
 
@@ -128,6 +131,8 @@ function PagesContent() {
                 <Route path="/Chat" element={<Layout currentPageName={currentPage}><Chat /></Layout>} />
                 <Route path="/Profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
                 <Route path="/profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
+                <Route path="/AIBot" element={<Layout currentPageName={currentPage}><AIBot /></Layout>} />
+                <Route path="/aibot" element={<Layout currentPageName={currentPage}><AIBot /></Layout>} />
             </Routes>
         </>
     );
