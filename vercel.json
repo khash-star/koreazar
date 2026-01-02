@@ -7,6 +7,10 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/favicon.ico",
+      "destination": "/favicon.svg"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
