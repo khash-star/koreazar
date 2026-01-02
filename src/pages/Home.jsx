@@ -27,8 +27,6 @@ import { LogOut } from 'lucide-react';
 import { logout } from '@/services/authService';
 import { useNavigate } from 'react-router-dom';
 import { filterConversations } from '@/services/conversationService';
-import { filterListings } from '@/services/listingService';
-import { filterConversations } from '@/services/conversationService';
 
 export default function Home() {
   const navigate = useNavigate();
