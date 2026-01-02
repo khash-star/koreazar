@@ -336,17 +336,19 @@ export default function Chat() {
           
           <div className="flex items-center gap-3 flex-1">
             {otherUser?.displayName === 'АДМИН' ? (
-              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 bg-white rounded-full overflow-hidden border border-gray-200 p-1">
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 bg-white rounded-full overflow-hidden border border-gray-200 p-1.5">
                 <img 
-                  src={`${window.location.origin}/admin_logo.png`}
+                  src="/admin_logo.png"
                   alt="Admin Logo" 
                   className="w-full h-full object-contain"
-                  style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
                   onError={(e) => {
-                    console.error('Failed to load admin logo, trying fallback');
-                    e.target.src = '/favicon.svg';
+                    console.error('Failed to load admin logo');
+                    e.target.style.display = 'none';
                   }}
-                  loading="eager"
+                  onLoad={(e) => {
+                    console.log('Admin logo loaded successfully');
+                  }}
                 />
               </div>
             ) : (
