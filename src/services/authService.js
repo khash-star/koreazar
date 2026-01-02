@@ -33,9 +33,10 @@ export const login = async (email, password) => {
  * @param {string} email - Имэйл хаяг
  * @param {string} password - Нууц үг
  * @param {string} displayName - Хэрэглэгчийн нэр (optional)
+ * @param {string} phone - Утасны дугаар (optional)
  * @returns {Promise<User>} Firebase User object
  */
-export const register = async (email, password, displayName = null) => {
+export const register = async (email, password, displayName = null, phone = null) => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
@@ -57,7 +58,7 @@ export const register = async (email, password, displayName = null) => {
         displayName: displayName || user.email.split('@')[0],
         role: 'user',
         createdAt: new Date(),
-        phone: '',
+        phone: phone || '',
         kakao_id: '',
         wechat_id: '',
         whatsapp: '',

@@ -15,7 +15,8 @@ export default function Register() {
     email: '',
     password: '',
     confirmPassword: '',
-    displayName: ''
+    displayName: '',
+    phone: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,7 +65,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await register(formData.email, formData.password, formData.displayName || null);
+      await register(formData.email, formData.password, formData.displayName || null, formData.phone || null);
       // AuthContext automatically updates, so just navigate
       navigate('/Home');
     } catch (err) {
@@ -127,6 +128,18 @@ export default function Register() {
                 onChange={handleChange}
                 placeholder="Таны нэр"
                 autoComplete="name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Утасны дугаар (сонголттой)</Label>
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="010-1234-5678"
+                autoComplete="tel"
               />
             </div>
             <div className="space-y-2">
