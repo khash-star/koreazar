@@ -225,17 +225,38 @@ export default function Chat() {
         m => m.receiver_email === userEmail && !m.is_read
       );
       
-      const { updateMessage } = await import('@/services/conversationService');
-      for (const msg of unreadMessages) {
-        await updateMessage(msg.id, { is_read: true });
-      }
+      if (unreadMessages.length === 0) return;
       
-      // Update conversation unread count
-      if (unreadMessages.length > 0) {
+      try {
+        const { updateMessage } = await import('@/services/conversationService');
+        for (const msg of unreadMessages) {
+          try {
+            await updateMessage(msg.id, { is_read: true });
+          } catch (error) {
+            // Silently fail for permission errors - message might already be read
+            if (error.code !== 'permission-denied') {
+              console.error('Error updating message:', error);
+            }
+          }
+        }
+        
+        // Update conversation unread count
         const isParticipant1 = conversation.participant_1 === userEmail;
-        await updateConversation(actualConversationId, {
-          [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
-        });
+        try {
+          await updateConversation(actualConversationId, {
+            [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
+          });
+        } catch (error) {
+          // Silently fail for permission errors
+          if (error.code !== 'permission-denied') {
+            console.error('Error updating conversation:', error);
+          }
+        }
+      } catch (error) {
+        // Silently fail - permissions might not allow updates
+        if (error.code !== 'permission-denied') {
+          console.error('Error marking messages as read:', error);
+        }
       }
     };
     
