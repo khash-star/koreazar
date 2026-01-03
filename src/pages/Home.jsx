@@ -380,7 +380,7 @@ export default function Home() {
       <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-2 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <h1 className="text-xs md:text-sm font-bold tracking-wide flex-1 text-center">
-            🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
+            СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 
           </h1>
           {!isAuthenticated ? (
             <>
@@ -928,7 +928,7 @@ export default function Home() {
               Түгээмэл асуулт хариулт
             </DialogTitle>
             <DialogDescription className="text-gray-600 pt-2">
-              Солонгос дах Монголчуудын нэгдсэн зарын сайт
+              Солонгос дах Монголчуудын нэгдсэн зарын сайт Та Facebook-с хайж цаг заваа үрэх хэрэггүй, манай сайтаас бүх зар мэдээлэлээ авах боломжтой
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4">
