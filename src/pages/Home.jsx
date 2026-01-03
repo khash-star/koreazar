@@ -3,7 +3,7 @@ import { filterListings } from '@/services/listingService';
 import { filterBannerAds } from '@/services/bannerService';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare, Bot } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare, Bot, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -23,6 +23,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { LogOut } from 'lucide-react';
 import { logout } from '@/services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -36,6 +43,7 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
   const { isAuthenticated, userData } = useAuth();
   
   const handleLogout = async () => {
@@ -46,6 +54,85 @@ export default function Home() {
       console.error('Logout error:', error);
     }
   };
+
+  // Түгээмэл асуулт хариултууд
+  const faqData = [
+    {
+      question: 'Зар хэрхэн оруулах вэ?',
+      answer: `Зар оруулах заавар:
+
+1. **Апп-ыг нээгээд** нүүр хуудас руу орох
+2. **"Зар нэмэх"** товчийг дарж шинэ зар үүсгэх
+3. **Категори-г сонгоно уу** (жишээ: Автомашин, Орон сууц, Ажлын байр гэх мэт)
+4. **Зарын мэдээлэл-ийг бөглөж, зураг оруулах**
+5. **"Хадгалах" эсвэл "Танилцуулах"** товчийг дарж зар оруулах
+
+Зар оруулсны дараа админ баталгаажуулаад идэвхтэй болно.`
+    },
+    {
+      question: 'VIP зар гэж юу вэ?',
+      answer: `VIP зар гэдэг нь:
+
+**VIP заруудын онцлог:**
+- Зар жагсаалтын дээд талд онцолж харагдана
+- Илүү их харагдах боломжтой
+- Хайлтын үр дүнд эхэлж харагдана
+- Онцгой тэмдэглэгээтэй байна
+
+**VIP зар болгох:**
+- Зар оруулсны дараа "VIP болгох" товчийг дарах
+- VIP зар нь тодорхой хугацааны турш идэвхтэй байна
+- VIP зарууд илүү их анхаарал татаж, борлуулалт хурдан болдог`
+    },
+    {
+      question: 'Мессеж хэрхэн илгээх вэ?',
+      answer: `Мессеж илгээх заавар:
+
+**Зар эзэмшлийн мессеж илгээх:**
+1. Зар дээр ороод **"Мессеж илгээх"** товчийг дарна
+2. Мессежийн агуулга бичнэ
+3. **"Илгээх"** товчийг дарна
+
+**Админтай мессеж илгээх:**
+1. **"Мессеж"** хуудас руу орох
+2. **"Админтай мессеж"** товчийг дарна
+3. Мессеж бичээд илгээнэ
+
+**Мессеж унших:**
+- "Мессеж" хуудас дээр бүх ярилцлагууд харагдана
+- Шинэ мессеж ирсэн бол тоогоор мэдэгдэнэ`
+    },
+    {
+      question: 'Категориуд юу байна?',
+      answer: `Koreazar апп-д дараах категориуд байна:
+
+**Үндсэн категориуд:**
+1. **Автомашин** - Машин, мотоцикл, эд анги
+2. **Орон сууц** - Байр, оффис, газар
+3. **Ажлын байр** - Ажлын байр, ажил олох
+4. **Бараа** - Гоёл чимэглэл, хувцас, бусад бараа
+5. **Үйлчилгээ** - Бизнес, үйлчилгээний зар
+
+**Категори сонгох:**
+- Нүүр хуудас дээр категориуд харагдана
+- Категори дээр дарж тухайн категорийн заруудыг харах
+- Зар оруулахдаа категори сонгох шаардлагатай`
+    },
+    {
+      question: 'Зар хэрхэн хайх вэ?',
+      answer: `Зар хайх заавар:
+
+**Хайлт хийх арга:**
+1. Нүүр хуудас дээр хайлтын талбар ашиглах
+2. Категори сонгож тухайн категорийн заруудыг харах
+3. Дэд ангилал, байршил, үнэ зэрэг шүүлтүүр ашиглах
+
+**Зарны мэдээлэл:**
+- Зар дээр дарж дэлгэрэнгүй мэдээлэл харах
+- Зар эзэмшэлтэй шууд холбогдох боломжтой
+- Зар хадгалж, дараа нь харах боломжтой`
+    }
+  ];
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -258,6 +345,33 @@ export default function Home() {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
+  // Markdown форматлалт харуулах функц
+  const renderFormattedText = (text) => {
+    if (!text) return '';
+    
+    // Мөрүүдийг хуваах
+    const lines = text.split('\n');
+    
+    return lines.map((line, lineIndex) => {
+      // **bold** болгох
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      const formattedParts = parts.map((part, partIndex) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          const boldText = part.slice(2, -2);
+          return <strong key={partIndex} className="font-semibold">{boldText}</strong>;
+        }
+        return <span key={partIndex}>{part}</span>;
+      });
+      
+      return (
+        <React.Fragment key={lineIndex}>
+          {formattedParts}
+          {lineIndex < lines.length - 1 && <br />}
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
       <WelcomeModal isOpen={showWelcome} onClose={handleCloseWelcome} />
@@ -270,6 +384,15 @@ export default function Home() {
           </h1>
           {!isAuthenticated ? (
             <>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                onClick={() => setShowHelpDialog(true)}
+              >
+                <HelpCircle className="w-4 h-4 mr-1" />
+                <span className="text-xs">ТУСЛАМЖ</span>
+              </Button>
               <Link to={createPageUrl('Login')} className="ml-2">
                 <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
                   <User className="w-4 h-4 mr-1" />
@@ -795,6 +918,42 @@ export default function Home() {
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Түгээмэл асуулт хариулт Dialog */}
+      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-amber-600 flex items-center gap-2">
+              <HelpCircle className="w-6 h-6" />
+              Түгээмэл асуулт хариулт
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 pt-2">
+              Солонгос дах Монголчуудын нэгдсэн зарын сайт
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {faqData.map((faq, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
+              >
+                <h3 className="font-semibold text-lg text-gray-900 mb-2 flex items-center gap-2">
+                  <span className="bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
+                    {index + 1}
+                  </span>
+                  {faq.question}
+                </h3>
+                <div className="text-gray-700 whitespace-pre-line leading-relaxed pl-8">
+                  {renderFormattedText(faq.answer)}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

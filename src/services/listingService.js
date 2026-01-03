@@ -149,6 +149,59 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       message: error.message,
       stack: error.stack
     });
+    
+    // Хэрэв index алдаа гарвал илүү тодорхой мэдээлэл өгөх
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+      console.error('⚠️ Firestore Composite Index шаардлагатай!');
+      console.error('Firebase Console дээр дараах index-үүдийг үүсгэнэ үү:');
+      console.error('1. Collection: listings');
+      console.error('   Fields: listing_type (Ascending), status (Ascending), created_date (Descending)');
+      console.error('2. Collection: listings');
+      console.error('   Fields: status (Ascending), created_date (Descending)');
+      console.error('Алдааны мэдээлэлд Firebase Console-ийн холбоос байгаа бөгөөд түүгээр index үүсгэх боломжтой.');
+      
+      // Хэрэв index алдаа гарвал хоосон массив буцаах (graceful degradation)
+      // Ийм тохиолдолд илүү энгийн query ашиглах эсвэл client-side filter хийх
+      if (conditions.length > 1) {
+        console.warn('Composite index алга тул энгийн query ашиглаж байна...');
+        // Эхлээд orderBy-гүй query хийж, дараа нь client-side filter хийх
+        try {
+          const simpleQuery = query(listingsRef, ...conditions, limit(limitCount * 2));
+          const simpleSnapshot = await getDocs(simpleQuery);
+          let simpleResult = simpleSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              created_date: convertTimestamp(data.created_date),
+              updated_date: convertTimestamp(data.updated_date),
+              listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
+            };
+          });
+          
+          // Client-side sorting
+          const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
+          simpleResult.sort((a, b) => {
+            const aVal = a[orderField];
+            const bVal = b[orderField];
+            if (!aVal || !bVal) return 0;
+            const comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+            return orderByField.startsWith('-') ? -comparison : comparison;
+          });
+          
+          // Limit
+          simpleResult = simpleResult.slice(0, limitCount);
+          
+          console.log('filterListings result (fallback):', simpleResult);
+          return simpleResult;
+        } catch (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+          // Эцсийн fallback: хоосон массив
+          return [];
+        }
+      }
+    }
+    
     throw error;
   }
 };
