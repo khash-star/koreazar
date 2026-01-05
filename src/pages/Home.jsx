@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { filterListings } from '@/services/listingService';
-import { filterBannerAds } from '@/services/bannerService';
+import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, User, Clock, Star, MessageSquare, Bot, HelpCircle } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
@@ -15,158 +14,13 @@ import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import Banner from '@/components/Banner';
 import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { LogOut } from 'lucide-react';
-import { logout } from '@/services/authService';
-import { useNavigate } from 'react-router-dom';
-import { filterConversations } from '@/services/conversationService';
 
 export default function Home() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const listingsRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [showHelpDialog, setShowHelpDialog] = useState(false);
-  const { isAuthenticated, userData } = useAuth();
-  
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/Home');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  // Түгээмэл асуулт хариултууд
-  const faqData = [
-    {
-      question: 'Сайтад бүртгүүлэх',
-      answer: `Бүртгүүлэх заавар:
-
-1. **"Бүртгүүлэх"** товчийг дарна
-2. **Имэйл хаяг, нууц үгээ** оруулна
-3. Бүртгүүлэх товчийг дараад бүртгэл үүсгэнэ
-
-**Анхаарах зүйл:**
-- Имэйл хаяг зөв оруулах шаардлагатай
-- Нууц үг хангалттай хүчтэй байх ёстой
-- Бүртгүүлсний дараа имэйлээр баталгаажуулах линк ирнэ`
-    },
-    {
-      question: '🔐 Нэвтрэх',
-      answer: `Нэвтрэх заавар:
-
-1. **"Нэвтрэх"** товчийг дарна
-2. **Имэйл, нууц үгээ** оруулна
-3. Нэвтрэх товчийг дараад нэвтэрнэ`
-    },
-    {
-      question: '❓ Нууц үгээ мартсан бол',
-      answer: `Нууц үг сэргээх заавар:
-
-1. Нэвтрэх хуудас дээр **"Нууц үгээ мартсан уу?"** линк дээр дарна
-2. **Имэйл хаягаа** оруулна
-3. Имэйлээр ирсэн **линкээр шинэ нууц үг үүсгэнэ**
-
-**Анхаарах зүйл:**
-- Имэйлээ зөв оруулах шаардлагатай
-- Имэйлээр нууц үг сэргээх линк ирнэ
-- Линк нь тодорхой хугацааны дараа хүчингүй болно`
-    },
-    {
-      question: 'Зар хэрхэн оруулах вэ?',
-      answer: `Зар оруулах заавар:
-
-1. **Апп-ыг нээгээд** нүүр хуудас руу орох
-2. **"Зар нэмэх"** товчийг дарж шинэ зар үүсгэх
-3. **Категори-г сонгоно уу** (жишээ: Автомашин, Орон сууц, Ажлын байр гэх мэт)
-4. **Зарын мэдээлэл-ийг бөглөж, зураг оруулах**
-5. **"Хадгалах" эсвэл "Танилцуулах"** товчийг дарж зар оруулах
-
-Зар оруулсны дараа админ баталгаажуулаад идэвхтэй болно.`
-    },
-    {
-      question: 'VIP зар гэж юу вэ?',
-      answer: `VIP зар гэдэг нь:
-
-**VIP заруудын онцлог:**
-- Зар жагсаалтын дээд талд онцолж харагдана
-- Илүү их харагдах боломжтой
-- Хайлтын үр дүнд эхэлж харагдана
-- Онцгой тэмдэглэгээтэй байна
-
-**VIP зар болгох:**
-- Зар оруулсны дараа "VIP болгох" товчийг дарах
-- VIP зар нь тодорхой хугацааны турш идэвхтэй байна
-- VIP зарууд илүү их анхаарал татаж, борлуулалт хурдан болдог`
-    },
-    {
-      question: 'Мессеж хэрхэн илгээх вэ?',
-      answer: `Мессеж илгээх заавар:
-
-**Зар эзэмшлийн мессеж илгээх:**
-1. Зар дээр ороод **"Мессеж илгээх"** товчийг дарна
-2. Мессежийн агуулга бичнэ
-3. **"Илгээх"** товчийг дарна
-
-**Админтай мессеж илгээх:**
-1. **"Мессеж"** хуудас руу орох
-2. **"Админтай мессеж"** товчийг дарна
-3. Мессеж бичээд илгээнэ
-
-**Мессеж унших:**
-- "Мессеж" хуудас дээр бүх ярилцлагууд харагдана
-- Шинэ мессеж ирсэн бол тоогоор мэдэгдэнэ`
-    },
-    {
-      question: 'Категориуд юу байна?',
-      answer: `Koreazar апп-д дараах категориуд байна:
-
-**Үндсэн категориуд:**
-1. **Автомашин** - Машин, мотоцикл, эд анги
-2. **Орон сууц** - Байр, оффис, газар
-3. **Ажлын байр** - Ажлын байр, ажил олох
-4. **Бараа** - Гоёл чимэглэл, хувцас, бусад бараа
-5. **Үйлчилгээ** - Бизнес, үйлчилгээний зар
-
-**Категори сонгох:**
-- Нүүр хуудас дээр категориуд харагдана
-- Категори дээр дарж тухайн категорийн заруудыг харах
-- Зар оруулахдаа категори сонгох шаардлагатай`
-    },
-    {
-      question: 'Зар хэрхэн хайх вэ?',
-      answer: `Зар хайх заавар:
-
-**Хайлт хийх арга:**
-1. Нүүр хуудас дээр хайлтын талбар ашиглах
-2. Категори сонгож тухайн категорийн заруудыг харах
-3. Дэд ангилал, байршил, үнэ зэрэг шүүлтүүр ашиглах
-
-**Зарны мэдээлэл:**
-- Зар дээр дарж дэлгэрэнгүй мэдээлэл харах
-- Зар эзэмшэлтэй шууд холбогдох боломжтой
-- Зар хадгалж, дараа нь харах боломжтой`
-    }
-  ];
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -182,23 +36,12 @@ export default function Home() {
   const { data: bannerAds = [] } = useQuery({
     queryKey: ['bannerAds'],
     queryFn: async () => {
-      try {
-        const ads = await filterBannerAds({ is_active: true });
-        return ads.length > 0 ? ads : [
-          // Fallback default banners
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/e5e668a0d_busan-city.jpg', link: '#' },
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/318d19bb0_daegu-tower_144973903.jpg', link: '#' },
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/9d05a0e32_exploring-the-city-of-korean-drama-a-travel-in-south-korea.jpg', link: '#' }
-        ];
-      } catch (error) {
-        console.error('Error fetching banners:', error);
-        // Return fallback banners on error
-        return [
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/e5e668a0d_busan-city.jpg', link: '#' },
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/318d19bb0_daegu-tower_144973903.jpg', link: '#' },
-          { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/9d05a0e32_exploring-the-city-of-korean-drama-a-travel-in-south-korea.jpg', link: '#' }
-        ];
-      }
+      const ads = await base44.entities.BannerAd.filter({ is_active: true }, '-order');
+      return ads.length > 0 ? ads : [
+        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/e5e668a0d_busan-city.jpg', link: '#' },
+        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/318d19bb0_daegu-tower_144973903.jpg', link: '#' },
+        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/9d05a0e32_exploring-the-city-of-korean-drama-a-travel-in-south-korea.jpg', link: '#' }
+      ];
     }
   });
 
@@ -207,24 +50,11 @@ export default function Home() {
     const categoryFromUrl = urlParams.get('category') || '';
     const scrollTo = urlParams.get('scroll');
     
-    // If navigating to Home without category parameter, clear all filters
-    if (location.pathname === '/Home' && !categoryFromUrl) {
-      setFilters({
-        category: '',
-        subcategory: '',
-        search: '',
-        location: '',
-        minPrice: '',
-        maxPrice: '',
-        condition: ''
-      });
-    } else {
-      setFilters(prev => ({
-        ...prev,
-        category: categoryFromUrl,
-        subcategory: ''
-      }));
-    }
+    setFilters(prev => ({
+      ...prev,
+      category: categoryFromUrl,
+      subcategory: ''
+    }));
 
     if (scrollTo === 'listings') {
       setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
@@ -235,7 +65,7 @@ export default function Home() {
     if (!hasSeenWelcome) {
       setShowWelcome(true);
     }
-  }, [location.pathname, location.search]);
+  }, []);
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
@@ -282,7 +112,7 @@ export default function Home() {
       if (filters.location) query.location = filters.location;
       if (filters.condition) query.condition = filters.condition;
       
-      let results = await filterListings(query, '-created_date', 20); // Limit to 20 listings per page to save Firestore reads
+      let results = await base44.entities.Listing.filter(query, '-created_date', 100);
       
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -327,47 +157,7 @@ export default function Home() {
 
   const { data: allListings = [] } = useQuery({
     queryKey: ['allListings'],
-    queryFn: () => filterListings({ status: 'active' }, '-created_date', 20), // Limit to 20 for counts
-  });
-
-  // Admin dashboard stats
-  const { data: pendingListings = [] } = useQuery({
-    queryKey: ['admin-pending-count'],
-    queryFn: () => filterListings({ status: 'pending' }),
-    enabled: userData?.role === 'admin',
-  });
-
-  const { data: vipListings = [] } = useQuery({
-    queryKey: ['admin-vip-count'],
-    queryFn: () => filterListings({ listing_type: 'vip', status: 'active' }),
-    enabled: userData?.role === 'admin',
-  });
-
-  const { data: unreadMessagesCount = 0 } = useQuery({
-    queryKey: ['admin-unread-messages-home', userData?.email],
-    queryFn: async () => {
-      if (!userData?.email) return 0;
-      
-      try {
-        const convs1 = await filterConversations({ participant_1: userData.email });
-        const convs2 = await filterConversations({ participant_2: userData.email });
-        const allConvs = [...convs1, ...convs2];
-        
-        const totalUnread = allConvs.reduce((sum, conv) => {
-          const unread = conv.participant_1 === userData.email 
-            ? (conv.unread_count_p1 || 0)
-            : (conv.unread_count_p2 || 0);
-          return sum + unread;
-        }, 0);
-        
-        return totalUnread;
-      } catch (error) {
-        console.error('Error fetching unread count:', error);
-        return 0;
-      }
-    },
-    enabled: !!userData?.email && userData?.role === 'admin',
-    refetchInterval: 5000
+    queryFn: () => base44.entities.Listing.filter({ status: 'active' }),
   });
 
   const categoryCounts = allListings.reduce((acc, listing) => {
@@ -379,196 +169,18 @@ export default function Home() {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  // Markdown форматлалт харуулах функц
-  const renderFormattedText = (text) => {
-    if (!text) return '';
-    
-    // Мөрүүдийг хуваах
-    const lines = text.split('\n');
-    
-    return lines.map((line, lineIndex) => {
-      // **bold** болгох
-      const parts = line.split(/(\*\*.*?\*\*)/g);
-      const formattedParts = parts.map((part, partIndex) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          const boldText = part.slice(2, -2);
-          return <strong key={partIndex} className="font-semibold">{boldText}</strong>;
-        }
-        return <span key={partIndex}>{part}</span>;
-      });
-      
-      return (
-        <React.Fragment key={lineIndex}>
-          {formattedParts}
-          {lineIndex < lines.length - 1 && <br />}
-        </React.Fragment>
-      );
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
       <WelcomeModal isOpen={showWelcome} onClose={handleCloseWelcome} />
       
       {/* Fixed Header */}
-      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-2 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
-          <h1 className="text-xs md:text-sm font-bold tracking-wide flex-1 text-center">
-             СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 
+      <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-3 z-50 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <h1 className="text-sm md:text-lg font-bold tracking-wide">
+            🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
           </h1>
-          {!isAuthenticated ? (
-            <>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
-                onClick={() => setShowHelpDialog(true)}
-              >
-                <HelpCircle className="w-4 h-4 mr-1" />
-                <span className="text-xs">ТУСЛАМЖ</span>
-              </Button>
-              <Link to={createPageUrl('Login')} className="ml-2">
-                <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                  <User className="w-4 h-4 mr-1" />
-                  <span className="text-xs">Нэвтрэх</span>
-                </Button>
-              </Link>
-            </>
-          ) : (
-            <>
-              {/* AI Bot Icon Button */}
-              <Link to={createPageUrl('AIBot')} className="ml-2">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="bg-white/20 hover:bg-white/30 text-white border-white/30 rounded-full w-10 h-10"
-                  title="AI Туслах"
-                >
-                  <Bot className="w-5 h-5" />
-                </Button>
-              </Link>
-              <div className="md:hidden ml-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      {userData?.role === 'admin' ? (
-                        <img src="/admin_logo.png" alt="Admin" className="w-4 h-4 mr-1 object-contain" />
-                      ) : (
-                        <User className="w-4 h-4 mr-1" />
-                      )}
-                      <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl('Profile')} className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Профайл</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl('MyListings')} className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Миний зар</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Гарах</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <div className="hidden md:block ml-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      {userData?.role === 'admin' ? (
-                        <img src="/admin_logo.png" alt="Admin" className="w-4 h-4 mr-1 object-contain" />
-                      ) : (
-                        <User className="w-4 h-4 mr-1" />
-                      )}
-                      <span className="text-xs">{userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Профайл'}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl('Profile')} className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Профайл</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to={createPageUrl('MyListings')} className="cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Миний зар</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Гарах</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </>
-          )}
         </div>
       </div>
-
-      {/* Admin Dashboard Stats */}
-      {userData?.role === 'admin' && (
-        <div className="max-w-7xl mx-auto px-4 mt-4 mb-4">
-          <div className="grid grid-cols-3 gap-3">
-            <Link to={createPageUrl('AdminNewListings')}>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 border border-yellow-200 cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 mb-1">Шинэ зар</p>
-                    <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
-                </div>
-              </motion.div>
-            </Link>
-            
-            <Link to={createPageUrl('AdminAllListings')}>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-3 border border-purple-200 cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 mb-1">VIP зар</p>
-                    <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
-                  </div>
-                  <Star className="w-8 h-8 text-purple-500 opacity-50" />
-                </div>
-              </motion.div>
-            </Link>
-            
-            <Link to={createPageUrl('Messages')}>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200 cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-600 mb-1">Мессеж</p>
-                    <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
-                  </div>
-                  <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
-                </div>
-              </motion.div>
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Hero Banner Grid */}
       {bannerAds.length > 0 && (
@@ -599,8 +211,6 @@ export default function Home() {
                       src={banner.image_url} 
                       alt={banner.title || 'Banner'}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      crossOrigin="anonymous"
-                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     <div className="absolute top-3 right-3">
@@ -845,21 +455,12 @@ export default function Home() {
         }
         </h2>
         </div>
-        {isAuthenticated ? (
-          <Link to={createPageUrl('CreateListing')}>
-            <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
-              <Plus className="w-5 h-5 mr-2" />
-              Зар нэмэх
-            </Button>
-          </Link>
-        ) : (
-          <Link to={createPageUrl('Login')}>
-            <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
-              <Plus className="w-5 h-5 mr-2" />
-              Зар нэмэх
-            </Button>
-          </Link>
-        )}
+        <Link to={createPageUrl('CreateListing')}>
+        <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
+        <Plus className="w-5 h-5 mr-2" />
+        Зар нэмэх
+        </Button>
+        </Link>
         </div>
 
           {isLoading ? (
@@ -914,21 +515,12 @@ export default function Home() {
               <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h3>
                 <p className="text-gray-500 mb-6">Шүүлтүүрээ өөрчилж үзнэ үү</p>
-                {isAuthenticated ? (
-                  <Link to={createPageUrl('CreateListing')}>
-                    <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                      <Plus className="w-5 h-5 mr-2" />
-                      Эхний зараа нэмэх
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link to={createPageUrl('Login')}>
-                    <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                      <Plus className="w-5 h-5 mr-2" />
-                      Эхний зараа нэмэх
-                    </Button>
-                  </Link>
-                )}
+                <Link to={createPageUrl('CreateListing')}>
+                  <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                    <Plus className="w-5 h-5 mr-2" />
+                    Эхний зараа нэмэх
+                  </Button>
+                </Link>
             </motion.div>
           )}
         </section>
@@ -946,48 +538,12 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0 }}
             onClick={scrollToTop}
-            className="fixed bottom-24 right-6 z-50 w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-lg flex items-center justify-center md:w-14 md:h-14"
+            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-lg flex items-center justify-center md:w-14 md:h-14"
           >
             <ArrowUp className="w-5 h-5 md:w-6 md:h-6" />
           </motion.button>
         )}
       </AnimatePresence>
-
-      {/* Түгээмэл асуулт хариулт Dialog */}
-      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-amber-600 flex items-center gap-2">
-              <HelpCircle className="w-6 h-6" />
-              Түгээмэл асуулт хариулт
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 pt-2">
-              Солонгос дах Монголчуудын нэгдсэн зарын сайт, Та Facebook-с хайж цаг заваа үрэх хэрэггүй таньд хэрэгтэй бүх зар энд байна
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            {faqData.map((faq, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-200"
-              >
-                <h3 className="font-semibold text-lg text-gray-900 mb-2 flex items-center gap-2">
-                  <span className="bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                    {index + 1}
-                  </span>
-                  {faq.question}
-                </h3>
-                <div className="text-gray-700 whitespace-pre-line leading-relaxed pl-8">
-                  {renderFormattedText(faq.answer)}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

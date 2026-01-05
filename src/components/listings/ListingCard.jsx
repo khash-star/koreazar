@@ -1,5 +1,5 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Eye, Heart, Crown, Star } from 'lucide-react';
@@ -9,9 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { listSavedListings, createSavedListing, deleteSavedListing } from '@/services/conversationService';
+import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const conditionLabels = {
@@ -23,18 +21,19 @@ const conditionLabels = {
 
 export default function ListingCard({ listing }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const { user, userData, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const info = categoryInfo[listing.category] || categoryInfo.other;
   const isVIP = listing.listing_type === 'vip';
   const isFeatured = listing.listing_type === 'featured';
 
-  const userEmail = userData?.email || user?.email;
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', userEmail],
-    queryFn: () => listSavedListings({ created_by: userEmail }),
-    enabled: !!userEmail
+    queryKey: ['savedListings', user?.email],
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }),
+    enabled: !!user?.email
   });
 
   const isSaved = savedListings.some(s => s.listing_id === listing.id);
@@ -43,42 +42,24 @@ export default function ListingCard({ listing }) {
     mutationFn: async () => {
       if (isSaved) {
         const saved = savedListings.find(s => s.listing_id === listing.id);
-        if (saved) {
-          await deleteSavedListing(saved.id);
-        }
+        await base44.entities.SavedListing.delete(saved.id);
       } else {
-        if (!userEmail) {
-          throw new Error('User email is required');
-        }
-        await createSavedListing({ 
-          listing_id: listing.id,
-          created_by: userEmail 
-        });
+        await base44.entities.SavedListing.create({ listing_id: listing.id });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
-    },
-    onError: (error) => {
-      console.error('Error saving listing:', error);
-      alert('Зар хадгалахад алдаа гарлаа. Дахин оролдоно уу.');
     }
   });
 
   const handleSave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!isAuthenticated || !user) {
-      redirectToLogin(window.location.href);
+    if (!user) {
+      base44.auth.redirectToLogin();
       return;
     }
-    
     saveMutation.mutate();
-  };
-
-  const handleCardClick = () => {
-    navigate(createPageUrl(`ListingDetail?id=${listing.id}`));
   };
   
   const getSubcategoryLabel = () => {
@@ -94,19 +75,19 @@ export default function ListingCard({ listing }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4 }}
-      onClick={handleCardClick}
-      className={`rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group border-2 cursor-pointer ${
-        isVIP
-          ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-400'
-          : isFeatured
-          ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300'
-          : 'bg-white border-gray-100'
-      }`}
-    >
+    <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4 }}
+        className={`rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group border-2 ${
+          isVIP
+            ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-400'
+            : isFeatured
+            ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300'
+            : 'bg-white border-gray-100'
+        }`}
+      >
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
           {listing.images && listing.images.length > 0 ? (
             <img
@@ -146,18 +127,18 @@ export default function ListingCard({ listing }) {
             </div>
           )}
 
-          <button
+          <Button
             onClick={handleSave}
-            type="button"
-            className={`absolute top-3 right-3 w-10 h-10 rounded-full backdrop-blur-sm transition-all flex items-center justify-center z-10 ${
+            size="icon"
+            variant="ghost"
+            className={`absolute top-3 right-3 w-10 h-10 rounded-full backdrop-blur-sm transition-all ${
               isSaved 
                 ? 'bg-red-500 hover:bg-red-600 text-white' 
                 : 'bg-white/90 hover:bg-white text-gray-700'
             }`}
-            aria-label={isSaved ? 'Хадгалсан' : 'Хадгалах'}
           >
             <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
-          </button>
+          </Button>
         </div>
         
         <div className="p-4">
@@ -199,5 +180,6 @@ export default function ListingCard({ listing }) {
           )}
         </div>
       </motion.div>
+    </Link>
   );
 }

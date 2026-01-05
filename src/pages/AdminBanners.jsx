@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { uploadFile } from '@/services/storageService';
-import { listBannerAds, createBannerAd, updateBannerAd, deleteBannerAd } from '@/services/bannerService';
-import { useAuth } from '@/contexts/AuthContext';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +18,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
 export default function AdminBanners() {
-  const { userData, loading: authLoading } = useAuth();
+  const [user, setUser] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,13 +31,17 @@ export default function AdminBanners() {
 
   const queryClient = useQueryClient();
 
+  React.useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => setUser(null));
+  }, []);
+
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['bannerAds'],
-    queryFn: () => listBannerAds('-order')
+    queryFn: () => base44.entities.BannerAd.list('-order')
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => createBannerAd(data),
+    mutationFn: (data) => base44.entities.BannerAd.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
       setShowDialog(false);
@@ -48,14 +50,14 @@ export default function AdminBanners() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateBannerAd(id, data),
+    mutationFn: ({ id, data }) => base44.entities.BannerAd.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => deleteBannerAd(id),
+    mutationFn: (id) => base44.entities.BannerAd.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
     }
@@ -66,15 +68,9 @@ export default function AdminBanners() {
     if (!file) return;
 
     setUploading(true);
-    try {
-      const { file_url } = await uploadFile(file, 'banners');
-      setFormData({ ...formData, image_url: file_url });
-    } catch (error) {
-      alert(error.message || 'Зураг upload хийхэд алдаа гарлаа');
-      console.error('Upload error:', error);
-    } finally {
-      setUploading(false);
-    }
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setFormData({ ...formData, image_url: file_url });
+    setUploading(false);
   };
 
   const handleSubmit = (e) => {
@@ -96,7 +92,7 @@ export default function AdminBanners() {
     updateMutation.mutate({ id: nextBanner.id, data: { order: banner.order } });
   };
 
-  if (authLoading) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
@@ -104,7 +100,7 @@ export default function AdminBanners() {
     );
   }
 
-  if (!userData || userData.role !== 'admin') {
+  if (user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { listListings, deleteListing, updateListing } from '@/services/listingService';
-import { useAuth } from '@/contexts/AuthContext';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -25,10 +24,14 @@ import { mn } from 'date-fns/locale';
 
 export default function AdminAllListings() {
   const queryClient = useQueryClient();
-  const { userData, loading: authLoading } = useAuth();
+  const [user, setUser] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  React.useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -38,26 +41,13 @@ export default function AdminAllListings() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const { data: listings = [], isLoading, error } = useQuery({
+  const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-all-listings'],
-    queryFn: async () => {
-      console.log('AdminAllListings: Fetching all listings...');
-      try {
-        const result = await listListings('-created_date', 500);
-        console.log('AdminAllListings: Fetched listings:', result);
-        return result;
-      } catch (err) {
-        console.error('AdminAllListings: Error fetching listings:', err);
-        throw err;
-      }
-    },
-    onError: (error) => {
-      console.error('AdminAllListings: Query error:', error);
-    }
+    queryFn: () => base44.entities.Listing.list('-created_date', 500),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => deleteListing(id),
+    mutationFn: (id) => base44.entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-all-listings']);
       queryClient.invalidateQueries(['listings']);
@@ -67,22 +57,17 @@ export default function AdminAllListings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => updateListing(id, { status }),
+    mutationFn: ({ id, status }) => base44.entities.Listing.update(id, { status }),
     onSuccess: () => {
-      // Invalidate all listing queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['admin-all-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listings'] });
-      queryClient.invalidateQueries({ queryKey: ['allListings'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-new-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-count'] });
-      // Force refetch immediately
-      queryClient.refetchQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries(['admin-all-listings']);
+      queryClient.invalidateQueries(['listings']);
+      queryClient.invalidateQueries(['allListings']);
     },
   });
 
   const updateTypeMutation = useMutation({
     mutationFn: ({ id, listing_type, listing_type_expires }) => 
-      updateListing(id, { listing_type, listing_type_expires }),
+      base44.entities.Listing.update(id, { listing_type, listing_type_expires }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-all-listings']);
       queryClient.invalidateQueries(['listings']);
@@ -127,18 +112,7 @@ export default function AdminAllListings() {
     l.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4" />
-          <p className="text-gray-600">Уншиж байна...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData || userData.role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -183,19 +157,6 @@ export default function AdminAllListings() {
         {isLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-red-600 text-lg mb-2">Алдаа гарлаа</p>
-            <p className="text-gray-500 text-sm mb-4">{error.message || 'Зар татахад алдаа гарлаа'}</p>
-            <Button onClick={() => window.location.reload()}>Дахин оролдох</Button>
-          </div>
-        ) : filteredListings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="text-gray-500 text-lg mb-2">Зар олдсонгүй</p>
-            <p className="text-gray-400 text-sm">
-              {searchTerm ? 'Хайлтын үр дүн олдсонгүй' : 'Одоогоор зар байхгүй байна'}
-            </p>
           </div>
         ) : (
           <div className="space-y-4">

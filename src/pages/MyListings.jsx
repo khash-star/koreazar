@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { filterListings, deleteListing, updateListing } from '@/services/listingService';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -36,11 +34,22 @@ const statusLabels = {
 
 export default function MyListings() {
   const queryClient = useQueryClient();
-  const { user, userData, loading: isAuthChecking, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  
-  const userEmail = userData?.email || user?.email;
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isAuth = await base44.auth.isAuthenticated();
+      if (isAuth) {
+        const userData = await base44.auth.me();
+        setUser(userData);
+      }
+      setIsAuthChecking(false);
+    };
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,22 +60,13 @@ export default function MyListings() {
   }, []);
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['myListings', userEmail],
-    queryFn: () => filterListings({ created_by: userEmail }, '-created_date', 50), // Limit to 50 listings per user
-    enabled: !!userEmail
+    queryKey: ['myListings', user?.email],
+    queryFn: () => base44.entities.Listing.filter({ created_by: user.email }, '-created_date'),
+    enabled: !!user?.email
   });
 
-  // Debug: Log listings to see if they're being fetched
-  React.useEffect(() => {
-    if (listings.length > 0) {
-      console.log('MyListings found:', listings.length, 'listings');
-    } else if (!isLoading && userEmail) {
-      console.log('No listings found for user:', userEmail);
-    }
-  }, [listings, isLoading, userEmail]);
-
   const deleteMutation = useMutation({
-    mutationFn: (id) => deleteListing(id),
+    mutationFn: (id) => base44.entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
       setDeleteId(null);
@@ -74,7 +74,7 @@ export default function MyListings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => updateListing(id, { status }),
+    mutationFn: ({ id, status }) => base44.entities.Listing.update(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
     }
@@ -97,18 +97,22 @@ export default function MyListings() {
     );
   }
 
-  // Check authentication
-  useEffect(() => {
-    if (isAuthChecking) return;
-    
-    if (!isAuthenticated || !user) {
-      redirectToLogin(window.location.href);
-    }
-  }, [isAuthChecking, isAuthenticated, user]);
-
-  if (!isAuthenticated || !user) {
-    // Don't render - redirect will happen in useEffect
-    return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Нэвтрэх шаардлагатай</h2>
+          <p className="text-gray-500 mb-6">Зараа удирдахын тулд нэвтэрнэ үү</p>
+          <Button
+            onClick={() => base44.auth.redirectToLogin()}
+            className="bg-amber-500 hover:bg-amber-600"
+          >
+            Нэвтрэх
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

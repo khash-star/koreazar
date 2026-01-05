@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
+import { base44 } from '@/api/base44Client';
+import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { uploadFile } from '@/services/storageService';
-import { createListing, filterListings } from '@/services/listingService';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Upload, X, Loader2, Check, ImagePlus } from 'lucide-react';
@@ -24,7 +21,6 @@ import {
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import { compressImage } from '@/components/utils/imageCompressor';
-import { LIMITS, canCreateListing } from '@/utils/limits';
 
 const locations = [
   'Seoul',
@@ -37,7 +33,7 @@ const locations = [
 
 export default function CreateListing() {
   const navigate = useNavigate();
-  const { user: firebaseUser, user, userData, loading: authLoading, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -72,78 +68,33 @@ export default function CreateListing() {
 
   const availableSubcategories = formData.category ? subcategoryConfig[formData.category] || [] : [];
 
-  // Get user email early to avoid undefined errors
-  const userEmail = userData?.email || firebaseUser?.email || user?.email;
-
-  // Check authentication and auto-fill user data
   React.useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) {
-      return; // Still loading, wait...
-    }
-    
-    // Check if user is authenticated
-    // Note: userData might be null temporarily if Firestore is slow, but user should exist if authenticated
-    if (!isAuthenticated || !user) {
-      // Not authenticated - redirect to login
-      redirectToLogin(window.location.href);
-      return;
-    }
-
-    // If authenticated but userData not loaded yet, wait a bit more
-    // (Firestore might be slow, but user is authenticated so we can show the form)
-    if (!userData) {
-      // Wait a bit more for userData to load from Firestore
-      const timeout = setTimeout(() => {
-        if (!userData) {
-          // Still no userData after waiting - redirect to login
-          redirectToLogin(window.location.href);
+    base44.auth.me()
+      .then((userData) => {
+        setUser(userData);
+        // Auto-fill contact info from user profile
+        if (userData.phone || userData.kakao_id || userData.wechat_id || userData.whatsapp || userData.facebook) {
+          setFormData(prev => ({
+            ...prev,
+            phone: userData.phone || prev.phone,
+            kakao_id: userData.kakao_id || prev.kakao_id,
+            wechat_id: userData.wechat_id || prev.wechat_id,
+            whatsapp: userData.whatsapp || prev.whatsapp,
+            facebook: userData.facebook || prev.facebook
+          }));
         }
-      }, 2000); // Wait 2 seconds for Firestore to respond
-      
-      return () => clearTimeout(timeout);
-    }
-
-    // Auto-fill contact info from user profile
-    if (userData.phone || userData.kakao_id || userData.wechat_id || userData.whatsapp || userData.facebook) {
-      setFormData(prev => ({
-        ...prev,
-        phone: userData.phone || prev.phone,
-        kakao_id: userData.kakao_id || prev.kakao_id,
-        wechat_id: userData.wechat_id || prev.wechat_id,
-        whatsapp: userData.whatsapp || prev.whatsapp,
-        facebook: userData.facebook || prev.facebook
-      }));
-    }
-  }, [authLoading, isAuthenticated, user, userData]);
-
-  // Check user's listing count
-  const { data: userListings = [] } = useQuery({
-    queryKey: ['userListingsCount', userEmail],
-    queryFn: () => filterListings({ created_by: userEmail }, '-created_date', 50),
-    enabled: !!userEmail
-  });
+      })
+      .catch(() => {
+        base44.auth.redirectToLogin(window.location.href);
+      });
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      console.log('Creating listing with data:', data);
-      const result = await createListing(data);
-      console.log('Listing created successfully:', result);
-      return result;
+      return base44.entities.Listing.create(data);
     },
     onSuccess: (result) => {
-      if (result && result.id) {
-        console.log('Navigating to listing detail:', result.id);
-        navigate(createPageUrl(`ListingDetail?id=${result.id}`));
-      } else {
-        console.error('Listing created but no ID returned:', result);
-        alert('Зар үүсгэгдсэн боловч алдаа гарлаа. Дахин оролдоно уу.');
-      }
-    },
-    onError: (error) => {
-      console.error('Error creating listing:', error);
-      const errorMessage = error?.message || error?.code || 'Тодорхойгүй алдаа';
-      alert(`Зар үүсгэхэд алдаа гарлаа: ${errorMessage}`);
+      navigate(createPageUrl(`ListingDetail?id=${result.id}`));
     }
   });
 
@@ -151,28 +102,13 @@ export default function CreateListing() {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
     
-    // Check image count limit
-    const MAX_IMAGES = 10;
-    if (images.length >= MAX_IMAGES) {
-      alert(`Хамгийн ихдээ ${MAX_IMAGES} зураг оруулж болно.`);
-      return;
-    }
-    
     const validFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const maxSize = 5 * 1024 * 1024; // 5MB
     
     const validFiles = [];
     const errors = [];
     
-    // Calculate how many images can still be added
-    const remainingSlots = MAX_IMAGES - images.length;
-    const filesToProcess = files.slice(0, remainingSlots);
-    
-    if (files.length > remainingSlots) {
-      alert(`Зөвхөн ${remainingSlots} зураг нэмж болно (нийт ${MAX_IMAGES} хүртэл).`);
-    }
-    
-    for (const file of filesToProcess) {
+    for (const file of files) {
       if (!validFormats.includes(file.type)) {
         errors.push(`${file.name}: Зөвхөн JPG, PNG, WEBP зураг оруулна уу`);
         continue;
@@ -196,14 +132,11 @@ export default function CreateListing() {
       for (const file of validFiles) {
         // Compress image before upload
         const compressedFile = await compressImage(file);
-        // Use Firebase Storage instead of base44
-        const result = await uploadFile(compressedFile, 'listings');
-        const fileUrl = result?.file_url || result; // Handle both object and string return
-        setImages(prev => [...prev, fileUrl]);
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: compressedFile });
+        setImages(prev => [...prev, file_url]);
       }
     } catch (error) {
-      const errorMessage = error.message || 'Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.';
-      alert(errorMessage);
+      alert('Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.');
       console.error('Upload error:', error);
     } finally {
       setUploading(false);
@@ -217,111 +150,20 @@ export default function CreateListing() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Check authentication before submitting
-    if (!isAuthenticated || !userData) {
-      alert('Зар оруулахын тулд нэвтэрнэ үү.');
-      redirectToLogin(window.location.href);
-      return;
-    }
-    
-    if (!userEmail) {
-      alert('Хэрэглэгчийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.');
-      redirectToLogin(window.location.href);
-      return;
-    }
-    
-    // Check listing limit
-    if (userListings.length >= LIMITS.MAX_LISTINGS_PER_USER) {
-      alert(`Та хамгийн ихдээ ${LIMITS.MAX_LISTINGS_PER_USER} зар оруулж болно. Зарим заруудыг устгаад дахин оролдоно уу.`);
-      return;
-    }
-    
-    // Validation: Required fields
-    const errors = [];
-    
-    if (!formData.title || formData.title.trim() === '') {
-      errors.push('Гарчиг заавал бөглөнө үү.');
-    }
-    
-    if (!formData.category || formData.category === '') {
-      errors.push('Ангилал заавал сонгоно уу.');
-    }
-    
-    if (!formData.price || formData.price === '' || formData.price === '0') {
-      if (!formData.is_negotiable) {
-        errors.push('Үнэ заавал оруулна уу эсвэл "Үнэ тохирно" гэж сонгоно уу.');
-      }
-    } else {
-      // Validate price is a positive number
-      const priceNum = Number(formData.price);
-      if (isNaN(priceNum) || priceNum < 0) {
-        errors.push('Үнэ зөв тоо байх ёстой.');
-      }
-    }
-    
-    if (!formData.phone || formData.phone.trim() === '') {
-      errors.push('Утасны дугаар заавал оруулна уу.');
-    } else {
-      // Validate phone format (should be numeric)
-      const phoneRegex = /^[\d\s\-\+()]+$/;
-      if (!phoneRegex.test(formData.phone.trim())) {
-        errors.push('Утасны дугаар зөв формат байх ёстой.');
-      }
-    }
-    
-    // Validate numeric fields if they have values
-    const numericFields = [
-      { key: 'vehicle_year', label: 'Жилийн утга' },
-      { key: 'vehicle_mileage', label: 'Зайлын утга' },
-      { key: 'realestate_size', label: 'Талбайн утга' },
-      { key: 'realestate_rooms', label: 'Өрөөний тоо' },
-      { key: 'realestate_bathrooms', label: 'Угаалгын өрөөний тоо' }
-    ];
-    
-    numericFields.forEach(({ key, label }) => {
-      if (formData[key] && formData[key] !== '') {
-        const numValue = Number(formData[key]);
-        if (isNaN(numValue) || numValue < 0) {
-          errors.push(`${label} зөв тоо байх ёстой.`);
-        }
-      }
-    });
-    
-    if (errors.length > 0) {
-      alert(errors.join('\n'));
-      return; // Stop submission
-    }
-    
-    // Check if user is admin - admins' listings should be automatically approved
-    const isAdmin = userData?.role === 'admin';
-    
     const submitData = {
       ...formData,
-      price: formData.is_negotiable && (!formData.price || formData.price === '' || formData.price === '0') 
-        ? 0 
-        : Number(formData.price) || 0,
+      price: Number(formData.price) || 0,
       images,
-      status: isAdmin ? 'active' : 'pending', // Admins' listings are auto-approved
-      views: 0,
-      created_by: userEmail
+      status: 'pending',
+      views: 0
     };
 
     // Convert numeric fields
-    if (formData.vehicle_year && formData.vehicle_year !== '') {
-      submitData.vehicle_year = Number(formData.vehicle_year);
-    }
-    if (formData.vehicle_mileage && formData.vehicle_mileage !== '') {
-      submitData.vehicle_mileage = Number(formData.vehicle_mileage);
-    }
-    if (formData.realestate_size && formData.realestate_size !== '') {
-      submitData.realestate_size = Number(formData.realestate_size);
-    }
-    if (formData.realestate_rooms && formData.realestate_rooms !== '') {
-      submitData.realestate_rooms = Number(formData.realestate_rooms);
-    }
-    if (formData.realestate_bathrooms && formData.realestate_bathrooms !== '') {
-      submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
-    }
+    if (formData.vehicle_year) submitData.vehicle_year = Number(formData.vehicle_year);
+    if (formData.vehicle_mileage) submitData.vehicle_mileage = Number(formData.vehicle_mileage);
+    if (formData.realestate_size) submitData.realestate_size = Number(formData.realestate_size);
+    if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
+    if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
     // Remove empty category-specific fields
     Object.keys(submitData).forEach(key => {
@@ -334,33 +176,16 @@ export default function CreateListing() {
     createMutation.mutate(submitData);
   };
 
-  const handleNumberInput = (field) => (e) => {
+  const handleNumberInput = (e) => {
     const value = e.target.value;
-    // Allow empty or valid numbers (including decimals if needed)
-    if (value === '' || /^\d+\.?\d*$/.test(value)) {
-      setFormData({ ...formData, [field]: value });
-    }
-  };
-
-  const handlePriceInput = (e) => {
-    const value = e.target.value;
-    // Allow empty or valid positive numbers
     if (value === '' || /^\d+$/.test(value)) {
-      setFormData({ ...formData, price: value });
+      return true;
     }
+    e.preventDefault();
+    return false;
   };
 
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  // Show loading while auth is checking
-  if (authLoading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -369,13 +194,6 @@ export default function CreateListing() {
         </div>
       </div>
     );
-  }
-
-  // Redirect if not authenticated
-  // Note: Allow rendering if user is authenticated (even if userData is still loading from Firestore)
-  if (!isAuthenticated || !user) {
-    // Don't render anything - redirect will happen in useEffect
-    return null;
   }
 
   return (
@@ -547,14 +365,10 @@ export default function CreateListing() {
               <Input
                 id="price"
                 type="number"
-                min="0"
-                step="1"
                 value={formData.price}
-                onChange={handlePriceInput}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 onKeyPress={(e) => {
-                  if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                    e.preventDefault();
-                  }
+                  if (!/[0-9]/.test(e.key)) e.preventDefault();
                 }}
                 placeholder="0"
                 className="mt-2 h-12 rounded-xl text-lg"
@@ -624,38 +438,29 @@ export default function CreateListing() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Үйлдвэрлэсэн он</Label>
-                    <Input
-                      type="number"
-                      min="1900"
-                      max="2100"
-                      step="1"
-                      value={formData.vehicle_year}
-                      onChange={handleNumberInput('vehicle_year')}
-                      onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="2020"
-                      className="mt-2 h-11 rounded-lg"
-                    />
+                  <Input
+                    type="number"
+                    value={formData.vehicle_year}
+                    onChange={(e) => setFormData({ ...formData, vehicle_year: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) e.preventDefault();
+                    }}
+                    placeholder="2020"
+                    className="mt-2 h-11 rounded-lg"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Гүйлт (км)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formData.vehicle_mileage}
-                      onChange={handleNumberInput('vehicle_mileage')}
-                      onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="50000"
-                      className="mt-2 h-11 rounded-lg"
-                    />
+                  <Input
+                    type="number"
+                    value={formData.vehicle_mileage}
+                    onChange={(e) => setFormData({ ...formData, vehicle_mileage: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) e.preventDefault();
+                    }}
+                    placeholder="50000"
+                    className="mt-2 h-11 rounded-lg"
+                  />
                 </div>
               </div>
 
@@ -738,57 +543,45 @@ export default function CreateListing() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Талбай (㎡)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.realestate_size}
-                      onChange={handleNumberInput('realestate_size')}
-                      onKeyPress={(e) => {
-                        if (!/[0-9.]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="85"
-                      className="mt-2 h-11 rounded-lg"
-                    />
+                  <Input
+                    type="number"
+                    value={formData.realestate_size}
+                    onChange={(e) => setFormData({ ...formData, realestate_size: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) e.preventDefault();
+                    }}
+                    placeholder="85"
+                    className="mt-2 h-11 rounded-lg"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Өрөөний тоо</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formData.realestate_rooms}
-                      onChange={handleNumberInput('realestate_rooms')}
-                      onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="3"
-                      className="mt-2 h-11 rounded-lg"
-                    />
+                  <Input
+                    type="number"
+                    value={formData.realestate_rooms}
+                    onChange={(e) => setFormData({ ...formData, realestate_rooms: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) e.preventDefault();
+                    }}
+                    placeholder="3"
+                    className="mt-2 h-11 rounded-lg"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Угаалгын өрөө</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formData.realestate_bathrooms}
-                      onChange={handleNumberInput('realestate_bathrooms')}
-                      onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-                          e.preventDefault();
-                        }
-                      }}
-                      placeholder="2"
-                      className="mt-2 h-11 rounded-lg"
-                    />
+                  <Input
+                    type="number"
+                    value={formData.realestate_bathrooms}
+                    onChange={(e) => setFormData({ ...formData, realestate_bathrooms: e.target.value })}
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) e.preventDefault();
+                    }}
+                    placeholder="2"
+                    className="mt-2 h-11 rounded-lg"
+                  />
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Давхар</Label>
@@ -924,24 +717,13 @@ export default function CreateListing() {
           >
             <Button
               type="submit"
-              disabled={createMutation.isPending || !formData.title || !formData.category || !isAuthenticated}
-              className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-lg font-semibold disabled:opacity-50"
-              onClick={(e) => {
-                if (!isAuthenticated || !userData) {
-                  e.preventDefault();
-                  alert('Зар оруулахын тулд нэвтэрнэ үү.');
-                  redirectToLogin(window.location.href);
-                }
-              }}
+              disabled={createMutation.isPending || !formData.title || !formData.category}
+              className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-lg font-semibold"
             >
               {createMutation.isPending ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Нийтэлж байна...
-                </>
-              ) : !isAuthenticated ? (
-                <>
-                  Нэвтрэх
                 </>
               ) : (
                 <>

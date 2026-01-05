@@ -1,87 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { filterConversations, listConversations, findConversation, createConversation } from '@/services/conversationService';
+import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { MessageCircle, Search, ArrowLeft, Shield } from 'lucide-react';
+import { MessageCircle, Search, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
-import { Timestamp } from 'firebase/firestore';
 
 export default function Messages() {
-  const { user, userData, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const userEmail = userData?.email || user?.email;
-  const [adminEmail, setAdminEmail] = useState(null);
 
-  // Get admin email
   useEffect(() => {
-    const fetchAdminEmail = async () => {
-      const email = await getAdminEmail();
-      setAdminEmail(email);
-    };
-    fetchAdminEmail();
+    base44.auth.me()
+      .then(setUser)
+      .catch(() => {
+        base44.auth.redirectToLogin(window.location.href);
+      });
   }, []);
 
-  useEffect(() => {
-    if (!user && !userData) {
-      redirectToLogin(window.location.href);
-    }
-  }, [user, userData]);
-
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['conversations', userEmail, adminEmail],
+    queryKey: ['conversations', user?.email],
     queryFn: async () => {
-      if (!userEmail) return [];
+      if (!user?.email) return [];
       
-      // Get admin email if not already set
-      let currentAdminEmail = adminEmail;
-      if (!currentAdminEmail) {
-        currentAdminEmail = await getAdminEmail();
-      }
+      const conv1 = await base44.entities.Conversation.filter(
+        { participant_1: user.email },
+        '-last_message_time'
+      );
+      const conv2 = await base44.entities.Conversation.filter(
+        { participant_2: user.email },
+        '-last_message_time'
+      );
       
-      // Get user conversations (either participant_1 or participant_2)
-      const convs1 = await filterConversations({ participant_1: userEmail });
-      const convs2 = await filterConversations({ participant_2: userEmail });
-      const allConvs = [...convs1, ...convs2];
+      const allConvs = [...conv1, ...conv2];
       
-      // Get user data for all other users in conversations
-      const otherEmails = [...new Set(allConvs.map(conv => 
-        conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1
-      ))];
+      // Get other user emails
+      const otherEmails = allConvs.map(conv => 
+        conv.participant_1 === user.email ? conv.participant_2 : conv.participant_1
+      );
       
-      // Fetch user data for all other users
-      const userDataMap = new Map();
-      await Promise.all(otherEmails.map(async (email) => {
-        if (email === currentAdminEmail) {
-          userDataMap.set(email, { displayName: 'АДМИН' });
-        } else {
-          const userData = await getUserByEmail(email);
-          userDataMap.set(email, {
-            displayName: userData?.displayName || email.split('@')[0]
-          });
-        }
-      }));
+      // Fetch user details
+      const users = await base44.entities.User.list();
+      const userMap = {};
+      users.forEach(u => {
+        userMap[u.email] = u;
+      });
       
       return allConvs.map(conv => {
-        const otherEmail = conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1;
-        const unreadCount = conv.participant_1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
-        
-        // Get display name from user data map
-        const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
+        const otherEmail = conv.participant_1 === user.email ? conv.participant_2 : conv.participant_1;
+        const unreadCount = conv.participant_1 === user.email ? conv.unread_count_p1 : conv.unread_count_p2;
         
         return {
           ...conv,
-          otherUser: { 
-            email: otherEmail, 
-            displayName: userInfo.displayName
-          },
+          otherUser: userMap[otherEmail] || { email: otherEmail, full_name: otherEmail },
           unreadCount
         };
       });
@@ -94,49 +70,11 @@ export default function Messages() {
     if (!searchQuery) return true;
     const searchLower = searchQuery.toLowerCase();
     return (
-      conv.otherUser.displayName?.toLowerCase().includes(searchLower) ||
+      conv.otherUser.full_name?.toLowerCase().includes(searchLower) ||
       conv.otherUser.email?.toLowerCase().includes(searchLower) ||
       conv.last_message?.toLowerCase().includes(searchLower)
     );
   });
-
-  // Check if user has conversation with admin
-  const hasAdminConversation = conversations.some(conv => 
-    conv.otherUser.email === adminEmail
-  );
-
-  const handleMessageAdmin = async () => {
-    // Check if user is authenticated
-    if (!isAuthenticated || !user || !userData) {
-      redirectToLogin(window.location.href);
-      return;
-    }
-    
-    if (!adminEmail || !userEmail) return;
-    
-    try {
-      // Find or create conversation with admin
-      let conversation = await findConversation(userEmail, adminEmail);
-      
-      if (!conversation) {
-        conversation = await createConversation({
-          participant_1: userEmail,
-          participant_2: adminEmail,
-          last_message: '',
-          last_message_date: Timestamp.now(),
-          last_message_sender: userEmail,
-          unread_count_p1: 0,
-          unread_count_p2: 0
-        });
-      }
-      
-      // Navigate to chat with admin
-      window.location.href = createPageUrl(`Chat?conversationId=${conversation.id}&otherUserEmail=${adminEmail}`);
-    } catch (error) {
-      console.error('Error creating conversation with admin:', error);
-      alert('Админд мессеж илгээхэд алдаа гарлаа. Дахин оролдоно уу.');
-    }
-  };
 
   if (!user) {
     return (
@@ -160,13 +98,6 @@ export default function Messages() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            {userData?.role === 'admin' && (
-              <img 
-                src="/admin_logo.png" 
-                alt="Admin Logo" 
-                className="w-10 h-10 object-contain"
-              />
-            )}
             <div>
               <h1 className="text-xl font-bold text-gray-900">Мессеж</h1>
               <p className="text-sm text-gray-500">{conversations.length} харилцаа</p>
@@ -213,18 +144,18 @@ export default function Messages() {
                   className="bg-white rounded-xl p-4 hover:shadow-md transition-all"
                 >
                   <div className="flex gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                      {conv.otherUser.displayName?.[0]?.toUpperCase() || conv.otherUser.email?.[0]?.toUpperCase() || '?'}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                      {conv.otherUser.full_name?.[0]?.toUpperCase() || '?'}
                     </div>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h3 className="font-semibold text-gray-900 truncate">
-                          {conv.otherUser.displayName || conv.otherUser.email}
+                          {conv.otherUser.full_name || conv.otherUser.email}
                         </h3>
-                        {conv.last_message_date && (
+                        {conv.last_message_time && (
                           <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {formatDistanceToNow(conv.last_message_date instanceof Date ? conv.last_message_date : new Date(conv.last_message_date), { 
+                            {formatDistanceToNow(new Date(conv.last_message_time), { 
                               addSuffix: true,
                               locale: mn 
                             })}
@@ -234,7 +165,7 @@ export default function Messages() {
                       
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-gray-600 truncate">
-                          {conv.last_message_sender === userEmail && (
+                          {conv.last_message_sender === user.email && (
                             <span className="text-gray-500">Та: </span>
                           )}
                           {conv.last_message || 'Мессеж илгээх...'}
@@ -257,32 +188,9 @@ export default function Messages() {
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {searchQuery ? 'Хайлтын үр дүн олдсонгүй' : 'Мессеж байхгүй байна'}
             </h3>
-            <p className="text-gray-500 mb-6">
+            <p className="text-gray-500">
               {searchQuery ? 'Өөр хайлт хийж үзнэ үү' : 'Зар дээр дарж зарын эзэнтэй холбогдоорой'}
             </p>
-            {adminEmail && !hasAdminConversation && (
-              <Button
-                onClick={handleMessageAdmin}
-                className="bg-amber-500 hover:bg-amber-600 text-white"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Админд мессеж илгээх
-              </Button>
-            )}
-          </div>
-        )}
-        
-        {/* Message Admin Button - Always visible at top */}
-        {adminEmail && !hasAdminConversation && filteredConversations.length > 0 && (
-          <div className="mt-4 mb-4">
-            <Button
-              onClick={handleMessageAdmin}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-              variant="default"
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Админд мессеж илгээх
-            </Button>
           </div>
         )}
       </div>

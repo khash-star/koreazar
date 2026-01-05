@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { filterListings, deleteListing, updateListing } from '@/services/listingService';
-import { useAuth } from '@/contexts/AuthContext';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -24,16 +23,20 @@ import { mn } from 'date-fns/locale';
 
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
-  const { userData, loading: authLoading } = useAuth();
+  const [user, setUser] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+
+  React.useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
-    queryFn: () => filterListings({ status: 'pending' }, '-created_date', 200),
+    queryFn: () => base44.entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => deleteListing(id),
+    mutationFn: (id) => base44.entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-new-listings']);
       queryClient.invalidateQueries(['listings']);
@@ -43,16 +46,11 @@ export default function AdminNewListings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => updateListing(id, { status }),
+    mutationFn: ({ id, status }) => base44.entities.Listing.update(id, { status }),
     onSuccess: () => {
-      // Invalidate all listing queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['admin-new-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['listings'] });
-      queryClient.invalidateQueries({ queryKey: ['allListings'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-all-listings'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-count'] });
-      // Force refetch immediately
-      queryClient.refetchQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries(['admin-new-listings']);
+      queryClient.invalidateQueries(['listings']);
+      queryClient.invalidateQueries(['allListings']);
     },
   });
 
@@ -64,18 +62,7 @@ export default function AdminNewListings() {
     updateStatusMutation.mutate({ id, status: 'rejected' });
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4" />
-          <p className="text-gray-600">Уншиж байна...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData || userData.role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

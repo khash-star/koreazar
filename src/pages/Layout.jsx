@@ -1,75 +1,46 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-// import { base44 } from '@/api/base44Client'; // TODO: Remove after migration
-import { useAuth } from '@/contexts/AuthContext';
-import { logout } from '@/services/authService';
-import { filterConversations } from '@/services/conversationService';
+import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Home, PlusCircle, User, Shield, Heart, MessageCircle, LogOut } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Home, PlusCircle, User, Shield, Heart, MessageCircle } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
-  const navigate = useNavigate();
-  const { user, userData, loading: authLoading, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const [savedCount, setSavedCount] = useState(0);
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
   
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/Home');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-  
-  // TODO: Replace with Firestore query after migration
   useEffect(() => {
-    // Saved listings count will be fetched from Firestore later
-    // For now, set to 0
-    setSavedCount(0);
-  }, [userData?.email]);
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
-  // Get unread message count from Firestore
+  useEffect(() => {
+    if (user?.email) {
+      base44.entities.SavedListing.filter({ created_by: user.email }).then(saved => {
+        setSavedCount(saved.length);
+      });
+    }
+  }, [user?.email]);
+
+  // Get unread message count
   const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['unreadMessages', userData?.email],
+    queryKey: ['unreadMessages', user?.email],
     queryFn: async () => {
-      if (!userData?.email) return 0;
+      if (!user?.email) return 0;
       
-      try {
-        // Get user conversations (either participant_1 or participant_2)
-        const convs1 = await filterConversations({ participant_1: userData.email });
-        const convs2 = await filterConversations({ participant_2: userData.email });
-        const allConvs = [...convs1, ...convs2];
-        
-        // Calculate total unread count
-        const totalUnread = allConvs.reduce((sum, conv) => {
-          const unread = conv.participant_1 === userData.email 
-            ? (conv.unread_count_p1 || 0)
-            : (conv.unread_count_p2 || 0);
-          return sum + unread;
-        }, 0);
-        
-        return totalUnread;
-      } catch (error) {
-        console.error('Error fetching unread count:', error);
-        return 0;
-      }
+      const conv1 = await base44.entities.Conversation.filter({ participant_1: user.email });
+      const conv2 = await base44.entities.Conversation.filter({ participant_2: user.email });
+      
+      const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
+                          conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
+      
+      return totalUnread;
     },
-    enabled: !!userData?.email,
-    refetchInterval: 5000 // Refresh every 5 seconds
+    enabled: !!user?.email,
+    refetchInterval: 5000
   });
-  
-  // userData already contains all user info including role from Firestore
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,7 +75,7 @@ export default function Layout({ children, currentPageName }) {
       </footer>
 
       {/* Admin Button (Desktop) */}
-      {userData?.role === 'admin' && (
+      {user?.role === 'admin' && (
         <Link to={createPageUrl('AdminPanel')} className="hidden md:block fixed top-4 right-4 z-50">
           <Button className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg">
             <Shield className="w-4 h-4 mr-2" />
@@ -116,7 +87,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Bottom Navigation (Mobile) - Only on Home */}
       {showNav && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
-          <div className={`flex items-center justify-around py-2`}>
+          <div className={`flex items-center ${user?.role === 'admin' ? 'justify-between' : 'justify-around'} py-2`}>
             <Link
               to={createPageUrl('Home')}
               className={`flex flex-col items-center py-2 px-6 ${
@@ -167,25 +138,27 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-xs mt-1">Мессеж</span>
             </Link>
 
-            {isAuthenticated ? (
-              <Link
-                to={createPageUrl('CreateListing')}
-                className="flex flex-col items-center py-2 px-3 text-gray-500"
-              >
-                <PlusCircle className="w-6 h-6" />
-                <span className="text-xs mt-1">Зар нэмэх</span>
-              </Link>
-            ) : (
-              <Link
-                to={createPageUrl('Login')}
-                className="flex flex-col items-center py-2 px-3 text-gray-500"
-              >
-                <PlusCircle className="w-6 h-6" />
-                <span className="text-xs mt-1">Зар нэмэх</span>
-              </Link>
-            )}
+            <Link
+              to={createPageUrl('CreateListing')}
+              className="flex flex-col items-center py-2 px-3 text-gray-500"
+            >
+              <div className="w-12 h-12 -mt-6 bg-amber-500 rounded-full flex items-center justify-center shadow-lg">
+                <PlusCircle className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-xs mt-1">Зар нэмэх</span>
+            </Link>
 
-            {userData?.role === 'admin' && (
+            <Link
+              to={createPageUrl('MyListings')}
+              className={`flex flex-col items-center py-2 px-6 ${
+                currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
+              }`}
+            >
+              <User className="w-6 h-6" />
+              <span className="text-xs mt-1">Миний зар</span>
+            </Link>
+
+            {user?.role === 'admin' && (
               <Link
                 to={createPageUrl('AdminPanel')}
                 className={`flex flex-col items-center py-2 px-6 ${

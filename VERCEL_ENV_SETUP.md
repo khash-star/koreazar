@@ -1,61 +1,102 @@
-# Vercel Environment Variables Setup
+# Vercel Environment Variable Тохируулга
 
-## 📋 Зөв Environment Variables
+## 🎯 Зорилго
+Vercel дээр `VITE_OPENAI_API_KEY` environment variable тохируулах
 
-Vercel Dashboard → Build and Output Settings → Environment Variables дээр дараах variables нэмэх:
+## 📋 Алхам алхмаар заавар
 
-### Firebase Configuration:
+### 1. Vercel Dashboard руу нэвтрэх
+1. **Vercel website** руу орох: https://vercel.com/
+2. **Sign in** хийх
+3. **Dashboard** руу орох
 
+### 2. Project сонгох
+1. **Projects** хэсэг рүү орох
+2. **koreazar** эсвэл **zar-746103b7** project сонгох
+3. Project хуудас руу орох
+
+### 3. Environment Variables нэмэх
+1. **Settings** tab дээр дарах
+2. Зүүн цэснээс **Environment Variables** сонгох
+3. **Add New** товчлуур дээр дарах
+
+### 4. Variable мэдээлэл оруулах
+Дараах мэдээллийг оруулах:
+
+- **Name**: `VITE_OPENAI_API_KEY`
+- **Value**: `sk-your-actual-api-key-here` (OpenAI dashboard-аас авсан API key оруулах)
+- **Environment**: 
+  - ✅ **Production**
+  - ✅ **Preview**
+  - ✅ **Development**
+
+### 5. Save хийх
+1. **Save** товчлуур дээр дарах
+2. Variable харагдах ёстой
+
+### 6. Redeploy хийх
+1. **Deployments** tab руу орох
+2. Хамгийн сүүлийн deployment-ийг олох
+3. **⋯** (three dots) дээр дарах
+4. **Redeploy** сонгох
+5. **Redeploy** товчлуур дээр дарах
+
+---
+
+## 🔍 Шалгах
+
+### Browser дээр:
+1. `https://zarkorea.com/aibot` нээх
+2. AI bot ажиллаж байгаа эсэхийг шалгах
+3. "OpenAI API key is not configured" алдаа гарч байгаа эсэхийг шалгах
+
+### Vercel Logs:
+1. **Deployments** → Latest deployment → **View Function Logs**
+2. Environment variable уншсан эсэхийг шалгах
+
+---
+
+## ⚠️ Анхаарах зүйлс
+
+1. **Environment сонгох**: Production, Preview, Development гурвыг нь сонгох
+2. **Redeploy хийх**: Environment variable нэмсний дараа заавал redeploy хийх
+3. **API key аюулгүй байдал**: API key-г хэнд ч хуваалцахгүй байх
+
+---
+
+## 🐛 Асуудал Шидвэрлэх
+
+### Environment variable харагдахгүй байвал:
+- ✅ Variable нэр зөв эсэх (`VITE_OPENAI_API_KEY`)
+- ✅ Save хийсэн эсэх
+- ✅ Redeploy хийсэн эсэх
+
+### Алдаа гарсаар байвал:
+- ✅ Browser cache цэвэрлэх (Ctrl+Shift+R)
+- ✅ Vercel logs шалгах
+- ✅ Environment variable дахин шалгах
+
+---
+
+## 📸 Screenshot заавар
+
+### Step 1: Settings
 ```
-VITE_FIREBASE_API_KEY=AIzaSyA0eE-wKhem4t7I3G-SKz7-f2IMmfWDjSk
-VITE_FIREBASE_AUTH_DOMAIN=koreazar-32e7a.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=koreazar-32e7a
-VITE_FIREBASE_STORAGE_BUCKET=koreazar-32e7a.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=384960850116
-VITE_FIREBASE_APP_ID=1:384960850116:web:7bfcf963b92dace3b24191
+Project → Settings → Environment Variables
+```
+
+### Step 2: Add Variable
+```
+Name: VITE_OPENAI_API_KEY
+Value: sk-proj-...
+Environment: ☑ Production ☑ Preview ☑ Development
+```
+
+### Step 3: Redeploy
+```
+Deployments → Latest → ⋯ → Redeploy
 ```
 
 ---
 
-## ⚠️ Анхаарах зүйлс:
-
-1. **VITE_FIREBASE_MESSAGING_SENDER_ID** (буруу: `VITE_FIREBASE_MESSAGING_SENDEF` биш!)
-2. **VITE_FIREBASE_APP_ID** утга бүтэн байх ёстой: `1:384960850116:web:7bfcf963b92dace3b24191`
-
----
-
-## 🔧 Vercel дээр нэмэх:
-
-### Арга 1: .env файл Import хийх
-
-1. `.env.example` файлыг хуулж `.env` болгох (local дээр л)
-2. Vercel Dashboard → Build and Output Settings
-3. **"Import .env"** button дарах
-4. `.env` файл сонгох
-5. Variables автоматаар нэмэгдэнэ
-
-### Арга 2: Manual нэмэх
-
-1. Vercel Dashboard → Build and Output Settings
-2. **"+ Add More"** button дарах
-3. Key: `VITE_FIREBASE_API_KEY`
-4. Value: `AIzaSyA0eE-wKhem4t7I3G-SKz7-f2IMmfWDjSk`
-5. Environment сонгох: Production, Preview, Development (бүгдийг)
-6. Repeat бүх variables-уудын хувьд
-
-### Арга 3: Paste .env contents
-
-1. `.env.example` файлын агуулгыг хуулж авах
-2. Vercel Dashboard → Build and Output Settings
-3. ".env contents" textarea-д paste хийх
-4. Variables автоматаар parse хийгдэнэ
-
----
-
-## ✅ Шалгах:
-
-Deploy хийсний дараа:
-- Build logs шалгах (алдаа байхгүй эсэх)
-- Browser console дээр Firebase config алдаа байхгүй эсэх
-- Login/Register ажиллаж байгаа эсэх
-
+**Амжилт хүсье!** 🚀

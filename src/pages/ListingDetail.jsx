@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { getListing, updateListing } from '@/services/listingService';
-import { listSavedListings, createSavedListing, deleteSavedListing } from '@/services/conversationService';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -54,24 +51,25 @@ export default function ListingDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const { user, userData, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
 
-  const { data: listing, isLoading, error } = useQuery({
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
+
+  const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
     queryFn: async () => {
-      if (!listingId) return null;
-      return await getListing(listingId);
+      const results = await base44.entities.Listing.filter({ id: listingId });
+      return results[0];
     },
-    enabled: !!listingId,
-    retry: false
+    enabled: !!listingId
   });
 
-  const userEmail = userData?.email || user?.email;
-  
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', userEmail],
-    queryFn: () => listSavedListings({ created_by: userEmail }),
-    enabled: !!userEmail
+    queryKey: ['savedListings', user?.email],
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }),
+    enabled: !!user?.email
   });
 
   const isSaved = savedListings.some(s => s.listing_id === listingId);
@@ -80,58 +78,30 @@ export default function ListingDetail() {
     mutationFn: async () => {
       if (isSaved) {
         const saved = savedListings.find(s => s.listing_id === listingId);
-        if (saved) {
-          await deleteSavedListing(saved.id);
-        }
+        await base44.entities.SavedListing.delete(saved.id);
       } else {
-        if (!userEmail) {
-          throw new Error('User email is required');
-        }
-        await createSavedListing({ 
-          listing_id: listingId,
-          created_by: userEmail 
-        });
+        await base44.entities.SavedListing.create({ listing_id: listingId });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
-    },
-    onError: (error) => {
-      console.error('Error saving listing:', error);
-      alert('Зар хадгалахад алдаа гарлаа. Дахин оролдоно уу.');
     }
   });
 
   const handleSave = () => {
-    if (!user && !userData) {
-      redirectToLogin();
+    if (!user) {
+      base44.auth.redirectToLogin();
       return;
     }
     saveMutation.mutate();
   };
 
-  // Update view count (only once per user per 24 hours)
+  // Update view count
   useEffect(() => {
-    if (listing && listing.id) {
-      const viewedKey = `listing_viewed_${listing.id}`;
-      const viewedTimestamp = localStorage.getItem(viewedKey);
-      const now = Date.now();
-      const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-      
-      // Check if user has viewed this listing in the last 24 hours
-      const hasViewedRecently = viewedTimestamp && (now - parseInt(viewedTimestamp)) < twentyFourHours;
-      
-      // Only increment view count if user hasn't viewed this listing in the last 24 hours
-      if (!hasViewedRecently) {
-        updateListing(listing.id, {
-          views: (listing.views || 0) + 1
-        }).catch(err => {
-          console.error('Error updating view count:', err);
-        });
-        
-        // Mark as viewed in localStorage with current timestamp
-        localStorage.setItem(viewedKey, now.toString());
-      }
+    if (listing) {
+      base44.entities.Listing.update(listing.id, {
+        views: (listing.views || 0) + 1
+      });
     }
   }, [listing?.id]);
 
@@ -175,20 +145,12 @@ export default function ListingDetail() {
     );
   }
 
-  if (!isLoading && !listing) {
+  if (!listing) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h2>
-          <p className="text-gray-500 mb-4">
-            {listingId ? `Listing ID: ${listingId}` : 'Listing ID байхгүй байна'}
-          </p>
-          {error && (
-            <p className="text-red-500 text-sm mb-4">
-              Алдаа: {error.message || 'Тодорхойгүй алдаа'}
-            </p>
-          )}
           <Link to={createPageUrl('Home')}>
             <Button className="mt-4">Нүүр хуудас руу буцах</Button>
           </Link>
@@ -365,13 +327,7 @@ export default function ListingDetail() {
               )}
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {listing.created_date ? format(
-                  listing.created_date instanceof Date 
-                    ? listing.created_date 
-                    : new Date(listing.created_date), 
-                  'yyyy.MM.dd', 
-                  { locale: mn }
-                ) : 'Тодорхойгүй'}
+                {format(new Date(listing.created_date), 'yyyy.MM.dd', { locale: mn })}
               </span>
               <span className="flex items-center gap-1">
                 <Eye className="w-4 h-4" />
@@ -394,7 +350,7 @@ export default function ListingDetail() {
               <h3 className="font-semibold text-gray-900 mb-4">Холбоо барих</h3>
 
               <div className="space-y-3">
-                {listing.created_by !== userEmail && (
+                {listing.created_by !== user?.email && (
                   <Link to={createPageUrl(`Chat?otherUserEmail=${listing.created_by}&listingId=${listing.id}`)}>
                     <Button className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600">
                       <Mail className="w-5 h-5 mr-2" />
@@ -412,13 +368,7 @@ export default function ListingDetail() {
                     </a>
                   ) : (
                     <Button
-                      onClick={() => {
-                        if (!isAuthenticated) {
-                          redirectToLogin();
-                        } else {
-                          setShowPhone(true);
-                        }
-                      }}
+                      onClick={() => setShowPhone(true)}
                       className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
                     >
                       <Phone className="w-5 h-5 mr-2" />
@@ -484,13 +434,7 @@ export default function ListingDetail() {
               </a>
             ) : (
               <Button
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    redirectToLogin();
-                  } else {
-                    setShowPhone(true);
-                  }
-                }}
+                onClick={() => setShowPhone(true)}
                 className="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600"
               >
                 <Phone className="w-5 h-5 mr-2" />

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { listBannerRequests, deleteBannerRequest, updateBannerRequest, createBannerAd } from '@/services/bannerService';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,19 +27,23 @@ import {
 } from '@/components/ui/dialog';
 
 export default function AdminBannerRequests() {
-  const { userData, loading: authLoading } = useAuth();
+  const [user, setUser] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [activeDialog, setActiveDialog] = useState(null);
   const [adminNote, setAdminNote] = useState('');
   const queryClient = useQueryClient();
 
+  React.useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
+
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['bannerRequests'],
-    queryFn: () => listBannerRequests()
+    queryFn: () => base44.entities.BannerRequest.list('-created_date')
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => deleteBannerRequest(id),
+    mutationFn: (id) => base44.entities.BannerRequest.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerRequests'] });
       setDeleteId(null);
@@ -49,7 +52,7 @@ export default function AdminBannerRequests() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status, note }) => 
-      updateBannerRequest(id, { 
+      base44.entities.BannerRequest.update(id, { 
         status, 
         admin_note: note || undefined 
       }),
@@ -63,7 +66,7 @@ export default function AdminBannerRequests() {
   const approveMutation = useMutation({
     mutationFn: async ({ request }) => {
       // Create banner ad
-      await createBannerAd({
+      await base44.entities.BannerAd.create({
         image_url: request.image_url,
         link: request.link,
         title: request.title,
@@ -71,7 +74,7 @@ export default function AdminBannerRequests() {
         order: 0
       });
       // Update request status
-      await updateBannerRequest(request.id, { 
+      await base44.entities.BannerRequest.update(request.id, { 
         status: 'approved',
         admin_note: adminNote || 'Баннер зар идэвхжүүлэгдлээ'
       });
@@ -84,7 +87,7 @@ export default function AdminBannerRequests() {
     }
   });
 
-  if (authLoading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -95,7 +98,7 @@ export default function AdminBannerRequests() {
     );
   }
 
-  if (!userData || userData.role !== 'admin') {
+  if (user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

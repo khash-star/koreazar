@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { uploadFile } from '@/services/storageService';
-import { getListing, updateListing } from '@/services/listingService';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -46,7 +45,8 @@ export default function EditListing() {
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
     queryFn: async () => {
-      return await getListing(listingId);
+      const listings = await base44.entities.Listing.filter({ id: listingId });
+      return listings[0];
     },
     enabled: !!listingId
   });
@@ -120,8 +120,7 @@ export default function EditListing() {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      await updateListing(listingId, data);
-      return { id: listingId, ...data };
+      return base44.entities.Listing.update(listingId, data);
     },
     onSuccess: () => {
       navigate(createPageUrl(`ListingDetail?id=${listingId}`));
@@ -162,13 +161,11 @@ export default function EditListing() {
       for (const file of validFiles) {
         // Compress image before upload
         const compressedFile = await compressImage(file);
-        // Use Firebase Storage instead of base44
-        const { file_url } = await uploadFile(compressedFile, 'listings');
+        const { file_url } = await base44.integrations.Core.UploadFile({ file: compressedFile });
         setImages(prev => [...prev, file_url]);
       }
     } catch (error) {
-      const errorMessage = error.message || 'Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.';
-      alert(errorMessage);
+      alert('Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.');
       console.error('Upload error:', error);
     } finally {
       setUploading(false);

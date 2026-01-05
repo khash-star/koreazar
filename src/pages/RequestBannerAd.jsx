@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { uploadFile } from '@/services/storageService';
-import { filterBannerRequests, createBannerRequest } from '@/services/bannerService';
+import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -17,7 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function RequestBannerAd() {
   const navigate = useNavigate();
-  const { user, userData, loading: authLoading, isAuthenticated } = useAuth();
+  const [user, setUser] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [formData, setFormData] = useState({
@@ -26,29 +23,25 @@ export default function RequestBannerAd() {
     message: ''
   });
 
-  // Check authentication
   React.useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
-    
-    if (!isAuthenticated || !user) {
-      redirectToLogin(window.location.href);
-    }
-  }, [authLoading, isAuthenticated, user]);
-
-  const userEmail = userData?.email || user?.email;
+    base44.auth.me()
+      .then(setUser)
+      .catch(() => {
+        base44.auth.redirectToLogin(window.location.href);
+      });
+  }, []);
 
   const { data: myRequests = [] } = useQuery({
-    queryKey: ['myBannerRequests', userEmail],
+    queryKey: ['myBannerRequests'],
     queryFn: async () => {
-      if (!userEmail) return [];
-      return filterBannerRequests({ created_by: userEmail });
+      return base44.entities.BannerRequest.filter({ created_by: user.email }, '-created_date');
     },
-    enabled: !!userEmail
+    enabled: !!user
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      return createBannerRequest(data);
+      return base44.entities.BannerRequest.create(data);
     },
     onSuccess: () => {
       setFormData({ title: '', link: '', message: '' });
@@ -69,11 +62,10 @@ export default function RequestBannerAd() {
 
     setUploading(true);
     try {
-      const { file_url } = await uploadFile(file, 'banners');
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setImageUrl(file_url);
     } catch (error) {
-      alert(error.message || 'Зураг upload хийхэд алдаа гарлаа');
-      console.error('Upload error:', error);
+      alert('Зураг upload хийхэд алдаа гарлаа');
     } finally {
       setUploading(false);
     }
@@ -81,31 +73,14 @@ export default function RequestBannerAd() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Check authentication before submitting
-    if (!isAuthenticated || !user) {
-      alert('Баннер зар хүсэхэд нэвтэрнэ үү.');
-      redirectToLogin(window.location.href);
-      return;
-    }
-    
     if (!imageUrl) {
       alert('Баннер зураг оруулна уу');
       return;
     }
-    
-    const userEmail = userData?.email || user?.email;
-    if (!userEmail) {
-      alert('Хэрэглэгчийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.');
-      redirectToLogin(window.location.href);
-      return;
-    }
-    
     createMutation.mutate({
       ...formData,
       image_url: imageUrl,
-      status: 'pending',
-      created_by: userEmail
+      status: 'pending'
     });
   };
 
@@ -115,7 +90,7 @@ export default function RequestBannerAd() {
     rejected: { text: 'Татгалзсан', color: 'bg-red-100 text-red-800', icon: AlertCircle }
   };
 
-  if (authLoading) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -124,11 +99,6 @@ export default function RequestBannerAd() {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated || !user) {
-    // Don't render - redirect will happen in useEffect
-    return null;
   }
 
   return (

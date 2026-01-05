@@ -30,13 +30,7 @@ import Messages from "./Messages";
 
 import Chat from "./Chat";
 
-import Login from "./Login";
-import Register from "./Register";
-import Profile from "./Profile";
-import AIBot from "./AIBot";
-
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
 
 const PAGES = {
     
@@ -70,10 +64,6 @@ const PAGES = {
     
     Chat: Chat,
     
-    Profile: Profile,
-    
-    AIBot: AIBot,
-    
 }
 
 function _getCurrentPage(url) {
@@ -85,11 +75,6 @@ function _getCurrentPage(url) {
         urlLastPart = urlLastPart.split('?')[0];
     }
 
-    // Handle /admin -> AdminPanel
-    if (urlLastPart.toLowerCase() === 'admin') {
-        return 'AdminPanel';
-    }
-
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
     return pageName || Object.keys(PAGES)[0];
 }
@@ -99,58 +84,52 @@ function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     
-    // Scroll to top when route changes
-    useEffect(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [location.pathname]);
-    
-    // Login болон Register хуудсууд Layout-аас гадуур байх
-    const isAuthPage = currentPage === 'Login' || currentPage === 'Register';
-    
     return (
-        <>
-            <Routes>
-                {/* All pages with Layout */}
-                <Route path="/" element={<Layout currentPageName={currentPage}><Home /></Layout>} />
-                <Route path="/Home" element={<Layout currentPageName={currentPage}><Home /></Layout>} />
-                <Route path="/AdminAllListings" element={<Layout currentPageName={currentPage}><AdminAllListings /></Layout>} />
-                <Route path="/AdminBannerRequests" element={<Layout currentPageName={currentPage}><AdminBannerRequests /></Layout>} />
-                <Route path="/AdminBanners" element={<Layout currentPageName={currentPage}><AdminBanners /></Layout>} />
-                <Route path="/AdminNewListings" element={<Layout currentPageName={currentPage}><AdminNewListings /></Layout>} />
-                <Route path="/AdminPanel" element={<Layout currentPageName={currentPage}><AdminPanel /></Layout>} />
-                <Route path="/admin" element={<Layout currentPageName={currentPage}><AdminPanel /></Layout>} />
-                <Route path="/CreateListing" element={<Layout currentPageName={currentPage}><CreateListing /></Layout>} />
-                <Route path="/EditListing" element={<Layout currentPageName={currentPage}><EditListing /></Layout>} />
-                <Route path="/ListingDetail" element={<Layout currentPageName={currentPage}><ListingDetail /></Layout>} />
-                <Route path="/MyListings" element={<Layout currentPageName={currentPage}><MyListings /></Layout>} />
-                <Route path="/RequestBannerAd" element={<Layout currentPageName={currentPage}><RequestBannerAd /></Layout>} />
-                <Route path="/requestbannerad" element={<Layout currentPageName={currentPage}><RequestBannerAd /></Layout>} />
-                <Route path="/SavedListings" element={<Layout currentPageName={currentPage}><SavedListings /></Layout>} />
-                <Route path="/UpgradeListing" element={<Layout currentPageName={currentPage}><UpgradeListing /></Layout>} />
-                <Route path="/Messages" element={<Layout currentPageName={currentPage}><Messages /></Layout>} />
-                <Route path="/Chat" element={<Layout currentPageName={currentPage}><Chat /></Layout>} />
-                <Route path="/Profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
-                <Route path="/profile" element={<Layout currentPageName={currentPage}><Profile /></Layout>} />
-                <Route path="/AIBot" element={<Layout currentPageName={currentPage}><AIBot /></Layout>} />
-                <Route path="/aibot" element={<Layout currentPageName={currentPage}><AIBot /></Layout>} />
+        <Layout currentPageName={currentPage}>
+            <Routes>            
+                
+                    <Route path="/" element={<AdminAllListings />} />
+                
+                
+                <Route path="/AdminAllListings" element={<AdminAllListings />} />
+                
+                <Route path="/AdminBannerRequests" element={<AdminBannerRequests />} />
+                
+                <Route path="/AdminBanners" element={<AdminBanners />} />
+                
+                <Route path="/AdminNewListings" element={<AdminNewListings />} />
+                
+                <Route path="/AdminPanel" element={<AdminPanel />} />
+                
+                <Route path="/CreateListing" element={<CreateListing />} />
+                
+                <Route path="/EditListing" element={<EditListing />} />
+                
+                <Route path="/Home" element={<Home />} />
+                
+                <Route path="/ListingDetail" element={<ListingDetail />} />
+                
+                <Route path="/MyListings" element={<MyListings />} />
+                
+                <Route path="/RequestBannerAd" element={<RequestBannerAd />} />
+                
+                <Route path="/SavedListings" element={<SavedListings />} />
+                
+                <Route path="/UpgradeListing" element={<UpgradeListing />} />
+                
+                <Route path="/Messages" element={<Messages />} />
+                
+                <Route path="/Chat" element={<Chat />} />
+                
             </Routes>
-        </>
+        </Layout>
     );
 }
 
 export default function Pages() {
     return (
         <Router>
-            <Routes>
-                {/* Auth pages first - before any base44 SDK imports */}
-                <Route path="/Login" element={<Login />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/Register" element={<Register />} />
-                <Route path="/register" element={<Register />} />
-                
-                {/* All other routes */}
-                <Route path="/*" element={<PagesContent />} />
-            </Routes>
+            <PagesContent />
         </Router>
     );
 }

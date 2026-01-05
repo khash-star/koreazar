@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getListing, updateListing } from '@/services/listingService';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -56,7 +56,10 @@ export default function UpgradeListing() {
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
-    queryFn: () => getListing(listingId),
+    queryFn: async () => {
+      const listings = await base44.entities.Listing.filter({ id: listingId });
+      return listings[0];
+    },
     enabled: !!listingId
   });
 
@@ -65,11 +68,10 @@ export default function UpgradeListing() {
       const expiresDate = new Date();
       expiresDate.setDate(expiresDate.getDate() + 7);
       
-      await updateListing(listingId, {
+      return base44.entities.Listing.update(listingId, {
         listing_type: type,
         listing_type_expires: expiresDate.toISOString()
       });
-      return { id: listingId, listing_type: type, listing_type_expires: expiresDate.toISOString() };
     },
     onSuccess: () => {
       navigate(createPageUrl(`ListingDetail?id=${listingId}`));

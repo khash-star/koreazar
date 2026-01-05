@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { redirectToLogin } from '@/services/authService';
-import { useAuth } from '@/contexts/AuthContext';
-import { listSavedListings, deleteSavedListing } from '@/services/conversationService';
-import { filterListings } from '@/services/listingService';
+import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -14,35 +11,31 @@ import ListingCard from '@/components/listings/ListingCard';
 
 export default function SavedListings() {
   const queryClient = useQueryClient();
-  const { user, userData, loading: isAuthChecking, isAuthenticated } = useAuth();
-  const userEmail = userData?.email || user?.email;
+  const [user, setUser] = useState(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Check authentication
   useEffect(() => {
-    if (isAuthChecking) return; // Wait for auth to load
-    
-    if (!isAuthenticated || !user) {
-      redirectToLogin(window.location.href);
-    }
-  }, [isAuthChecking, isAuthenticated, user]);
+    const checkAuth = async () => {
+      const isAuth = await base44.auth.isAuthenticated();
+      if (isAuth) {
+        const userData = await base44.auth.me();
+        setUser(userData);
+      }
+      setIsAuthChecking(false);
+    };
+    checkAuth();
+  }, []);
 
   const { data: savedListings = [], isLoading: savedLoading } = useQuery({
-    queryKey: ['savedListings', userEmail],
-    queryFn: () => listSavedListings({ created_by: userEmail }),
-    enabled: !!userEmail
+    queryKey: ['savedListings', user?.email],
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }, '-created_date'),
+    enabled: !!user?.email
   });
 
-  const listingIds = savedListings.map(s => s.listing_id);
-  
   const { data: allListings = [], isLoading: listingsLoading } = useQuery({
     queryKey: ['listings'],
-    queryFn: async () => {
-      if (listingIds.length === 0) return [];
-      // Firestore 'in' query can only handle up to 10 items, so we'll fetch all and filter
-      const all = await filterListings({ status: 'active' }, '-created_date', 1000);
-      return all.filter(l => listingIds.includes(l.id));
-    },
-    enabled: listingIds.length > 0
+    queryFn: () => base44.entities.Listing.list(),
+    enabled: savedListings.length > 0
   });
 
   const listings = savedListings
@@ -52,7 +45,7 @@ export default function SavedListings() {
   const unsaveMutation = useMutation({
     mutationFn: (listingId) => {
       const saved = savedListings.find(s => s.listing_id === listingId);
-      return deleteSavedListing(saved.id);
+      return base44.entities.SavedListing.delete(saved.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
@@ -62,17 +55,27 @@ export default function SavedListings() {
   if (isAuthChecking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4" />
-          <p className="text-gray-600">Уншиж байна...</p>
-        </div>
+        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
-  if (!isAuthenticated || !user) {
-    // Don't render - redirect will happen in useEffect
-    return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Нэвтрэх шаардлагатай</h2>
+          <p className="text-gray-500 mb-6">Хадгалсан зарыг харахын тулд нэвтэрнэ үү</p>
+          <Button
+            onClick={() => base44.auth.redirectToLogin()}
+            className="bg-amber-500 hover:bg-amber-600"
+          >
+            Нэвтрэх
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   const isLoading = savedLoading || listingsLoading;
