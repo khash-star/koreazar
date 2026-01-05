@@ -46,6 +46,7 @@ export default function AIBot() {
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState(false);
   
   const userEmail = userData?.email || user?.email;
   const DAILY_LIMIT = 20; // Daily request limit
@@ -285,6 +286,11 @@ export default function AIBot() {
     },
     onError: (error) => {
       console.error('Error sending message:', error);
+      // If API key is not configured, show special error
+      if (error.message?.includes('OpenAI API key is not configured') || error.message?.includes('API key')) {
+        setApiKeyError(true);
+        return;
+      }
       // If limit exceeded, show dialog instead of alert
       if (error.message?.includes('limit') || error.message?.includes('лимит') || error.message?.includes('хязгаар')) {
         setShowLimitDialog(true);
@@ -494,6 +500,39 @@ export default function AIBot() {
           </Button>
         </form>
       </div>
+
+      {/* API Key Error Dialog */}
+      <Dialog open={apiKeyError} onOpenChange={setApiKeyError}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-600">
+              ⚠️ Тохиргооны алдаа
+            </DialogTitle>
+            <DialogDescription className="pt-4">
+              <p className="text-gray-700 mb-4">
+                OpenAI API key тохируулагдаагүй байна. Энэ нь техникийн асуудал бөгөөд админ шийдэх ёстой.
+              </p>
+              <p className="text-gray-600 mb-2">
+                Хэрэв танд асуулт байвал <span className="font-semibold text-blue-600">АДМИН-с мессеж-р асуугаарай</span>.
+              </p>
+              <p className="text-sm text-gray-500">
+                Админ энэ асуудлыг шийдэх болно.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              onClick={() => {
+                setApiKeyError(false);
+                window.location.href = '/Home';
+              }}
+              className="w-full bg-red-500 hover:bg-red-600 text-white"
+            >
+              Нүүр хуудас руу буцах
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Limit Exceeded Dialog */}
       <Dialog open={showLimitDialog} onOpenChange={(open) => {
