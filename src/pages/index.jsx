@@ -88,7 +88,7 @@ function _getCurrentPage(url) {
     }
 
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
-    return pageName || Object.keys(PAGES)[0];
+    return pageName || 'Home';
 }
 
 // Wrapper component for pages that need Layout
@@ -108,7 +108,7 @@ function PagesContent() {
             <Route path="/Register" element={<Register />} />
             
             {/* All other pages with Layout */}
-            <Route path="/" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
+            <Route path="/" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
             
             <Route path="/AdminAllListings" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
             
