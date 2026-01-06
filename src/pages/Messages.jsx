@@ -92,7 +92,31 @@ export default function Messages() {
     refetchInterval: 5000 // Refresh every 5 seconds
   });
 
-  const filteredConversations = conversations.filter(conv => {
+  // Sort conversations: admin first, then by unread count, then by last message time
+  const sortedConversations = [...conversations].sort((a, b) => {
+    // Admin conversations first
+    const aIsAdmin = a.otherUser.email === adminEmail;
+    const bIsAdmin = b.otherUser.email === adminEmail;
+    if (aIsAdmin && !bIsAdmin) return -1;
+    if (!aIsAdmin && bIsAdmin) return 1;
+    
+    // Then by unread count (higher first)
+    if (a.unreadCount !== b.unreadCount) {
+      return (b.unreadCount || 0) - (a.unreadCount || 0);
+    }
+    
+    // Then by last message time (newer first)
+    const aTime = a.last_message_time || a.last_message_date || 0;
+    const bTime = b.last_message_time || b.last_message_date || 0;
+    if (aTime && bTime) {
+      return new Date(bTime) - new Date(aTime);
+    }
+    if (aTime) return -1;
+    if (bTime) return 1;
+    return 0;
+  });
+
+  const filteredConversations = sortedConversations.filter(conv => {
     if (!searchQuery) return true;
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -223,9 +247,9 @@ export default function Messages() {
                         <h3 className="font-semibold text-gray-900 truncate">
                           {conv.otherUser.displayName || conv.otherUser.email}
                         </h3>
-                        {conv.last_message_time && (
+                        {(conv.last_message_time || conv.last_message_date) && (
                           <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {formatDistanceToNow(new Date(conv.last_message_time), { 
+                            {formatDistanceToNow(new Date(conv.last_message_time || conv.last_message_date), { 
                               addSuffix: true,
                               locale: mn 
                             })}
@@ -234,11 +258,13 @@ export default function Messages() {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600 truncate">
+                        <p className="text-sm text-gray-600 truncate flex-1 min-w-0">
                           {conv.last_message_sender === userEmail && (
                             <span className="text-gray-500">Та: </span>
                           )}
-                          {conv.last_message || 'Мессеж илгээх...'}
+                          <span className="truncate">
+                            {conv.last_message || 'Мессеж илгээх...'}
+                          </span>
                         </p>
                         {conv.unreadCount > 0 && (
                           <span className="flex-shrink-0 ml-2 w-6 h-6 bg-amber-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
