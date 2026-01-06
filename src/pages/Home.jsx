@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
@@ -19,6 +19,7 @@ import { logout } from '@/services/authService';
 
 export default function Home() {
   const listingsRef = useRef(null);
+  const location = useLocation();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -43,6 +44,11 @@ export default function Home() {
       return ads.length > 0 ? ads : [];
     }
   });
+
+  // Scroll to top when navigating to Home page
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
