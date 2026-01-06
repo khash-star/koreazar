@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -216,22 +216,35 @@ export default function Home() {
               </Button>
             </Link>
           ) : (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={async () => {
-                try {
-                  await logout();
-                  window.location.href = '/Home';
-                } catch (error) {
-                  console.error('Logout error:', error);
-                }
-              }}
-              className="ml-4 flex-shrink-0 z-50 bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              <span>Гарах</span>
-            </Button>
+            <div className="ml-4 flex items-center gap-2 flex-shrink-0 z-50">
+              <Link to={createPageUrl('Profile')}>
+                <div className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
+                    {(userData?.displayName || user?.displayName || userData?.email || user?.email || '?')[0]?.toUpperCase()}
+                  </div>
+                  <span className="text-white font-medium text-sm hidden md:block">
+                    {userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Хэрэглэгч'}
+                  </span>
+                  <Settings className="w-4 h-4 text-white" />
+                </div>
+              </Link>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await logout();
+                    window.location.href = '/Home';
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                  }
+                }}
+                className="bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                <span className="hidden md:inline">Гарах</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>
