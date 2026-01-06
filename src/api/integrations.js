@@ -1,5 +1,4 @@
 // Integrations - Firebase service exports
-// Base44 integrations-ийг Firebase service-ээр солих
 
 import { uploadFile, uploadPrivateFile } from '@/services/storageService';
 

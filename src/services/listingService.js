@@ -1,5 +1,4 @@
 // Listing Service - Firestore CRUD operations
-// Base44: base44.entities.Listing.* → Firestore
 
 import { 
   collection, 
@@ -41,7 +40,6 @@ const convertTimestamp = (value) => {
 
 /**
  * Бүх listings-ийг авах
- * Base44: base44.entities.Listing.list()
  * @param {string} orderByField - Order by field (default: 'created_date')
  * @param {number} limitCount - Limit count (default: 100)
  * @returns {Promise<Array>} Listings array
@@ -92,7 +90,6 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
 
 /**
  * Listing filter хийх
- * Base44: base44.entities.Listing.filter({...}, orderBy, limit)
  * @param {Object} filters - Filter object
  * @param {string} orderByField - Order by field (default: 'created_date')
  * @param {number} limitCount - Limit count (default: 100)
@@ -208,7 +205,6 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
 
 /**
  * Listing үүсгэх
- * Base44: base44.entities.Listing.create({...})
  * @param {Object} data - Listing data
  * @returns {Promise<Object>} Created listing with ID
  */
@@ -255,7 +251,6 @@ export const createListing = async (data) => {
 
 /**
  * Listing шинэчлэх
- * Base44: base44.entities.Listing.update(id, {...})
  * @param {string} id - Listing ID
  * @param {Object} data - Update data
  * @returns {Promise<void>}
@@ -284,7 +279,6 @@ export const updateListing = async (id, data) => {
 
 /**
  * Listing устгах
- * Base44: base44.entities.Listing.delete(id)
  * @param {string} id - Listing ID
  * @returns {Promise<void>}
  */
@@ -300,7 +294,6 @@ export const deleteListing = async (id) => {
 
 /**
  * Нэг listing-ийг авах
- * Base44: base44.entities.Listing.filter({ id })
  * @param {string} id - Listing ID
  * @returns {Promise<Object | null>} Listing object or null
  */

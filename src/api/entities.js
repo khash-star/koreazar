@@ -1,5 +1,4 @@
 // Entities - Firestore service exports
-// Base44 entities-ийг Firestore service-ээр солих
 
 import * as listingService from '@/services/listingService';
 import * as conversationService from '@/services/conversationService';
@@ -11,7 +10,7 @@ export const Listing = {
     listingService.listListings(orderBy.replace('-', ''), limitCount),
   
   filter: async (filters = {}, orderBy = '-created_date', limitCount = 100) => {
-    // Convert base44 filter format to Firestore query
+    // Convert filter format to Firestore query
     if (filters.id) {
       const listing = await listingService.getListing(filters.id);
       return listing ? [listing] : [];

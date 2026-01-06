@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -15,6 +15,7 @@ import Banner from '@/components/Banner';
 import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { logout } from '@/services/authService';
 
 export default function Home() {
   const listingsRef = useRef(null);
@@ -39,11 +40,7 @@ export default function Home() {
     queryKey: ['bannerAds'],
     queryFn: async () => {
       const ads = await entities.BannerAd.filter({ is_active: true }, '-order');
-      return ads.length > 0 ? ads : [
-        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/e5e668a0d_busan-city.jpg', link: '#' },
-        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/318d19bb0_daegu-tower_144973903.jpg', link: '#' },
-        { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/9d05a0e32_exploring-the-city-of-korean-drama-a-travel-in-south-korea.jpg', link: '#' }
-      ];
+      return ads.length > 0 ? ads : [];
     }
   });
 
@@ -207,18 +204,34 @@ export default function Home() {
               🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
             </h1>
           </div>
-          {!user && !userData && (
-            <Link to={createPageUrl('Login')} className="ml-4 flex-shrink-0">
+          {!(user || userData) ? (
+            <Link to={createPageUrl('Login')} className="ml-4 flex-shrink-0 z-50">
               <Button 
                 variant="outline" 
                 size="sm"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm whitespace-nowrap"
+                className="bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
               >
                 <LogIn className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Нэвтрэх</span>
-                <span className="sm:hidden">Нэвтрэх</span>
+                <span>Нэвтрэх</span>
               </Button>
             </Link>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                try {
+                  await logout();
+                  window.location.href = '/Home';
+                } catch (error) {
+                  console.error('Logout error:', error);
+                }
+              }}
+              className="ml-4 flex-shrink-0 z-50 bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              <span>Гарах</span>
+            </Button>
           )}
         </div>
       </div>
@@ -609,7 +622,7 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0 }}
             onClick={scrollToTop}
-            className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-lg flex items-center justify-center md:w-14 md:h-14"
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 rounded-full bg-gray-900 hover:bg-gray-800 text-white shadow-lg flex items-center justify-center md:w-14 md:h-14"
           >
             <ArrowUp className="w-5 h-5 md:w-6 md:h-6" />
           </motion.button>

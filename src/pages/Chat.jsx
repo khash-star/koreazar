@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin } from '@/services/authService';
+import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
 
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -24,6 +24,16 @@ export default function Chat() {
   const { user, userData } = useAuth();
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
+  const [adminEmail, setAdminEmail] = useState(null);
+
+  // Get admin email
+  useEffect(() => {
+    const fetchAdminEmail = async () => {
+      const email = await getAdminEmail();
+      setAdminEmail(email);
+    };
+    fetchAdminEmail();
+  }, []);
 
   useEffect(() => {
     if (!user && !userData) {
@@ -90,7 +100,7 @@ export default function Chat() {
   });
 
   const { data: otherUser } = useQuery({
-    queryKey: ['otherUser', conversation],
+    queryKey: ['otherUser', conversation?.id, adminEmail],
     queryFn: async () => {
       const email = userData?.email || user?.email;
       if (!conversation || !email) return null;
@@ -98,8 +108,29 @@ export default function Chat() {
         ? conversation.participant_2 
         : conversation.participant_1;
       
-      const users = await entities.User.filter({ email: otherEmail });
-      return users[0] || { email: otherEmail, full_name: otherEmail };
+      // Get admin email if not already set
+      let currentAdminEmail = adminEmail;
+      if (!currentAdminEmail) {
+        currentAdminEmail = await getAdminEmail();
+      }
+      
+      // Check if other user is admin
+      const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
+      
+      // Get user data from Firestore
+      let displayName;
+      if (isAdmin) {
+        displayName = 'АДМИН';
+      } else {
+        const userData = await getUserByEmail(otherEmail);
+        displayName = userData?.displayName || otherEmail.split('@')[0];
+      }
+      
+      return { 
+        email: otherEmail, 
+        displayName: displayName,
+        full_name: displayName
+      };
     },
     enabled: !!conversation && !!(userData?.email || user?.email)
   });
@@ -206,12 +237,20 @@ export default function Chat() {
           </Link>
           
           <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-              {otherUser?.full_name?.[0]?.toUpperCase() || '?'}
-            </div>
+            {adminEmail && otherUser?.email === adminEmail ? (
+              <img 
+                src="/admin_logo.png" 
+                alt="Admin Logo" 
+                className="w-10 h-10 object-contain rounded-full"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
+                {otherUser?.displayName?.[0]?.toUpperCase() || otherUser?.full_name?.[0]?.toUpperCase() || '?'}
+              </div>
+            )}
             <div>
               <h2 className="font-semibold text-gray-900">
-                {otherUser?.full_name || otherUser?.email || 'Уншиж байна...'}
+                {otherUser?.displayName || otherUser?.full_name || otherUser?.email || 'Уншиж байна...'}
               </h2>
               {listing && (
                 <p className="text-xs text-gray-500">

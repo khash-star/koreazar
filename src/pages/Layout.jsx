@@ -87,7 +87,7 @@ export default function Layout({ children, currentPageName }) {
       </footer>
 
       {/* Admin Button (Desktop) */}
-      {user?.role === 'admin' && (
+      {(userData?.role === 'admin' || user?.role === 'admin') && (
         <Link to={createPageUrl('AdminPanel')} className="hidden md:block fixed top-4 right-4 z-50">
           <Button className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg">
             <Shield className="w-4 h-4 mr-2" />
@@ -99,7 +99,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Bottom Navigation (Mobile) - Only on Home */}
       {showNav && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
-          <div className={`flex items-center ${user?.role === 'admin' ? 'justify-between' : 'justify-around'} py-2`}>
+          <div className={`flex items-center ${(userData?.role === 'admin' || user?.role === 'admin') ? 'justify-between' : 'justify-around'} py-2`}>
             <Link
               to={createPageUrl('Home')}
               className={`flex flex-col items-center py-2 px-6 ${

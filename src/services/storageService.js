@@ -1,12 +1,10 @@
 // Firebase Storage Service
-// Base44 integrations.Core.UploadFile-ийг Firebase Storage-аар солих
 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
 
 /**
  * Зураг upload хийх (Firebase Storage)
- * Base44: base44.integrations.Core.UploadFile({ file })
  * @param {File} file - Upload хийх файл
  * @param {string} folder - Folder path (optional, default: 'images')
  * @returns {Promise<{file_url: string}>} Upload хийгдсэн файлын URL

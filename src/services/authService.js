@@ -1,5 +1,4 @@
 // Firebase Authentication Service
-// Base44 auth.* функцийг Firebase Auth-аар солих
 
 import {
   signInWithEmailAndPassword,
@@ -108,7 +107,6 @@ export const resetPassword = async (email) => {
 
 /**
  * Одоогийн хэрэглэгчийн мэдээлэл авах
- * Base44: base44.auth.me()
  * @returns {Promise<User | null>} User object эсвэл null
  */
 export const getCurrentUser = async () => {
@@ -154,7 +152,6 @@ export const getUserData = async (uid) => {
 
 /**
  * Хэрэглэгчийн бүрэн мэдээлэл авах (Auth + Firestore)
- * Base44: base44.auth.me() -тэй адил
  * @returns {Promise<Object | null>} User object with Firestore data
  */
 export const getMe = async () => {
@@ -199,7 +196,6 @@ export const getMe = async () => {
 
 /**
  * Нэвтэрсэн эсэхийг шалгах
- * Base44: base44.auth.isAuthenticated()
  * @returns {boolean}
  */
 export const isAuthenticated = () => {
@@ -217,7 +213,6 @@ export const onAuthChange = (callback) => {
 
 /**
  * Login хуудас руу чиглүүлэх
- * Base44: base44.auth.redirectToLogin(redirectUrl)
  * @param {string} redirectUrl - Нэвтрэсний дараа чиглүүлэх URL (optional)
  */
 export const redirectToLogin = (redirectUrl = null) => {

@@ -128,7 +128,7 @@ export default function Profile() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Профайл</h1>
-              <p className="text-sm text-gray-500">Мэдээлэл засах</p>
+              <p className="text-sm text-gray-500">Мэдээллийг засах</p>
             </div>
           </div>
         </div>
@@ -139,7 +139,7 @@ export default function Profile() {
           <CardHeader>
             <CardTitle>Хувийн мэдээлэл</CardTitle>
             <CardDescription>
-              Өөрийн мэдээллийг засварлана уу
+              Өөрийн мэдээллийг засварлаж болно
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -262,4 +262,3 @@ export default function Profile() {
     </div>
   );
 }
-

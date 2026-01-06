@@ -34,6 +34,8 @@ import Login from "./Login";
 
 import Register from "./Register";
 
+import Profile from "./Profile";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -71,6 +73,8 @@ const PAGES = {
     Login: Login,
     
     Register: Register,
+    
+    Profile: Profile,
     
 }
 
@@ -135,6 +139,8 @@ function PagesContent() {
             <Route path="/Messages" element={<LayoutWrapper currentPageName={currentPage}><Messages /></LayoutWrapper>} />
             
             <Route path="/Chat" element={<LayoutWrapper currentPageName={currentPage}><Chat /></LayoutWrapper>} />
+            
+            <Route path="/Profile" element={<LayoutWrapper currentPageName={currentPage}><Profile /></LayoutWrapper>} />
             
         </Routes>
     );
