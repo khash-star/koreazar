@@ -212,8 +212,6 @@ export const createMessage = async (data) => {
       is_read: data.is_read !== undefined ? data.is_read : false
     };
     
-    console.log('Creating message in Firestore:', messageData);
-    
     const docRef = await addDoc(messagesRef, messageData);
     
     const result = {
@@ -221,8 +219,6 @@ export const createMessage = async (data) => {
       ...messageData,
       created_date: messageData.created_date.toDate() // Convert for easier use in components
     };
-    
-    console.log('Message created successfully with ID:', docRef.id);
     
     return result;
   } catch (error) {

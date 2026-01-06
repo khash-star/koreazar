@@ -125,17 +125,12 @@ export const getCurrentUser = async () => {
  */
 export const getUserData = async (uid) => {
   try {
-    console.log('🔍 getUserData: Fetching user data for UID:', uid);
     const userDoc = await getDoc(doc(db, 'users', uid));
-    console.log('🔍 getUserData: Document exists:', userDoc.exists());
     
     if (userDoc.exists()) {
       const data = { id: userDoc.id, ...userDoc.data() };
-      console.log('🔍 getUserData: User data retrieved:', data);
-      console.log('🔍 getUserData: Role:', data.role);
       return data;
     }
-    console.warn('🔍 getUserData: Document does not exist for UID:', uid);
     return null;
   } catch (error) {
     // Ignore offline errors - Firestore will work when online

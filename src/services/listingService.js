@@ -97,7 +97,6 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
  */
 export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
   try {
-    console.log('filterListings called with:', { filters, orderByField, limitCount });
     const listingsRef = collection(db, 'listings');
     const conditions = [];
     
@@ -105,14 +104,12 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     Object.keys(filters).forEach(key => {
       if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
         conditions.push(where(key, '==', filters[key]));
-        console.log(`Added where condition: ${key} == ${filters[key]}`);
       }
     });
     
     // Handle order by (support '-' prefix for descending)
     const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-    console.log(`Order by: ${orderField} ${orderDirection}`);
     
     // Build query
     let q;
@@ -122,9 +119,7 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       q = query(listingsRef, orderBy(orderField, orderDirection), limit(limitCount));
     }
     
-    console.log('Executing Firestore query...');
     const querySnapshot = await getDocs(q);
-    console.log(`Query returned ${querySnapshot.docs.length} documents`);
     
     const result = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -137,7 +132,6 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       };
     });
     
-    console.log('filterListings result:', result);
     return result;
   } catch (error) {
     console.error('Error filtering listings:', error);
@@ -263,9 +257,7 @@ export const updateListing = async (id, data) => {
       updated_date: Timestamp.now()
     };
     
-    console.log('Updating listing:', id, 'with data:', updateData);
     await updateDoc(listingRef, updateData);
-    console.log('Listing updated successfully:', id);
   } catch (error) {
     console.error('Error updating listing:', error);
     console.error('Error details:', {

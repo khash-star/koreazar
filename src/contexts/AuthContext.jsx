@@ -35,32 +35,21 @@ export const AuthProvider = ({ children }) => {
         
         // Then try to get full user data from Firestore (async, don't block)
         try {
-          console.log('🔍 AuthContext: Getting user data from Firestore...');
-          console.log('🔍 AuthContext: Firebase User UID:', firebaseUser.uid);
-          console.log('🔍 AuthContext: Firebase User Email:', firebaseUser.email);
-          
           const data = await getMe();
-          console.log('🔍 AuthContext: getMe() returned:', data);
           
           if (data) {
-            console.log('🔍 AuthContext: Setting userData with role:', data.role);
             setUserData(data); // Update with full Firestore data including role
           } else {
-            console.warn('🔍 AuthContext: getMe() returned null, trying getUserData directly...');
             // If getMe returns null, try to get user data directly from Firestore
             const { getUserData } = await import('@/services/authService');
             const userDataFromFirestore = await getUserData(firebaseUser.uid);
-            console.log('🔍 AuthContext: getUserData() returned:', userDataFromFirestore);
             
             if (userDataFromFirestore) {
-              console.log('🔍 AuthContext: Setting userData from getUserData with role:', userDataFromFirestore.role);
               setUserData({
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
                 ...userDataFromFirestore
               });
-            } else {
-              console.warn('🔍 AuthContext: No user data found in Firestore for UID:', firebaseUser.uid);
             }
             // If Firestore doesn't have data, keep the basic userData we set above
           }
