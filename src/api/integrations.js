@@ -36,8 +36,8 @@ export const Core = {
 };
 
 // Export individual functions for backward compatibility
-export { UploadFile as InvokeLLM };
-export { UploadFile as SendEmail };
-export { UploadFile as GenerateImage };
-export { UploadFile as ExtractDataFromUploadedFile };
-export { UploadFile as CreateFileSignedUrl };
+export const InvokeLLM = Core.InvokeLLM;
+export const SendEmail = Core.SendEmail;
+export const GenerateImage = Core.GenerateImage;
+export const ExtractDataFromUploadedFile = Core.ExtractDataFromUploadedFile;
+export const CreateFileSignedUrl = Core.CreateFileSignedUrl;
