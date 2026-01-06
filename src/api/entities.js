@@ -52,12 +52,20 @@ export const SavedListing = {
   },
   create: async (data) => {
     const { collection, addDoc, Timestamp } = await import('firebase/firestore');
-    const { db } = await import('@/firebase/config');
+    const { db, auth } = await import('@/firebase/config');
+    
+    // Get current user email from Firebase Auth
+    const currentUser = auth.currentUser;
+    const userEmail = data.created_by || currentUser?.email;
+    
+    if (!userEmail) {
+      throw new Error('Хэрэглэгч нэвтэрээгүй байна');
+    }
     
     const savedRef = collection(db, 'saved_listings');
     const savedData = {
       listing_id: data.listing_id,
-      created_by: data.created_by,
+      created_by: userEmail,
       created_date: Timestamp.now()
     };
     
