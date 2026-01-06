@@ -26,7 +26,7 @@ export const Listing = {
 
 // SavedListing entity
 export const SavedListing = {
-  filter: async (filters = {}, orderBy = '-created_date') => {
+  filter: async (filters = {}, orderBy = null) => {
     const { collection, query, where, getDocs, orderBy: orderByFn } = await import('firebase/firestore');
     const { db } = await import('@/firebase/config');
     
@@ -40,9 +40,16 @@ export const SavedListing = {
       conditions.push(where('listing_id', '==', filters.listing_id));
     }
     
-    const orderField = orderBy.replace('-', '');
-    const orderDirection = orderBy.startsWith('-') ? 'desc' : 'asc';
-    const q = query(savedRef, ...conditions, orderByFn(orderField, orderDirection));
+    // Only add orderBy if specified (to avoid index requirements)
+    let q;
+    if (orderBy) {
+      const orderField = orderBy.replace('-', '');
+      const orderDirection = orderBy.startsWith('-') ? 'desc' : 'asc';
+      q = query(savedRef, ...conditions, orderByFn(orderField, orderDirection));
+    } else {
+      q = conditions.length > 0 ? query(savedRef, ...conditions) : query(savedRef);
+    }
+    
     const querySnapshot = await getDocs(q);
     
     return querySnapshot.docs.map(doc => ({

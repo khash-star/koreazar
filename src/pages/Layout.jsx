@@ -10,24 +10,21 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData } = useAuth();
-  const [savedCount, setSavedCount] = useState(0);
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
 
-  useEffect(() => {
-    const email = userData?.email || user?.email;
-    if (email) {
-      entities.SavedListing.filter({ created_by: email })
-        .then(saved => {
-          setSavedCount(saved.length);
-        })
-        .catch(error => {
-          console.warn('Error loading saved listings count:', error);
-          setSavedCount(0);
-        });
-    } else {
-      setSavedCount(0);
-    }
-  }, [userData?.email, user?.email]);
+  // Get saved listings count using useQuery (same as other components)
+  const { data: savedListings = [] } = useQuery({
+    queryKey: ['savedListings', userData?.email || user?.email],
+    queryFn: () => {
+      const email = userData?.email || user?.email;
+      if (!email) return [];
+      return entities.SavedListing.filter({ created_by: email });
+    },
+    enabled: !!(userData?.email || user?.email),
+    retry: false
+  });
+
+  const savedCount = savedListings.length;
 
   // Get unread message count
   const { data: unreadCount = 0 } = useQuery({
