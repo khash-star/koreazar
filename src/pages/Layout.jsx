@@ -149,11 +149,11 @@ export default function Layout({ children, currentPageName }) {
 
             <Link
               to={createPageUrl('CreateListing')}
-              className="flex flex-col items-center py-2 px-3 text-gray-500"
+              className={`flex flex-col items-center py-2 px-3 ${
+                currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-500'
+              }`}
             >
-              <div className="w-12 h-12 -mt-6 bg-amber-500 rounded-full flex items-center justify-center shadow-lg">
-                <PlusCircle className="w-7 h-7 text-white" />
-              </div>
+              <PlusCircle className="w-6 h-6" />
               <span className="text-xs mt-1">Зар нэмэх</span>
             </Link>
 
