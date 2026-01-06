@@ -237,9 +237,9 @@ export default function Home() {
       </div>
 
       {/* Hero Banner Grid */}
-      {bannerAds.length > 0 && (
-        <div className="bg-gray-900 py-3 md:py-6 mt-12 md:mt-14">
-          <div className="max-w-7xl mx-auto px-4">
+      <div className="bg-gray-900 py-3 md:py-6 mt-12 md:mt-14">
+        <div className="max-w-7xl mx-auto px-4">
+          {bannerAds.length > 0 ? (
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBannerIndex}
@@ -276,9 +276,23 @@ export default function Home() {
                 ))}
               </motion.div>
             </AnimatePresence>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"
+                >
+                  <div className="text-center text-white/50">
+                    <div className="text-4xl mb-2">📢</div>
+                    <p className="text-sm">Баннер зар байршуулах</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 pt-0 pb-24 md:pb-12 mt-0 md:mt-0">
         {/* Categories */}
