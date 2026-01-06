@@ -47,7 +47,9 @@ export default function RequestBannerAd() {
     onSuccess: () => {
       setFormData({ title: '', link: '', message: '' });
       setImageUrl('');
+      // Show success message and navigate to home
       alert('Таны хүсэлт амжилттай илгээгдлээ! Админ баталгаажуулна.');
+      navigate(createPageUrl('Home'));
     }
   });
 

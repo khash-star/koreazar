@@ -95,7 +95,9 @@ export default function CreateListing() {
       return entities.Listing.create(data);
     },
     onSuccess: (result) => {
-      navigate(createPageUrl(`ListingDetail?id=${result.id}`));
+      // Show success message and navigate to home
+      alert('Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.');
+      navigate(createPageUrl('Home'));
     }
   });
 
