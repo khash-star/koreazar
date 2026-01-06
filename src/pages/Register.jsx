@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -139,7 +140,7 @@ export default function Register() {
     try {
       await register(formData.email, formData.password, formData.displayName || null, formData.phone || null);
       // AuthContext automatically updates, so just navigate
-      navigate('/Home');
+      navigate(createPageUrl('Home'));
     } catch (err) {
       console.error('Register error:', err);
       const errorCode = err?.code || err?.message || 'unknown';

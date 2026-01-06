@@ -8,11 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/Home';
+  const redirectUrl = searchParams.get('redirect') || createPageUrl('Home');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,8 +32,8 @@ export default function Login() {
     try {
       await loginWithKakao();
       setTimeout(() => {
-        const cleanUrl = redirectUrl.startsWith('/Login') ? '/Home' : redirectUrl;
-        navigate(cleanUrl || '/Home');
+        const cleanUrl = redirectUrl.startsWith('/Login') ? createPageUrl('Home') : redirectUrl;
+        navigate(cleanUrl || createPageUrl('Home'));
       }, 100);
     } catch (err) {
       console.error('Kakao login error:', err);
@@ -52,8 +53,8 @@ export default function Login() {
       // AuthContext automatically updates, wait a bit for context to update
       setTimeout(() => {
         // Clean redirect URL - remove /Login prefix if present
-        const cleanUrl = redirectUrl.startsWith('/Login') ? '/Home' : redirectUrl;
-        navigate(cleanUrl || '/Home');
+        const cleanUrl = redirectUrl.startsWith('/Login') ? createPageUrl('Home') : redirectUrl;
+        navigate(cleanUrl || createPageUrl('Home'));
       }, 100);
     } catch (err) {
       console.error('Login error:', err);

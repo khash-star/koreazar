@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ const locations = [
 
 export default function EditListing() {
   const navigate = useNavigate();
+  const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [listingId, setListingId] = useState(null);
@@ -218,6 +221,31 @@ export default function EditListing() {
           <Link to={createPageUrl('MyListings')}>
             <Button className="bg-amber-500 hover:bg-amber-600">
               Миний зар руу буцах
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is the owner of the listing
+  const userEmail = userData?.email || user?.email;
+  const isOwner = listing.created_by === userEmail;
+  
+  if (!user || !userData) {
+    redirectToLogin(window.location.href);
+    return null;
+  }
+
+  if (!isOwner) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Хандах эрхгүй</h2>
+          <p className="text-gray-600 mb-4">Та зөвхөн өөрийн зарыг засах боломжтой</p>
+          <Link to={createPageUrl(`ListingDetail?id=${listingId}`)}>
+            <Button className="bg-amber-500 hover:bg-amber-600">
+              Зарын дэлгэрэнгүй руу буцах
             </Button>
           </Link>
         </div>

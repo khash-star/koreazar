@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
@@ -24,7 +24,9 @@ import {
   AlertCircle,
   MessageSquare,
   Send,
-  Mail
+  Mail,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +39,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const conditionLabels = {
   new: 'Шинэ',
@@ -49,10 +61,12 @@ export default function ListingDetail() {
   const urlParams = new URLSearchParams(window.location.search);
   const listingId = urlParams.get('id');
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
   const { user, userData } = useAuth();
 
   const { data: listing, isLoading } = useQuery({
@@ -123,6 +137,17 @@ export default function ListingDetail() {
     navigator.clipboard.writeText(window.location.href);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => entities.Listing.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['listings']);
+      queryClient.invalidateQueries(['myListings']);
+      queryClient.invalidateQueries(['allListings']);
+      setDeleteId(null);
+      navigate(createPageUrl('Home'));
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -167,6 +192,9 @@ export default function ListingDetail() {
     return subcat?.label;
   };
 
+  const userEmail = userData?.email || user?.email;
+  const isOwner = listing && listing.created_by === userEmail;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
       {/* Header */}
@@ -179,6 +207,24 @@ export default function ListingDetail() {
             </Button>
           </Link>
           <div className="flex items-center gap-2">
+            {isOwner && (
+              <>
+                <Link to={createPageUrl(`EditListing?id=${listingId}`)}>
+                  <Button variant="ghost" size="icon" className="rounded-full" title="Засах">
+                    <Edit2 className="w-5 h-5" />
+                  </Button>
+                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full text-red-500 hover:text-red-600" 
+                  onClick={() => setDeleteId(listingId)}
+                  title="Устгах"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              </>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -343,12 +389,34 @@ export default function ListingDetail() {
               </div>
             )}
 
+            {/* Owner Actions */}
+            {isOwner && (
+              <div className="pt-6 border-t">
+                <h3 className="font-semibold text-gray-900 mb-4">Зар удирдах</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <Link to={createPageUrl(`EditListing?id=${listingId}`)}>
+                    <Button className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600">
+                      <Edit2 className="w-5 h-5 mr-2" />
+                      Засах
+                    </Button>
+                  </Link>
+                  <Button
+                    onClick={() => setDeleteId(listingId)}
+                    className="w-full h-12 rounded-xl bg-red-500 hover:bg-red-600"
+                  >
+                    <Trash2 className="w-5 h-5 mr-2" />
+                    Устгах
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Contact Section */}
             <div className="pt-6">
               <h3 className="font-semibold text-gray-900 mb-4">Холбоо барих</h3>
 
               <div className="space-y-3">
-                {listing.created_by !== user?.email && (
+                {!isOwner && (
                   <Button
                     onClick={() => {
                       if (!user && !userData) {
@@ -510,6 +578,27 @@ export default function ListingDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Зар устгах уу?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Та энэ зарыг устгахдаа итгэлтэй байна уу? Энэ үйлдлийг буцаах боломжгүй.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Цуцлах</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Устгах
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
