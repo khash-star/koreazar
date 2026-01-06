@@ -347,7 +347,7 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-gray-200 sticky bottom-0">
+      <div className="bg-white border-t border-gray-200 sticky bottom-0 md:bottom-0 pb-20 md:pb-3 z-30">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex gap-2">
             <Textarea
