@@ -207,7 +207,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <div className="flex-1 text-center">
             <h1 className="text-sm md:text-lg font-bold tracking-wide">
-              🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН САЙТ 🇰🇷
+              🇲🇳 СОЛОНГОС ДАХ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ
             </h1>
           </div>
           {!(user || userData) ? (
