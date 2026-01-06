@@ -349,12 +349,19 @@ export default function ListingDetail() {
 
               <div className="space-y-3">
                 {listing.created_by !== user?.email && (
-                  <Link to={createPageUrl(`Chat?otherUserEmail=${listing.created_by}&listingId=${listing.id}`)}>
-                    <Button className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600">
-                      <Mail className="w-5 h-5 mr-2" />
-                      Мессеж илгээх
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={() => {
+                      if (!user && !userData) {
+                        redirectToLogin(window.location.href);
+                        return;
+                      }
+                      window.location.href = createPageUrl(`Chat?otherUserEmail=${listing.created_by}&listingId=${listing.id}`);
+                    }}
+                    className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
+                  >
+                    <Mail className="w-5 h-5 mr-2" />
+                    Мессеж илгээх
+                  </Button>
                 )}
                 {listing.phone && (
                   showPhone ? (
@@ -366,7 +373,13 @@ export default function ListingDetail() {
                     </a>
                   ) : (
                     <Button
-                      onClick={() => setShowPhone(true)}
+                      onClick={() => {
+                        if (!user && !userData) {
+                          redirectToLogin(window.location.href);
+                          return;
+                        }
+                        setShowPhone(true);
+                      }}
                       className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
                     >
                       <Phone className="w-5 h-5 mr-2" />
@@ -423,7 +436,7 @@ export default function ListingDetail() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 md:hidden">
         {listing.phone && (
           <div className="mb-2">
-            {showPhone ? (
+{showPhone ? (
               <a href={`tel:${listing.phone}`}>
                 <Button className="w-full h-11 rounded-xl bg-green-600 hover:bg-green-700">
                   <Phone className="w-5 h-5 mr-2" />
@@ -432,7 +445,13 @@ export default function ListingDetail() {
               </a>
             ) : (
               <Button
-                onClick={() => setShowPhone(true)}
+                onClick={() => {
+                  if (!user && !userData) {
+                    redirectToLogin(window.location.href);
+                    return;
+                  }
+                  setShowPhone(true);
+                }}
                 className="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600"
               >
                 <Phone className="w-5 h-5 mr-2" />
