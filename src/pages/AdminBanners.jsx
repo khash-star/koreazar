@@ -16,9 +16,10 @@ import {
 } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminBanners() {
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [showDialog, setShowDialog] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,10 +31,6 @@ export default function AdminBanners() {
   });
 
   const queryClient = useQueryClient();
-
-  React.useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => setUser(null));
-  }, []);
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['bannerAds'],

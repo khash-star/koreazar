@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 import {
   ArrowLeft,
   Phone,
@@ -51,11 +53,7 @@ export default function ListingDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
+  const { user, userData } = useAuth();
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
@@ -68,8 +66,8 @@ export default function ListingDetail() {
 
   const { data: savedListings = [] } = useQuery({
     queryKey: ['savedListings', user?.email],
-    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }),
-    enabled: !!user?.email
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: userData?.email || user?.email }),
+    enabled: !!(userData?.email || user?.email)
   });
 
   const isSaved = savedListings.some(s => s.listing_id === listingId);
@@ -89,8 +87,8 @@ export default function ListingDetail() {
   });
 
   const handleSave = () => {
-    if (!user) {
-      base44.auth.redirectToLogin();
+    if (!user && !userData) {
+      redirectToLogin();
       return;
     }
     saveMutation.mutate();

@@ -11,6 +11,8 @@ import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 const conditionLabels = {
   new: 'Шинэ',
@@ -26,13 +28,12 @@ export default function ListingCard({ listing }) {
   const isVIP = listing.listing_type === 'vip';
   const isFeatured = listing.listing_type === 'featured';
 
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
+  const { user: authUser, userData } = useAuth();
+  const user = userData || authUser;
 
   const { data: savedListings = [] } = useQuery({
     queryKey: ['savedListings', user?.email],
-    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }),
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: user?.email || (userData?.email) }),
     enabled: !!user?.email
   });
 
@@ -56,7 +57,7 @@ export default function ListingCard({ listing }) {
     e.preventDefault();
     e.stopPropagation();
     if (!user) {
-      base44.auth.redirectToLogin();
+      redirectToLogin();
       return;
     }
     saveMutation.mutate();

@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -19,22 +21,21 @@ export default function Chat() {
   
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
 
   useEffect(() => {
-    base44.auth.me()
-      .then(setUser)
-      .catch(() => {
-        base44.auth.redirectToLogin(window.location.href);
-      });
-  }, []);
+    if (!user && !userData) {
+      redirectToLogin(window.location.href);
+    }
+  }, [user, userData]);
 
   // Create conversation if needed
   useEffect(() => {
     const createConversation = async () => {
-      if (!user?.email || !otherUserEmail || conversationId) return;
+      const email = userData?.email || user?.email;
+      if (!email || !otherUserEmail || conversationId) return;
       
       // Check if conversation exists
       const existing1 = await base44.entities.Conversation.filter({
@@ -67,7 +68,7 @@ export default function Chat() {
     };
     
     createConversation();
-  }, [user?.email, otherUserEmail, conversationId]);
+  }, [userData?.email, user?.email, otherUserEmail, conversationId]);
 
   const { data: conversation } = useQuery({
     queryKey: ['conversation', actualConversationId],
@@ -91,15 +92,16 @@ export default function Chat() {
   const { data: otherUser } = useQuery({
     queryKey: ['otherUser', conversation],
     queryFn: async () => {
-      if (!conversation || !user?.email) return null;
-      const otherEmail = conversation.participant_1 === user.email 
+      const email = userData?.email || user?.email;
+      if (!conversation || !email) return null;
+      const otherEmail = conversation.participant_1 === email 
         ? conversation.participant_2 
         : conversation.participant_1;
       
       const users = await base44.entities.User.filter({ email: otherEmail });
       return users[0] || { email: otherEmail, full_name: otherEmail };
     },
-    enabled: !!conversation && !!user?.email
+    enabled: !!conversation && !!(userData?.email || user?.email)
   });
 
   const { data: listing } = useQuery({
@@ -114,10 +116,11 @@ export default function Chat() {
   // Mark messages as read
   useEffect(() => {
     const markAsRead = async () => {
-      if (!user?.email || !actualConversationId || !conversation) return;
+      const email = userData?.email || user?.email;
+      if (!email || !actualConversationId || !conversation) return;
       
       const unreadMessages = messages.filter(
-        m => m.receiver_email === user.email && !m.is_read
+        m => m.receiver_email === email && !m.is_read
       );
       
       for (const msg of unreadMessages) {
@@ -126,7 +129,7 @@ export default function Chat() {
       
       // Update conversation unread count
       if (unreadMessages.length > 0) {
-        const isParticipant1 = conversation.participant_1 === user.email;
+        const isParticipant1 = conversation.participant_1 === email;
         await base44.entities.Conversation.update(actualConversationId, {
           [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
         });
@@ -134,7 +137,7 @@ export default function Chat() {
     };
     
     markAsRead();
-  }, [messages, user?.email, actualConversationId, conversation]);
+  }, [messages, userData?.email, user?.email, actualConversationId, conversation]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -143,18 +146,19 @@ export default function Chat() {
 
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
-      if (!user?.email || !actualConversationId || !otherUser?.email) return;
+      const email = userData?.email || user?.email;
+      if (!email || !actualConversationId || !otherUser?.email) return;
       
       const newMessage = await base44.entities.Message.create({
         conversation_id: actualConversationId,
-        sender_email: user.email,
+        sender_email: email,
         receiver_email: otherUser.email,
         message: messageText,
         is_read: false
       });
       
       // Update conversation
-      const isParticipant1 = conversation.participant_1 === user.email;
+      const isParticipant1 = conversation.participant_1 === email;
       const otherUnreadCount = isParticipant1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
       
       await base44.entities.Conversation.update(actualConversationId, {
@@ -254,7 +258,8 @@ export default function Chat() {
           ) : messages.length > 0 ? (
             <div className="space-y-4">
               {messages.map((msg, index) => {
-                const isOwnMessage = msg.sender_email === user.email;
+                const email = userData?.email || user?.email;
+                const isOwnMessage = msg.sender_email === email;
                 const showDate = index === 0 || 
                   format(new Date(messages[index - 1].created_date), 'yyyy-MM-dd') !== 
                   format(new Date(msg.created_date), 'yyyy-MM-dd');

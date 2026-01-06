@@ -20,15 +20,12 @@ import {
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [deleteId, setDeleteId] = useState(null);
-
-  React.useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],

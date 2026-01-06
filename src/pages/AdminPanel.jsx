@@ -6,18 +6,16 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, List, Shield, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminPanel() {
-  const [user, setUser] = useState(null);
-
-  React.useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
+  const { user, userData } = useAuth();
+  const userForRole = userData || user;
 
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['pending-count'],
     queryFn: () => base44.entities.Listing.filter({ status: 'pending' }),
-    enabled: user?.role === 'admin',
+    enabled: (userData?.role === 'admin' || user?.role === 'admin'),
   });
 
   if (!user || user.role !== 'admin') {

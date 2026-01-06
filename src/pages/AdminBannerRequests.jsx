@@ -25,17 +25,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminBannerRequests() {
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [deleteId, setDeleteId] = useState(null);
   const [activeDialog, setActiveDialog] = useState(null);
   const [adminNote, setAdminNote] = useState('');
   const queryClient = useQueryClient();
-
-  React.useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['bannerRequests'],

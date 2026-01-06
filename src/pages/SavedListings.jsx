@@ -8,28 +8,18 @@ import { Heart, ArrowLeft, Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import ListingCard from '@/components/listings/ListingCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 export default function SavedListings() {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const isAuth = await base44.auth.isAuthenticated();
-      if (isAuth) {
-        const userData = await base44.auth.me();
-        setUser(userData);
-      }
-      setIsAuthChecking(false);
-    };
-    checkAuth();
-  }, []);
+  const { user, userData } = useAuth();
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
 
   const { data: savedListings = [], isLoading: savedLoading } = useQuery({
     queryKey: ['savedListings', user?.email],
-    queryFn: () => base44.entities.SavedListing.filter({ created_by: user.email }, '-created_date'),
-    enabled: !!user?.email
+    queryFn: () => base44.entities.SavedListing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
+    enabled: !!(userData?.email || user?.email)
   });
 
   const { data: allListings = [], isLoading: listingsLoading } = useQuery({
@@ -60,7 +50,7 @@ export default function SavedListings() {
     );
   }
 
-  if (!user) {
+  if (!user && !userData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
@@ -68,7 +58,7 @@ export default function SavedListings() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Нэвтрэх шаардлагатай</h2>
           <p className="text-gray-500 mb-6">Хадгалсан зарыг харахын тулд нэвтэрнэ үү</p>
           <Button
-            onClick={() => base44.auth.redirectToLogin()}
+            onClick={() => redirectToLogin()}
             className="bg-amber-500 hover:bg-amber-600"
           >
             Нэвтрэх

@@ -25,6 +25,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { categoryInfo } from '@/components/listings/CategoryCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -34,20 +36,10 @@ const statusLabels = {
 
 export default function MyListings() {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [deleteId, setDeleteId] = useState(null);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthChecking, setIsAuthChecking] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const isAuth = await base44.auth.isAuthenticated();
-      if (isAuth) {
-        const userData = await base44.auth.me();
-        setUser(userData);
-      }
-      setIsAuthChecking(false);
-    };
     checkAuth();
   }, []);
 
@@ -61,7 +53,7 @@ export default function MyListings() {
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['myListings', user?.email],
-    queryFn: () => base44.entities.Listing.filter({ created_by: user.email }, '-created_date'),
+    queryFn: () => base44.entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
     enabled: !!user?.email
   });
 
@@ -97,7 +89,7 @@ export default function MyListings() {
     );
   }
 
-  if (!user) {
+  if (!user && !userData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center">
@@ -105,7 +97,7 @@ export default function MyListings() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Нэвтрэх шаардлагатай</h2>
           <p className="text-gray-500 mb-6">Зараа удирдахын тулд нэвтэрнэ үү</p>
           <Button
-            onClick={() => base44.auth.redirectToLogin()}
+            onClick={() => redirectToLogin()}
             className="bg-amber-500 hover:bg-amber-600"
           >
             Нэвтрэх

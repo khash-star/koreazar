@@ -21,6 +21,8 @@ import {
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import { compressImage } from '@/components/utils/imageCompressor';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 const locations = [
   'Seoul',
@@ -33,7 +35,7 @@ const locations = [
 
 export default function CreateListing() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -69,25 +71,23 @@ export default function CreateListing() {
   const availableSubcategories = formData.category ? subcategoryConfig[formData.category] || [] : [];
 
   React.useEffect(() => {
-    base44.auth.me()
-      .then((userData) => {
-        setUser(userData);
-        // Auto-fill contact info from user profile
-        if (userData.phone || userData.kakao_id || userData.wechat_id || userData.whatsapp || userData.facebook) {
-          setFormData(prev => ({
-            ...prev,
-            phone: userData.phone || prev.phone,
-            kakao_id: userData.kakao_id || prev.kakao_id,
-            wechat_id: userData.wechat_id || prev.wechat_id,
-            whatsapp: userData.whatsapp || prev.whatsapp,
-            facebook: userData.facebook || prev.facebook
-          }));
-        }
-      })
-      .catch(() => {
-        base44.auth.redirectToLogin(window.location.href);
-      });
-  }, []);
+    if (!user && !userData) {
+      redirectToLogin(window.location.href);
+      return;
+    }
+    
+    // Auto-fill contact info from user profile
+    if (userData && (userData.phone || userData.kakao_id || userData.wechat_id || userData.whatsapp || userData.facebook)) {
+      setFormData(prev => ({
+        ...prev,
+        phone: userData.phone || prev.phone,
+        kakao_id: userData.kakao_id || prev.kakao_id,
+        wechat_id: userData.wechat_id || prev.wechat_id,
+        whatsapp: userData.whatsapp || prev.whatsapp,
+        facebook: userData.facebook || prev.facebook
+      }));
+    }
+  }, [user, userData]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {

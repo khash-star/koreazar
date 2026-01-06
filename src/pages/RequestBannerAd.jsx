@@ -11,10 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 export default function RequestBannerAd() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [formData, setFormData] = useState({
@@ -24,17 +26,15 @@ export default function RequestBannerAd() {
   });
 
   React.useEffect(() => {
-    base44.auth.me()
-      .then(setUser)
-      .catch(() => {
-        base44.auth.redirectToLogin(window.location.href);
-      });
-  }, []);
+    if (!user && !userData) {
+      redirectToLogin(window.location.href);
+    }
+  }, [user, userData]);
 
   const { data: myRequests = [] } = useQuery({
     queryKey: ['myBannerRequests'],
     queryFn: async () => {
-      return base44.entities.BannerRequest.filter({ created_by: user.email }, '-created_date');
+      return base44.entities.BannerRequest.filter({ created_by: userData?.email || user?.email }, '-created_date');
     },
     enabled: !!user
   });

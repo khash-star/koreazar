@@ -10,18 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
+import { redirectToLogin } from '@/services/authService';
 
 export default function Messages() {
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    base44.auth.me()
-      .then(setUser)
-      .catch(() => {
-        base44.auth.redirectToLogin(window.location.href);
-      });
-  }, []);
+    if (!user && !userData) {
+      redirectToLogin(window.location.href);
+    }
+  }, [user, userData]);
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ['conversations', user?.email],
@@ -29,11 +29,11 @@ export default function Messages() {
       if (!user?.email) return [];
       
       const conv1 = await base44.entities.Conversation.filter(
-        { participant_1: user.email },
+        { participant_1: email },
         '-last_message_time'
       );
       const conv2 = await base44.entities.Conversation.filter(
-        { participant_2: user.email },
+        { participant_2: email },
         '-last_message_time'
       );
       
@@ -62,7 +62,7 @@ export default function Messages() {
         };
       });
     },
-    enabled: !!user?.email,
+    enabled: !!(userData?.email || user?.email),
     refetchInterval: 5000 // Refresh every 5 seconds
   });
 

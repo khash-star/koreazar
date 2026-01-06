@@ -6,39 +6,38 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Home, PlusCircle, User, Shield, Heart, MessageCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
+  const { user, userData } = useAuth();
   const [savedCount, setSavedCount] = useState(0);
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
-  
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => {});
-  }, []);
 
   useEffect(() => {
-    if (user?.email) {
-      base44.entities.SavedListing.filter({ created_by: user.email }).then(saved => {
+    const email = userData?.email || user?.email;
+    if (email) {
+      base44.entities.SavedListing.filter({ created_by: email }).then(saved => {
         setSavedCount(saved.length);
       });
     }
-  }, [user?.email]);
+  }, [userData?.email, user?.email]);
 
   // Get unread message count
   const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['unreadMessages', user?.email],
+    queryKey: ['unreadMessages', userData?.email || user?.email],
     queryFn: async () => {
-      if (!user?.email) return 0;
+      const email = userData?.email || user?.email;
+      if (!email) return 0;
       
-      const conv1 = await base44.entities.Conversation.filter({ participant_1: user.email });
-      const conv2 = await base44.entities.Conversation.filter({ participant_2: user.email });
+      const conv1 = await base44.entities.Conversation.filter({ participant_1: email });
+      const conv2 = await base44.entities.Conversation.filter({ participant_2: email });
       
       const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
                           conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
       
       return totalUnread;
     },
-    enabled: !!user?.email,
+    enabled: !!(userData?.email || user?.email),
     refetchInterval: 5000
   });
   
@@ -158,7 +157,7 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-xs mt-1">Миний зар</span>
             </Link>
 
-            {user?.role === 'admin' && (
+            {(userData?.role === 'admin' || user?.role === 'admin') && (
               <Link
                 to={createPageUrl('AdminPanel')}
                 className={`flex flex-col items-center py-2 px-6 ${
