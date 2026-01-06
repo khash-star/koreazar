@@ -207,7 +207,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <div className="flex-1 text-center">
             <h1 className="text-sm md:text-lg font-bold tracking-wide">
-              🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
+              🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН САЙТ 🇰🇷
             </h1>
           </div>
           {!(user || userData) ? (
@@ -288,7 +288,7 @@ export default function Home() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     <div className="absolute top-3 right-3">
                       <span className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-md font-medium shadow-lg">
-                        Зар
+                        ...
                       </span>
                     </div>
                   </a>
