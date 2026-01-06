@@ -41,7 +41,7 @@ export default function Messages() {
       
       // Get other user emails
       const otherEmails = allConvs.map(conv => 
-        conv.participant_1 === user.email ? conv.participant_2 : conv.participant_1
+        conv.participant_1 === email ? conv.participant_2 : conv.participant_1
       );
       
       // Fetch user details

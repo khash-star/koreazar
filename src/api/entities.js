@@ -13,17 +13,11 @@ export const Listing = {
   filter: async (filters = {}, orderBy = '-created_date', limitCount = 100) => {
     // Convert base44 filter format to Firestore query
     if (filters.id) {
-      const listing = await listingService.getListingById(filters.id);
+      const listing = await listingService.getListing(filters.id);
       return listing ? [listing] : [];
     }
-    if (filters.status) {
-      return listingService.getListingsByStatus(filters.status, orderBy.replace('-', ''), limitCount);
-    }
-    if (filters.created_by) {
-      return listingService.getListingsByUser(filters.created_by, orderBy.replace('-', ''), limitCount);
-    }
-    // Default: list all
-    return listingService.listListings(orderBy.replace('-', ''), limitCount);
+    // Use filterListings for all other filters
+    return listingService.filterListings(filters, orderBy, limitCount);
   },
   
   create: (data) => listingService.createListing(data),
@@ -87,33 +81,38 @@ export const SavedListing = {
 export const Conversation = {
   filter: async (filters = {}) => {
     if (filters.id) {
-      const conv = await conversationService.getConversationById(filters.id);
+      const conv = await conversationService.getConversation(filters.id);
       return conv ? [conv] : [];
     }
-    if (filters.participant_1) {
-      return conversationService.getConversationsByParticipant1(filters.participant_1);
-    }
-    if (filters.participant_2) {
-      return conversationService.getConversationsByParticipant2(filters.participant_2);
-    }
-    return [];
+    // Use filterConversations for participant filters
+    return conversationService.filterConversations(filters);
   },
   create: (data) => conversationService.createConversation(data),
   update: (id, data) => conversationService.updateConversation(id, data),
-  delete: (id) => conversationService.deleteConversation(id)
+  delete: async (id) => {
+    const { doc, deleteDoc } = await import('firebase/firestore');
+    const { db } = await import('@/firebase/config');
+    const convRef = doc(db, 'conversations', id);
+    await deleteDoc(convRef);
+  }
 };
 
 // Message entity
 export const Message = {
   filter: async (filters = {}, orderBy = 'created_date') => {
     if (filters.conversation_id) {
-      return conversationService.getMessagesByConversation(filters.conversation_id);
+      return conversationService.listMessages(filters.conversation_id);
     }
     return [];
   },
   create: (data) => conversationService.createMessage(data),
   update: (id, data) => conversationService.updateMessage(id, data),
-  delete: (id) => conversationService.deleteMessage(id)
+  delete: async (id) => {
+    const { doc, deleteDoc } = await import('firebase/firestore');
+    const { db } = await import('@/firebase/config');
+    const messageRef = doc(db, 'messages', id);
+    await deleteDoc(messageRef);
+  }
 };
 
 // BannerAd entity
