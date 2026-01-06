@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -58,7 +58,7 @@ export default function ListingDetail() {
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
     queryFn: async () => {
-      const results = await base44.entities.Listing.filter({ id: listingId });
+      const results = await entities.Listing.filter({ id: listingId });
       return results[0];
     },
     enabled: !!listingId
@@ -66,7 +66,7 @@ export default function ListingDetail() {
 
   const { data: savedListings = [] } = useQuery({
     queryKey: ['savedListings', user?.email],
-    queryFn: () => base44.entities.SavedListing.filter({ created_by: userData?.email || user?.email }),
+    queryFn: () => entities.SavedListing.filter({ created_by: userData?.email || user?.email }),
     enabled: !!(userData?.email || user?.email)
   });
 
@@ -76,9 +76,9 @@ export default function ListingDetail() {
     mutationFn: async () => {
       if (isSaved) {
         const saved = savedListings.find(s => s.listing_id === listingId);
-        await base44.entities.SavedListing.delete(saved.id);
+        await entities.SavedListing.delete(saved.id);
       } else {
-        await base44.entities.SavedListing.create({ listing_id: listingId });
+        await entities.SavedListing.create({ listing_id: listingId });
       }
     },
     onSuccess: () => {
@@ -97,7 +97,7 @@ export default function ListingDetail() {
   // Update view count
   useEffect(() => {
     if (listing) {
-      base44.entities.Listing.update(listing.id, {
+      entities.Listing.update(listing.id, {
         views: (listing.views || 0) + 1
       });
     }

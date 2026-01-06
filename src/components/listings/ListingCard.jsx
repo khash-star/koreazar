@@ -9,7 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
@@ -33,7 +33,7 @@ export default function ListingCard({ listing }) {
 
   const { data: savedListings = [] } = useQuery({
     queryKey: ['savedListings', user?.email],
-    queryFn: () => base44.entities.SavedListing.filter({ created_by: user?.email || (userData?.email) }),
+    queryFn: () => entities.SavedListing.filter({ created_by: user?.email || (userData?.email) }),
     enabled: !!user?.email
   });
 
@@ -43,9 +43,9 @@ export default function ListingCard({ listing }) {
     mutationFn: async () => {
       if (isSaved) {
         const saved = savedListings.find(s => s.listing_id === listing.id);
-        await base44.entities.SavedListing.delete(saved.id);
+        await entities.SavedListing.delete(saved.id);
       } else {
-        await base44.entities.SavedListing.create({ listing_id: listing.id });
+        await entities.SavedListing.create({ listing_id: listing.id });
       }
     },
     onSuccess: () => {

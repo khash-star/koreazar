@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
+import { UploadFile } from '@/api/integrations';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -34,14 +35,14 @@ export default function RequestBannerAd() {
   const { data: myRequests = [] } = useQuery({
     queryKey: ['myBannerRequests'],
     queryFn: async () => {
-      return base44.entities.BannerRequest.filter({ created_by: userData?.email || user?.email }, '-created_date');
+      return entities.BannerRequest.filter({ created_by: userData?.email || user?.email }, '-created_date');
     },
     enabled: !!user
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      return base44.entities.BannerRequest.create(data);
+      return entities.BannerRequest.create(data);
     },
     onSuccess: () => {
       setFormData({ title: '', link: '', message: '' });
@@ -62,7 +63,7 @@ export default function RequestBannerAd() {
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await UploadFile({ file });
       setImageUrl(file_url);
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа');

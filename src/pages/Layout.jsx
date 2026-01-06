@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Home, PlusCircle, User, Shield, Heart, MessageCircle } from 'lucide-react';
@@ -16,7 +16,7 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const email = userData?.email || user?.email;
     if (email) {
-      base44.entities.SavedListing.filter({ created_by: email }).then(saved => {
+      entities.SavedListing.filter({ created_by: email }).then(saved => {
         setSavedCount(saved.length);
       });
     }
@@ -29,8 +29,8 @@ export default function Layout({ children, currentPageName }) {
       const email = userData?.email || user?.email;
       if (!email) return 0;
       
-      const conv1 = await base44.entities.Conversation.filter({ participant_1: email });
-      const conv2 = await base44.entities.Conversation.filter({ participant_2: email });
+      const conv1 = await entities.Conversation.filter({ participant_1: email });
+      const conv2 = await entities.Conversation.filter({ participant_2: email });
       
       const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
                           conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);

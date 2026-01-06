@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -53,12 +53,12 @@ export default function MyListings() {
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['myListings', user?.email],
-    queryFn: () => base44.entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
+    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
     enabled: !!user?.email
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Listing.delete(id),
+    mutationFn: (id) => entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
       setDeleteId(null);
@@ -66,7 +66,7 @@ export default function MyListings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => base44.entities.Listing.update(id, { status }),
+    mutationFn: ({ id, status }) => entities.Listing.update(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
     }

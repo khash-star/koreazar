@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -38,14 +38,14 @@ export default function Chat() {
       if (!email || !otherUserEmail || conversationId) return;
       
       // Check if conversation exists
-      const existing1 = await base44.entities.Conversation.filter({
-        participant_1: user.email,
+      const existing1 = await entities.Conversation.filter({
+        participant_1: email,
         participant_2: otherUserEmail
       });
       
-      const existing2 = await base44.entities.Conversation.filter({
+      const existing2 = await entities.Conversation.filter({
         participant_1: otherUserEmail,
-        participant_2: user.email
+        participant_2: email
       });
       
       if (existing1.length > 0) {
@@ -54,12 +54,12 @@ export default function Chat() {
         setActualConversationId(existing2[0].id);
       } else {
         // Create new conversation
-        const newConv = await base44.entities.Conversation.create({
-          participant_1: user.email,
+        const newConv = await entities.Conversation.create({
+          participant_1: email,
           participant_2: otherUserEmail,
           last_message: '',
           last_message_time: new Date().toISOString(),
-          last_message_sender: user.email,
+          last_message_sender: email,
           unread_count_p1: 0,
           unread_count_p2: 0
         });
@@ -73,7 +73,7 @@ export default function Chat() {
   const { data: conversation } = useQuery({
     queryKey: ['conversation', actualConversationId],
     queryFn: async () => {
-      const convs = await base44.entities.Conversation.filter({ id: actualConversationId });
+      const convs = await entities.Conversation.filter({ id: actualConversationId });
       return convs[0];
     },
     enabled: !!actualConversationId
@@ -81,7 +81,7 @@ export default function Chat() {
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['messages', actualConversationId],
-    queryFn: () => base44.entities.Message.filter(
+    queryFn: () => entities.Message.filter(
       { conversation_id: actualConversationId },
       'created_date'
     ),
@@ -98,7 +98,7 @@ export default function Chat() {
         ? conversation.participant_2 
         : conversation.participant_1;
       
-      const users = await base44.entities.User.filter({ email: otherEmail });
+      const users = await entities.User.filter({ email: otherEmail });
       return users[0] || { email: otherEmail, full_name: otherEmail };
     },
     enabled: !!conversation && !!(userData?.email || user?.email)
@@ -107,7 +107,7 @@ export default function Chat() {
   const { data: listing } = useQuery({
     queryKey: ['listing', listingId],
     queryFn: async () => {
-      const listings = await base44.entities.Listing.filter({ id: listingId });
+      const listings = await entities.Listing.filter({ id: listingId });
       return listings[0];
     },
     enabled: !!listingId
@@ -124,13 +124,13 @@ export default function Chat() {
       );
       
       for (const msg of unreadMessages) {
-        await base44.entities.Message.update(msg.id, { is_read: true });
+        await entities.Message.update(msg.id, { is_read: true });
       }
       
       // Update conversation unread count
       if (unreadMessages.length > 0) {
         const isParticipant1 = conversation.participant_1 === email;
-        await base44.entities.Conversation.update(actualConversationId, {
+        await entities.Conversation.update(actualConversationId, {
           [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
         });
       }
@@ -149,7 +149,7 @@ export default function Chat() {
       const email = userData?.email || user?.email;
       if (!email || !actualConversationId || !otherUser?.email) return;
       
-      const newMessage = await base44.entities.Message.create({
+      const newMessage = await entities.Message.create({
         conversation_id: actualConversationId,
         sender_email: email,
         receiver_email: otherUser.email,
@@ -161,10 +161,10 @@ export default function Chat() {
       const isParticipant1 = conversation.participant_1 === email;
       const otherUnreadCount = isParticipant1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
       
-      await base44.entities.Conversation.update(actualConversationId, {
+      await entities.Conversation.update(actualConversationId, {
         last_message: messageText,
         last_message_time: new Date().toISOString(),
-        last_message_sender: user.email,
+        last_message_sender: email,
         [isParticipant1 ? 'unread_count_p2' : 'unread_count_p1']: otherUnreadCount + 1
       });
       

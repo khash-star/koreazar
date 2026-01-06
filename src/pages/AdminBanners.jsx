@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
+import { UploadFile } from '@/api/integrations';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,11 +35,11 @@ export default function AdminBanners() {
 
   const { data: banners = [], isLoading } = useQuery({
     queryKey: ['bannerAds'],
-    queryFn: () => base44.entities.BannerAd.list('-order')
+    queryFn: () => entities.BannerAd.list('-order')
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.BannerAd.create(data),
+    mutationFn: (data) => entities.BannerAd.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
       setShowDialog(false);
@@ -47,14 +48,14 @@ export default function AdminBanners() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.BannerAd.update(id, data),
+    mutationFn: ({ id, data }) => entities.BannerAd.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
     }
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.BannerAd.delete(id),
+    mutationFn: (id) => entities.BannerAd.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
     }
@@ -65,7 +66,7 @@ export default function AdminBanners() {
     if (!file) return;
 
     setUploading(true);
-    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    const { file_url } = await UploadFile({ file });
     setFormData({ ...formData, image_url: file_url });
     setUploading(false);
   };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -28,11 +28,11 @@ export default function Messages() {
     queryFn: async () => {
       if (!user?.email) return [];
       
-      const conv1 = await base44.entities.Conversation.filter(
+      const conv1 = await entities.Conversation.filter(
         { participant_1: email },
         '-last_message_time'
       );
-      const conv2 = await base44.entities.Conversation.filter(
+      const conv2 = await entities.Conversation.filter(
         { participant_2: email },
         '-last_message_time'
       );
@@ -45,7 +45,7 @@ export default function Messages() {
       );
       
       // Fetch user details
-      const users = await base44.entities.User.list();
+      const users = await entities.User.list();
       const userMap = {};
       users.forEach(u => {
         userMap[u.email] = u;

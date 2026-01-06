@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
+import { UploadFile } from '@/api/integrations';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -91,7 +92,7 @@ export default function CreateListing() {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      return base44.entities.Listing.create(data);
+      return entities.Listing.create(data);
     },
     onSuccess: (result) => {
       navigate(createPageUrl(`ListingDetail?id=${result.id}`));
@@ -132,7 +133,7 @@ export default function CreateListing() {
       for (const file of validFiles) {
         // Compress image before upload
         const compressedFile = await compressImage(file);
-        const { file_url } = await base44.integrations.Core.UploadFile({ file: compressedFile });
+        const { file_url } = await UploadFile({ file: compressedFile });
         setImages(prev => [...prev, file_url]);
       }
     } catch (error) {

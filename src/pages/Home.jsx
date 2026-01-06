@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown } from 'lucide-react';
@@ -36,7 +36,7 @@ export default function Home() {
   const { data: bannerAds = [] } = useQuery({
     queryKey: ['bannerAds'],
     queryFn: async () => {
-      const ads = await base44.entities.BannerAd.filter({ is_active: true }, '-order');
+      const ads = await entities.BannerAd.filter({ is_active: true }, '-order');
       return ads.length > 0 ? ads : [
         { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/e5e668a0d_busan-city.jpg', link: '#' },
         { image_url: 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6955079a31933f39746103b7/318d19bb0_daegu-tower_144973903.jpg', link: '#' },
@@ -112,7 +112,7 @@ export default function Home() {
       if (filters.location) query.location = filters.location;
       if (filters.condition) query.condition = filters.condition;
       
-      let results = await base44.entities.Listing.filter(query, '-created_date', 100);
+      let results = await entities.Listing.filter(query, '-created_date', 100);
       
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -157,7 +157,7 @@ export default function Home() {
 
   const { data: allListings = [] } = useQuery({
     queryKey: ['allListings'],
-    queryFn: () => base44.entities.Listing.filter({ status: 'active' }),
+    queryFn: () => entities.Listing.filter({ status: 'active' }),
   });
 
   const categoryCounts = allListings.reduce((acc, listing) => {

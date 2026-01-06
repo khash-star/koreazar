@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
+import { UploadFile } from '@/api/integrations';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -45,7 +46,7 @@ export default function EditListing() {
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
     queryFn: async () => {
-      const listings = await base44.entities.Listing.filter({ id: listingId });
+      const listings = await entities.Listing.filter({ id: listingId });
       return listings[0];
     },
     enabled: !!listingId
@@ -120,7 +121,7 @@ export default function EditListing() {
 
   const updateMutation = useMutation({
     mutationFn: async (data) => {
-      return base44.entities.Listing.update(listingId, data);
+      return entities.Listing.update(listingId, data);
     },
     onSuccess: () => {
       navigate(createPageUrl(`ListingDetail?id=${listingId}`));
@@ -161,7 +162,7 @@ export default function EditListing() {
       for (const file of validFiles) {
         // Compress image before upload
         const compressedFile = await compressImage(file);
-        const { file_url } = await base44.integrations.Core.UploadFile({ file: compressedFile });
+        const { file_url } = await UploadFile({ file: compressedFile });
         setImages(prev => [...prev, file_url]);
       }
     } catch (error) {

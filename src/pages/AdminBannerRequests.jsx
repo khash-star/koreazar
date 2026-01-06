@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CheckCircle, XCircle, Trash2, ExternalLink } from 'lucide-react';
@@ -36,11 +36,11 @@ export default function AdminBannerRequests() {
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['bannerRequests'],
-    queryFn: () => base44.entities.BannerRequest.list('-created_date')
+    queryFn: () => entities.BannerRequest.list('-created_date')
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.BannerRequest.delete(id),
+    mutationFn: (id) => entities.BannerRequest.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerRequests'] });
       setDeleteId(null);
@@ -49,7 +49,7 @@ export default function AdminBannerRequests() {
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status, note }) => 
-      base44.entities.BannerRequest.update(id, { 
+      entities.BannerRequest.update(id, { 
         status, 
         admin_note: note || undefined 
       }),
@@ -63,7 +63,7 @@ export default function AdminBannerRequests() {
   const approveMutation = useMutation({
     mutationFn: async ({ request }) => {
       // Create banner ad
-      await base44.entities.BannerAd.create({
+      await entities.BannerAd.create({
         image_url: request.image_url,
         link: request.link,
         title: request.title,
@@ -71,7 +71,7 @@ export default function AdminBannerRequests() {
         order: 0
       });
       // Update request status
-      await base44.entities.BannerRequest.update(request.id, { 
+      await entities.BannerRequest.update(request.id, { 
         status: 'approved',
         admin_note: adminNote || 'Баннер зар идэвхжүүлэгдлээ'
       });

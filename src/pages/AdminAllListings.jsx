@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -40,11 +40,11 @@ export default function AdminAllListings() {
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-all-listings'],
-    queryFn: () => base44.entities.Listing.list('-created_date', 500),
+    queryFn: () => entities.Listing.list('-created_date', 500),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Listing.delete(id),
+    mutationFn: (id) => entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-all-listings']);
       queryClient.invalidateQueries(['listings']);
@@ -54,7 +54,7 @@ export default function AdminAllListings() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }) => base44.entities.Listing.update(id, { status }),
+    mutationFn: ({ id, status }) => entities.Listing.update(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-all-listings']);
       queryClient.invalidateQueries(['listings']);
@@ -64,7 +64,7 @@ export default function AdminAllListings() {
 
   const updateTypeMutation = useMutation({
     mutationFn: ({ id, listing_type, listing_type_expires }) => 
-      base44.entities.Listing.update(id, { listing_type, listing_type_expires }),
+      entities.Listing.update(id, { listing_type, listing_type_expires }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-all-listings']);
       queryClient.invalidateQueries(['listings']);

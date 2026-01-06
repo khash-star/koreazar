@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import * as entities from '@/api/entities';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -14,7 +14,7 @@ export default function AdminPanel() {
 
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['pending-count'],
-    queryFn: () => base44.entities.Listing.filter({ status: 'pending' }),
+    queryFn: () => entities.Listing.filter({ status: 'pending' }),
     enabled: (userData?.role === 'admin' || user?.role === 'admin'),
   });
 

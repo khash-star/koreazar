@@ -1,26 +1,43 @@
-import { base44 } from './base44Client';
+// Integrations - Firebase service exports
+// Base44 integrations-ийг Firebase service-ээр солих
 
+import { uploadFile, uploadPrivateFile } from '@/services/storageService';
 
+// UploadFile - Firebase Storage ашиглах
+export const UploadFile = async ({ file }) => {
+  return await uploadFile(file);
+};
 
+// UploadPrivateFile - Firebase Storage ашиглах
+export const UploadPrivateFile = async ({ file, userId }) => {
+  return await uploadPrivateFile(file, userId);
+};
 
-export const Core = base44.integrations.Core;
+// Core integrations wrapper
+export const Core = {
+  UploadFile,
+  UploadPrivateFile,
+  // Бусад integrations хэрэгтэй бол энд нэмэх
+  InvokeLLM: async () => {
+    throw new Error('InvokeLLM is not implemented - use aiService instead');
+  },
+  SendEmail: async () => {
+    throw new Error('SendEmail is not implemented yet');
+  },
+  GenerateImage: async () => {
+    throw new Error('GenerateImage is not implemented yet');
+  },
+  ExtractDataFromUploadedFile: async () => {
+    throw new Error('ExtractDataFromUploadedFile is not implemented yet');
+  },
+  CreateFileSignedUrl: async () => {
+    throw new Error('CreateFileSignedUrl is not implemented yet');
+  }
+};
 
-export const InvokeLLM = base44.integrations.Core.InvokeLLM;
-
-export const SendEmail = base44.integrations.Core.SendEmail;
-
-export const UploadFile = base44.integrations.Core.UploadFile;
-
-export const GenerateImage = base44.integrations.Core.GenerateImage;
-
-export const ExtractDataFromUploadedFile = base44.integrations.Core.ExtractDataFromUploadedFile;
-
-export const CreateFileSignedUrl = base44.integrations.Core.CreateFileSignedUrl;
-
-export const UploadPrivateFile = base44.integrations.Core.UploadPrivateFile;
-
-
-
-
-
-
+// Export individual functions for backward compatibility
+export { UploadFile as InvokeLLM };
+export { UploadFile as SendEmail };
+export { UploadFile as GenerateImage };
+export { UploadFile as ExtractDataFromUploadedFile };
+export { UploadFile as CreateFileSignedUrl };
