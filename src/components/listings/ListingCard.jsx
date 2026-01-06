@@ -74,8 +74,22 @@ export default function ListingCard({ listing }) {
     return '₩' + new Intl.NumberFormat('ko-KR').format(price);
   };
 
+  // Debug: Check if listing.id exists
+  React.useEffect(() => {
+    if (!listing.id) {
+      console.warn('⚠️ ListingCard: listing.id is missing!', listing);
+    }
+  }, [listing.id]);
+
+  const listingUrl = listing.id ? createPageUrl(`ListingDetail?id=${listing.id}`) : '#';
+
   return (
-    <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+    <Link to={listingUrl} onClick={(e) => {
+      if (!listing.id) {
+        e.preventDefault();
+        console.error('❌ ListingCard: Cannot navigate - listing.id is missing');
+      }
+    }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

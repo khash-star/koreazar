@@ -109,7 +109,9 @@ export default function AdminAllListings() {
     l.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!user || user.role !== 'admin') {
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">

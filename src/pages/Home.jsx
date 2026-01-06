@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown } from 'lucide-react';
+import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -14,6 +14,7 @@ import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import Banner from '@/components/Banner';
 import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const listingsRef = useRef(null);
@@ -21,6 +22,7 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const { user, userData } = useAuth();
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -160,6 +162,30 @@ export default function Home() {
     queryFn: () => entities.Listing.filter({ status: 'active' }),
   });
 
+  // Get saved listings for current user
+  const { data: savedListings = [], isLoading: savedLoading } = useQuery({
+    queryKey: ['savedListings', userData?.email || user?.email],
+    queryFn: async () => {
+      const email = userData?.email || user?.email;
+      if (!email) return [];
+      const saved = await entities.SavedListing.filter({ created_by: email }, '-created_date');
+      return saved;
+    },
+    enabled: !!(userData?.email || user?.email)
+  });
+
+  // Get full listing data for saved listings
+  const { data: savedListingsFull = [] } = useQuery({
+    queryKey: ['savedListingsFull', savedListings.map(s => s.listing_id).join(',')],
+    queryFn: async () => {
+      if (savedListings.length === 0) return [];
+      const listingIds = savedListings.map(s => s.listing_id);
+      const allListingsData = await entities.Listing.filter({ status: 'active' });
+      return allListingsData.filter(l => listingIds.includes(l.id));
+    },
+    enabled: savedListings.length > 0
+  });
+
   const categoryCounts = allListings.reduce((acc, listing) => {
     acc[listing.category] = (acc[listing.category] || 0) + 1;
     return acc;
@@ -175,10 +201,25 @@ export default function Home() {
       
       {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-3 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-sm md:text-lg font-bold tracking-wide">
-            🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
-          </h1>
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
+          <div className="flex-1 text-center">
+            <h1 className="text-sm md:text-lg font-bold tracking-wide">
+              🇲🇳 СОЛОНГОС ДАХ МОНГОЛЧУУДЫН ЗАРЫН НЭГДСЭН САЙТ 🇰🇷
+            </h1>
+          </div>
+          {!user && !userData && (
+            <Link to={createPageUrl('Login')} className="ml-4 flex-shrink-0">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm whitespace-nowrap"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Нэвтрэх</span>
+                <span className="sm:hidden">Нэвтрэх</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -414,6 +455,36 @@ export default function Home() {
                 )
               ))}
             </motion.div>
+          </motion.div>
+        )}
+
+        {/* Saved Listings Section - Only show if user is logged in and has saved listings */}
+        {user && savedListingsFull.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+                <h2 className="text-xl font-bold text-gray-900">Хадгалсан зарууд</h2>
+                <span className="text-sm text-gray-500">({savedListingsFull.length})</span>
+              </div>
+              <Link to={createPageUrl('SavedListings')}>
+                <Button variant="outline" size="sm" className="text-sm">
+                  Бүгдийг харах
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <div className="flex gap-4 pb-2">
+                {savedListingsFull.slice(0, 10).map((listing) => (
+                  <FeaturedListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+            </div>
           </motion.div>
         )}
 

@@ -58,7 +58,15 @@ export default function Login() {
     } catch (err) {
       console.error('Login error:', err);
       const errorCode = err?.code || err?.message || 'unknown';
-      setError(getErrorMessage(errorCode));
+      const errorMessage = getErrorMessage(errorCode);
+      setError(errorMessage);
+      // Additional debugging
+      if (err?.code) {
+        console.error('Firebase error code:', err.code);
+      }
+      if (err?.message) {
+        console.error('Firebase error message:', err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,10 +93,10 @@ export default function Login() {
     const codeStr = String(code || '').toLowerCase();
     
     if (codeStr.includes('user-not-found') || codeStr === 'auth/user-not-found') {
-      return 'Энэ имэйл бүртгэлгүй байна.';
+      return 'Энэ имэйл бүртгэлгүй байна. Бүртгүүлэх хуудас руу орох уу?';
     }
     if (codeStr.includes('wrong-password') || codeStr === 'auth/wrong-password' || codeStr.includes('invalid-credential')) {
-      return 'Нууц үг эсвэл имэйл буруу байна.';
+      return 'Нууц үг эсвэл имэйл буруу байна. Нууц үгээ мартсан уу?';
     }
     if (codeStr.includes('invalid-email') || codeStr === 'auth/invalid-email') {
       return 'Имэйл хаяг буруу форматтай байна.';
@@ -102,9 +110,15 @@ export default function Login() {
     if (codeStr.includes('400') || codeStr.includes('bad request')) {
       return 'Хүсэлт буруу байна. Firebase тохиргоог шалгана уу.';
     }
+    if (codeStr.includes('auth/operation-not-allowed')) {
+      return 'Email/Password нэвтрэх арга идэвхжээгүй байна. Firebase Console дээр идэвхжүүлнэ үү.';
+    }
+    if (codeStr.includes('auth/invalid-api-key')) {
+      return 'Firebase API key буруу байна. .env файл шалгана уу.';
+    }
     
     // Show actual error for debugging
-    return `Нэвтрэхэд алдаа гарлаа: ${code || 'Тодорхойгүй алдаа'}`;
+    return `Нэвтрэхэд алдаа гарлаа: ${code || 'Тодорхойгүй алдаа'}. Browser console (F12) шалгана уу.`;
   };
 
   if (showResetPassword) {

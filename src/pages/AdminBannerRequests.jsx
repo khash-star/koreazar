@@ -95,7 +95,9 @@ export default function AdminBannerRequests() {
     );
   }
 
-  if (user.role !== 'admin') {
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  
+  if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

@@ -127,10 +127,17 @@ export const getCurrentUser = async () => {
  */
 export const getUserData = async (uid) => {
   try {
+    console.log('🔍 getUserData: Fetching user data for UID:', uid);
     const userDoc = await getDoc(doc(db, 'users', uid));
+    console.log('🔍 getUserData: Document exists:', userDoc.exists());
+    
     if (userDoc.exists()) {
-      return { id: userDoc.id, ...userDoc.data() };
+      const data = { id: userDoc.id, ...userDoc.data() };
+      console.log('🔍 getUserData: User data retrieved:', data);
+      console.log('🔍 getUserData: Role:', data.role);
+      return data;
     }
+    console.warn('🔍 getUserData: Document does not exist for UID:', uid);
     return null;
   } catch (error) {
     // Ignore offline errors - Firestore will work when online
@@ -138,7 +145,9 @@ export const getUserData = async (uid) => {
       console.warn('Firestore offline - user data will sync when online');
       return null;
     }
-    console.error('Error getting user data:', error);
+    console.error('❌ Error getting user data:', error);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error message:', error.message);
     return null;
   }
 };

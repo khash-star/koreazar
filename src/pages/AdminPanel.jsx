@@ -12,13 +12,28 @@ export default function AdminPanel() {
   const { user, userData } = useAuth();
   const userForRole = userData || user;
 
+  // Debug: Console дээр userData харагдах
+  React.useEffect(() => {
+    if (user) {
+      console.log('🔍 Admin Panel Debug:');
+      console.log('User:', user);
+      console.log('UserData:', userData);
+      console.log('User Email:', user.email);
+      console.log('UserData Email:', userData?.email);
+      console.log('UserData Role:', userData?.role);
+      console.log('Is Admin:', userData?.role === 'admin' || user?.role === 'admin');
+    }
+  }, [user, userData]);
+
   const { data: pendingListings = [] } = useQuery({
     queryKey: ['pending-count'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }),
     enabled: (userData?.role === 'admin' || user?.role === 'admin'),
   });
 
-  if (!user || user.role !== 'admin') {
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
