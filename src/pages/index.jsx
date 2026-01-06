@@ -30,6 +30,10 @@ import Messages from "./Messages";
 
 import Chat from "./Chat";
 
+import Login from "./Login";
+
+import Register from "./Register";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -64,6 +68,10 @@ const PAGES = {
     
     Chat: Chat,
     
+    Login: Login,
+    
+    Register: Register,
+    
 }
 
 function _getCurrentPage(url) {
@@ -79,50 +87,56 @@ function _getCurrentPage(url) {
     return pageName || Object.keys(PAGES)[0];
 }
 
+// Wrapper component for pages that need Layout
+function LayoutWrapper({ children, currentPageName }) {
+    return <Layout currentPageName={currentPageName}>{children}</Layout>;
+}
+
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     
     return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<AdminAllListings />} />
-                
-                
-                <Route path="/AdminAllListings" element={<AdminAllListings />} />
-                
-                <Route path="/AdminBannerRequests" element={<AdminBannerRequests />} />
-                
-                <Route path="/AdminBanners" element={<AdminBanners />} />
-                
-                <Route path="/AdminNewListings" element={<AdminNewListings />} />
-                
-                <Route path="/AdminPanel" element={<AdminPanel />} />
-                
-                <Route path="/CreateListing" element={<CreateListing />} />
-                
-                <Route path="/EditListing" element={<EditListing />} />
-                
-                <Route path="/Home" element={<Home />} />
-                
-                <Route path="/ListingDetail" element={<ListingDetail />} />
-                
-                <Route path="/MyListings" element={<MyListings />} />
-                
-                <Route path="/RequestBannerAd" element={<RequestBannerAd />} />
-                
-                <Route path="/SavedListings" element={<SavedListings />} />
-                
-                <Route path="/UpgradeListing" element={<UpgradeListing />} />
-                
-                <Route path="/Messages" element={<Messages />} />
-                
-                <Route path="/Chat" element={<Chat />} />
-                
-            </Routes>
-        </Layout>
+        <Routes>
+            {/* Login and Register pages without Layout */}
+            <Route path="/Login" element={<Login />} />
+            <Route path="/Register" element={<Register />} />
+            
+            {/* All other pages with Layout */}
+            <Route path="/" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
+            
+            <Route path="/AdminAllListings" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
+            
+            <Route path="/AdminBannerRequests" element={<LayoutWrapper currentPageName={currentPage}><AdminBannerRequests /></LayoutWrapper>} />
+            
+            <Route path="/AdminBanners" element={<LayoutWrapper currentPageName={currentPage}><AdminBanners /></LayoutWrapper>} />
+            
+            <Route path="/AdminNewListings" element={<LayoutWrapper currentPageName={currentPage}><AdminNewListings /></LayoutWrapper>} />
+            
+            <Route path="/AdminPanel" element={<LayoutWrapper currentPageName={currentPage}><AdminPanel /></LayoutWrapper>} />
+            
+            <Route path="/CreateListing" element={<LayoutWrapper currentPageName={currentPage}><CreateListing /></LayoutWrapper>} />
+            
+            <Route path="/EditListing" element={<LayoutWrapper currentPageName={currentPage}><EditListing /></LayoutWrapper>} />
+            
+            <Route path="/Home" element={<LayoutWrapper currentPageName={currentPage}><Home /></LayoutWrapper>} />
+            
+            <Route path="/ListingDetail" element={<LayoutWrapper currentPageName={currentPage}><ListingDetail /></LayoutWrapper>} />
+            
+            <Route path="/MyListings" element={<LayoutWrapper currentPageName={currentPage}><MyListings /></LayoutWrapper>} />
+            
+            <Route path="/RequestBannerAd" element={<LayoutWrapper currentPageName={currentPage}><RequestBannerAd /></LayoutWrapper>} />
+            
+            <Route path="/SavedListings" element={<LayoutWrapper currentPageName={currentPage}><SavedListings /></LayoutWrapper>} />
+            
+            <Route path="/UpgradeListing" element={<LayoutWrapper currentPageName={currentPage}><UpgradeListing /></LayoutWrapper>} />
+            
+            <Route path="/Messages" element={<LayoutWrapper currentPageName={currentPage}><Messages /></LayoutWrapper>} />
+            
+            <Route path="/Chat" element={<LayoutWrapper currentPageName={currentPage}><Chat /></LayoutWrapper>} />
+            
+        </Routes>
     );
 }
 

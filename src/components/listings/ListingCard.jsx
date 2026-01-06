@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -23,7 +23,6 @@ const conditionLabels = {
 
 export default function ListingCard({ listing }) {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState(null);
   const info = categoryInfo[listing.category] || categoryInfo.other;
   const isVIP = listing.listing_type === 'vip';
   const isFeatured = listing.listing_type === 'featured';

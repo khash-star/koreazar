@@ -40,8 +40,16 @@ export default function MyListings() {
   const [deleteId, setDeleteId] = useState(null);
   const [isAuthChecking, setIsAuthChecking] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!user && !userData) {
+        setIsAuthChecking(true);
+        await redirectToLogin();
+      }
+    };
     checkAuth();
-  }, []);
+  }, [user, userData]);
 
   useEffect(() => {
     const handleScroll = () => {

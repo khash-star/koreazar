@@ -16,9 +16,16 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const email = userData?.email || user?.email;
     if (email) {
-      entities.SavedListing.filter({ created_by: email }).then(saved => {
-        setSavedCount(saved.length);
-      });
+      entities.SavedListing.filter({ created_by: email })
+        .then(saved => {
+          setSavedCount(saved.length);
+        })
+        .catch(error => {
+          console.warn('Error loading saved listings count:', error);
+          setSavedCount(0);
+        });
+    } else {
+      setSavedCount(0);
     }
   }, [userData?.email, user?.email]);
 
@@ -29,16 +36,22 @@ export default function Layout({ children, currentPageName }) {
       const email = userData?.email || user?.email;
       if (!email) return 0;
       
-      const conv1 = await entities.Conversation.filter({ participant_1: email });
-      const conv2 = await entities.Conversation.filter({ participant_2: email });
-      
-      const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
-                          conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
-      
-      return totalUnread;
+      try {
+        const conv1 = await entities.Conversation.filter({ participant_1: email });
+        const conv2 = await entities.Conversation.filter({ participant_2: email });
+        
+        const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
+                            conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
+        
+        return totalUnread;
+      } catch (error) {
+        console.warn('Error loading unread messages count:', error);
+        return 0;
+      }
     },
     enabled: !!(userData?.email || user?.email),
-    refetchInterval: 5000
+    refetchInterval: 5000,
+    retry: false
   });
   
   return (
