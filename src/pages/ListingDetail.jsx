@@ -67,7 +67,7 @@ export default function ListingDetail() {
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
-  const { user, userData } = useAuth();
+  const { user, userData, isAuthenticated, loading } = useAuth();
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
@@ -101,7 +101,8 @@ export default function ListingDetail() {
   });
 
   const handleSave = () => {
-    if (!user && !userData) {
+    if (loading) return;
+    if (!isAuthenticated) {
       redirectToLogin();
       return;
     }
@@ -419,7 +420,8 @@ export default function ListingDetail() {
                 {!isOwner && (
                   <Button
                     onClick={() => {
-                      if (!user && !userData) {
+                      if (loading) return;
+                      if (!isAuthenticated) {
                         redirectToLogin(window.location.href);
                         return;
                       }
@@ -442,7 +444,8 @@ export default function ListingDetail() {
                   ) : (
                     <Button
                       onClick={() => {
-                        if (!user && !userData) {
+                        if (loading) return;
+                        if (!isAuthenticated) {
                           redirectToLogin(window.location.href);
                           return;
                         }
@@ -514,7 +517,8 @@ export default function ListingDetail() {
             ) : (
               <Button
                 onClick={() => {
-                  if (!user && !userData) {
+                  if (loading) return;
+                  if (!isAuthenticated) {
                     redirectToLogin(window.location.href);
                     return;
                   }
