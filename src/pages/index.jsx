@@ -37,6 +37,7 @@ import Register from "./Register";
 import Profile from "./Profile";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const PAGES = {
     
@@ -100,6 +101,11 @@ function LayoutWrapper({ children, currentPageName }) {
 function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
+    
+    // Scroll to top when route changes
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }, [location.pathname]);
     
     return (
         <Routes>
