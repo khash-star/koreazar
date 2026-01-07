@@ -102,7 +102,8 @@ export default function ListingDetail() {
 
   const handleSave = () => {
     if (loading) return;
-    if (!isAuthenticated) {
+    const email = userData?.email || user?.email;
+    if (!email) {
       redirectToLogin();
       return;
     }
@@ -421,7 +422,8 @@ export default function ListingDetail() {
                   <Button
                     onClick={() => {
                       if (loading) return;
-                      if (!isAuthenticated) {
+                      const email = userData?.email || user?.email;
+                      if (!email) {
                         redirectToLogin(window.location.href);
                         return;
                       }
@@ -445,7 +447,8 @@ export default function ListingDetail() {
                     <Button
                       onClick={() => {
                         if (loading) return;
-                        if (!isAuthenticated) {
+                        const email = userData?.email || user?.email;
+                        if (!email) {
                           redirectToLogin(window.location.href);
                           return;
                         }
@@ -518,7 +521,8 @@ export default function ListingDetail() {
               <Button
                 onClick={() => {
                   if (loading) return;
-                  if (!isAuthenticated) {
+                  const email = userData?.email || user?.email;
+                  if (!email) {
                     redirectToLogin(window.location.href);
                     return;
                   }
