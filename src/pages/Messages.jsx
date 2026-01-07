@@ -252,7 +252,7 @@ export default function Messages() {
                             {formatDistanceToNow(new Date(conv.last_message_time || conv.last_message_date), { 
                               addSuffix: true,
                               locale: mn 
-                            })}
+                            }).replace(/ойролцоогоор\s*/gi, '')}
                           </span>
                         )}
                       </div>
