@@ -132,6 +132,7 @@ export default function AdminAllListings() {
       'Үүсгэсэн хэрэглэгч',
       'Үүсгэсэн огноо',
       'Үзсэн тоо',
+      'Зургийн линк',
       'Утас',
       'Kakao ID',
       'WeChat ID',
@@ -149,6 +150,10 @@ export default function AdminAllListings() {
         ? new Date(listing.listing_type_expires).toLocaleString('mn-MN')
         : '';
       
+      const imageLinks = listing.images && Array.isArray(listing.images) 
+        ? listing.images.filter(img => img).join('; ')
+        : '';
+      
       return [
         listing.id || '',
         listing.title || '',
@@ -163,6 +168,7 @@ export default function AdminAllListings() {
         listing.created_by || '',
         createdDate,
         listing.views || 0,
+        imageLinks,
         listing.phone || '',
         listing.kakao_id || '',
         listing.wechat_id || '',
