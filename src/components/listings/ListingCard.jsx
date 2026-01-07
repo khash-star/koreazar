@@ -185,13 +185,6 @@ export default function ListingCard({ listing }) {
               {formatDistanceToNow(new Date(listing.created_date), { addSuffix: true, locale: mn }).replace(/ойролцоогоор\s*/gi, '')}
             </span>
           </div>
-          
-          {listing.views > 0 && (
-            <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
-              <Eye className="w-3 h-3" />
-              {listing.views} үзсэн
-            </div>
-          )}
         </div>
       </motion.div>
     </Link>
