@@ -15,7 +15,8 @@ export default function Layout({ children, currentPageName }) {
 
   const handleHomeClick = (e) => {
     e.preventDefault();
-    navigate(createPageUrl('Home'));
+    // Navigate to home with clearFilters parameter to reset all filters
+    navigate(`${createPageUrl('Home')}?clearFilters=true`);
     // Navigate to listings section after a short delay
     setTimeout(() => {
       const listingsSection = document.querySelector('[data-listings-section]');

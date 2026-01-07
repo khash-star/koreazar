@@ -54,12 +54,29 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const categoryFromUrl = urlParams.get('category') || '';
     const scrollTo = urlParams.get('scroll');
+    const clearFilters = urlParams.get('clearFilters');
     
-    setFilters(prev => ({
-      ...prev,
-      category: categoryFromUrl,
-      subcategory: ''
-    }));
+    // Clear all filters if clearFilters parameter is present
+    if (clearFilters === 'true') {
+      setFilters({
+        category: '',
+        subcategory: '',
+        search: '',
+        location: '',
+        minPrice: '',
+        maxPrice: '',
+        condition: ''
+      });
+      // Remove clearFilters from URL
+      urlParams.delete('clearFilters');
+      window.history.replaceState({}, '', `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`);
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        category: categoryFromUrl,
+        subcategory: ''
+      }));
+    }
 
     if (scrollTo === 'listings') {
       setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
@@ -70,7 +87,7 @@ export default function Home() {
     if (!hasSeenWelcome) {
       setShowWelcome(true);
     }
-  }, []);
+  }, [location.search]);
 
   const handleCloseWelcome = () => {
     setShowWelcome(false);
