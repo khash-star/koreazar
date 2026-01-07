@@ -164,16 +164,6 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-[10px] leading-tight">Нэмэх</span>
             </Link>
 
-            <Link
-              to={createPageUrl('MyListings')}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
-                currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
-              }`}
-            >
-              <User className="w-5 h-5" />
-              <span className="text-[10px] leading-tight">Миний</span>
-            </Link>
-
             {(userData?.role === 'admin' || user?.role === 'admin') && (
               <Link
                 to={createPageUrl('AdminPanel')}
@@ -185,6 +175,16 @@ export default function Layout({ children, currentPageName }) {
                 <span className="text-[10px] leading-tight">Админ</span>
               </Link>
             )}
+
+            <Link
+              to={createPageUrl('MyListings')}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
+                currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
+              }`}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-[10px] leading-tight">Миний</span>
+            </Link>
           </div>
         </nav>
       )}
