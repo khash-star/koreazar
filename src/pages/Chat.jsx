@@ -218,6 +218,15 @@ export default function Chat() {
     sendMutation.mutate(message);
   };
 
+  // Show loading while auth is checking
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
   if (!user || !actualConversationId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
