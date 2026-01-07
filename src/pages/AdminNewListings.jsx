@@ -68,25 +68,25 @@ export default function AdminNewListings() {
     // CSV header
     const headers = [
       'ID',
-      'Гарчиг',
-      'Зарны линк',
-      'Категори',
-      'Дэд категори',
-      'Үнэ',
-      'Байршил',
-      'Нөхцөл',
-      'Статус',
-      'Зар төрөл',
-      'Үүсгэсэн хэрэглэгч',
-      'Үүсгэсэн огноо',
-      'Үзсэн тоо',
-      'Зургийн линк',
-      'Утас',
+      'Title',
+      'Listing URL',
+      'Category',
+      'Subcategory',
+      'Price',
+      'Location',
+      'Condition',
+      'Status',
+      'Listing Type',
+      'Created By',
+      'Created Date',
+      'Views',
+      'Image Links',
+      'Phone',
       'Kakao ID',
       'WeChat ID',
       'WhatsApp',
       'Facebook',
-      'Тайлбар'
+      'Description'
     ];
 
     // CSV data rows

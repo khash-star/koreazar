@@ -120,26 +120,26 @@ export default function AdminAllListings() {
     // CSV header
     const headers = [
       'ID',
-      'Гарчиг',
-      'Зарны линк',
-      'Категори',
-      'Дэд категори',
-      'Үнэ',
-      'Байршил',
-      'Нөхцөл',
-      'Статус',
-      'Зар төрөл',
-      'Зар төрөл дуусах огноо',
-      'Үүсгэсэн хэрэглэгч',
-      'Үүсгэсэн огноо',
-      'Үзсэн тоо',
-      'Зургийн линк',
-      'Утас',
+      'Title',
+      'Listing URL',
+      'Category',
+      'Subcategory',
+      'Price',
+      'Location',
+      'Condition',
+      'Status',
+      'Listing Type',
+      'Listing Type Expires',
+      'Created By',
+      'Created Date',
+      'Views',
+      'Image Links',
+      'Phone',
       'Kakao ID',
       'WeChat ID',
       'WhatsApp',
       'Facebook',
-      'Тайлбар'
+      'Description'
     ];
 
     // CSV data rows
