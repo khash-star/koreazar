@@ -121,6 +121,7 @@ export default function AdminAllListings() {
     const headers = [
       'ID',
       'Гарчиг',
+      'Зарны линк',
       'Категори',
       'Дэд категори',
       'Үнэ',
@@ -154,9 +155,14 @@ export default function AdminAllListings() {
         ? listing.images.filter(img => img).join('; ')
         : '';
       
+      const listingUrl = listing.id 
+        ? `${window.location.origin}${createPageUrl(`ListingDetail?id=${listing.id}`)}`
+        : '';
+      
       return [
         listing.id || '',
         listing.title || '',
+        listingUrl,
         listing.category || '',
         listing.subcategory || '',
         listing.price || '',
