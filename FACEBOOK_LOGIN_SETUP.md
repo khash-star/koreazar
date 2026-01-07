@@ -19,23 +19,34 @@
 3. **Settings** → **Basic** руу орох
 4. **App Domains** дээр домэйн нэмэх:
    - Local: `localhost`
-   - Production: `your-domain.vercel.app`
+   - Production: `zarkorea.com` ⭐
 
 5. **Settings** → **Basic** → **Add Platform** → **Website** сонгох
 6. **Site URL** оруулах:
    - Local: `http://localhost:5173`
-   - Production: `https://your-domain.vercel.app`
+   - Production: `https://zarkorea.com` ⭐
 
 7. **Settings** → **Facebook Login** → **Settings** руу орох
 8. **Valid OAuth Redirect URIs** дээр нэмэх:
    - Local: `http://localhost:5173/__/auth/handler`
-   - Production: `https://your-domain.vercel.app/__/auth/handler`
-   - Production Firebase Auth Domain: `https://YOUR_PROJECT_ID.firebaseapp.com/__/auth/handler`
+   - Production: `https://zarkorea.com/__/auth/handler` ⭐
+   - Firebase Auth Domain: `https://YOUR_PROJECT_ID.firebaseapp.com/__/auth/handler` (YOUR_PROJECT_ID-г өөрийн Firebase Project ID-аар солих)
 
-### 3. Firebase Auth Domain шалгах
+### 3. Firebase Authorized Domains тохируулах (MANDATORY - Required for OAuth)
 
-1. Firebase Console → **Authentication** → **Settings** → **Authorized domains**
-2. Домэйн нэмсэн эсэхийг шалгах (localhost болон production domain)
+**⚠️ ЭНЭ АЛХМУУДЫГ ОБЯЗАТЕЛЬ ХИЙХ ХЭРЭГТЭЙ! OAuth нэвтрэх ажиллахгүй болно.**
+
+1. Firebase Console → **Authentication** → **Settings** tab руу орох
+2. **Authorized domains** хэсгийг олох (доод хэсэгт байрлана)
+3. **Add domain** button дарах
+4. Домэйнуудыг нэмэх:
+   - **Local development**: `localhost`
+   - **Production**: `zarkorea.com` ⭐ (одоо хэрэгтэй!)
+   - Vercel domain (хэрэв байгаа бол): `your-app.vercel.app`
+5. **Add** дарах
+
+**Одоогийн алдаа:**
+- Console дээр "auth/unauthorized-domain" алдаа гарч байгаа бол `zarkorea.com` домэйныг дээрх алхмуудаар нэмнэ үү.
 
 ---
 
@@ -72,6 +83,17 @@
 ### "auth/popup-blocked"
 - Браузер popup-ийг блоколсон
 - Popup blocker-ийг унтраах эсвэл browser settings-аас зөвшөөрөх хэрэгтэй
+
+### "Firebase: Error (auth/unauthorized-domain)" ⚠️
+- **Энэ нь хамгийн түгээмэл алдаа!**
+- Firebase Console дээр домэйн нэмэгдээгүй байна
+- **ШИЙДЭЛ:**
+  1. Firebase Console → **Authentication** → **Settings** → **Authorized domains** tab руу орох
+  2. **Add domain** button дарах
+  3. `zarkorea.com` оруулах
+  4. **Add** дарах
+  5. Хуудас дахин ачаалах
+- **Жишээ алдаа:** "The current domain is not authorized for OAuth operations. Add your domain (zarkorea.com) to the OAuth redirect domains list"
 
 ### "Firebase: Error (auth/configuration-not-found)"
 - Firebase Console дээр Facebook provider идэвхжүүлээгүй байна
