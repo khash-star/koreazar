@@ -160,8 +160,7 @@ export default function Layout({ children, currentPageName }) {
                 currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <PlusCircle className="w-6 h-6" />
-              <span className="text-xs mt-1">Зар нэмэх</span>
+              <span className="text-xs">Зар нэмэх</span>
             </Link>
 
             <Link
