@@ -168,7 +168,7 @@ export default function AdminAllListings() {
         listing.price || '',
         listing.location || '',
         listing.condition || '',
-        listing.status || '',
+        'in stock',
         listing.listing_type || 'regular',
         expiresDate,
         listing.created_by || '',

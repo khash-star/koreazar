@@ -112,7 +112,7 @@ export default function AdminNewListings() {
         listing.price || '',
         listing.location || '',
         listing.condition || '',
-        listing.status || '',
+        'in stock',
         listing.listing_type || 'regular',
         listing.created_by || '',
         createdDate,
