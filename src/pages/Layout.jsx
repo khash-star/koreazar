@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,15 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData } = useAuth();
+  const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
+
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    navigate(createPageUrl('Home'));
+    // Scroll to top immediately
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   // Get saved listings count using useQuery (same as other components)
   const { data: savedListings = [] } = useQuery({
@@ -97,15 +105,15 @@ export default function Layout({ children, currentPageName }) {
       {showNav && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
           <div className={`flex items-center ${(userData?.role === 'admin' || user?.role === 'admin') ? 'justify-between' : 'justify-around'} py-2`}>
-            <Link
-              to={createPageUrl('Home')}
+            <button
+              onClick={handleHomeClick}
               className={`flex flex-col items-center py-2 px-6 ${
                 currentPageName === 'Home' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
               <Home className="w-6 h-6" />
               <span className="text-xs mt-1">Нүүр</span>
-            </Link>
+            </button>
 
             <Link
               to={createPageUrl('RequestBannerAd')}
