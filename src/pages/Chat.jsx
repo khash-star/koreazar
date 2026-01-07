@@ -21,7 +21,7 @@ export default function Chat() {
   
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
-  const { user, userData } = useAuth();
+  const { user, userData, loading } = useAuth();
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
   const [adminEmail, setAdminEmail] = useState(null);
@@ -36,10 +36,14 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
-    if (!user && !userData) {
+    // Wait for auth to finish loading before checking
+    if (loading) return;
+    
+    const email = userData?.email || user?.email;
+    if (!email) {
       redirectToLogin(window.location.href);
     }
-  }, [user, userData]);
+  }, [user, userData, loading]);
 
   // Create conversation if needed
   useEffect(() => {
