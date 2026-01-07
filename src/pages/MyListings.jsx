@@ -132,27 +132,27 @@ export default function MyListings() {
                 <p className="text-gray-500 mt-1">Нийт {listings.length} зар</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
+              <Link to={createPageUrl('CreateListing')}>
+                <Button className="w-full bg-amber-500 hover:bg-amber-600">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Зар нэмэх
+                </Button>
+              </Link>
               <Link to={createPageUrl('RequestBannerAd')}>
-                <Button variant="outline">
+                <Button className="w-full bg-amber-500 hover:bg-amber-600">
                   <span className="text-lg mr-2">🎨</span>
                   Баннер
                 </Button>
               </Link>
               {user?.role === 'admin' && (
                 <Link to={createPageUrl('AdminBanners')}>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full">
                     <Settings className="w-5 h-5 mr-2" />
                     Баннер удирдах
                   </Button>
                 </Link>
               )}
-              <Link to={createPageUrl('CreateListing')}>
-                <Button className="bg-amber-500 hover:bg-amber-600">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Зар нэмэх
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
