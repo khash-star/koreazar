@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Eye, Trash2, Check, X, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Eye, Trash2, Check, X, Loader2, Clock, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -59,6 +59,89 @@ export default function AdminNewListings() {
     updateStatusMutation.mutate({ id, status: 'rejected' });
   };
 
+  const handleExportCSV = () => {
+    if (listings.length === 0) {
+      alert('Экспортлох зар байхгүй байна.');
+      return;
+    }
+
+    // CSV header
+    const headers = [
+      'ID',
+      'Гарчиг',
+      'Категори',
+      'Дэд категори',
+      'Үнэ',
+      'Байршил',
+      'Нөхцөл',
+      'Статус',
+      'Зар төрөл',
+      'Үүсгэсэн хэрэглэгч',
+      'Үүсгэсэн огноо',
+      'Үзсэн тоо',
+      'Утас',
+      'Kakao ID',
+      'WeChat ID',
+      'WhatsApp',
+      'Facebook',
+      'Тайлбар'
+    ];
+
+    // CSV data rows
+    const rows = listings.map(listing => {
+      const createdDate = listing.created_date 
+        ? new Date(listing.created_date).toLocaleString('mn-MN')
+        : '';
+      
+      return [
+        listing.id || '',
+        listing.title || '',
+        listing.category || '',
+        listing.subcategory || '',
+        listing.price || '',
+        listing.location || '',
+        listing.condition || '',
+        listing.status || '',
+        listing.listing_type || 'regular',
+        listing.created_by || '',
+        createdDate,
+        listing.views || 0,
+        listing.phone || '',
+        listing.kakao_id || '',
+        listing.wechat_id || '',
+        listing.whatsapp || '',
+        listing.facebook || '',
+        (listing.description || '').replace(/\n/g, ' ').replace(/,/g, ';')
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Escape commas and quotes in cell values
+        const cellStr = String(cell || '');
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+    ].join('\n');
+
+    // Add BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `шинэ_зарууд_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   
   if (!user || !isAdmin) {
@@ -90,9 +173,19 @@ export default function AdminNewListings() {
               <p className="text-sm text-gray-500">{listings.length} батлах хүлээгдэж буй зар</p>
             </div>
           </div>
-          <Link to={createPageUrl('AdminAllListings')}>
-            <Button variant="outline">Бүх зар үзэх</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExportCSV}
+              disabled={listings.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              CSV экспорт
+            </Button>
+            <Link to={createPageUrl('AdminAllListings')}>
+              <Button variant="outline">Бүх зар үзэх</Button>
+            </Link>
+          </div>
         </div>
       </div>
 
