@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { login, resetPassword } from '@/services/authService';
-import { loginWithKakao } from '@/services/kakaoAuthService';
+import { loginWithFacebook } from '@/services/facebookAuthService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,23 +23,24 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [kakaoLoading, setKakaoLoading] = useState(false);
+  const [facebookLoading, setFacebookLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleKakaoLogin = async () => {
+  const handleFacebookLogin = async () => {
     setError('');
-    setKakaoLoading(true);
+    setFacebookLoading(true);
     try {
-      await loginWithKakao();
+      await loginWithFacebook();
       setTimeout(() => {
         const cleanUrl = redirectUrl.startsWith('/Login') ? createPageUrl('Home') : redirectUrl;
         navigate(cleanUrl || createPageUrl('Home'));
       }, 100);
     } catch (err) {
-      console.error('Kakao login error:', err);
-      setError('Kakao-р нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.');
+      console.error('Facebook login error:', err);
+      const errorMessage = err?.message || 'Facebook-р нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.';
+      setError(errorMessage);
     } finally {
-      setKakaoLoading(false);
+      setFacebookLoading(false);
     }
   };
 
@@ -273,21 +274,21 @@ export default function Login() {
             <Button
               type="button"
               variant="outline"
-              className="w-full mt-4 bg-[#FEE500] hover:bg-[#FEE500]/90 text-gray-900 border-[#FEE500]"
-              onClick={handleKakaoLogin}
-              disabled={kakaoLoading || loading}
+              className="w-full mt-4 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white border-[#1877F2]"
+              onClick={handleFacebookLogin}
+              disabled={facebookLoading || loading}
             >
-              {kakaoLoading ? (
+              {facebookLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Нэвтэрч байна...
                 </>
               ) : (
                 <>
-                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.866C1.5 6.665 6.201 3 12 3z"/>
+                  <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
-                  KakaoTalk-р нэвтрэх
+                  Facebook-р нэвтрэх
                 </>
               )}
             </Button>
