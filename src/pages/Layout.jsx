@@ -112,76 +112,77 @@ export default function Layout({ children, currentPageName }) {
       
       {/* Bottom Navigation (Mobile) - Only on Home */}
       {showNav && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40">
-          <div className={`flex items-center ${(userData?.role === 'admin' || user?.role === 'admin') ? 'justify-between' : 'justify-around'} py-2`}>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 shadow-lg">
+          <div className="flex items-center justify-around py-2.5 px-2">
             <button
               onClick={handleHomeClick}
-              className={`flex flex-col items-center py-2 px-6 ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'Home' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <Home className="w-6 h-6" />
-              <span className="text-xs mt-1">Нүүр</span>
+              <Home className="w-5 h-5" />
+              <span className="text-[10px] leading-tight">Нүүр</span>
             </button>
 
             <Link
               to={createPageUrl('SavedListings')}
-              className={`flex flex-col items-center py-2 px-3 relative ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
                 currentPageName === 'SavedListings' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <Heart className="w-6 h-6" />
+              <Heart className="w-5 h-5" />
               {savedCount > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                  {savedCount}
+                <span className="absolute -top-0.5 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  {savedCount > 9 ? '9+' : savedCount}
                 </span>
               )}
-              <span className="text-xs mt-1">Хадгалсан</span>
+              <span className="text-[10px] leading-tight">Хадгал</span>
             </Link>
 
             <Link
               to={createPageUrl('Messages')}
-              className={`flex flex-col items-center py-2 px-3 relative ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
                 currentPageName === 'Messages' || currentPageName === 'Chat' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <MessageCircle className="w-6 h-6" />
+              <MessageCircle className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-0.5 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-              <span className="text-xs mt-1">Мессеж</span>
+              <span className="text-[10px] leading-tight">Мессеж</span>
             </Link>
 
             <Link
               to={createPageUrl('CreateListing')}
-              className={`flex flex-col items-center py-2 px-3 ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <span className="text-xs">Зар нэмэх</span>
+              <PlusCircle className="w-5 h-5" />
+              <span className="text-[10px] leading-tight">Нэмэх</span>
             </Link>
 
             <Link
               to={createPageUrl('MyListings')}
-              className={`flex flex-col items-center py-2 px-6 ${
+              className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
               }`}
             >
-              <User className="w-6 h-6" />
-              <span className="text-xs mt-1">Миний зар</span>
+              <User className="w-5 h-5" />
+              <span className="text-[10px] leading-tight">Миний</span>
             </Link>
 
             {(userData?.role === 'admin' || user?.role === 'admin') && (
               <Link
                 to={createPageUrl('AdminPanel')}
-                className={`flex flex-col items-center py-2 px-6 ${
+                className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                   currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'text-amber-600' : 'text-gray-500'
                 }`}
               >
-                <Shield className="w-6 h-6" />
-                <span className="text-xs mt-1">Админ</span>
+                <Shield className="w-5 h-5" />
+                <span className="text-[10px] leading-tight">Админ</span>
               </Link>
             )}
           </div>
