@@ -16,8 +16,16 @@ export default function Layout({ children, currentPageName }) {
   const handleHomeClick = (e) => {
     e.preventDefault();
     navigate(createPageUrl('Home'));
-    // Scroll to top immediately
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    // Navigate to listings section after a short delay
+    setTimeout(() => {
+      const listingsSection = document.querySelector('[data-listings-section]');
+      if (listingsSection) {
+        listingsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Fallback: scroll to top if section not found
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }, 100);
   };
 
   // Get saved listings count using useQuery (same as other components)

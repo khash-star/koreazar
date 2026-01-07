@@ -529,7 +529,7 @@ export default function Home() {
         )}
 
         {/* Listings */}
-        <section ref={listingsRef}>
+        <section ref={listingsRef} data-listings-section>
         <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
         <TrendingUp className="w-5 h-5 text-amber-500" />
