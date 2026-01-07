@@ -141,7 +141,7 @@ export default function MyListings() {
               </Link>
               <Link to={createPageUrl('RequestBannerAd')}>
                 <Button className="w-full bg-amber-500 hover:bg-amber-600">
-                  <span className="text-lg mr-2">🎨</span>
+                  <span className="text-lg mr-2">+</span>
                   Баннер
                 </Button>
               </Link>
