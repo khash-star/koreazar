@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Eye, Trash2, Check, X, Star, Crown, Loader2, Search, ArrowUp } from 'lucide-react';
+import { ArrowLeft, Eye, Trash2, Check, X, Star, Crown, Loader2, Search, ArrowUp, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -109,6 +109,100 @@ export default function AdminAllListings() {
     l.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleExportCSV = () => {
+    const listingsToExport = filteredListings.length > 0 ? filteredListings : listings;
+    
+    if (listingsToExport.length === 0) {
+      alert('Экспортлох зар байхгүй байна.');
+      return;
+    }
+
+    // CSV header
+    const headers = [
+      'ID',
+      'Гарчиг',
+      'Категори',
+      'Дэд категори',
+      'Үнэ',
+      'Байршил',
+      'Нөхцөл',
+      'Статус',
+      'Зар төрөл',
+      'Зар төрөл дуусах огноо',
+      'Үүсгэсэн хэрэглэгч',
+      'Үүсгэсэн огноо',
+      'Үзсэн тоо',
+      'Утас',
+      'Kakao ID',
+      'WeChat ID',
+      'WhatsApp',
+      'Facebook',
+      'Тайлбар'
+    ];
+
+    // CSV data rows
+    const rows = listingsToExport.map(listing => {
+      const createdDate = listing.created_date 
+        ? new Date(listing.created_date).toLocaleString('mn-MN')
+        : '';
+      const expiresDate = listing.listing_type_expires
+        ? new Date(listing.listing_type_expires).toLocaleString('mn-MN')
+        : '';
+      
+      return [
+        listing.id || '',
+        listing.title || '',
+        listing.category || '',
+        listing.subcategory || '',
+        listing.price || '',
+        listing.location || '',
+        listing.condition || '',
+        listing.status || '',
+        listing.listing_type || 'regular',
+        expiresDate,
+        listing.created_by || '',
+        createdDate,
+        listing.views || 0,
+        listing.phone || '',
+        listing.kakao_id || '',
+        listing.wechat_id || '',
+        listing.whatsapp || '',
+        listing.facebook || '',
+        (listing.description || '').replace(/\n/g, ' ').replace(/,/g, ';')
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => {
+        // Escape commas and quotes in cell values
+        const cellStr = String(cell || '');
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(','))
+    ].join('\n');
+
+    // Add BOM for Excel compatibility
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const fileName = searchTerm 
+      ? `бүх_зарууд_${searchTerm.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`
+      : `бүх_зарууд_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   
   if (!user || !isAdmin) {
@@ -135,10 +229,18 @@ export default function AdminAllListings() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-900">Бүх зарууд</h1>
               <p className="text-sm text-gray-500">{filteredListings.length} зар</p>
             </div>
+            <Button 
+              variant="outline" 
+              onClick={handleExportCSV}
+              disabled={listings.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              CSV экспорт
+            </Button>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
