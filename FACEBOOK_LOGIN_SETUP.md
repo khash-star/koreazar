@@ -2,15 +2,22 @@
 
 ## 🔧 Тохиргоо
 
-### 1. Firebase Console дээр Facebook Provider идэвхжүүлэх
+### 1. Firebase Console дээр Facebook Provider идэвхжүүлэх ⚠️ MANDATORY
+
+**⚠️ ЭНЭ АЛХМУУДЫГ ОБЯЗАТЕЛЬ ХИЙХ ХЭРЭГТЭЙ! "auth/operation-not-allowed" алдаа гарч байгаа бол Facebook provider идэвхжээгүй байна.**
 
 1. https://console.firebase.google.com руу орох
 2. Проект сонгох
 3. **Authentication** → **Sign-in method** tab руу орох
-4. **Facebook** provider олоод **Enable** дарах
-5. **App ID** оруулах: `2276589366185787`
-6. **App Secret** оруулах: `5bad8644795c0b13409d20d7cbf2f881`
-7. **Save** дарах
+4. **Facebook** provider олох (Google, Email/Password зэрэг provider-үүдийн жагсаалтаас)
+5. **Facebook** дээр дарах (эсвэл **Enable** товч дарах)
+6. Дараах мэдээллийг оруулах:
+   - **App ID**: `2276589366185787`
+   - **App Secret**: `5bad8644795c0b13409d20d7cbf2f881`
+7. **⚠️ ЧУХАЛ:** **Save** товчийг **обязательно** дарах! (Хэрэв Save дараагүй бол тохиргоо хадгалагдахгүй)
+8. **Facebook** provider идэвхтэй болсон эсэхийг шалгах (Status: **Enabled** гэж харагдах ёстой)
+
+**✅ Шалгах:** Sign-in method жагсаалтад Facebook-ийн хажууд "Enabled" гэж харагдах ёстой.
 
 ### 2. Facebook App Settings (OAuth Redirect URIs)
 
@@ -95,9 +102,25 @@
   5. Хуудас дахин ачаалах
 - **Жишээ алдаа:** "The current domain is not authorized for OAuth operations. Add your domain (zarkorea.com) to the OAuth redirect domains list"
 
-### "Firebase: Error (auth/configuration-not-found)"
+### "Firebase: Error (auth/operation-not-allowed)" ⚠️
+- **Энэ нь хамгийн чухал алдаа!**
 - Firebase Console дээр Facebook provider идэвхжүүлээгүй байна
+- **ШИЙДЭЛ:**
+  1. Firebase Console → **Authentication** → **Sign-in method** tab руу орох
+  2. **Facebook** provider олох
+  3. **Facebook** дээр дарах (эсвэл **Enable** товч дарах)
+  4. **App ID**: `2276589366185787` оруулах
+  5. **App Secret**: `5bad8644795c0b13409d20d7cbf2f881` оруулах
+  6. **⚠️ ЧУХАЛ:** **Save** товчийг дарах!
+  7. Status нь **Enabled** болсон эсэхийг шалгах
+  8. Хуудас дахин ачаалах
+- **Алдаа:** "Firebase: Error (auth/operation-not-allowed). This sign-in method is not enabled."
+- **Шалтгаан:** Firebase Console дээр Facebook provider идэвхжээгүй эсвэл Save хийгээгүй
+
+### "Firebase: Error (auth/configuration-not-found)"
+- Firebase Console дээр Facebook provider-ийн App ID эсвэл App Secret буруу байна
 - Дээрх "Firebase Console дээр Facebook Provider идэвхжүүлэх" алхмуудыг дагана уу
+- App ID болон App Secret-ийг дахин шалгах
 
 ### "OAuth redirect URI mismatch"
 - Facebook App Settings дээр OAuth Redirect URI зөв тохируулаагүй байна
