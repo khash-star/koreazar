@@ -182,7 +182,7 @@ export default function ListingCard({ listing }) {
             )}
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
-              {formatDistanceToNow(new Date(listing.created_date), { addSuffix: true, locale: mn })}
+              {formatDistanceToNow(new Date(listing.created_date), { addSuffix: true, locale: mn }).replace(/ойролцоогоор\s*/gi, '')}
             </span>
           </div>
           
