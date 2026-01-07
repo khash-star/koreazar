@@ -75,7 +75,7 @@ export default function AdminNewListings() {
       'Price',
       'Location',
       'Condition',
-      'Status',
+      'In Stock',
       'Listing Type',
       'Created By',
       'Created Date',

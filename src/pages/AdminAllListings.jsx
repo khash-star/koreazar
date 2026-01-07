@@ -127,7 +127,7 @@ export default function AdminAllListings() {
       'Price',
       'Location',
       'Condition',
-      'Status',
+      'In Stock',
       'Listing Type',
       'Listing Type Expires',
       'Created By',
