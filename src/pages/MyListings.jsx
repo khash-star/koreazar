@@ -133,6 +133,12 @@ export default function MyListings() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Link to={createPageUrl('RequestBannerAd')}>
+                <Button variant="outline">
+                  <span className="text-lg mr-2">🎨</span>
+                  Баннер
+                </Button>
+              </Link>
               {user?.role === 'admin' && (
                 <Link to={createPageUrl('AdminBanners')}>
                   <Button variant="outline">

@@ -125,16 +125,6 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             <Link
-              to={createPageUrl('RequestBannerAd')}
-              className={`flex flex-col items-center py-2 px-4 ${
-                currentPageName === 'RequestBannerAd' ? 'text-amber-600' : 'text-gray-500'
-              }`}
-            >
-              <span className="text-xl">🎨</span>
-              <span className="text-xs mt-1">Баннер</span>
-            </Link>
-
-            <Link
               to={createPageUrl('SavedListings')}
               className={`flex flex-col items-center py-2 px-3 relative ${
                 currentPageName === 'SavedListings' ? 'text-amber-600' : 'text-gray-500'
