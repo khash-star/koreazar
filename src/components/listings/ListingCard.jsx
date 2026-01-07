@@ -157,23 +157,23 @@ export default function ListingCard({ listing }) {
         
         <div className="p-4">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-amber-600 transition-colors">
+            <h3 className="font-semibold text-gray-900 line-clamp-2 leading-tight group-hover:text-amber-600 transition-colors">
               {listing.title}
             </h3>
           </div>
           
-          <p className="text-xl font-bold text-amber-600 mt-2">
+          <p className="text-xl font-bold text-amber-600 mt-1 leading-tight">
             {formatPrice(listing.price)}
             {listing.is_negotiable && <span className="text-sm font-normal text-gray-500 ml-1">тохирно</span>}
           </p>
           
           {getSubcategoryLabel() && (
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-gray-600 mt-1 leading-tight">
               {getSubcategoryLabel()}
             </p>
           )}
           
-          <div className="flex items-center gap-3 mt-3 text-sm text-gray-500">
+          <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
             {listing.location && (
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
@@ -187,7 +187,7 @@ export default function ListingCard({ listing }) {
           </div>
           
           {listing.views > 0 && (
-            <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
+            <div className="flex items-center gap-1 mt-1 text-xs text-gray-400">
               <Eye className="w-3 h-3" />
               {listing.views} үзсэн
             </div>
