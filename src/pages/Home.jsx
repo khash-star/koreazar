@@ -504,36 +504,6 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* Saved Listings Section - Only show if user is logged in and has saved listings */}
-        {user && savedListingsFull.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-red-500 fill-red-500" />
-                <h2 className="text-xl font-bold text-gray-900">Хадгалсан зарууд</h2>
-                <span className="text-sm text-gray-500">({savedListingsFull.length})</span>
-              </div>
-              <Link to={createPageUrl('SavedListings')}>
-                <Button variant="outline" size="sm" className="text-sm">
-                  Бүгдийг харах
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-              <div className="flex gap-4 pb-2">
-                {savedListingsFull.slice(0, 10).map((listing) => (
-                  <FeaturedListingCard key={listing.id} listing={listing} />
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
         {/* Featured/VIP Listings Carousel */}
         {listings.filter(l => l.listing_type === 'featured' || l.listing_type === 'vip').length > 0 && (
           <motion.div
@@ -641,6 +611,36 @@ export default function Home() {
             </motion.div>
           )}
         </section>
+
+        {/* Saved Listings Section - Only show if user is logged in and has saved listings */}
+        {user && savedListingsFull.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+                <h2 className="text-xl font-bold text-gray-900">Хадгалсан зарууд</h2>
+                <span className="text-sm text-gray-500">({savedListingsFull.length})</span>
+              </div>
+              <Link to={createPageUrl('SavedListings')}>
+                <Button variant="outline" size="sm" className="text-sm">
+                  Бүгдийг харах
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+              <div className="flex gap-4 pb-2">
+                {savedListingsFull.slice(0, 10).map((listing) => (
+                  <FeaturedListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
 
