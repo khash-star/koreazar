@@ -212,10 +212,15 @@ export const onAuthChange = (callback) => {
  */
 export const redirectToLogin = (redirectUrl = null) => {
   const currentPath = window.location.pathname + window.location.search;
-  const targetUrl = redirectUrl || currentPath;
+  let targetUrl = redirectUrl || currentPath;
+  
+  // Remove base path if present
+  if (targetUrl.startsWith('/')) {
+    targetUrl = targetUrl.substring(1);
+  }
   
   // Use React Router navigate if available, otherwise use window.location
-  if (targetUrl && targetUrl !== '/Login' && !targetUrl.includes('/Login')) {
+  if (targetUrl && targetUrl !== 'Login' && !targetUrl.includes('Login')) {
     window.location.href = `/Login?redirect=${encodeURIComponent(targetUrl)}`;
   } else {
     window.location.href = '/Login';
