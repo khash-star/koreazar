@@ -233,7 +233,11 @@ export default function AdminAllListings() {
                       <span>•</span>
                       <span>{listing.created_by}</span>
                       <span>•</span>
-                      <span>{formatDistanceToNow(new Date(listing.created_date), { addSuffix: true, locale: mn }).replace(/ойролцоогоор\s*/gi, '')}</span>
+                      <span>{formatDistanceToNow(new Date(listing.created_date), { addSuffix: true, locale: mn })
+                        .replace(/ойролцоогоор\s*/gi, '')
+                        .replace(/өдрийн/gi, 'Ө')
+                        .replace(/цагийн/gi, 'Ц')
+                        .replace(/сарын/gi, 'С')}</span>
                       {listing.views > 0 && (
                         <>
                           <span>•</span>
