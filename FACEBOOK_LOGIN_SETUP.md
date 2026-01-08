@@ -12,8 +12,8 @@
 4. **Facebook** provider олох (Google, Email/Password зэрэг provider-үүдийн жагсаалтаас)
 5. **Facebook** дээр дарах (эсвэл **Enable** товч дарах)
 6. Дараах мэдээллийг оруулах:
-   - **App ID**: `2276589366185787`
-   - **App Secret**: `5bad8644795c0b13409d20d7cbf2f881`
+   - **App ID**: `YOUR_FACEBOOK_APP_ID` (Facebook Developer Console-оос авах)
+   - **App Secret**: `YOUR_FACEBOOK_APP_SECRET` (Facebook Developer Console-оос авах)
 7. **⚠️ ЧУХАЛ:** **Save** товчийг **обязательно** дарах! (Хэрэв Save дараагүй бол тохиргоо хадгалагдахгүй)
 8. **Facebook** provider идэвхтэй болсон эсэхийг шалгах (Status: **Enabled** гэж харагдах ёстой)
 
@@ -24,7 +24,7 @@
 **⚠️ ЭНЭ АЛХМУУДЫГ ОБЯЗАТЕЛЬ ХИЙХ ХЭРЭГТЭЙ! "App not active" алдаа гарч байгаа бол App идэвхгүй байна.**
 
 1. https://developers.facebook.com/apps руу орох
-2. App сонгох (App ID: 2276589366185787)
+2. App сонгох
 3. Дээд талын **App Dashboard** хуудас руу орох
 4. **App Review** хэсгийг шалгах:
    - App Review → **Permissions and Features** таб руу орох
@@ -40,7 +40,7 @@
 ### 3. Facebook App Settings (OAuth Redirect URIs)
 
 1. https://developers.facebook.com/apps руу орох
-2. App сонгох (App ID: 2276589366185787)
+2. App сонгох
 3. **Settings** → **Basic** руу орох
 4. **App Domains** дээр домэйн нэмэх:
    - Local: `localhost`
@@ -135,8 +135,8 @@
   1. Firebase Console → **Authentication** → **Sign-in method** tab руу орох
   2. **Facebook** provider олох
   3. **Facebook** дээр дарах (эсвэл **Enable** товч дарах)
-  4. **App ID**: `2276589366185787` оруулах
-  5. **App Secret**: `5bad8644795c0b13409d20d7cbf2f881` оруулах
+  4. **App ID**: `YOUR_FACEBOOK_APP_ID` оруулах (Facebook Developer Console-оос авах)
+  5. **App Secret**: `YOUR_FACEBOOK_APP_SECRET` оруулах (Facebook Developer Console-оос авах)
   6. **⚠️ ЧУХАЛ:** **Save** товчийг дарах!
   7. Status нь **Enabled** болсон эсэхийг шалгах
   8. Хуудас дахин ачаалах
@@ -152,7 +152,7 @@
 - Facebook App идэвхгүй байна эсвэл Development mode-д байна
 - **ШИЙДЭЛ:**
   1. Facebook Developer Console → https://developers.facebook.com/apps руу орох
-  2. App сонгох (App ID: 2276589366185787)
+  2. App сонгох
   3. **Settings** → **Basic** руу орох
   4. **App Mode** dropdown-аас **Live** сонгох
   5. Хэрэв Live режим байхгүй бол:
