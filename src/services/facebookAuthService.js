@@ -30,7 +30,7 @@ export const loginWithFacebook = async () => {
       throw new Error('Энэ имэйл хаяг аль хэдийн өөр аргаар бүртгэгдсэн байна.');
     }
     if (error.code === 'auth/popup-closed-by-user') {
-      throw new Error('Нэвтрэх цонхыг хаасан байна.');
+      throw new Error('Нэвтрэх цонхыг хаасан байна. Дахин оролдоно уу. Хэрэв popup блоклогдож байвал браузерын popup blocker-ийг унтраа.');
     }
     if (error.code === 'auth/popup-blocked') {
       throw new Error('Браузер popup-ийг блоколсон байна. Popup-ийг зөвшөөрнө үү.');

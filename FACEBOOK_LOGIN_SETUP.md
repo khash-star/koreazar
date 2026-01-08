@@ -19,7 +19,25 @@
 
 **✅ Шалгах:** Sign-in method жагсаалтад Facebook-ийн хажууд "Enabled" гэж харагдах ёстой.
 
-### 2. Facebook App Settings (OAuth Redirect URIs)
+### 2. Facebook App идэвхжүүлэх (MANDATORY) ⚠️
+
+**⚠️ ЭНЭ АЛХМУУДЫГ ОБЯЗАТЕЛЬ ХИЙХ ХЭРЭГТЭЙ! "App not active" алдаа гарч байгаа бол App идэвхгүй байна.**
+
+1. https://developers.facebook.com/apps руу орох
+2. App сонгох (App ID: 2276589366185787)
+3. Дээд талын **App Dashboard** хуудас руу орох
+4. **App Review** хэсгийг шалгах:
+   - App Review → **Permissions and Features** таб руу орох
+   - `email` болон `public_profile` permissions-ийг шалгах
+   - Хэрэв хэрэгтэй бол permissions-үүд нэмэх
+5. **Settings** → **Basic** руу орох
+6. **App Status** хэсгийг шалгах:
+   - **App Mode** dropdown-аас **Live** режим сонгох (хэрэв "Development" байгаа бол)
+   - Эсвэл **App Review** хуудас руу очиж App-ийг Live режимд шилжүүлэх
+7. **⚠️ ЧУХАЛ:** Development mode-д зөвхөн App Admins, Developers, Testers нэвтрэх боломжтой
+8. Production дээр ажиллахын тулд **Live** режим эсвэл App Review хийлгэх шаардлагатай
+
+### 3. Facebook App Settings (OAuth Redirect URIs)
 
 1. https://developers.facebook.com/apps руу орох
 2. App сонгох (App ID: 2276589366185787)
@@ -39,7 +57,7 @@
    - Production: `https://zarkorea.com/__/auth/handler` ⭐
    - Firebase Auth Domain: `https://YOUR_PROJECT_ID.firebaseapp.com/__/auth/handler` (YOUR_PROJECT_ID-г өөрийн Firebase Project ID-аар солих)
 
-### 3. Firebase Authorized Domains тохируулах (MANDATORY - Required for OAuth)
+### 4. Firebase Authorized Domains тохируулах (MANDATORY - Required for OAuth)
 
 **⚠️ ЭНЭ АЛХМУУДЫГ ОБЯЗАТЕЛЬ ХИЙХ ХЭРЭГТЭЙ! OAuth нэвтрэх ажиллахгүй болно.**
 
@@ -84,8 +102,16 @@
 - Firebase Authentication нь ижил имэйлтэй хэд хэдэн account үүсгэхгүй
 
 ### "auth/popup-closed-by-user"
-- Хэрэглэгч popup-ийг хаасан
-- Дахин оролдоно уу
+- Хэрэглэгч Facebook login popup-ийг хаасан
+- **ШИЙДЭЛ:**
+  1. "Facebook-р нэвтрэх" товчийг дахин дарах
+  2. Popup гарч ирэхээс хүлээх (хэрэв гарч ирэхгүй бол popup blocker идэвхтэй байж магадгүй)
+  3. Facebook-р нэвтрэх үйл явцыг дуусгах (popup-ийг бүү хаа)
+  4. Хэрэв popup гарч ирэхгүй бол:
+     - Браузерын address bar дээр popup блоклогдсон тэмдэглэгээ шалгах
+     - Browser settings → Site permissions → Pop-ups and redirects → zarkorea.com-д popup-ийг зөвшөөрөх
+- **Алдаа:** "Нэвтрэх цонхыг хаасан байна."
+- **Шалтгаан:** Хэрэглэгч popup-ийг хаасан эсвэл popup блоклогдсон байна
 
 ### "auth/popup-blocked"
 - Браузер popup-ийг блоколсон
@@ -122,9 +148,25 @@
 - Дээрх "Firebase Console дээр Facebook Provider идэвхжүүлэх" алхмуудыг дагана уу
 - App ID болон App Secret-ийг дахин шалгах
 
+### "App not active" / "This app is not accessible right now" ⚠️
+- Facebook App идэвхгүй байна эсвэл Development mode-д байна
+- **ШИЙДЭЛ:**
+  1. Facebook Developer Console → https://developers.facebook.com/apps руу орох
+  2. App сонгох (App ID: 2276589366185787)
+  3. **Settings** → **Basic** руу орох
+  4. **App Mode** dropdown-аас **Live** сонгох
+  5. Хэрэв Live режим байхгүй бол:
+     - **App Review** → **Permissions and Features** руу орох
+     - `email` болон `public_profile` permissions-ийг идэвхжүүлэх
+     - App Review хийлгэх эсвэл Test Users нэмэх (Development mode-д тест хийхэд)
+  6. **Save Changes** дарах
+- **Development Mode:** Зөвхөн App Admins, Developers, Testers нэвтрэх боломжтой
+- **Production:** Live режим эсвэл App Review хийлгэх шаардлагатай
+
 ### "OAuth redirect URI mismatch"
 - Facebook App Settings дээр OAuth Redirect URI зөв тохируулаагүй байна
 - Firebase Auth Domain-ийг Facebook App дээр нэмэх хэрэгтэй
+- **Valid OAuth Redirect URIs** дээр бүх шаардлагатай URI-үүд байгаа эсэхийг шалгах
 
 ---
 
