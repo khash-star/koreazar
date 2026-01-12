@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Eye, Trash2, Check, X, Loader2, Clock, Download } from 'lucide-react';
+import { ArrowLeft, Eye, Trash2, Check, X, Loader2, Clock, Download, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { checkListingWithAI } from '@/services/aiService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,8 @@ export default function AdminNewListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const [deleteId, setDeleteId] = useState(null);
+  const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
+  const [checkingListingId, setCheckingListingId] = useState(null);
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
@@ -57,6 +60,32 @@ export default function AdminNewListings() {
 
   const handleReject = (id) => {
     updateStatusMutation.mutate({ id, status: 'rejected' });
+  };
+
+  const handleAICheck = async (listing) => {
+    setCheckingListingId(listing.id);
+    try {
+      const result = await checkListingWithAI(listing);
+      setAiCheckResults(prev => ({
+        ...prev,
+        [listing.id]: result
+      }));
+    } catch (error) {
+      alert(`AI шалгалт хийхэд алдаа гарлаа: ${error.message}`);
+      console.error('AI check error:', error);
+    } finally {
+      setCheckingListingId(null);
+    }
+  };
+
+  const handleApproveWithAI = (id) => {
+    const aiResult = aiCheckResults[id];
+    if (aiResult && !aiResult.approved) {
+      if (!confirm(`AI шалгалтаар энэ зарыг татгалзах санал болгосон. Шалтгаан: ${aiResult.reason}\n\nГэсэн хэдий ч батлах уу?`)) {
+        return;
+      }
+    }
+    handleApprove(id);
   };
 
   const handleExportCSV = () => {
@@ -265,10 +294,53 @@ export default function AdminNewListings() {
                         .replace(/сарын/gi, 'С')}</span>
                     </div>
 
+                    {/* AI Check Result */}
+                    {aiCheckResults[listing.id] && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className={`mb-3 p-3 rounded-lg border ${
+                          aiCheckResults[listing.id].approved
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-yellow-50 border-yellow-200'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {aiCheckResults[listing.id].approved ? (
+                            <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`font-semibold text-sm ${
+                                aiCheckResults[listing.id].approved ? 'text-green-700' : 'text-yellow-700'
+                              }`}>
+                                {aiCheckResults[listing.id].approved ? '✅ Батлах санал' : '⚠️ Татгалзах санал'}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                Оноо: {aiCheckResults[listing.id].score}/100
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-700 mb-1">
+                              {aiCheckResults[listing.id].reason}
+                            </p>
+                            {aiCheckResults[listing.id].suggestions && aiCheckResults[listing.id].suggestions.length > 0 && (
+                              <ul className="text-xs text-gray-600 list-disc list-inside">
+                                {aiCheckResults[listing.id].suggestions.map((suggestion, idx) => (
+                                  <li key={idx}>{suggestion}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleApprove(listing.id)}
+                        onClick={() => handleApproveWithAI(listing.id)}
                         disabled={updateStatusMutation.isPending}
                         className="bg-green-600 hover:bg-green-700 text-white"
                       >
@@ -284,6 +356,25 @@ export default function AdminNewListings() {
                       >
                         <X className="w-4 h-4 mr-1" />
                         Татгалзах
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAICheck(listing)}
+                        disabled={checkingListingId === listing.id}
+                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                      >
+                        {checkingListingId === listing.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Шалгаж байна...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            AI-аар шалгах
+                          </>
+                        )}
                       </Button>
                       <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
                         <Button size="sm" variant="outline">

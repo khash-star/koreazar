@@ -172,3 +172,127 @@ export const validateAPIKey = async () => {
   }
 };
 
+/**
+ * Check listing with AI and get approval recommendation
+ * @param {Object} listing - Listing object to check
+ * @returns {Promise<{approved: boolean, reason: string, score: number, suggestions?: string[]}>} AI check result
+ */
+export const checkListingWithAI = async (listing) => {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key is not configured');
+  }
+
+  // Prepare listing data for AI
+  const listingData = {
+    title: listing.title || '',
+    description: listing.description || '',
+    category: listing.category || '',
+    subcategory: listing.subcategory || '',
+    price: listing.price || 0,
+    location: listing.location || '',
+    condition: listing.condition || '',
+    phone: listing.phone || '',
+    hasImages: listing.images && listing.images.length > 0,
+    imageCount: listing.images ? listing.images.length : 0
+  };
+
+  const systemPrompt = `Та Koreazar зарын сайтын админ туслах AI. Таны үүрэг бол заруудыг шалгаад батлах эсэхийг санал болгох явдал юм.
+
+ЧУХАЛ: Та ЗӨВХӨН JSON формат дахь хариулт өгөх ёстой. Бусад текст бичэхгүй байх.
+
+ШАЛГАХ ШАЛТГААНУУД:
+1. Зарны гарчиг, тайлбар зөв, тодорхой эсэх
+2. Үнэ зөв эсэх (0-ээс их байх ёстой)
+3. Категори, байршил зөв эсэх
+4. Холбоо барих мэдээлэл байгаа эсэх (phone, kakao_id, wechat_id гэх мэт)
+5. Зураг байгаа эсэх (хүссэн, гэхдээ заавал биш)
+6. Тайлбар хангалттай эсэх
+7. Спам, хуурамч мэдээлэл эсэх
+
+ХАРИУЛТЫН ФОРМАТ (ЗӨВХӨН JSON):
+{
+  "approved": true эсвэл false,
+  "reason": "Шалтгаан (монгол хэлээр)",
+  "score": 0-100 тоо (зарын чанарын оноо),
+  "suggestions": ["санал 1", "санал 2"] эсвэл []
+}
+
+ДҮРЭМ:
+- Зөв, бүрэн мэдээлэлтэй заруудыг батлах (approved: true)
+- Хуурамч, спам заруудыг татгалзах (approved: false)
+- Мэдээлэл дутуу байвал санал өгөх
+- Монгол хэл дээр reason, suggestions бичих
+- ЗӨВХӨН JSON формат дахь хариулт өгөх`;
+
+  const userPrompt = `Дараах зарыг шалгаад батлах эсэхийг санал болгоно уу:
+
+Гарчиг: ${listingData.title}
+Тайлбар: ${listingData.description}
+Категори: ${listingData.category}
+Дэд категори: ${listingData.subcategory}
+Үнэ: ${listingData.price}₩
+Байршил: ${listingData.location}
+Нөхцөл: ${listingData.condition}
+Утас: ${listingData.phone || 'Байхгүй'}
+Зураг: ${listingData.hasImages ? `${listingData.imageCount} зураг байна` : 'Зураг байхгүй'}
+
+Зөвхөн JSON формат дахь хариулт өгнө үү.`;
+
+  try {
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.3, // Lower temperature for more consistent results
+        max_tokens: 500,
+        response_format: { type: 'json_object' }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const aiResponse = response.data.choices[0]?.message?.content || '{}';
+    
+    try {
+      const result = JSON.parse(aiResponse);
+      return {
+        approved: result.approved === true,
+        reason: result.reason || 'Шалгалт хийгдсэн',
+        score: result.score || 50,
+        suggestions: result.suggestions || []
+      };
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', parseError);
+      // Fallback: try to extract information from text response
+      const lowerResponse = aiResponse.toLowerCase();
+      const approved = lowerResponse.includes('батлах') || lowerResponse.includes('зөв') || lowerResponse.includes('approved');
+      return {
+        approved,
+        reason: aiResponse.substring(0, 200) || 'AI шалгалт хийгдсэн',
+        score: approved ? 75 : 40,
+        suggestions: []
+      };
+    }
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('OpenAI API key буруу байна');
+    } else if (error.response?.status === 429) {
+      throw new Error('Хэт олон хүсэлт илгээсэн. Түр хүлээгээд дахин оролдоно уу.');
+    } else if (error.response?.status === 500) {
+      throw new Error('OpenAI сервер дээр алдаа гарлаа. Дахин оролдоно уу.');
+    } else {
+      throw new Error('AI шалгалт хийхэд алдаа гарлаа. Дахин оролдоно уу.');
+    }
+  }
+};
+
