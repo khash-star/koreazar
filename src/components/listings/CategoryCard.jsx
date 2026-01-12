@@ -12,7 +12,7 @@ const categoryInfo = {
   fashion: { name: 'Хувцас/Косметик', icon: '👕', color: 'from-pink-500 to-pink-600' },
   furniture: { name: 'Тавилга', icon: '🛋️', color: 'from-amber-500 to-amber-600' },
   cargo: { name: 'Карго', icon: '📦', color: 'from-teal-500 to-teal-600' },
-  community: { name: 'Мэдээлэл', icon: '📢', color: 'from-indigo-500 to-indigo-600' },
+  community: { name: 'Утас/Дугаар', icon: '📞', color: 'from-indigo-500 to-indigo-600' },
   other: { name: 'Бусад', icon: '📦', color: 'from-gray-500 to-gray-600' }
 };
 
