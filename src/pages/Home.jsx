@@ -34,6 +34,12 @@ export default function Home() {
     maxPrice: '',
     condition: ''
   });
+  
+  // Баннер болон VIP хэсгүүдийг түр нуух/харуулах төлөв
+  const [showBannersAndVIP, setShowBannersAndVIP] = useState(() => {
+    const stored = localStorage.getItem('showBannersAndVIP');
+    return stored === 'true'; // Хэрэв localStorage дээр 'true' байвал харагдана, бусад тохиолдолд нуугдана
+  });
 
 
 
@@ -273,6 +279,7 @@ export default function Home() {
       </div>
 
       {/* Hero Banner Grid */}
+      {showBannersAndVIP && (
       <div className="bg-gray-900 py-3 md:py-6 mt-12 md:mt-14">
         <div className="max-w-7xl mx-auto px-4">
           {bannerAds.length > 0 ? (
@@ -329,6 +336,7 @@ export default function Home() {
           )}
         </div>
       </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 pt-0 pb-24 md:pb-12 mt-0 md:mt-0">
         {/* Categories */}
@@ -465,7 +473,7 @@ export default function Home() {
         )}
 
         {/* Sponsored Banners & VIP Listings Marquee */}
-        {(bannerAds.length > 0 || listings.filter(l => l.listing_type === 'vip').length > 0) && (
+        {showBannersAndVIP && (bannerAds.length > 0 || listings.filter(l => l.listing_type === 'vip').length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -522,7 +530,7 @@ export default function Home() {
         )}
 
         {/* Featured/VIP Listings Carousel */}
-        {listings.filter(l => l.listing_type === 'featured' || l.listing_type === 'vip').length > 0 && (
+        {showBannersAndVIP && listings.filter(l => l.listing_type === 'featured' || l.listing_type === 'vip').length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
