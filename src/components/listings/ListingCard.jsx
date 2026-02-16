@@ -149,13 +149,14 @@ export default function ListingCard({ listing }) {
             onClick={handleSave}
             size="icon"
             variant="ghost"
+            aria-label={isSaved ? 'Хадгалсанаас хасах' : 'Хадгалах'}
             className={`absolute top-3 right-3 w-10 h-10 rounded-full backdrop-blur-sm transition-all ${
               isSaved 
                 ? 'bg-red-500 hover:bg-red-600 text-white' 
                 : 'bg-white/90 hover:bg-white text-gray-700'
             }`}
           >
-            <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
+            <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} aria-hidden />
           </Button>
         </div>
         

@@ -112,78 +112,85 @@ export default function Layout({ children, currentPageName }) {
       
       {/* Bottom Navigation (Mobile) - Only on Home */}
       {showNav && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 shadow-lg">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 shadow-lg" aria-label="Гол цэс">
           <div className="flex items-center justify-around py-2.5 px-2">
             <button
+              type="button"
               onClick={handleHomeClick}
+              aria-label="Нүүр"
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
-                currentPageName === 'Home' ? 'text-amber-600' : 'text-gray-500'
+                currentPageName === 'Home' ? 'text-amber-600' : 'text-gray-700'
               }`}
             >
-              <Home className="w-5 h-5" />
-              <span className="text-[10px] leading-tight">Нүүр</span>
+              <Home className="w-5 h-5" aria-hidden />
+              <span className="text-[10px] leading-tight font-medium">Нүүр</span>
             </button>
 
             <Link
               to={createPageUrl('SavedListings')}
+              aria-label="Хадгалсан зарууд"
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
-                currentPageName === 'SavedListings' ? 'text-amber-600' : 'text-gray-500'
+                currentPageName === 'SavedListings' ? 'text-amber-600' : 'text-gray-700'
               }`}
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="w-5 h-5" aria-hidden />
               {savedCount > 0 && (
                 <span className="absolute -top-0.5 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {savedCount > 9 ? '9+' : savedCount}
                 </span>
               )}
-              <span className="text-[10px] leading-tight">Хадгал</span>
+              <span className="text-[10px] leading-tight font-medium">Хадгал</span>
             </Link>
 
             <Link
               to={createPageUrl('Messages')}
+              aria-label="Мессеж"
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
-                currentPageName === 'Messages' || currentPageName === 'Chat' ? 'text-amber-600' : 'text-gray-500'
+                currentPageName === 'Messages' || currentPageName === 'Chat' ? 'text-amber-600' : 'text-gray-700'
               }`}
             >
-              <MessageCircle className="w-5 h-5" />
+              <MessageCircle className="w-5 h-5" aria-hidden />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
-              <span className="text-[10px] leading-tight">Мессеж</span>
+              <span className="text-[10px] leading-tight font-medium">Мессеж</span>
             </Link>
 
             <Link
               to={createPageUrl('CreateListing')}
+              aria-label="Зар нэмэх"
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
-                currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-500'
+                currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-700'
               }`}
             >
-              <PlusCircle className="w-5 h-5" />
-              <span className="text-[10px] leading-tight">Нэмэх</span>
+              <PlusCircle className="w-5 h-5" aria-hidden />
+              <span className="text-[10px] leading-tight font-medium">Нэмэх</span>
             </Link>
 
             {(userData?.role === 'admin' || user?.role === 'admin') && (
               <Link
                 to={createPageUrl('AdminPanel')}
+                aria-label="Админ удирдлага"
                 className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
-                  currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'text-amber-600' : 'text-gray-500'
+                  currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'text-amber-600' : 'text-gray-700'
                 }`}
               >
-                <Shield className="w-5 h-5" />
-                <span className="text-[10px] leading-tight">Админ</span>
+                <Shield className="w-5 h-5" aria-hidden />
+                <span className="text-[10px] leading-tight font-medium">Админ</span>
               </Link>
             )}
 
             <Link
               to={createPageUrl('MyListings')}
+              aria-label="Миний зарууд"
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
-                currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-500'
+                currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-700'
               }`}
             >
-              <User className="w-5 h-5" />
-              <span className="text-[10px] leading-tight">Миний</span>
+              <User className="w-5 h-5" aria-hidden />
+              <span className="text-[10px] leading-tight font-medium">Миний</span>
             </Link>
           </div>
         </nav>

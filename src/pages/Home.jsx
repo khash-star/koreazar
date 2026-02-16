@@ -235,9 +235,10 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 size="sm"
-                className="bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
+                aria-label="Нэвтрэх"
+                className="bg-white hover:bg-white/90 text-amber-800 border-white font-semibold shadow-md whitespace-nowrap"
               >
-                <LogIn className="w-4 h-4 mr-2" />
+                <LogIn className="w-4 h-4 mr-2" aria-hidden />
                 <span>Нэвтрэх</span>
               </Button>
             </Link>
@@ -257,6 +258,7 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 size="sm"
+                aria-label="Гарах"
                 onClick={async () => {
                   try {
                     await logout();
@@ -265,9 +267,9 @@ export default function Home() {
                     console.error('Logout error:', error);
                   }
                 }}
-                className="bg-white hover:bg-white/90 text-amber-600 border-white font-semibold shadow-md whitespace-nowrap"
+                className="bg-white hover:bg-white/90 text-amber-800 border-white font-semibold shadow-md whitespace-nowrap"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <LogOut className="w-4 h-4 mr-2" aria-hidden />
                 <span className="hidden md:inline">Гарах</span>
               </Button>
             </div>
@@ -572,8 +574,8 @@ export default function Home() {
         </h2>
         </div>
         <Link to={createPageUrl('CreateListing')}>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl h-12 px-6">
-        <Plus className="w-5 h-5 mr-2" />
+        <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-12 px-6" aria-label="Зар нэмэх">
+        <Plus className="w-5 h-5 mr-2" aria-hidden />
         Зар нэмэх
         </Button>
         </Link>

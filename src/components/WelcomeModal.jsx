@@ -28,10 +28,12 @@ export default function WelcomeModal({ isOpen, onClose }) {
               {/* Header */}
               <div className="relative bg-gradient-to-br from-amber-500 to-orange-600 text-white p-8 rounded-t-3xl">
                 <button
+                  type="button"
                   onClick={onClose}
+                  aria-label="Хаах"
                   className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5" aria-hidden />
                 </button>
                 
                 <div className="text-center">
@@ -88,10 +90,11 @@ export default function WelcomeModal({ isOpen, onClose }) {
 
                 <Button
                   onClick={onClose}
-                  className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-lg font-semibold rounded-xl"
+                  aria-label="Сайтаа үзэх"
+                  className="w-full h-14 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-lg font-semibold rounded-xl"
                 >
                   Сайтаа үзэх
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <ArrowRight className="w-5 h-5 ml-2" aria-hidden />
                 </Button>
               </div>
             </div>
