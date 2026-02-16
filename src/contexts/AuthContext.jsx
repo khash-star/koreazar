@@ -1,7 +1,6 @@
 // Auth Context - Authentication state management
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthChange, getMe } from '@/services/authService';
-import { auth } from '@/firebase/config';
+// Firebase Auth is loaded asynchronously (dynamic import) so it doesn't block first paint / LCP
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -17,10 +16,13 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const unsubRef = useRef(() => {});
 
   useEffect(() => {
-    // Auth state өөрчлөлтийг хянах
-    const unsubscribe = onAuthChange(async (firebaseUser) => {
+    (async () => {
+      try {
+        const { onAuthChange, getMe } = await import('@/services/authService');
+        unsubRef.current = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         // Immediately set basic user data (don't wait for Firestore)
@@ -67,9 +69,13 @@ export const AuthProvider = ({ children }) => {
         setUserData(null);
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
+        });
+      } catch (err) {
+        console.error('Auth load failed:', err);
+        setLoading(false);
+      }
+    })();
+    return () => unsubRef.current();
   }, []);
 
   const value = {

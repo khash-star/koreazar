@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 
 import Layout from "./Layout.jsx";
 import Home from "./Home";
-import Login from "./Login";
-import Register from "./Register";
 
+const Login = lazy(() => import('./Login'));
+const Register = lazy(() => import('./Register'));
 const AdminAllListings = lazy(() => import('./AdminAllListings'));
 const AdminBannerRequests = lazy(() => import('./AdminBannerRequests'));
 const AdminBanners = lazy(() => import('./AdminBanners'));
