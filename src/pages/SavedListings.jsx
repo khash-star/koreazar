@@ -28,9 +28,14 @@ export default function SavedListings() {
     enabled: savedListings.length > 0
   });
 
-  const listings = savedListings
-    .map(saved => allListings.find(l => l.id === saved.listing_id))
+  // Keep saved.id for unique React keys (same listing can appear once per save record)
+  const listingsWithKeys = savedListings
+    .map(saved => {
+      const listing = allListings.find(l => l.id === saved.listing_id);
+      return listing ? { listing, savedId: saved.id } : null;
+    })
     .filter(Boolean);
+  const listings = listingsWithKeys.map(({ listing }) => listing);
 
   const unsaveMutation = useMutation({
     mutationFn: (listingId) => {
@@ -111,9 +116,9 @@ export default function SavedListings() {
         ) : listings.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <AnimatePresence>
-              {listings.map((listing, index) => (
+              {listingsWithKeys.map(({ listing, savedId }, index) => (
                 <motion.div
-                  key={listing.id}
+                  key={savedId}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
