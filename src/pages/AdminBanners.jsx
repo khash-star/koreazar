@@ -7,14 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Plus, Trash2, Upload, X, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
+import { Loader2, Plus, Trash2, Upload, X, ArrowUp, ArrowDown, ArrowLeft, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -23,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function AdminBanners() {
   const { user, userData } = useAuth();
   const [showDialog, setShowDialog] = useState(false);
+  const [editingBannerId, setEditingBannerId] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     image_url: '',
@@ -52,6 +52,9 @@ export default function AdminBanners() {
     mutationFn: ({ id, data }) => entities.BannerAd.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
+      setShowDialog(false);
+      setEditingBannerId(null);
+      setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0 });
     }
   });
 
@@ -81,7 +84,29 @@ export default function AdminBanners() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    if (editingBannerId) {
+      updateMutation.mutate({ id: editingBannerId, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const openAddDialog = () => {
+    setEditingBannerId(null);
+    setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0 });
+    setShowDialog(true);
+  };
+
+  const openEditDialog = (banner) => {
+    setFormData({
+      image_url: banner.image_url || '',
+      link: banner.link || '#',
+      title: banner.title || '',
+      is_active: banner.is_active ?? true,
+      order: banner.order ?? 0
+    });
+    setEditingBannerId(banner.id);
+    setShowDialog(true);
   };
 
   const moveUp = (banner, index) => {
@@ -138,16 +163,14 @@ export default function AdminBanners() {
                 <p className="text-gray-500 mt-1">Нүүр хуудасны баннер зарыг удирдах</p>
               </div>
             </div>
-            <Dialog open={showDialog} onOpenChange={setShowDialog}>
-              <DialogTrigger asChild>
-                <Button className="bg-amber-500 hover:bg-amber-600">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Баннер нэмэх
-                </Button>
-              </DialogTrigger>
+            <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) setEditingBannerId(null); }}>
+              <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600">
+                <Plus className="w-5 h-5 mr-2" />
+                Баннер нэмэх
+              </Button>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Шинэ баннер зар</DialogTitle>
+                  <DialogTitle>{editingBannerId ? 'Баннер засах' : 'Шинэ баннер зар'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
@@ -216,8 +239,18 @@ export default function AdminBanners() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={!formData.image_url || createMutation.isPending}>
-                    {createMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Нэмэх'}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={!formData.image_url || createMutation.isPending || updateMutation.isPending}
+                  >
+                    {(createMutation.isPending || updateMutation.isPending) ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : editingBannerId ? (
+                      'Хадгалах'
+                    ) : (
+                      'Нэмэх'
+                    )}
                   </Button>
                 </form>
               </DialogContent>
@@ -234,7 +267,7 @@ export default function AdminBanners() {
         ) : banners.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">Баннер зар байхгүй байна</p>
-            <Button onClick={() => setShowDialog(true)} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600">
               <Plus className="w-5 h-5 mr-2" />
               Эхний баннераа нэмэх
             </Button>
@@ -279,10 +312,18 @@ export default function AdminBanners() {
                     </Button>
                     <Switch
                       checked={banner.is_active}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked) =>
                         updateMutation.mutate({ id: banner.id, data: { is_active: checked } })
                       }
                     />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Засах"
+                      onClick={() => openEditDialog(banner)}
+                    >
+                      <Pencil className="w-4 h-4 text-gray-600" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

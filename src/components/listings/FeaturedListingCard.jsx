@@ -38,6 +38,8 @@ export default function FeaturedListingCard({ listing }) {
             <img
               src={listing.images[0]}
               alt={listing.title}
+              width={400}
+              height={300}
               loading="lazy"
               decoding="async"
               className="w-full h-full object-cover"

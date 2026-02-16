@@ -1,83 +1,48 @@
-import Layout from "./Layout.jsx";
-
-import AdminAllListings from "./AdminAllListings";
-
-import AdminBannerRequests from "./AdminBannerRequests";
-
-import AdminBanners from "./AdminBanners";
-
-import AdminNewListings from "./AdminNewListings";
-
-import AdminPanel from "./AdminPanel";
-
-import CreateListing from "./CreateListing";
-
-import EditListing from "./EditListing";
-
-import Home from "./Home";
-
-import ListingDetail from "./ListingDetail";
-
-import MyListings from "./MyListings";
-
-import RequestBannerAd from "./RequestBannerAd";
-
-import SavedListings from "./SavedListings";
-
-import UpgradeListing from "./UpgradeListing";
-
-import Messages from "./Messages";
-
-import Chat from "./Chat";
-
-import Login from "./Login";
-
-import Register from "./Register";
-
-import Profile from "./Profile";
-
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 
+import Layout from "./Layout.jsx";
+import Home from "./Home";
+import Login from "./Login";
+import Register from "./Register";
+
+const AdminAllListings = lazy(() => import('./AdminAllListings'));
+const AdminBannerRequests = lazy(() => import('./AdminBannerRequests'));
+const AdminBanners = lazy(() => import('./AdminBanners'));
+const AdminNewListings = lazy(() => import('./AdminNewListings'));
+const AdminPanel = lazy(() => import('./AdminPanel'));
+const CreateListing = lazy(() => import('./CreateListing'));
+const EditListing = lazy(() => import('./EditListing'));
+const ListingDetail = lazy(() => import('./ListingDetail'));
+const MyListings = lazy(() => import('./MyListings'));
+const RequestBannerAd = lazy(() => import('./RequestBannerAd'));
+const SavedListings = lazy(() => import('./SavedListings'));
+const UpgradeListing = lazy(() => import('./UpgradeListing'));
+const Messages = lazy(() => import('./Messages'));
+const Chat = lazy(() => import('./Chat'));
+const Profile = lazy(() => import('./Profile'));
+
 const PAGES = {
-    
-    AdminAllListings: AdminAllListings,
-    
-    AdminBannerRequests: AdminBannerRequests,
-    
-    AdminBanners: AdminBanners,
-    
-    AdminNewListings: AdminNewListings,
-    
-    AdminPanel: AdminPanel,
-    
-    CreateListing: CreateListing,
-    
-    EditListing: EditListing,
-    
-    Home: Home,
-    
-    ListingDetail: ListingDetail,
-    
-    MyListings: MyListings,
-    
-    RequestBannerAd: RequestBannerAd,
-    
-    SavedListings: SavedListings,
-    
-    UpgradeListing: UpgradeListing,
-    
-    Messages: Messages,
-    
-    Chat: Chat,
-    
-    Login: Login,
-    
-    Register: Register,
-    
-    Profile: Profile,
-    
-}
+  AdminAllListings,
+  AdminBannerRequests,
+  AdminBanners,
+  AdminNewListings,
+  AdminPanel,
+  CreateListing,
+  EditListing,
+  Home,
+  ListingDetail,
+  MyListings,
+  RequestBannerAd,
+  SavedListings,
+  UpgradeListing,
+  Messages,
+  Chat,
+  Login,
+  Register,
+  Profile
+};
 
 function _getCurrentPage(url) {
     if (url.endsWith('/')) {
@@ -152,10 +117,20 @@ function PagesContent() {
     );
 }
 
+function PageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export default function Pages() {
-    return (
-        <Router>
-            <PagesContent />
-        </Router>
-    );
+  return (
+    <Router>
+      <Suspense fallback={<PageFallback />}>
+        <PagesContent />
+      </Suspense>
+    </Router>
+  );
 }

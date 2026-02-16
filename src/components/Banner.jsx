@@ -28,6 +28,10 @@ export default function Banner({ imageUrl, link, title, className = "" }) {
       <img
         src={bannerData.imageUrl}
         alt={bannerData.title}
+        width={300}
+        height={160}
+        loading="lazy"
+        decoding="async"
         className="w-full h-full object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent group-hover:from-black/30 transition-all" />

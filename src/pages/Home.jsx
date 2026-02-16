@@ -304,6 +304,8 @@ export default function Home() {
                     <img
                       src={banner.image_url}
                       alt={banner.title || 'Banner'}
+                      width={600}
+                      height={320}
                       decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -507,6 +509,8 @@ export default function Home() {
                       <img
                         src={item.images?.[0] || 'https://via.placeholder.com/400x200'}
                         alt={item.title}
+                        width={300}
+                        height={160}
                         loading="lazy"
                         decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
