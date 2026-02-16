@@ -35,11 +35,8 @@ export default function Home() {
     condition: ''
   });
   
-  // Баннер болон VIP хэсгүүдийг түр нуух/харуулах төлөв
-  const [showBannersAndVIP, setShowBannersAndVIP] = useState(() => {
-    const stored = localStorage.getItem('showBannersAndVIP');
-    return stored === 'true'; // Хэрэв localStorage дээр 'true' байвал харагдана, бусад тохиолдолд нуугдана
-  });
+  // Баннер болон VIP хэсгүүдийг анхдагчаар харуулна (нүүр нээхэд шууд харагдана)
+  const [showBannersAndVIP] = useState(true);
 
 
 
