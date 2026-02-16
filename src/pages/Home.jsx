@@ -301,9 +301,10 @@ export default function Home() {
                     rel="noopener noreferrer"
                     className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden group block"
                   >
-                    <img 
-                      src={banner.image_url} 
+                    <img
+                      src={banner.image_url}
                       alt={banner.title || 'Banner'}
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -503,9 +504,11 @@ export default function Home() {
                     className="w-[300px] flex-shrink-0"
                   >
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group">
-                      <img 
-                        src={item.images?.[0] || 'https://via.placeholder.com/400x200'} 
+                      <img
+                        src={item.images?.[0] || 'https://via.placeholder.com/400x200'}
                         alt={item.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

@@ -107,6 +107,8 @@ export default function ListingCard({ listing }) {
             <img
               src={listing.images[0]}
               alt={listing.title}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
