@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
+import { compressImage } from '@/components/utils/imageCompressor';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,11 +65,18 @@ export default function AdminBanners() {
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
+    const validFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!validFormats.includes(file.type)) {
+      return;
+    }
     setUploading(true);
-    const { file_url } = await UploadFile({ file });
-    setFormData({ ...formData, image_url: file_url });
-    setUploading(false);
+    try {
+      const compressed = await compressImage(file, 1200, 600, 0.8);
+      const { file_url } = await UploadFile({ file: compressed });
+      setFormData({ ...formData, image_url: file_url });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = (e) => {

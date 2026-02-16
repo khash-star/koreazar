@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
+import { compressImage } from '@/components/utils/imageCompressor';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -65,7 +66,8 @@ export default function RequestBannerAd() {
 
     setUploading(true);
     try {
-      const { file_url } = await UploadFile({ file });
+      const compressed = await compressImage(file, 1200, 600, 0.8);
+      const { file_url } = await UploadFile({ file: compressed });
       setImageUrl(file_url);
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа');
