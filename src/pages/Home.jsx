@@ -6,6 +6,7 @@ import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, Chevron
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { withWidth } from '@/utils/imageUrl';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
 import SearchBar from '@/components/listings/SearchBar';
@@ -180,6 +181,24 @@ export default function Home() {
     }
   });
 
+  // LCP: preload first visible image (hero banner or first listing) when data is ready
+  const firstBannerUrl = showBannersAndVIP && bannerAds.length > 0 ? bannerAds[0].image_url : null;
+  const firstListingImageUrl = listings.length > 0 ? listings[0].images?.[0] : null;
+  useEffect(() => {
+    const lcpUrl = firstBannerUrl
+      ? withWidth(firstBannerUrl, 600)
+      : firstListingImageUrl
+        ? withWidth(firstListingImageUrl, 400)
+        : null;
+    if (!lcpUrl) return;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = lcpUrl;
+    document.head.appendChild(link);
+    return () => { link.remove(); };
+  }, [firstBannerUrl, firstListingImageUrl]);
+
   const { data: allListings = [] } = useQuery({
     queryKey: ['allListings'],
     queryFn: () => entities.Listing.filter({ status: 'active' }),
@@ -303,11 +322,12 @@ export default function Home() {
                     className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden group block"
                   >
                     <img
-                      src={banner.image_url}
+                      src={withWidth(banner.image_url, 600)}
                       alt={banner.title || 'Banner'}
                       width={600}
                       height={320}
                       decoding="async"
+                      sizes="(max-width: 768px) 50vw, 600px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -503,7 +523,7 @@ export default function Home() {
                 item.image_url ? (
                   <Banner 
                     key={`banner-${idx}`}
-                    imageUrl={item.image_url}
+                    imageUrl={withWidth(item.image_url, 300)}
                     title={item.title}
                     link={item.link || '#'}
                     className="w-[300px] h-[160px] flex-shrink-0"
@@ -516,12 +536,13 @@ export default function Home() {
                   >
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group">
                       <img
-                        src={item.images?.[0] || 'https://via.placeholder.com/400x200'}
-                        alt={item.title}
+                        src={withWidth(item.images?.[0], 300) || 'https://via.placeholder.com/400x200'}
+                        alt={item.title || 'Зар'}
                         width={300}
                         height={160}
                         loading="lazy"
                         decoding="async"
+                        sizes="300px"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

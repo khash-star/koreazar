@@ -3,6 +3,7 @@ import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { withWidth } from '@/utils/imageUrl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Eye, MoreVertical, CheckCircle, XCircle, AlertCircle, Settings, ArrowUp, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -192,8 +193,10 @@ export default function MyListings() {
                     <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-shrink-0">
                       {listing.images && listing.images.length > 0 ? (
                         <img
-                          src={listing.images[0]}
-                          alt={listing.title}
+                          src={withWidth(listing.images[0], 150)}
+                          alt={listing.title || 'Зар'}
+                          loading="lazy"
+                          decoding="async"
                           className="w-24 h-24 object-cover rounded-lg"
                         />
                       ) : (

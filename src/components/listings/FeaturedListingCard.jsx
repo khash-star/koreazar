@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { withWidth } from '@/utils/imageUrl';
 import { MapPin, Clock, Sparkles, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import moment from 'moment';
@@ -36,12 +37,13 @@ export default function FeaturedListingCard({ listing }) {
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
           {listing.images?.[0] ? (
             <img
-              src={listing.images[0]}
-              alt={listing.title}
+              src={withWidth(listing.images[0], 400)}
+              alt={listing.title || 'Зарын зураг'}
               width={400}
               height={300}
               loading="lazy"
               decoding="async"
+              sizes="(max-width: 768px) 280px, 350px"
               className="w-full h-full object-cover"
             />
           ) : (

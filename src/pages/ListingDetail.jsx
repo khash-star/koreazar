@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { withWidth } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
@@ -253,8 +254,11 @@ export default function ListingDetail() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  src={listing.images[currentImageIndex]}
-                  alt={listing.title}
+                  src={withWidth(listing.images[currentImageIndex], 800)}
+                  alt={listing.title || 'Зарын зураг'}
+                  loading="lazy"
+                  decoding="async"
+                  sizes="(max-width: 768px) 100vw, 800px"
                   className="w-full h-full object-contain"
                 />
               </AnimatePresence>
@@ -312,7 +316,7 @@ export default function ListingDetail() {
                   index === currentImageIndex ? 'ring-amber-500' : 'ring-transparent'
                 }`}
               >
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img src={withWidth(url, 150)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
               </button>
             ))}
           </div>
