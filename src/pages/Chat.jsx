@@ -3,7 +3,7 @@ import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl } from '@/utils/imageUrl';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -283,7 +283,7 @@ export default function Chat() {
             <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
               <div className="flex gap-3 items-center hover:bg-amber-100 rounded-lg p-2 -m-2 transition-colors">
                 {listing.images?.[0] && (
-                  <img src={withWidth(listing.images[0], 100)} alt="" className="w-12 h-12 rounded-lg object-cover" loading="lazy" decoding="async" />
+                  <img src={getListingImageUrl(listing.images[0], 'w150')} alt="" className="w-12 h-12 rounded-lg object-cover" loading="lazy" decoding="async" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{listing.title}</p>

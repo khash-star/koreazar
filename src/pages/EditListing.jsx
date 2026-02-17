@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/select';
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
-import { compressImage } from '@/components/utils/imageCompressor';
+import { createImageVariants } from '@/components/utils/imageCompressor';
+import { getListingImageUrl } from '@/utils/imageUrl';
 
 const locations = [
   'Seoul',
@@ -163,10 +164,13 @@ export default function EditListing() {
     
     try {
       for (const file of validFiles) {
-        // Compress image before upload
-        const compressedFile = await compressImage(file);
-        const { file_url } = await UploadFile({ file: compressedFile });
-        setImages(prev => [...prev, file_url]);
+        const variants = await createImageVariants(file);
+        const [r800, r400, r150] = await Promise.all([
+          UploadFile({ file: variants.w800 }),
+          UploadFile({ file: variants.w400 }),
+          UploadFile({ file: variants.w150 }),
+        ]);
+        setImages(prev => [...prev, { w800: r800.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.');
@@ -277,9 +281,9 @@ export default function EditListing() {
             <Label className="text-base font-semibold mb-4 block">Зургууд</Label>
             
             <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
-              {images.map((url, index) => (
+              {images.map((img, index) => (
                 <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <img src={getListingImageUrl(img, 'w400')} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removeImage(index)}

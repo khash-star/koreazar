@@ -4,7 +4,7 @@ import { updateUserData, redirectToLogin } from '@/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl } from '@/utils/imageUrl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -379,7 +379,7 @@ export default function Profile() {
                         <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-shrink-0">
                           {listing.images && listing.images.length > 0 ? (
                             <img
-                              src={withWidth(listing.images[0], 150)}
+                              src={getListingImageUrl(listing.images[0], 'w150')}
                               alt={listing.title || 'Зар'}
                               loading="lazy"
                               decoding="async"

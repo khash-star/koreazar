@@ -6,7 +6,7 @@ import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, Chevron
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl, withWidth } from '@/utils/imageUrl';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
 import SearchBar from '@/components/listings/SearchBar';
@@ -183,13 +183,13 @@ export default function Home() {
 
   // LCP: preload first visible image (hero banner or first listing) when data is ready
   const firstBannerUrl = showBannersAndVIP && bannerAds.length > 0 ? bannerAds[0].image_url : null;
-  const firstListingImageUrl = listings.length > 0 ? listings[0].images?.[0] : null;
+  const firstListingImageUrl = listings.length > 0 && listings[0].images?.[0]
+    ? getListingImageUrl(listings[0].images[0], 'w400')
+    : null;
   useEffect(() => {
     const lcpUrl = firstBannerUrl
       ? withWidth(firstBannerUrl, 600)
-      : firstListingImageUrl
-        ? withWidth(firstListingImageUrl, 400)
-        : null;
+      : firstListingImageUrl || null;
     if (!lcpUrl) return;
     const link = document.createElement('link');
     link.rel = 'preload';
@@ -536,7 +536,7 @@ export default function Home() {
                   >
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group">
                       <img
-                        src={withWidth(item.images?.[0], 300) || 'https://via.placeholder.com/400x200'}
+                        src={getListingImageUrl(item.images?.[0], 'w400') || 'https://via.placeholder.com/400x200'}
                         alt={item.title || 'Зар'}
                         width={300}
                         height={160}

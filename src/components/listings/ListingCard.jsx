@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl } from '@/utils/imageUrl';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Eye, Heart, Crown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -106,7 +106,7 @@ export default function ListingCard({ listing }) {
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
           {listing.images && listing.images.length > 0 ? (
             <img
-              src={withWidth(listing.images[0], 400)}
+              src={getListingImageUrl(listing.images[0], 'w400')}
               alt={listing.title || 'Зарын зураг'}
               width={400}
               height={300}

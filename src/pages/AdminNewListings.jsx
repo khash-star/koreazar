@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { getListingImageUrl } from '@/utils/imageUrl';
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
@@ -124,8 +125,8 @@ export default function AdminNewListings() {
         ? new Date(listing.created_date).toLocaleString('mn-MN')
         : '';
       
-      const imageLinks = listing.images && Array.isArray(listing.images) 
-        ? listing.images.filter(img => img).join('; ')
+      const imageLinks = listing.images && Array.isArray(listing.images)
+        ? listing.images.map(img => typeof img === 'string' ? img : (img?.w800 || img?.w400 || img?.w150 || '')).filter(Boolean).join('; ')
         : '';
       
       const listingUrl = listing.id 
@@ -254,7 +255,7 @@ export default function AdminNewListings() {
                   <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-shrink-0">
                     {listing.images?.[0] ? (
                       <img
-                        src={listing.images[0]}
+                        src={getListingImageUrl(listing.images[0], 'w400')}
                         alt={listing.title}
                         className="w-24 h-24 rounded-lg object-cover"
                       />
