@@ -21,6 +21,9 @@ function nonBlockingCss() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), nonBlockingCss()],
+  build: {
+    sourcemap: false, // Production: do not serve sourcemaps (Lighthouse "savings" / security)
+  },
   server: {
     allowedHosts: true
   },

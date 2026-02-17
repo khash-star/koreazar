@@ -45,7 +45,15 @@ export default function Home() {
   const [visibleListingCount, setVisibleListingCount] = useState(LIST_INITIAL);
   const loadMoreRef = useRef(null);
 
-
+  // Above-the-fold: богино transition; prefers-reduced-motion дээр унтраана (LCP / a11y)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mq.matches);
+    const onChange = () => setPrefersReducedMotion(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const { data: bannerAds = [] } = useQuery({
     queryKey: ['bannerAds'],
@@ -331,10 +339,10 @@ export default function Home() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentBannerIndex}
-                initial={{ opacity: 0 }}
+                initial={{ opacity: prefersReducedMotion ? 1 : 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
+                exit={{ opacity: prefersReducedMotion ? 1 : 0 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
                 className="grid grid-cols-2 gap-4"
               >
                 {bannerAds.slice(currentBannerIndex, currentBannerIndex + 2).concat(
@@ -358,7 +366,7 @@ export default function Home() {
                       fetchPriority={index === 0 ? 'high' : undefined}
                       decoding="async"
                       sizes="(max-width: 768px) 50vw, 600px"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className={`w-full h-full object-cover ${prefersReducedMotion ? '' : 'group-hover:scale-105 transition-transform duration-150'}`}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     <div className="absolute top-3 right-3">
@@ -659,9 +667,12 @@ export default function Home() {
                 {listings.slice(0, visibleListingCount).map((listing, index) => (
                   <motion.div
                     key={listing.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * Math.min(index, 15) }}
+                    transition={{
+                      duration: prefersReducedMotion ? 0 : 0.2,
+                      delay: prefersReducedMotion ? 0 : 0.05 * Math.min(index, 15),
+                    }}
                   >
                     <ListingCard listing={listing} />
                   </motion.div>
