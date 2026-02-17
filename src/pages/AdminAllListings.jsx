@@ -153,7 +153,7 @@ export default function AdminAllListings() {
         : '';
       
       const imageLinks = listing.images && Array.isArray(listing.images)
-        ? listing.images.map(img => typeof img === 'string' ? img : (img?.w800 || img?.w400 || img?.w150 || '')).filter(Boolean).join('; ')
+        ? listing.images.map(img => typeof img === 'string' ? img : (img?.w800 || img?.w640 || img?.w400 || img?.w150 || '')).filter(Boolean).join('; ')
         : '';
       
       const listingUrl = listing.id 

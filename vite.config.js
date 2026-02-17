@@ -23,6 +23,7 @@ export default defineConfig({
   plugins: [react(), nonBlockingCss()],
   build: {
     sourcemap: false, // Production: do not serve sourcemaps (Lighthouse "savings" / security)
+    minify: 'esbuild', // Minify JS (Lighthouse: Reduce unused JS / payload)
   },
   server: {
     allowedHosts: true

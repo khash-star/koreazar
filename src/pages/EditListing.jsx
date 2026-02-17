@@ -165,12 +165,13 @@ export default function EditListing() {
     try {
       for (const file of validFiles) {
         const variants = await createImageVariants(file);
-        const [r800, r400, r150] = await Promise.all([
+        const [r800, r640, r400, r150] = await Promise.all([
           UploadFile({ file: variants.w800 }),
+          UploadFile({ file: variants.w640 }),
           UploadFile({ file: variants.w400 }),
           UploadFile({ file: variants.w150 }),
         ]);
-        setImages(prev => [...prev, { w800: r800.file_url, w400: r400.file_url, w150: r150.file_url }]);
+        setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.');

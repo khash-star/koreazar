@@ -105,9 +105,10 @@ function cropCenterToAspectThenResize(img, targetWidth, aspect, filename, qualit
 }
 
 /**
- * Create w800, w400, w150 WebP variants: center-crop to 3:2 then resize. Matches card aspect so no wasted pixels or wrong crop.
+ * Create w800, w640, w400, w150 WebP variants: center-crop to 3:2 then resize.
+ * w640: 312px slot 2x → 624px; browser сонгоход "slightly too large" гарахгүй.
  * @param {File} file - Original image file (JPEG/PNG/WebP)
- * @returns {Promise<{ w800: File, w400: File, w150: File }>}
+ * @returns {Promise<{ w800: File, w640: File, w400: File, w150: File }>}
  */
 export async function createImageVariants(file) {
   return new Promise((resolve, reject) => {
@@ -117,12 +118,13 @@ export async function createImageVariants(file) {
       img.onload = async () => {
         try {
           const base = file.name.replace(/\.[^.]+$/, '');
-          const [w800, w400, w150] = await Promise.all([
+          const [w800, w640, w400, w150] = await Promise.all([
             cropCenterToAspectThenResize(img, 800, CARD_ASPECT, `${base}_w800.webp`, 0.78),
+            cropCenterToAspectThenResize(img, 640, CARD_ASPECT, `${base}_w640.webp`, 0.76),
             cropCenterToAspectThenResize(img, 400, CARD_ASPECT, `${base}_w400.webp`, 0.75),
             cropCenterToAspectThenResize(img, 150, CARD_ASPECT, `${base}_w150.webp`, 0.72),
           ]);
-          resolve({ w800, w400, w150 });
+          resolve({ w800, w640, w400, w150 });
         } catch (err) {
           reject(err);
         }

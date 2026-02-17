@@ -200,6 +200,7 @@ export default function Home() {
   const firstListingImageUrl = listings.length > 0 && listings[0].images?.[0]
     ? getListingImageUrl(listings[0].images[0], 'w400')
     : null;
+  // LCP: preload эхний баннер (эсвэл эхний listing) — зураг discover-ийг эрт хийнэ, Resource load delay бууруулна
   useEffect(() => {
     const lcpUrl = firstBannerUrl
       ? withWidth(firstBannerUrl, 600)
@@ -209,6 +210,7 @@ export default function Home() {
     link.rel = 'preload';
     link.as = 'image';
     link.href = lcpUrl;
+    link.setAttribute('fetchpriority', 'high');
     document.head.appendChild(link);
     return () => { link.remove(); };
   }, [firstBannerUrl, firstListingImageUrl]);
