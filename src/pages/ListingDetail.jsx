@@ -160,7 +160,7 @@ export default function ListingDetail() {
           </div>
         </div>
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <Skeleton className="aspect-[4/3] rounded-2xl w-full" />
+          <Skeleton className="aspect-[3/2] rounded-2xl w-full" />
           <div className="mt-6 space-y-4">
             <Skeleton className="h-8 w-3/4" />
             <Skeleton className="h-10 w-1/3" />
@@ -247,7 +247,7 @@ export default function ListingDetail() {
         {/* Image Gallery */}
         <div className="relative bg-black">
           {hasImages ? (
-            <div className="relative aspect-[4/3] md:aspect-[16/9]">
+            <div className="relative aspect-[3/2]">
               <AnimatePresence mode="wait">
                 <motion.img
                   key={currentImageIndex}
@@ -293,7 +293,7 @@ export default function ListingDetail() {
               )}
             </div>
           ) : (
-            <div className="aspect-[4/3] md:aspect-[16/9] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+            <div className="aspect-[3/2] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
               <span className="text-8xl">{info.icon}</span>
             </div>
           )}
