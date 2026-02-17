@@ -39,6 +39,12 @@ export default function Home() {
   // Баннер болон VIP хэсгүүдийг анхдагчаар харуулна (нүүр нээхэд шууд харагдана)
   const [showBannersAndVIP] = useState(true);
 
+  // Listing render limit: эхлээд 8, scroll хийхэд дахиад 8 нэмнэ (LCP / main-thread бууруулах)
+  const LIST_INITIAL = 8;
+  const LIST_PAGE = 8;
+  const [visibleListingCount, setVisibleListingCount] = useState(LIST_INITIAL);
+  const loadMoreRef = useRef(null);
+
 
 
   const { data: bannerAds = [] } = useQuery({
@@ -199,6 +205,28 @@ export default function Home() {
     return () => { link.remove(); };
   }, [firstBannerUrl, firstListingImageUrl]);
 
+  // Шүүлт/хайлт солигдоход эхний 8-г л дахин харуулна
+  useEffect(() => {
+    setVisibleListingCount(LIST_INITIAL);
+  }, [listings.length, filters.category, filters.subcategory, filters.search]);
+
+  // Scroll: sentinel харагдахад дахиад 8 зар нэмнэ
+  useEffect(() => {
+    if (visibleListingCount >= listings.length || listings.length === 0) return;
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleListingCount((prev) => Math.min(prev + LIST_PAGE, listings.length));
+        }
+      },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [listings.length, visibleListingCount]);
+
   const { data: allListings = [] } = useQuery({
     queryKey: ['allListings'],
     queryFn: () => entities.Listing.filter({ status: 'active' }),
@@ -326,6 +354,8 @@ export default function Home() {
                       alt={banner.title || 'Banner'}
                       width={600}
                       height={320}
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      fetchPriority={index === 0 ? 'high' : undefined}
                       decoding="async"
                       sizes="(max-width: 768px) 50vw, 600px"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -626,31 +656,19 @@ export default function Home() {
           ) : listings.length > 0 ? (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {listings.slice(0, 8).map((listing, index) => (
+                {listings.slice(0, visibleListingCount).map((listing, index) => (
                   <motion.div
                     key={listing.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * index }}
+                    transition={{ delay: 0.05 * Math.min(index, 15) }}
                   >
                     <ListingCard listing={listing} />
                   </motion.div>
                 ))}
               </div>
-
-              {listings.length > 8 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {listings.slice(8).map((listing, index) => (
-                    <motion.div
-                      key={listing.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.05 * index }}
-                    >
-                      <ListingCard listing={listing} />
-                    </motion.div>
-                  ))}
-                </div>
+              {visibleListingCount < listings.length && (
+                <div ref={loadMoreRef} className="h-8 flex items-center justify-center py-4" aria-hidden />
               )}
             </>
           ) : (
