@@ -34,13 +34,13 @@ export default function FeaturedListingCard({ listing }) {
         whileHover={{ y: -4 }}
         className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all w-[280px] flex-shrink-0"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+        <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
           {listing.images?.[0] ? (
             <img
               src={getListingImageUrl(listing.images[0], 'w400')}
               alt={listing.title || 'Зарын зураг'}
               width={400}
-              height={300}
+              height={267}
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 280px, 350px"

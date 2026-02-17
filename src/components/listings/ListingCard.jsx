@@ -103,13 +103,13 @@ export default function ListingCard({ listing }) {
             : 'bg-white border-gray-100'
         }`}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-          {listing.images && listing.images.length > 0 ? (
+<div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
+            {listing.images && listing.images.length > 0 ? (
             <img
               src={getListingImageUrl(listing.images[0], 'w400')}
               alt={listing.title || 'Зарын зураг'}
               width={400}
-              height={300}
+              height={267}
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 50vw, 350px"
