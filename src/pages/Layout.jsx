@@ -117,7 +117,7 @@ export default function Layout({ children, currentPageName }) {
             <button
               type="button"
               onClick={handleHomeClick}
-              aria-label="Нүүр"
+              aria-current={currentPageName === 'Home' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'Home' ? 'text-amber-600' : 'text-gray-700'
               }`}
@@ -129,6 +129,7 @@ export default function Layout({ children, currentPageName }) {
             <Link
               to={createPageUrl('SavedListings')}
               aria-label="Хадгалсан зарууд"
+              aria-current={currentPageName === 'SavedListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
                 currentPageName === 'SavedListings' ? 'text-amber-600' : 'text-gray-700'
               }`}
@@ -145,6 +146,7 @@ export default function Layout({ children, currentPageName }) {
             <Link
               to={createPageUrl('Messages')}
               aria-label="Мессеж"
+              aria-current={currentPageName === 'Messages' || currentPageName === 'Chat' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
                 currentPageName === 'Messages' || currentPageName === 'Chat' ? 'text-amber-600' : 'text-gray-700'
               }`}
@@ -161,6 +163,7 @@ export default function Layout({ children, currentPageName }) {
             <Link
               to={createPageUrl('CreateListing')}
               aria-label="Зар нэмэх"
+              aria-current={currentPageName === 'CreateListing' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'CreateListing' ? 'text-amber-600' : 'text-gray-700'
               }`}
@@ -173,6 +176,7 @@ export default function Layout({ children, currentPageName }) {
               <Link
                 to={createPageUrl('AdminPanel')}
                 aria-label="Админ удирдлага"
+                aria-current={currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                   currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'text-amber-600' : 'text-gray-700'
                 }`}
@@ -185,6 +189,7 @@ export default function Layout({ children, currentPageName }) {
             <Link
               to={createPageUrl('MyListings')}
               aria-label="Миний зарууд"
+              aria-current={currentPageName === 'MyListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
                 currentPageName === 'MyListings' ? 'text-amber-600' : 'text-gray-700'
               }`}

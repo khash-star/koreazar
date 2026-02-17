@@ -235,7 +235,6 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 size="sm"
-                aria-label="Нэвтрэх"
                 className="bg-white hover:bg-white/90 text-amber-800 border-white font-semibold shadow-md whitespace-nowrap"
               >
                 <LogIn className="w-4 h-4 mr-2" aria-hidden />
@@ -366,6 +365,8 @@ export default function Home() {
             {/* Category Grid */}
             <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 ${categoriesExpanded ? '' : 'hidden md:grid'}`}>
               <button
+                type="button"
+                aria-pressed={!filters.category}
                 onClick={() => {
                   setFilters(prev => ({ ...prev, category: '', subcategory: '' }));
                   setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -385,6 +386,8 @@ export default function Home() {
                 return (
                   <button
                     key={cat}
+                    type="button"
+                    aria-pressed={filters.category === cat}
                     onClick={() => {
                       setFilters(prev => ({ ...prev, category: cat, subcategory: '' }));
                       setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -415,6 +418,8 @@ export default function Home() {
                 </div>
                 <div className="flex flex-wrap gap-2 scrollbar-hide">
                   <button
+                    type="button"
+                    aria-pressed={!filters.subcategory}
                     onClick={() => setFilters(prev => ({ ...prev, subcategory: '' }))}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       !filters.subcategory
@@ -427,6 +432,8 @@ export default function Home() {
                   {subcategoryConfig[filters.category].map((sub) => (
                     <button
                       key={sub.value}
+                      type="button"
+                      aria-pressed={filters.subcategory === sub.value}
                       onClick={() => setFilters(prev => ({ ...prev, subcategory: sub.value }))}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         filters.subcategory === sub.value
@@ -574,7 +581,7 @@ export default function Home() {
         </h2>
         </div>
         <Link to={createPageUrl('CreateListing')}>
-        <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-12 px-6" aria-label="Зар нэмэх">
+        <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-12 px-6">
         <Plus className="w-5 h-5 mr-2" aria-hidden />
         Зар нэмэх
         </Button>

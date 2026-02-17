@@ -234,6 +234,8 @@ export default function AdminBanners() {
                   <div className="flex items-center justify-between">
                     <Label>Идэвхтэй</Label>
                     <Switch
+                      role="switch"
+                      aria-label="Баннер идэвхтэй эсэх"
                       checked={formData.is_active}
                       onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                     />
@@ -311,6 +313,8 @@ export default function AdminBanners() {
                       <ArrowDown className="w-4 h-4" />
                     </Button>
                     <Switch
+                      role="switch"
+                      aria-label={`${banner.title || 'Баннер'} идэвхтэй`}
                       checked={banner.is_active}
                       onCheckedChange={(checked) =>
                         updateMutation.mutate({ id: banner.id, data: { is_active: checked } })
