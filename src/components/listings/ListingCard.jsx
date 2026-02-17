@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { getListingImageUrl } from '@/utils/imageUrl';
+import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Eye, Heart, Crown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -107,12 +107,13 @@ export default function ListingCard({ listing }) {
             {listing.images && listing.images.length > 0 ? (
             <img
               src={getListingImageUrl(listing.images[0], 'w400')}
+              srcSet={getListingImageSrcSet(listing.images[0]) || undefined}
               alt={listing.title || 'Зарын зураг'}
               width={400}
               height={267}
               loading="lazy"
               decoding="async"
-              sizes="(max-width: 768px) 50vw, 350px"
+              sizes="(max-width: 768px) 312px, 350px"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (

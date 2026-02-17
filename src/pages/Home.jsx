@@ -6,7 +6,7 @@ import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, Chevron
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { getListingImageUrl, withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl, getListingImageSrcSet, withWidth } from '@/utils/imageUrl';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
 import SearchBar from '@/components/listings/SearchBar';
@@ -537,6 +537,7 @@ export default function Home() {
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group">
                       <img
                         src={getListingImageUrl(item.images?.[0], 'w400') || 'https://via.placeholder.com/400x200'}
+                        srcSet={item.images?.[0] ? getListingImageSrcSet(item.images[0]) || undefined : undefined}
                         alt={item.title || 'Зар'}
                         width={300}
                         height={160}
