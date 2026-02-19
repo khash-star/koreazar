@@ -676,7 +676,7 @@ export default function Home() {
                       delay: prefersReducedMotion ? 0 : 0.05 * Math.min(index, 15),
                     }}
                   >
-                    <ListingCard listing={listing} />
+                    <ListingCard listing={listing} isAboveFold={index < 2} />
                   </motion.div>
                 ))}
               </div>

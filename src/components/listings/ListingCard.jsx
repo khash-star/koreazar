@@ -22,7 +22,7 @@ const conditionLabels = {
   for_parts: 'Сэлбэгт'
 };
 
-export default function ListingCard({ listing }) {
+export default function ListingCard({ listing, isAboveFold = false }) {
   const queryClient = useQueryClient();
   const info = categoryInfo[listing.category] || categoryInfo.other;
   const isVIP = listing.listing_type === 'vip';
@@ -111,7 +111,7 @@ export default function ListingCard({ listing }) {
               alt={listing.title || 'Зарын зураг'}
               width={400}
               height={267}
-              loading="lazy"
+              loading={isAboveFold ? 'eager' : 'lazy'}
               decoding="async"
               sizes="(max-width: 768px) 312px, 350px"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
