@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { register } from '@/services/authService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -303,6 +303,13 @@ export default function Register() {
                 </button>
               </div>
             </div>
+            <p className="text-xs text-gray-500">
+              Бүртгүүлснээр та манай{' '}
+              <Link to={createPageUrl('Privacy')} className="text-amber-600 hover:underline">
+                Нууцлалын бодлогыг
+              </Link>{' '}
+              хүлээн зөвшөөрнө.
+            </p>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>

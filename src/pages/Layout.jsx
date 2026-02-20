@@ -96,6 +96,10 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-xs text-gray-400">
             © 2026 Copyright Reserved - <span className="text-amber-500 font-semibold">KHASH Co Ltd</span>
+            {' · '}
+            <Link to={createPageUrl('Privacy')} className="hover:text-amber-500 underline underline-offset-2">
+              Нууцлалын бодлого
+            </Link>
           </p>
         </div>
       </footer>

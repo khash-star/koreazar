@@ -22,6 +22,7 @@ const UpgradeListing = lazy(() => import('./UpgradeListing'));
 const Messages = lazy(() => import('./Messages'));
 const Chat = lazy(() => import('./Chat'));
 const Profile = lazy(() => import('./Profile'));
+const Privacy = lazy(() => import('./Privacy'));
 
 const PAGES = {
   AdminAllListings,
@@ -41,7 +42,8 @@ const PAGES = {
   Chat,
   Login,
   Register,
-  Profile
+  Profile,
+  Privacy
 };
 
 function _getCurrentPage(url) {
@@ -112,6 +114,8 @@ function PagesContent() {
             <Route path="/Chat" element={<LayoutWrapper currentPageName={currentPage}><Chat /></LayoutWrapper>} />
             
             <Route path="/Profile" element={<LayoutWrapper currentPageName={currentPage}><Profile /></LayoutWrapper>} />
+            
+            <Route path="/Privacy" element={<LayoutWrapper currentPageName={currentPage}><Privacy /></LayoutWrapper>} />
             
         </Routes>
     );

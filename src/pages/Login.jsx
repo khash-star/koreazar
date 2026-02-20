@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { login, resetPassword } from '@/services/authService';
 import { loginWithFacebook } from '@/services/facebookAuthService';
 import { Button } from '@/components/ui/button';
@@ -303,6 +303,11 @@ export default function Login() {
               Бүртгүүлэх
             </button>
           </div>
+          <p className="mt-3 text-center">
+            <Link to={createPageUrl('Privacy')} className="text-xs text-gray-500 hover:text-amber-600">
+              Нууцлалын бодлого
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </div>
