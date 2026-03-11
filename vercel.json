@@ -11,6 +11,10 @@
       "destination": "/favicon.svg"
     },
     {
+      "source": "/.well-known/assetlinks.json",
+      "destination": "/.well-known/assetlinks.json"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
