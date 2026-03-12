@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# Android SDK path (machine-specific)
+local.properties
