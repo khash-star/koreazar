@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.koreazar.app",
+      "package_name": "com.zarkorea.twa",
       "sha256_cert_fingerprints": [
-        "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+        "D6:14:FD:B4:C8:F0:1A:CA:CE:31:5C:20:E7:CE:4D:4E:EA:22:4F:B0:CB:47:71:15:6D:03:A7:19:6C:F1:AB:6A"
       ]
     }
   }
