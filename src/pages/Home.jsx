@@ -6,7 +6,7 @@ import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, Chevron
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { getListingImageUrl, getListingImageSrcSet, withWidth } from '@/utils/imageUrl';
+import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
 import SearchBar from '@/components/listings/SearchBar';
@@ -39,8 +39,8 @@ export default function Home() {
   // Баннер болон VIP хэсгүүдийг анхдагчаар харуулна (нүүр нээхэд шууд харагдана)
   const [showBannersAndVIP] = useState(true);
 
-  // Listing render limit: эхлээд 8, scroll хийхэд дахиад 8 нэмнэ (LCP / main-thread бууруулах)
-  const LIST_INITIAL = 8;
+  // Listing render limit: эхлээд 6, scroll хийхэд дахиад 8 нэмнэ — зураг ачаалал хурдан болгох
+  const LIST_INITIAL = 6;
   const LIST_PAGE = 8;
   const [visibleListingCount, setVisibleListingCount] = useState(LIST_INITIAL);
   const loadMoreRef = useRef(null);
@@ -200,11 +200,9 @@ export default function Home() {
   const firstListingImageUrl = listings.length > 0 && listings[0].images?.[0]
     ? getListingImageUrl(listings[0].images[0], 'w400')
     : null;
-  // LCP: preload эхний баннер (эсвэл эхний listing) — зураг discover-ийг эрт хийнэ, Resource load delay бууруулна
+  // LCP: preload эхний баннер (эсвэл эхний listing) — зураг discover-ийг эрт хийнэ
   useEffect(() => {
-    const lcpUrl = firstBannerUrl
-      ? withWidth(firstBannerUrl, 600)
-      : firstListingImageUrl || null;
+    const lcpUrl = firstBannerUrl || firstListingImageUrl || null;
     if (!lcpUrl) return;
     const link = document.createElement('link');
     link.rel = 'preload';
@@ -360,10 +358,10 @@ export default function Home() {
                     className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden group block"
                   >
                     <img
-                      src={withWidth(banner.image_url, 600)}
+                      src={banner.image_url}
                       alt={banner.title || 'Banner'}
-                      width={600}
-                      height={320}
+                      width={800}
+                      height={400}
                       loading={index === 0 ? 'eager' : 'lazy'}
                       fetchPriority={index === 0 ? 'high' : undefined}
                       decoding="async"
@@ -563,7 +561,7 @@ export default function Home() {
                 item.image_url ? (
                   <Banner 
                     key={`banner-${idx}`}
-                    imageUrl={withWidth(item.image_url, 300)}
+                    imageUrl={item.image_url}
                     title={item.title}
                     link={item.link || '#'}
                     className="w-[300px] h-[160px] flex-shrink-0"

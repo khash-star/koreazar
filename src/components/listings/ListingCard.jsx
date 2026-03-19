@@ -105,17 +105,30 @@ export default function ListingCard({ listing, isAboveFold = false }) {
       >
 <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
             {listing.images && listing.images.length > 0 ? (
-            <img
-              src={getListingImageUrl(listing.images[0], 'w400')}
-              srcSet={getListingImageSrcSet(listing.images[0]) || undefined}
-              alt={listing.title || 'Зарын зураг'}
-              width={400}
-              height={267}
-              loading={isAboveFold ? 'eager' : 'lazy'}
-              decoding="async"
-              sizes="(max-width: 768px) 312px, 350px"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
+            <>
+              {/* Blur placeholder (w150) — удаан ачаалал багасгах, хурдан харагдана */}
+              {typeof listing.images[0] === 'object' && listing.images[0].w150 && (
+                <img
+                  src={listing.images[0].w150}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 w-full h-full object-cover blur-md scale-110"
+                  loading={isAboveFold ? 'eager' : 'lazy'}
+                />
+              )}
+              <img
+                src={getListingImageUrl(listing.images[0], 'w400')}
+                srcSet={getListingImageSrcSet(listing.images[0]) || undefined}
+                alt={listing.title || 'Зарын зураг'}
+                width={400}
+                height={267}
+                loading={isAboveFold ? 'eager' : 'lazy'}
+                fetchPriority={isAboveFold ? 'high' : undefined}
+                decoding="async"
+                sizes="(max-width: 768px) 312px, 350px"
+                className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-6xl bg-gradient-to-br from-gray-50 to-gray-100">
               {info.icon}

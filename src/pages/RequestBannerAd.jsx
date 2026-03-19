@@ -66,7 +66,7 @@ export default function RequestBannerAd() {
 
     setUploading(true);
     try {
-      const compressed = await compressImage(file, 1200, 600, 0.8);
+      const compressed = await compressImage(file, 800, 400, 0.82);
       const { file_url } = await UploadFile({ file: compressed });
       setImageUrl(file_url);
     } catch (error) {
