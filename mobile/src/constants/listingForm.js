@@ -1,0 +1,96 @@
+export const categoryInfo = {
+  realestate: { name: "Үл хөдлөх", icon: "🏠" },
+  vehicles: { name: "Автомашин", icon: "🚗" },
+  electronics: { name: "Электроник", icon: "📱" },
+  jobs: { name: "Ажлын байр", icon: "💼" },
+  services: { name: "Үйлчилгээ", icon: "🔧" },
+  fashion: { name: "Хувцас/Косметик", icon: "👕" },
+  furniture: { name: "Тавилга", icon: "🛋️" },
+  cargo: { name: "Карго", icon: "📦" },
+  community: { name: "Утас/Дугаар", icon: "📞" },
+  other: { name: "Бусад", icon: "📦" },
+};
+
+export const subcategoryConfig = {
+  realestate: [
+    { value: "sell", label: "Зарна" },
+    { value: "rent", label: "Түрээслүүлнэ" },
+    { value: "apartment", label: "Орон сууц" },
+    { value: "house", label: "Байшин" },
+    { value: "office", label: "Оффис" },
+    { value: "land", label: "Газар" },
+    { value: "other", label: "Бусад" },
+  ],
+  vehicles: [
+    { value: "sell", label: "Зарна" },
+    { value: "rent", label: "Түрээслүүлнэ" },
+    { value: "car", label: "Автомашин" },
+    { value: "suv", label: "Жийп" },
+    { value: "motorcycle", label: "Мотоцикл" },
+    { value: "bicycle", label: "Дугуй" },
+    { value: "parts", label: "Сэлбэг" },
+    { value: "other", label: "Бусад" },
+  ],
+  electronics: [
+    { value: "sell", label: "Зарна" },
+    { value: "phone", label: "Гар утас" },
+    { value: "laptop", label: "Компьютер" },
+    { value: "tablet", label: "Таблет" },
+    { value: "camera", label: "Камер" },
+    { value: "tv", label: "Телевиз" },
+    { value: "other", label: "Бусад" },
+  ],
+  jobs: [
+    { value: "full_time", label: "Бүтэн цагийн" },
+    { value: "part_time", label: "Цагийн" },
+    { value: "freelance", label: "Фрилансер" },
+    { value: "internship", label: "Дадлага" },
+    { value: "other", label: "Бусад" },
+  ],
+  services: [
+    { value: "cargo", label: "Карго/Илгээмж" },
+    { value: "translation", label: "Орчуулга" },
+    { value: "visa", label: "Виз" },
+    { value: "repair", label: "Засвар" },
+    { value: "other", label: "Бусад" },
+  ],
+  fashion: [
+    { value: "cosmetics", label: "Косметик" },
+    { value: "mens", label: "Эрэгтэй хувцас" },
+    { value: "womens", label: "Эмэгтэй хувцас" },
+    { value: "shoes", label: "Гутал" },
+    { value: "other", label: "Бусад" },
+  ],
+  furniture: [
+    { value: "bedroom", label: "Унтлагын өрөө" },
+    { value: "living_room", label: "Зочны өрөө" },
+    { value: "kitchen", label: "Гал тогоо" },
+    { value: "other", label: "Бусад" },
+  ],
+  cargo: [
+    { value: "air", label: "Агаарын карго" },
+    { value: "ground", label: "Газрын карго" },
+    { value: "other", label: "Бусад" },
+  ],
+  community: [
+    { value: "event", label: "Арга хэмжээ" },
+    { value: "announcement", label: "Мэдээлэл" },
+    { value: "other", label: "Бусад" },
+  ],
+  other: [
+    { value: "books", label: "Ном" },
+    { value: "sports", label: "Спорт" },
+    { value: "free", label: "Үнэгүй" },
+    { value: "other", label: "Бусад" },
+  ],
+};
+
+export const locations = [
+  "Seoul",
+  "Busan",
+  "Incheon",
+  "Daegu",
+  "Gyeonggi-do",
+  "Gyeongsangnam-do",
+  "Бусад",
+];

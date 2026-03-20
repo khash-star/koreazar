@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Zarkorea",
+    "slug": "zarkorea-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zarkorea.twa",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.zarkorea.twa",
+      "versionCode": 6,
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Зар нэмэхэд зургаа сонгоно.",
+          "cameraPermission": "Зургаа авахад камер хэрэгтэй."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "96d89595-cf78-48c8-9695-5c2cc7af53f4"
+      }
+    }
+  }
+}

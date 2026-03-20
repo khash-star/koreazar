@@ -27,3 +27,24 @@ dist-ssr
 
 # Android SDK path (machine-specific)
 local.properties
+
+# Signing (нууц агуулдаг)
+key.properties
+
+# TWA AAB хуулбар (build-ээр үүснэ)
+release/
+
+# Keystore, signing (нууц)
+android.keystore
+upload-keystore.jks
+upload_certificate.pem
+
+# Build outputs (apk, aab)
+*.apk
+*.aab
+*.idsig
+
+# Gradle
+.gradle/
+build/
+app/build/
