@@ -18,10 +18,10 @@ const GAP = 8;
 const SPRING_PRESS_IN = { damping: 14, stiffness: 400, mass: 0.32 };
 const SPRING_PRESS_OUT = { damping: 16, stiffness: 340, mass: 0.32 };
 
-function chunkIntoRows(items, size) {
+function chunkIntoRows(list, size) {
   const rows = [];
-  for (let i = 0; i < items.length; i += size) {
-    rows.push(items.slice(i, i + size));
+  for (let i = 0; i < list.length; i += size) {
+    rows.push(list.slice(i, i + size));
   }
   return rows;
 }
@@ -32,7 +32,7 @@ function triggerCategoryHaptic() {
 }
 
 /**
- * Нэг ангиллын нүд — spring даралт + сонгогдсон үед pulse.
+ * Нэг ангиллын нүд — spring даралт + сонгогдсон үед pulse (iOS/Android).
  */
 function CategoryTile({ item, active, onChange }) {
   const pressed = useSharedValue(0);
@@ -123,7 +123,7 @@ function CategoryTile({ item, active, onChange }) {
  * @param {string | null} value — null = бүгд
  */
 export default function CategoryStrip({ value, onChange }) {
-  const items = [
+  const categoryList = [
     { key: null, name: "Бүгд", icon: "📋" },
     ...Object.entries(categoryInfo).map(([key, info]) => ({
       key,
@@ -131,7 +131,7 @@ export default function CategoryStrip({ value, onChange }) {
       icon: info.icon,
     })),
   ];
-  const rows = chunkIntoRows(items, 3);
+  const rows = chunkIntoRows(categoryList, 3);
 
   return (
     <View style={styles.card}>
@@ -139,11 +139,11 @@ export default function CategoryStrip({ value, onChange }) {
       <View style={styles.grid}>
         {rows.map((row, ri) => (
           <View key={`row-${ri}`} style={styles.row}>
-            {row.map((item) => (
+            {row.map((cell) => (
               <CategoryTile
-                key={item.key === null ? "all" : item.key}
-                item={item}
-                active={value === item.key}
+                key={cell.key === null ? "all" : cell.key}
+                item={cell}
+                active={value === cell.key}
                 onChange={onChange}
               />
             ))}

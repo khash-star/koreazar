@@ -1,7 +1,16 @@
 # Zarkorea React Native App (Expo)
 
-This is a separate mobile app client for iOS and Android.
-Your existing website remains unchanged.
+## Repository layout (бүү холио)
+
+| Бүрэлдэхүүн | GitHub зам | Тайлбар |
+|-------------|------------|---------|
+| **Вэбсайт** (үндсэн) | [`khash-star/koreazar`](https://github.com/khash-star/koreazar) — репогийн **үндсэн хавтас** | Vite + React (zarkorea.com) |
+| **Утасны апп** | [`koreazar/mobile/`](https://github.com/khash-star/koreazar/tree/main/mobile) | **Энэхүү Expo төсөл** — вэбтэй **тусдаа** хавтсанд, код холиолдохгүй |
+
+- Вэб болон апп **нэг GitHub репо** дотор боловч **хавтсаар ялгагдсан**: вэб = root, апп = `mobile/`.
+- Аппын ажиллах газар нь энэ README-тай **ижил түвшин** (локалд ихэвчлэн `zarkorea-app` гэж нэрлэсэн хавтас); түлхэхдээ `mobile/` руу хуулна.
+
+This is the **mobile-only** client for iOS and Android. The marketing site stays in the repo root, separate from this folder.
 
 ## 1) Setup
 
@@ -13,7 +22,7 @@ Your existing website remains unchanged.
 npm install
 ```
 
-**`react-native-reanimated`:** `babel.config.js` дотор `react-native-reanimated/plugin` (хамгийн сүүлд) заавал байна. **Custom dev client** (`expo-dev-client`) ашиглаж байвал Reanimated нэмсний дараа **шинэ native build** (`eas build` эсвэл `npx expo run:android` / `run:ios`) хэрэгтэй байж болно.
+**`react-native-reanimated`:** зөвхөн **iOS/Android** дээр ачаална (`bootstrap.native.js`). **Вэб** дээр ачаалахгүй тул Metro `semver` алдаа гардаггүй. Ангилал: `CategoryStrip.native.js` (Reanimated) + `CategoryStrip.web.js` (RN Animated). `babel.config.js` дотор `react-native-reanimated/plugin` (хамгийн сүүлд) заавал. **Custom dev client** дахин build шаардлагатай байж болно.
 
 ## 2) Run
 

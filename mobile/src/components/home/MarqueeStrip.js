@@ -22,9 +22,13 @@ export default function MarqueeStrip({ banners, vipListings, onPressListing }) {
   const firstRow = useMemo(() => buildFirstRow(banners, vipListings), [banners, vipListings]);
   const items = useMemo(() => (firstRow.length ? [...firstRow, ...firstRow] : []), [firstRow]);
 
-  const slot = ITEM_W + GAP;
-  const segmentW = firstRow.length * slot;
-  const trackW = PAD_L + items.length * slot;
+  const { segmentW, trackW } = useMemo(() => {
+    const slot = ITEM_W + GAP;
+    return {
+      segmentW: firstRow.length * slot,
+      trackW: PAD_L + items.length * slot,
+    };
+  }, [firstRow.length, items.length]);
 
   useEffect(() => {
     if (firstRow.length === 0) return;

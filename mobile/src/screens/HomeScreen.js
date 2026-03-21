@@ -11,7 +11,7 @@ import {
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Image } from "expo-image";
 import BannerHero from "../components/home/BannerHero.js";
-import CategoryStrip from "../components/home/CategoryStrip.js";
+import CategoryStrip from "../components/home/CategoryStrip";
 import FeaturedStrip from "../components/home/FeaturedStrip.js";
 import MarqueeStrip from "../components/home/MarqueeStrip.js";
 import { getActiveBannerAds } from "../services/bannerService";
