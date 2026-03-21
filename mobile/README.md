@@ -13,6 +13,8 @@ Your existing website remains unchanged.
 npm install
 ```
 
+**`react-native-reanimated`:** `babel.config.js` дотор `react-native-reanimated/plugin` (хамгийн сүүлд) заавал байна. **Custom dev client** (`expo-dev-client`) ашиглаж байвал Reanimated нэмсний дараа **шинэ native build** (`eas build` эсвэл `npx expo run:android` / `run:ios`) хэрэгтэй байж болно.
+
 ## 2) Run
 
 ```bash
@@ -31,9 +33,9 @@ npx expo start --web -c
 
 ## 3) Features (so far)
 
-- **Home:** Banners (`banner_ads`, `is_active`), hero 2-up + scrolling **Баннер · VIP** strip + **Онцлох зарууд** horizontal row + main list (same sort as web).
+- **Home:** Banners (`banner_ads`, `is_active`), **Ангилал** grid (шүүлт + haptics + spring даралт + сонгогдсон нүд pulse), hero 2-up + **Баннер · VIP** strip + **Онцлох зарууд** + main list.
 - **Pull to refresh** on the list.
-- **Listing detail:** Gallery (w800 + thumbnails), title, price, description, contact, **Хадгалах** (same `saved_listings` as web), **Сайт дээр нээх**.
+- **Listing detail:** Gallery (w800 + thumbnails), title, price, description, contact, **Хадгалах** (same `saved_listings` as web).
 - **Auth:** Email/password **Нэвтрэх**, **Бүртгүүлэх**, нууц үг сэргээх имэйл, **Гарах**. Native persistence via `AsyncStorage` (web uses default).
 - **Хадгалсан:** List + pull-to-refresh + хасах.
 - **Images:** `expo-image` + same URL helpers as web.

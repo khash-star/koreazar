@@ -11,6 +11,7 @@ import {
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Image } from "expo-image";
 import BannerHero from "../components/home/BannerHero.js";
+import CategoryStrip from "../components/home/CategoryStrip.js";
 import FeaturedStrip from "../components/home/FeaturedStrip.js";
 import MarqueeStrip from "../components/home/MarqueeStrip.js";
 import { getActiveBannerAds } from "../services/bannerService";
@@ -74,6 +75,7 @@ export default function HomeScreen({ navigation }) {
   const [error, setError] = useState("");
   const [listings, setListings] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const load = useCallback(async (isRefresh = false) => {
     try {
@@ -139,10 +141,16 @@ export default function HomeScreen({ navigation }) {
     [listings]
   );
 
+  const displayedListings = useMemo(() => {
+    if (!selectedCategory) return listings;
+    return listings.filter((l) => l.category === selectedCategory);
+  }, [listings, selectedCategory]);
+
   const listHeader = useMemo(
     () => (
       <View>
         <BannerHero banners={banners} />
+        <CategoryStrip value={selectedCategory} onChange={setSelectedCategory} />
         <MarqueeStrip
           banners={banners}
           vipListings={vipMarquee}
@@ -152,7 +160,7 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.listSectionTitle}>Сүүлийн зарууд</Text>
       </View>
     ),
-    [banners, vipMarquee, featuredList, onPressListing]
+    [banners, vipMarquee, featuredList, onPressListing, selectedCategory]
   );
 
   if (loading && !refreshing) {
@@ -177,7 +185,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <FlatList
         scrollEventThrottle={16}
-      data={listings}
+      data={displayedListings}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[styles.listContent, { paddingBottom: 24 + tabBarHeight }]}
       ListHeaderComponent={listHeader}
@@ -185,7 +193,13 @@ export default function HomeScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
       renderItem={({ item }) => <ListingItem item={item} onPress={onPressListing} />}
-      ListEmptyComponent={<Text style={styles.empty}>Идэвхтэй зар байхгүй.</Text>}
+      ListEmptyComponent={
+        <Text style={styles.empty}>
+          {selectedCategory && listings.length > 0
+            ? "Энэ ангилалд одоогоор зар алга."
+            : "Идэвхтэй зар байхгүй."}
+        </Text>
+      }
       ListFooterComponent={
         error ? (
           <Text style={styles.footerError}>{error}</Text>

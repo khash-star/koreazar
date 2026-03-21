@@ -29,11 +29,6 @@ const conditionLabels = {
   for_parts: "Сэлбэгт",
 };
 
-function openWebListing(id) {
-  const url = `https://zarkorea.com/listingdetail?id=${encodeURIComponent(id)}`;
-  return Linking.openURL(url);
-}
-
 export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route.params || {};
   const { email, isAuthenticated } = useAuth();
@@ -269,10 +264,6 @@ export default function ListingDetailScreen({ route, navigation }) {
             <Text style={styles.chatBtnText}>💬 Зар эзэнтэй чатлах</Text>
           </Pressable>
         ) : null}
-
-        <Pressable style={styles.webBtn} onPress={() => openWebListing(listing.id)}>
-          <Text style={styles.webBtnText}>Сайт дээр нээх</Text>
-        </Pressable>
       </View>
     </ScrollView>
   );
@@ -360,14 +351,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chatBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  webBtn: {
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#ea580c",
-    alignItems: "center",
-  },
-  webBtnText: { color: "#ea580c", fontWeight: "700", fontSize: 16 },
 });

@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -102,4 +103,10 @@ export async function createListing(data) {
   };
   const docRef = await addDoc(listingsRef, listingData);
   return { id: docRef.id, ...listingData };
+}
+
+export async function deleteListing(id) {
+  if (!id) throw new Error("ID шаардлагатай.");
+  const ref = doc(db, "listings", id);
+  await deleteDoc(ref);
 }

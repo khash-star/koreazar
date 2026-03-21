@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,6 +19,7 @@ import { createListing } from "../services/listingService.js";
 import { uploadImageFromUri } from "../services/storageService.js";
 import { categoryInfo, locations, subcategoryConfig } from "../constants/listingForm.js";
 import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHelpers.js";
+import { showAlert } from "../utils/showAlert.js";
 
 const CONDITION_OPTIONS = [
   { value: "new", label: "Шинэ" },
@@ -30,6 +30,7 @@ const CONDITION_OPTIONS = [
 
 export default function CreateListingScreen({ navigation }) {
   const { email, isAuthenticated } = useAuth();
+  const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
@@ -51,7 +52,7 @@ export default function CreateListingScreen({ navigation }) {
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Зөвшөөрөл", "Зураг сонгохын тулд номын сангийн зөвшөөрөл хэрэгтэй.");
+      showAlert("Зөвшөөрөл", "Зураг сонгохын тулд номын сангийн зөвшөөрөл хэрэгтэй.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,7 +70,7 @@ export default function CreateListingScreen({ navigation }) {
         setImages((prev) => [...prev, { w800: file_url, w640: file_url, w400: file_url, w150: file_url }]);
       }
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Зураг upload амжилтгүй");
+      showAlert("Алдаа", e?.message || "Зураг upload амжилтгүй");
     } finally {
       setUploading(false);
     }
@@ -80,30 +81,32 @@ export default function CreateListingScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!isAuthenticated || !email) {
-      Alert.alert("Нэвтрэх", "Зар нэмэхийн тулд нэвтэрнэ үү", [
+      showAlert("Нэвтрэх", "Зар нэмэхийн тулд нэвтэрнэ үү", [
         { text: "Цуцлах", style: "cancel" },
         { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
       ]);
       return;
     }
     if (!form.title?.trim()) {
-      Alert.alert("Алдаа", "Гарчиг оруулна уу.");
+      showAlert("Алдаа", "Гарчиг оруулна уу.");
       return;
     }
     if (!form.category) {
-      Alert.alert("Алдаа", "Ангилал сонгоно уу.");
+      showAlert("Алдаа", "Ангилал сонгоно уу.");
       return;
     }
     const priceNum = Number(form.price?.replace(/\D/g, "")) || 0;
     if (priceNum <= 0) {
-      Alert.alert("Алдаа", "Үнэ оруулна уу (₩).");
+      showAlert("Алдаа", "Үнэ оруулна уу (₩).");
       return;
     }
     if (images.length === 0) {
-      Alert.alert("Алдаа", "Дор хаяж 1 зураг нэмнэ үү.");
+      showAlert("Алдаа", "Дор хаяж 1 зураг нэмнэ үү.");
       return;
     }
+    submittingRef.current = true;
     setLoading(true);
     try {
       const submitData = {
@@ -113,15 +116,16 @@ export default function CreateListingScreen({ navigation }) {
         status: "pending",
       };
       const created = await createListing(submitData);
-      Alert.alert(
+      showAlert(
         "Амжилттай",
         "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
         [{ text: "OK", onPress: () => navigateToListingDetail(navigation, created.id) }]
       );
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Илгээж чадсангүй");
+      showAlert("Алдаа", e?.message || "Илгээж чадсангүй");
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 
@@ -198,7 +202,7 @@ export default function CreateListingScreen({ navigation }) {
         {/* Category */}
         <View style={styles.section}>
           <Text style={styles.label}>Ангилал *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          <View style={styles.chipRowWrap}>
             {Object.entries(categoryInfo).map(([key, info]) => (
               <Pressable
                 key={key}
@@ -209,11 +213,11 @@ export default function CreateListingScreen({ navigation }) {
                 <Text style={[styles.chipText, form.category === key && styles.chipTextActive]}>{info.name}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
           {subcats.length > 0 && (
             <>
               <Text style={[styles.label, { marginTop: 12 }]}>Дэд ангилал</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              <View style={styles.chipRowWrap}>
                 {subcats.map((s) => (
                   <Pressable
                     key={s.value}
@@ -225,7 +229,7 @@ export default function CreateListingScreen({ navigation }) {
                     </Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
             </>
           )}
         </View>
@@ -266,7 +270,7 @@ export default function CreateListingScreen({ navigation }) {
         {/* Location */}
         <View style={styles.section}>
           <Text style={styles.label}>Байршил</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          <View style={styles.chipRowWrap}>
             {locations.map((loc) => (
               <Pressable
                 key={loc}
@@ -276,7 +280,7 @@ export default function CreateListingScreen({ navigation }) {
                 <Text style={[styles.chipText, form.location === loc && styles.chipTextActive]}>{loc}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
         {/* Contact */}
@@ -314,11 +318,18 @@ export default function CreateListingScreen({ navigation }) {
           />
         </View>
 
-        <Pressable style={[styles.submitBtn, loading && styles.submitDisabled]} onPress={handleSubmit} disabled={loading}>
+        <Pressable
+          style={[styles.submitBtn, loading && styles.submitDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+          accessibilityRole="button"
+        >
           {loading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.submitText}>Зар илгээх</Text>
+            <Text style={styles.submitText} selectable={false}>
+              Зар илгээх
+            </Text>
           )}
         </Pressable>
 
@@ -363,6 +374,7 @@ const styles = StyleSheet.create({
   addImg: { width: 80, height: 80, borderRadius: 10, borderWidth: 2, borderStyle: "dashed", borderColor: "#d1d5db", alignItems: "center", justifyContent: "center" },
   addImgText: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  chipRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: "#f3f4f6" },
   chipSmall: { paddingHorizontal: 10, paddingVertical: 6 },
@@ -372,7 +384,25 @@ const styles = StyleSheet.create({
   chipTextActive: { color: "#c2410c" },
   negotiableRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 12 },
   negotiableLabel: { fontSize: 15, color: "#374151", fontWeight: "600" },
-  submitBtn: { backgroundColor: "#ea580c", paddingVertical: 16, borderRadius: 12, alignItems: "center", marginTop: 8 },
+  submitBtn: {
+    backgroundColor: "#ea580c",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+    ...Platform.select({
+      web: { cursor: "pointer" },
+      default: {},
+    }),
+  },
   submitDisabled: { opacity: 0.7 },
-  submitText: { color: "#fff", fontWeight: "700", fontSize: 17 },
+  submitText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 17,
+    ...Platform.select({
+      web: { userSelect: "none", cursor: "pointer" },
+      default: {},
+    }),
+  },
 });

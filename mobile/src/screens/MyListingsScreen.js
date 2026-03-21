@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -10,12 +9,14 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext.js";
-import { getListingsByCreator } from "../services/listingService.js";
+import { deleteListing, getListingsByCreator } from "../services/listingService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToLogin, navigateToCreateListing, navigateToHomeListing } from "../utils/navigationHelpers.js";
+import { showAlert } from "../utils/showAlert.js";
 
 const IMG_H = 120;
 
@@ -40,12 +41,37 @@ export default function MyListingsScreen({ navigation }) {
       const data = await getListingsByCreator(email);
       setRows(data);
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+      showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [email]);
+
+  const handleDelete = useCallback(
+    (item) => {
+      showAlert(
+        "Устгах уу?",
+        `"${item.title || "Гарчиггүй"}" зарыг устгана уу?`,
+        [
+          { text: "Үгүй", style: "cancel" },
+          {
+            text: "Устгах",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deleteListing(item.id);
+                load(false);
+              } catch (e) {
+                showAlert("Алдаа", e?.message || "Устгаж чадсангүй");
+              }
+            },
+          },
+        ]
+      );
+    },
+    [load]
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -119,6 +145,15 @@ export default function MyListingsScreen({ navigation }) {
                 <Text style={styles.badgeText}>{status}</Text>
               </View>
             </View>
+            <Pressable
+              style={styles.deleteBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDelete(item);
+              }}
+            >
+              <Ionicons name="trash-outline" size={22} color="#dc2626" />
+            </Pressable>
           </Pressable>
         );
       }}
@@ -138,12 +173,18 @@ const styles = StyleSheet.create({
   addBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   row: {
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+  },
+  deleteBtn: {
+    padding: 12,
+    justifyContent: "center",
+    alignItems: "center",
   },
   thumb: { width: 100, height: IMG_H, backgroundColor: "#e5e7eb" },
   thumbPh: { alignItems: "center", justifyContent: "center" },
