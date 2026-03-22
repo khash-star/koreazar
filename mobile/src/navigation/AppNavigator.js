@@ -32,7 +32,7 @@ function HomeStackNavigator() {
         headerShadowVisible: true,
       }}
     >
-      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ title: "Zarkorea" }} />
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ title: "ZARKOREA.COM" }} />
       <HomeStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Зар" }} />
     </HomeStack.Navigator>
   );
