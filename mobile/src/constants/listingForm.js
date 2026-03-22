@@ -1,5 +1,5 @@
 /**
- * Re-exports shared listing constants from web src.
- * Single source of truth: src/constants/listings.js
+ * Re-exports listing constants.
+ * ./listings.js is generated: `npm run sync-listings` from repo root.
  */
-export { categoryInfo, subcategoryConfig, locations } from '../../../src/constants/listings';
+export { categoryInfo, subcategoryConfig, locations } from './listings';

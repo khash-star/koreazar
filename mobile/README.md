@@ -49,7 +49,19 @@ npx expo start --web -c
 - **Хадгалсан:** List + pull-to-refresh + хасах.
 - **Images:** `expo-image` + same URL helpers as web.
 
-## 4) Next steps
+## 4) Категори / locations (вэбтэй синк)
+
+Ангилал, дэд ангилал, байршил нь вэб дээр `src/constants/listings.js` дээр тодорхойлогдоно. **EAS build** зөвхөн `mobile/` агуулдаг тул `mobile/src/constants/listings.js` нь түүний хуулбар.
+
+Вэб файл өөрчлөсний дараа **репогийн root**-оос:
+
+```bash
+npm run sync-listings
+```
+
+Дараа нь commit хийж, EAS build ажиллуулна.
+
+## 5) Next steps
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run generate-pwa-icons && vite build",
     "generate-pwa-icons": "node scripts/generate-pwa-icons.mjs",
+    "sync-listings": "node scripts/sync-listings.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "echo \"No tests configured\" && exit 0"

@@ -1,6 +1,7 @@
 /**
- * Shared listing constants – web + mobile (mobile copy via `npm run sync-listings`).
- * Single source of truth for categories, subcategories, and locations.
+ * AUTO-GENERATED – do not edit by hand.
+ * Source: src/constants/listings.js
+ * Regenerate: npm run sync-listings (from repo root)
  */
 
 export const categoryInfo = {
