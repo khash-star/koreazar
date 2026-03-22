@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Pressable,
   RefreshControl,
@@ -21,14 +22,19 @@ import { getListingImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
-const CARD_IMG_H = 160;
+const CARD_IMG_H = 120;
+const GAP = 12;
+const PAD_H = 16;
 
-function ListingItem({ item, onPress }) {
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = (SCREEN_WIDTH - PAD_H * 2 - GAP) / 2;
+
+function ListingItem({ item, onPress, cardWidth }) {
   const first = item.images?.[0];
   const uri = first ? getListingImageUrl(first, "w400") : "";
 
   return (
-    <Pressable style={styles.card} onPress={() => onPress(item.id)}>
+    <Pressable style={[styles.card, { width: cardWidth }]} onPress={() => onPress(item.id)}>
       <View style={styles.cardImageWrap}>
         {uri ? (
           <Image
@@ -184,15 +190,17 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <FlatList
-        scrollEventThrottle={16}
+      scrollEventThrottle={16}
       data={displayedListings}
       keyExtractor={(item) => item.id}
+      numColumns={2}
+      columnWrapperStyle={styles.row}
       contentContainerStyle={[styles.listContent, { paddingBottom: 24 + tabBarHeight }]}
       ListHeaderComponent={listHeader}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
-      renderItem={({ item }) => <ListingItem item={item} onPress={onPressListing} />}
+      renderItem={({ item }) => <ListingItem item={item} onPress={onPressListing} cardWidth={CARD_WIDTH} />}
       ListEmptyComponent={
         <Text style={styles.empty}>
           {selectedCategory && listings.length > 0
@@ -217,10 +225,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: PAD_H,
     paddingBottom: 24,
-    gap: 12,
     paddingTop: 8,
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: GAP,
+    paddingHorizontal: 0,
   },
   listSectionTitle: {
     fontSize: 20,
@@ -262,23 +275,23 @@ const styles = StyleSheet.create({
   cardRibbonVip: { backgroundColor: "#f59e0b" },
   cardRibbonFeat: { backgroundColor: "#2563eb" },
   cardRibbonText: { color: "#fff", fontSize: 11, fontWeight: "800" },
-  cardBody: { padding: 12 },
+  cardBody: { padding: 8 },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     color: "#111827",
-    minHeight: 44,
+    minHeight: 36,
   },
   cardSub: {
-    fontSize: 13,
+    fontSize: 11,
     color: "#6b7280",
-    marginTop: 4,
+    marginTop: 2,
   },
   cardPrice: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "700",
     color: "#ea580c",
-    marginTop: 8,
+    marginTop: 4,
   },
   error: {
     color: "#b91c1c",
