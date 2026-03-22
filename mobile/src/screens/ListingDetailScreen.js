@@ -16,21 +16,15 @@ import { getListingById } from "../services/listingService";
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { toDate } from "../utils/firestoreDates";
+import { conditionLabels } from "../constants/listings";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin, navigateToMessagesChat } from "../utils/navigationHelpers.js";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
 
-const conditionLabels = {
-  new: "Шинэ",
-  like_new: "Бараг шинэ",
-  used: "Хэрэглэсэн",
-  for_parts: "Сэлбэгт",
-};
-
 export default function ListingDetailScreen({ route, navigation }) {
-  const { listingId } = route.params || {};
+  const { listingId } = route?.params ?? {};
   const { email, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

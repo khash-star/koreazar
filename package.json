@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run generate-pwa-icons && vite build",
+    "build": "npm run sync-listings && npm run generate-pwa-icons && vite build",
     "generate-pwa-icons": "node scripts/generate-pwa-icons.mjs",
     "sync-listings": "node scripts/sync-listings.mjs",
     "lint": "eslint .",
@@ -51,7 +51,6 @@
     "framer-motion": "^12.4.7",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.475.0",
-    "moment": "^2.30.1",
     "next-themes": "^0.4.4",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",

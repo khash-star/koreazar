@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { toast } from '@/components/ui/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
@@ -22,7 +23,6 @@ export default function Login() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
   const [facebookLoading, setFacebookLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -78,11 +78,11 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setResetLoading(true);
-    setResetSuccess(false);
 
     try {
       await resetPassword(resetEmail);
-      setResetSuccess(true);
+      setShowResetPassword(false);
+      toast({ title: 'Имэйл илгээгдлээ', description: 'Имэйл хайрцгаа шалгаад зааврыг дагана уу.', variant: 'default' });
     } catch (err) {
       setError(getErrorMessage(err.code));
     } finally {
@@ -138,13 +138,6 @@ export default function Login() {
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              {resetSuccess && (
-                <Alert>
-                  <AlertDescription>
-                    Имэйл илгээгдлээ! Имэйл хайрцгаа шалгана уу.
-                  </AlertDescription>
                 </Alert>
               )}
               <div className="space-y-2">
@@ -218,7 +211,10 @@ export default function Login() {
                 <Label htmlFor="password">Нууц үг</Label>
                 <button
                   type="button"
-                  onClick={() => setShowResetPassword(true)}
+                  onClick={() => {
+                    setResetEmail(email);
+                    setShowResetPassword(true);
+                  }}
                   className="text-sm text-amber-600 hover:underline"
                 >
                   Нууц үг мартсан?

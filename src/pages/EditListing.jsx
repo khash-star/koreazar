@@ -26,7 +26,7 @@ import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
-import { locations } from '@/constants/locations';
+import { locations, conditionOptions } from '@/constants/listings';
 
 export default function EditListing() {
   const navigate = useNavigate();
@@ -376,10 +376,9 @@ export default function EditListing() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">Шинэ</SelectItem>
-                      <SelectItem value="like_new">Бараг шинэ</SelectItem>
-                      <SelectItem value="used">Хэрэглэсэн</SelectItem>
-                      <SelectItem value="for_parts">Сэлбэгт</SelectItem>
+                      {conditionOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

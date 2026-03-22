@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
+import { convertTimestamp } from '@/utils/firestoreDates';
 import { MapPin, Clock, Sparkles, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
-import moment from 'moment';
+import { formatDistanceToNow } from 'date-fns';
+import { mn } from 'date-fns/locale';
 
 export default function FeaturedListingCard({ listing }) {
   const formatPrice = (price) => {
@@ -82,7 +84,7 @@ export default function FeaturedListingCard({ listing }) {
             )}
             <div className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
-              <span>{moment(listing.created_date).fromNow()}</span>
+              <span>{formatDistanceToNow(new Date(convertTimestamp(listing.created_date) || Date.now()), { addSuffix: true, locale: mn })}</span>
             </div>
           </div>
         </div>

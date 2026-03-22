@@ -142,6 +142,22 @@ export const subcategoryConfig = {
   ],
 };
 
+/** Condition labels for display (e.g. badge, detail) */
+export const conditionLabels = {
+  new: 'Шинэ',
+  like_new: 'Бараг шинэ',
+  used: 'Хэрэглэсэн',
+  for_parts: 'Сэлбэгт',
+};
+
+/** Condition options for forms (Select, chips) */
+export const conditionOptions = [
+  { value: 'new', label: 'Шинэ' },
+  { value: 'like_new', label: 'Бараг шинэ' },
+  { value: 'used', label: 'Хэрэглэсэн' },
+  { value: 'for_parts', label: 'Сэлбэгт' },
+];
+
 export const locations = [
   'Seoul',
   'Busan',

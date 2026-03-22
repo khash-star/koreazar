@@ -30,7 +30,7 @@ import { navigateToHomeListing } from "../utils/navigationHelpers.js";
 import { Timestamp } from "firebase/firestore";
 
 export default function ChatScreen({ route, navigation }) {
-  const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route.params || {};
+  const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route?.params ?? {};
   const { email } = useAuth();
 
   const [convId, setConvId] = useState(paramConvId || null);

@@ -16,6 +16,7 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   async function onLogin() {
     if (!email.trim() || !password) {
@@ -39,11 +40,14 @@ export default function LoginScreen({ navigation }) {
       showAlert("Анхаар", "Нууц үг сэргээхийн тулд имэйлээ оруулна уу");
       return;
     }
+    setResetting(true);
     try {
       await sendResetEmail(email);
-      showAlert("Илгээгдлээ", "Имэйлээ шалгаад зааврыг дагана уу");
+      showAlert("Имэйл илгээгдлээ", "Имэйл хайрцгаа шалгаад зааврыг дагана уу.");
     } catch (e) {
       showAlert("Алдаа", authErrorMessage(e?.code) || e?.message);
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -79,8 +83,12 @@ export default function LoginScreen({ navigation }) {
         )}
       </Pressable>
 
-      <Pressable style={styles.link} onPress={onForgot}>
-        <Text style={styles.linkText}>Нууц үг мартсан уу?</Text>
+      <Pressable style={[styles.link, resetting && styles.disabled]} onPress={onForgot} disabled={resetting}>
+        {resetting ? (
+          <ActivityIndicator size="small" color="#2563eb" />
+        ) : (
+          <Text style={styles.linkText}>Нууц үг мартсан уу?</Text>
+        )}
       </Pressable>
 
       <Pressable style={styles.link} onPress={() => navigation.navigate("Register")}>

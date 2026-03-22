@@ -13,7 +13,7 @@ import {
 import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
 
-import { locations } from '@/constants/locations';
+import { locations, conditionOptions } from '@/constants/listings';
 
 export default function SearchBar({ onSearch, initialFilters = {} }) {
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
@@ -166,11 +166,10 @@ export default function SearchBar({ onSearch, initialFilters = {} }) {
                   <SelectValue placeholder="Төлөв" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Бүгд</SelectItem>
-                  <SelectItem value="new">Шинэ</SelectItem>
-                  <SelectItem value="like_new">Бараг шинэ</SelectItem>
-                  <SelectItem value="used">Хэрэглэсэн</SelectItem>
-                  <SelectItem value="for_parts">Сэлбэгт</SelectItem>
+                  <SelectItem value="">Бүгд</SelectItem>
+                  {conditionOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

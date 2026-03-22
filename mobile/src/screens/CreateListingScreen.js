@@ -17,16 +17,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
 import { createListing } from "../services/listingService.js";
 import { uploadImageFromUri } from "../services/storageService.js";
-import { categoryInfo, locations, subcategoryConfig } from "../constants/listingForm.js";
+import { categoryInfo, locations, subcategoryConfig, conditionOptions } from "../constants/listingForm.js";
 import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert.js";
-
-const CONDITION_OPTIONS = [
-  { value: "new", label: "Шинэ" },
-  { value: "like_new", label: "Бараг шинэ" },
-  { value: "used", label: "Хэрэглэсэн" },
-  { value: "for_parts", label: "Сэлбэгт" },
-];
 
 export default function CreateListingScreen({ navigation }) {
   const { email, isAuthenticated } = useAuth();
@@ -238,7 +231,7 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.label}>Төлөв</Text>
           <View style={styles.row}>
-            {CONDITION_OPTIONS.map((c) => (
+            {conditionOptions.map((c) => (
               <Pressable
                 key={c.value}
                 style={[styles.chip, styles.chipSmall, form.condition === c.value && styles.chipActive]}

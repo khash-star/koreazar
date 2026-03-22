@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
+import { validatePassword, isValidEmail } from '@/utils/security';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -34,17 +35,11 @@ export default function Register() {
     });
     setError('');
     
-    // Real-time email validation
     if (name === 'email') {
       if (!value || !value.trim()) {
         setEmailError('Имэйл хаяг заавал оруулах шаардлагатай.');
       } else {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(value.trim())) {
-          setEmailError('Имэйл хаяг буруу форматтай байна.');
-        } else {
-          setEmailError('');
-        }
+        setEmailError(isValidEmail(value.trim()) ? '' : 'Имэйл хаяг буруу форматтай байна.');
       }
     } else {
       setEmailError('');
@@ -73,10 +68,7 @@ export default function Register() {
       return false;
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const trimmedEmail = formData.email.trim();
-    if (!emailRegex.test(trimmedEmail)) {
+    if (!isValidEmail(formData.email.trim())) {
       setError('Имэйл хаяг буруу форматтай байна.');
       setEmailError('Имэйл хаяг буруу форматтай байна.');
       return false;
@@ -91,8 +83,9 @@ export default function Register() {
       return false;
     }
 
-    if (formData.password.length < 6) {
-      setError('Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой.');
+    const pwdValidation = validatePassword(formData.password);
+    if (!pwdValidation.isValid) {
+      setError(pwdValidation.message);
       return false;
     }
 
@@ -101,22 +94,11 @@ export default function Register() {
       return false;
     }
 
-    // Утасны дугаар validation (хэрэв оруулсан бол)
     if (formData.phone && formData.phone.trim()) {
-      // Зөвхөн тоонуудыг авах (зураас, зай, хаалт зэргийг арилгах)
       const phoneDigits = formData.phone.replace(/[\s\-\(\)\+]/g, '');
-      
-      // Зөвхөн тоо байгаа эсэхийг шалгах
-      if (!/^\d+$/.test(phoneDigits)) {
-        setError('Утасны дугаар зөвхөн тоо байх ёстой.');
-        setPhoneError('Утасны дугаар зөвхөн тоо байх ёстой.');
-        return false;
-      }
-      
-      // 8-11 оронтой байх ёстой
-      if (phoneDigits.length < 8 || phoneDigits.length > 11) {
-        setError('Утасны дугаар 8-11 оронтой байх ёстой.');
-        setPhoneError('Утасны дугаар 8-11 оронтой байх ёстой.');
+      if (!/^\d+$/.test(phoneDigits) || phoneDigits.length < 8 || phoneDigits.length > 11) {
+        setError('Утасны дугаар зөвхөн тоо, 8-11 оронтой байх ёстой.');
+        setPhoneError('Утасны дугаар зөвхөн тоо, 8-11 оронтой байх ёстой.');
         return false;
       }
     }

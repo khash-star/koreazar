@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Image } from "expo-image";
 import BannerHero from "../components/home/BannerHero.js";
@@ -114,8 +115,8 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <View style={{ flexDirection: "row", alignItems: "center", marginRight: 8 }}>
             {isAuthenticated ? (
-              <Pressable onPress={() => logout()} hitSlop={8}>
-                <Text style={{ color: "#6b7280", fontWeight: "600", fontSize: 15 }}>Гарах</Text>
+              <Pressable onPress={() => logout()} hitSlop={8} accessibilityLabel="Гарах">
+                <Ionicons name="log-out-outline" size={24} color="#6b7280" />
               </Pressable>
             ) : (
               <Pressable onPress={() => navigateToLogin(navigation)} hitSlop={8}>

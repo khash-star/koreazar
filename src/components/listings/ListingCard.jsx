@@ -8,20 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
-import { categoryInfo } from './CategoryCard';
+import { categoryInfo, conditionLabels } from '@/constants/listings';
 import { subcategoryConfig } from './subcategoryConfig';
 import * as entities from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { toast } from '@/components/ui/use-toast';
-
-const conditionLabels = {
-  new: 'Шинэ',
-  like_new: 'Бараг шинэ',
-  used: 'Хэрэглэсэн',
-  for_parts: 'Сэлбэгт'
-};
 
 export default function ListingCard({ listing, isAboveFold = false }) {
   const queryClient = useQueryClient();

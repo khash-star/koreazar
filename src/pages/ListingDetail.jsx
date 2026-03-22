@@ -33,7 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { categoryInfo } from '@/components/listings/CategoryCard';
-import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
+import { subcategoryConfig, conditionLabels } from '@/constants/listings';
 import {
   Dialog,
   DialogContent,
@@ -51,13 +51,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/components/ui/use-toast';
-
-const conditionLabels = {
-  new: 'Шинэ',
-  like_new: 'Бараг шинэ',
-  used: 'Хэрэглэсэн',
-  for_parts: 'Сэлбэгт'
-};
 
 export default function ListingDetail() {
   const urlParams = new URLSearchParams(window.location.search);

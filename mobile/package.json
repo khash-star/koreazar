@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "prestart": "node ../scripts/sync-listings.mjs",
     "start": "expo start",
     "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",

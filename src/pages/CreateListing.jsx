@@ -27,7 +27,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { toast } from '@/components/ui/use-toast';
 
-import { locations } from '@/constants/locations';
+import { locations, conditionOptions } from '@/constants/listings';
 
 export default function CreateListing() {
   const navigate = useNavigate();
@@ -322,10 +322,9 @@ export default function CreateListing() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">Шинэ</SelectItem>
-                      <SelectItem value="like_new">Бараг шинэ</SelectItem>
-                      <SelectItem value="used">Хэрэглэсэн</SelectItem>
-                      <SelectItem value="for_parts">Сэлбэгт</SelectItem>
+                      {conditionOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
