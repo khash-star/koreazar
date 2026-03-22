@@ -1,9 +1,1 @@
-export const locations = [
-  'Seoul',
-  'Busan',
-  'Incheon',
-  'Daegu',
-  'Gyeonggi-do',
-  'Gyeongsangnam-do',
-  'Бусад',
-];
+export { locations } from './listings';
