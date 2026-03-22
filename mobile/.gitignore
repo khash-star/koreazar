@@ -34,6 +34,10 @@ yarn-error.*
 .env
 .env*.local
 
+# EAS credentials (keystore, passwords) — git руу хэзээ ч push хийхгүй
+credentials.json
+keystores/
+
 # typescript
 *.tsbuildinfo
 
