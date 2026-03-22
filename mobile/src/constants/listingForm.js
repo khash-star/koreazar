@@ -73,8 +73,9 @@ export const subcategoryConfig = {
     { value: "other", label: "Бусад" },
   ],
   community: [
-    { value: "event", label: "Арга хэмжээ" },
-    { value: "announcement", label: "Мэдээлэл" },
+    { value: "phone_sell", label: "Гар утас зарна" },
+    { value: "number_sell", label: "Дугаар зарна" },
+    { value: "sim_card", label: "Сим карт" },
     { value: "other", label: "Бусад" },
   ],
   other: [
