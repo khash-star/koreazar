@@ -26,14 +26,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 
-const locations = [
-  'Seoul',
-  'Busan',
-  'Incheon',
-  'Daegu',
-  'Gyeonggi-do',
-  'Gyeongsangnam-do'
-];
+import { locations } from '@/constants/locations';
 
 export default function CreateListing() {
   const navigate = useNavigate();

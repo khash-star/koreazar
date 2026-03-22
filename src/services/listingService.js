@@ -15,28 +15,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-
-/**
- * Convert Firestore Timestamp to JavaScript Date
- * @param {*} value - Firestore Timestamp or other value
- * @returns {Date|*} Converted Date or original value
- */
-const convertTimestamp = (value) => {
-  if (!value) return value;
-  // Check if it's a Firestore Timestamp object
-  if (value && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-  // If it's already a Date object, return as is
-  if (value instanceof Date) {
-    return value;
-  }
-  // If it's a timestamp-like object with seconds/nanoseconds
-  if (value.seconds !== undefined) {
-    return new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1000000);
-  }
-  return value;
-};
+import { convertTimestamp } from '@/utils/firestoreDates';
 
 /**
  * Бүх listings-ийг авах
@@ -46,24 +25,17 @@ const convertTimestamp = (value) => {
  */
 export const listListings = async (orderByField = 'created_date', limitCount = 100) => {
   try {
-    console.log('listListings called with:', { orderByField, limitCount });
     const listingsRef = collection(db, 'listings');
-    
-    // Handle order by (support '-' prefix for descending)
     const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-    console.log(`Order by: ${orderField} ${orderDirection}`);
-    
+
     const q = query(
       listingsRef,
       orderBy(orderField, orderDirection),
       limit(limitCount)
     );
-    
-    console.log('Executing Firestore query for listListings...');
     const querySnapshot = await getDocs(q);
-    console.log(`Query returned ${querySnapshot.docs.length} documents`);
-    
+
     const result = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
@@ -74,16 +46,9 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
         listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
       };
     });
-    
-    console.log('listListings result:', result);
     return result;
   } catch (error) {
     console.error('Error listing listings:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
     throw error;
   }
 };
@@ -135,26 +100,10 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     return result;
   } catch (error) {
     console.error('Error filtering listings:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    // Хэрэв index алдаа гарвал илүү тодорхой мэдээлэл өгөх
+
     if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-      console.error('⚠️ Firestore Composite Index шаардлагатай!');
-      console.error('Firebase Console дээр дараах index-үүдийг үүсгэнэ үү:');
-      console.error('1. Collection: listings');
-      console.error('   Fields: listing_type (Ascending), status (Ascending), created_date (Descending)');
-      console.error('2. Collection: listings');
-      console.error('   Fields: status (Ascending), created_date (Descending)');
-      console.error('Алдааны мэдээлэлд Firebase Console-ийн холбоос байгаа бөгөөд түүгээр index үүсгэх боломжтой.');
-      
-      // Хэрэв index алдаа гарвал хоосон массив буцаах (graceful degradation)
       // Ийм тохиолдолд илүү энгийн query ашиглах эсвэл client-side filter хийх
       if (conditions.length > 1) {
-        console.warn('Composite index алга тул энгийн query ашиглаж байна...');
         // Эхлээд orderBy-гүй query хийж, дараа нь client-side filter хийх
         try {
           const simpleQuery = query(listingsRef, ...conditions, limit(limitCount * 2));
@@ -182,8 +131,6 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
           
           // Limit
           simpleResult = simpleResult.slice(0, limitCount);
-          
-          console.log('filterListings result (fallback):', simpleResult);
           return simpleResult;
         } catch (fallbackError) {
           console.error('Fallback query also failed:', fallbackError);
@@ -224,9 +171,7 @@ export const createListing = async (data) => {
       listing_type: data.listing_type || 'regular'
     };
     
-    console.log('Creating listing with data:', listingData);
     const docRef = await addDoc(listingsRef, listingData);
-    console.log('Listing created successfully with ID:', docRef.id);
     
     return {
       id: docRef.id,
@@ -234,11 +179,6 @@ export const createListing = async (data) => {
     };
   } catch (error) {
     console.error('Error creating listing:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
-    });
     throw error;
   }
 };
@@ -260,11 +200,6 @@ export const updateListing = async (id, data) => {
     await updateDoc(listingRef, updateData);
   } catch (error) {
     console.error('Error updating listing:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      listingId: id
-    });
     throw error;
   }
 };
@@ -291,10 +226,7 @@ export const deleteListing = async (id) => {
  */
 export const getListing = async (id) => {
   try {
-    if (!id) {
-      console.error('Listing ID is required');
-      return null;
-    }
+    if (!id) return null;
     
     const listingRef = doc(db, 'listings', id);
     const listingSnap = await getDoc(listingRef);
@@ -314,8 +246,6 @@ export const getListing = async (id) => {
         ...convertedData
       };
     }
-    
-    console.warn(`Listing not found with ID: ${id}`);
     return null;
   } catch (error) {
     console.error('Error getting listing:', error);

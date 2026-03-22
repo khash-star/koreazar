@@ -29,20 +29,6 @@ export default function AdminPanel() {
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-
-  // Debug: Console дээр userData харагдах
-  React.useEffect(() => {
-    if (user) {
-      console.log('🔍 Admin Panel Debug:');
-      console.log('User:', user);
-      console.log('UserData:', userData);
-      console.log('User Email:', user.email);
-      console.log('UserData Email:', userData?.email);
-      console.log('UserData Role:', userData?.role);
-      console.log('Is Admin:', userData?.role === 'admin' || user?.role === 'admin');
-    }
-  }, [user, userData]);
-
   const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
 
   const { data: pendingListings = [], isLoading: pendingLoading } = useQuery({

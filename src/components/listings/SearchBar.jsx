@@ -13,14 +13,7 @@ import {
 import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
 
-const locations = [
-  'Seoul',
-  'Busan',
-  'Incheon',
-  'Daegu',
-  'Gyeonggi-do',
-  'Gyeongsangnam-do'
-];
+import { locations } from '@/constants/locations';
 
 export default function SearchBar({ onSearch, initialFilters = {} }) {
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');

@@ -14,23 +14,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-
-/**
- * Convert Firestore Timestamp to JavaScript Date
- */
-const convertTimestamp = (value) => {
-  if (!value) return value;
-  if (value && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-  if (value instanceof Date) {
-    return value;
-  }
-  if (value.seconds !== undefined) {
-    return new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1000000);
-  }
-  return value;
-};
+import { convertTimestamp } from '@/utils/firestoreDates';
 
 /**
  * Get or create AI conversation for a user

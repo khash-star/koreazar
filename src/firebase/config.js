@@ -14,10 +14,8 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Check if config is valid
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error('Firebase config is missing! Check .env file');
-  console.log('Config:', firebaseConfig);
+  console.error('Firebase config is missing! Check .env file.');
 }
 
 // Initialize Firebase

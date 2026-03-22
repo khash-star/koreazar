@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { getListingImageUrl } from '@/utils/imageUrl';
+import { exportListingsToCSV } from '@/utils/exportListingsToCSV';
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
@@ -90,98 +91,7 @@ export default function AdminNewListings() {
   };
 
   const handleExportCSV = () => {
-    if (listings.length === 0) {
-      alert('Экспортлох зар байхгүй байна.');
-      return;
-    }
-
-    // CSV header
-    const headers = [
-      'ID',
-      'Title',
-      'Listing URL',
-      'Category',
-      'Subcategory',
-      'Price',
-      'Location',
-      'Condition',
-      'In Stock',
-      'Listing Type',
-      'Created By',
-      'Created Date',
-      'Views',
-      'Image Links',
-      'Phone',
-      'Kakao ID',
-      'WeChat ID',
-      'WhatsApp',
-      'Facebook',
-      'Description'
-    ];
-
-    // CSV data rows
-    const rows = listings.map(listing => {
-      const createdDate = listing.created_date 
-        ? new Date(listing.created_date).toLocaleString('mn-MN')
-        : '';
-      
-      const imageLinks = listing.images && Array.isArray(listing.images)
-        ? listing.images.map(img => typeof img === 'string' ? img : (img?.w800 || img?.w640 || img?.w400 || img?.w150 || '')).filter(Boolean).join('; ')
-        : '';
-      
-      const listingUrl = listing.id 
-        ? `${window.location.origin}${createPageUrl(`ListingDetail?id=${listing.id}`)}`
-        : '';
-      
-      return [
-        listing.id || '',
-        listing.title || '',
-        listingUrl,
-        listing.category || '',
-        listing.subcategory || '',
-        listing.price || '',
-        listing.location || '',
-        listing.condition || '',
-        'in stock',
-        listing.listing_type || 'regular',
-        listing.created_by || '',
-        createdDate,
-        listing.views || 0,
-        imageLinks,
-        listing.phone || '',
-        listing.kakao_id || '',
-        listing.wechat_id || '',
-        listing.whatsapp || '',
-        listing.facebook || '',
-        (listing.description || '').replace(/\n/g, ' ').replace(/,/g, ';')
-      ];
-    });
-
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => {
-        // Escape commas and quotes in cell values
-        const cellStr = String(cell || '');
-        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
-          return `"${cellStr.replace(/"/g, '""')}"`;
-        }
-        return cellStr;
-      }).join(','))
-    ].join('\n');
-
-    // Add BOM for Excel compatibility
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `шинэ_зарууд_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportListingsToCSV(listings, 'шинэ_зарууд');
   };
 
   const isAdmin = userData?.role === 'admin' || user?.role === 'admin';

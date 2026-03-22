@@ -26,14 +26,7 @@ import { subcategoryConfig } from '@/components/listings/subcategoryConfig';
 import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
-const locations = [
-  'Seoul',
-  'Busan',
-  'Incheon',
-  'Daegu',
-  'Gyeonggi-do',
-  'Gyeongsangnam-do'
-];
+import { locations } from '@/constants/locations';
 
 export default function EditListing() {
   const navigate = useNavigate();

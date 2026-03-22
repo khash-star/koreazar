@@ -14,28 +14,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
-
-/**
- * Convert Firestore Timestamp to JavaScript Date
- * @param {*} value - Firestore Timestamp or other value
- * @returns {Date|*} Converted Date or original value
- */
-const convertTimestamp = (value) => {
-  if (!value) return value;
-  // Check if it's a Firestore Timestamp object
-  if (value && typeof value.toDate === 'function') {
-    return value.toDate();
-  }
-  // If it's already a Date object, return as is
-  if (value instanceof Date) {
-    return value;
-  }
-  // If it's a timestamp-like object with seconds/nanoseconds
-  if (value.seconds !== undefined) {
-    return new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1000000);
-  }
-  return value;
-};
+import { convertTimestamp } from '@/utils/firestoreDates';
 
 // Conversations
 export const listConversations = async () => {
