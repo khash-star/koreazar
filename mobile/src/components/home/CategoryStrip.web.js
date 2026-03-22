@@ -96,8 +96,7 @@ export default function CategoryStrip({ value, onChange }) {
   const rows = chunkIntoRows(categoryList, 3);
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Ангилал</Text>
+    <View style={styles.wrap}>
       <View style={styles.grid}>
         {rows.map((row, ri) => (
           <View key={`row-${ri}`} style={styles.row}>
@@ -122,62 +121,44 @@ export default function CategoryStrip({ value, onChange }) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginTop: 8,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    ...Platform.select({
-      web: { boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
-      default: {},
-    }),
+  wrap: {
+    marginTop: 4,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 12,
-  },
-  grid: { gap: GAP },
+  grid: { gap: 6 },
   row: {
     flexDirection: "row",
-    gap: GAP,
+    gap: 6,
     alignItems: "stretch",
     overflow: "visible",
   },
   tilePressable: { flex: 1, minWidth: 0 },
   tile: {
     width: "100%",
-    minHeight: 78,
+    minHeight: 52,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: "#f9fafb",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
+    paddingVertical: 6,
+    paddingHorizontal: 2,
     cursor: "pointer",
   },
   tileSpacer: { flex: 1, minWidth: 0 },
   tileActive: {
-    backgroundColor: "#fff7ed",
-    borderColor: "#ea580c",
+    backgroundColor: "rgba(234, 88, 12, 0.08)",
+    borderRadius: 10,
   },
   tileIcon: {
-    fontSize: 22,
-    lineHeight: 26,
-    marginBottom: 4,
+    fontSize: 18,
+    lineHeight: 22,
+    marginBottom: 2,
   },
   tileLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    color: "#4b5563",
+    color: "#6b7280",
     textAlign: "center",
-    lineHeight: 14,
+    lineHeight: 12,
   },
-  tileLabelActive: { color: "#c2410c" },
+  tileLabelActive: { color: "#ea580c", fontWeight: "700" },
 });

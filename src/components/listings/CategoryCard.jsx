@@ -13,6 +13,7 @@ const categoryInfo = {
   furniture: { name: 'Тавилга', icon: '🛋️', color: 'from-amber-500 to-amber-600' },
   cargo: { name: 'Карго', icon: '📦', color: 'from-teal-500 to-teal-600' },
   community: { name: 'Утас/Дугаар', icon: '📞', color: 'from-indigo-500 to-indigo-600' },
+  free: { name: 'Үнэгүй', icon: '🎁', color: 'from-emerald-500 to-emerald-600' },
   other: { name: 'Бусад', icon: '📦', color: 'from-gray-500 to-gray-600' }
 };
 

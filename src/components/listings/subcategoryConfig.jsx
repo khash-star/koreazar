@@ -100,6 +100,10 @@ export const subcategoryConfig = {
     { value: 'group', label: 'Бүлэг/Клуб' },
     { value: 'question', label: 'Асуулт' }
   ],
+  free: [
+    { value: 'give', label: 'Үнэгүй өгөх' },
+    { value: 'other', label: 'Бусад' }
+  ],
   other: [
     { value: 'books', label: 'Ном' },
     { value: 'sports', label: 'Спорт' },

@@ -22,7 +22,7 @@ import { getListingImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
-const CARD_IMG_H = 120;
+const CARD_IMG_H = 95;
 const GAP = 12;
 const PAD_H = 16;
 
@@ -228,20 +228,20 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: PAD_H,
     paddingBottom: 24,
-    paddingTop: 8,
+    paddingTop: 4,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: GAP,
+    marginBottom: 10,
     paddingHorizontal: 0,
   },
   listSectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#111827",
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: 4,
+    marginBottom: 8,
   },
   card: {
     backgroundColor: "#ffffff",
@@ -276,23 +276,23 @@ const styles = StyleSheet.create({
   cardRibbonVip: { backgroundColor: "#f59e0b" },
   cardRibbonFeat: { backgroundColor: "#2563eb" },
   cardRibbonText: { color: "#fff", fontSize: 11, fontWeight: "800" },
-  cardBody: { padding: 8 },
+  cardBody: { padding: 6 },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#111827",
-    minHeight: 36,
+    minHeight: 32,
   },
   cardSub: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#6b7280",
-    marginTop: 2,
+    marginTop: 1,
   },
   cardPrice: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: "#ea580c",
-    marginTop: 4,
+    marginTop: 2,
   },
   error: {
     color: "#b91c1c",

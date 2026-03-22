@@ -8,6 +8,7 @@ export const categoryInfo = {
   furniture: { name: "Тавилга", icon: "🛋️" },
   cargo: { name: "Карго", icon: "📦" },
   community: { name: "Утас/Дугаар", icon: "📞" },
+  free: { name: "Үнэгүй", icon: "🎁" },
   other: { name: "Бусад", icon: "📦" },
 };
 
@@ -76,6 +77,10 @@ export const subcategoryConfig = {
     { value: "phone_sell", label: "Гар утас зарна" },
     { value: "number_sell", label: "Дугаар зарна" },
     { value: "sim_card", label: "Сим карт" },
+    { value: "other", label: "Бусад" },
+  ],
+  free: [
+    { value: "give", label: "Үнэгүй өгөх" },
     { value: "other", label: "Бусад" },
   ],
   other: [
