@@ -156,3 +156,9 @@ button:focus-visible {
     @apply bg-background text-foreground;
   }
 }
+
+/* Listing list perf: skip layout/paint for off-screen cards */
+[data-listing-card] {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 320px;
+}

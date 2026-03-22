@@ -667,6 +667,7 @@ export default function Home() {
                 {listings.slice(0, visibleListingCount).map((listing, index) => (
                   <motion.div
                     key={listing.id}
+                    data-listing-card
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{

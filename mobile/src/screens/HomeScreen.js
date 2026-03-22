@@ -198,6 +198,10 @@ export default function HomeScreen({ navigation }) {
       columnWrapperStyle={styles.row}
       contentContainerStyle={[styles.listContent, { paddingBottom: 24 + tabBarHeight }]}
       ListHeaderComponent={listHeader}
+      removeClippedSubviews
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      initialNumToRender={12}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
