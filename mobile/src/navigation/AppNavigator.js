@@ -3,6 +3,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getPendingListingsCount } from "../services/listingService";
+import { getUnreadMessagesCount } from "../services/conversationService";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
 import LoginScreen from "../screens/LoginScreen.js";
@@ -13,6 +17,7 @@ import ChatScreen from "../screens/ChatScreen.js";
 import CreateListingScreen from "../screens/CreateListingScreen.js";
 import ProfileTabScreen from "../screens/ProfileTabScreen.js";
 import MyListingsScreen from "../screens/MyListingsScreen.js";
+import AdminScreen from "../screens/AdminScreen.js";
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -21,6 +26,7 @@ const SavedStack = createNativeStackNavigator();
 const MessagesStack = createNativeStackNavigator();
 const CreateStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const AdminStack = createNativeStackNavigator();
 
 function HomeStackNavigator() {
   return (
@@ -33,7 +39,12 @@ function HomeStackNavigator() {
       }}
     >
       <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ title: "ZARKOREA.COM" }} />
-      <HomeStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Зар" }} />
+      <HomeStack.Screen
+        name="ListingDetail"
+        component={ListingDetailScreen}
+        initialParams={{}}
+        options={{ title: "Зар" }}
+      />
     </HomeStack.Navigator>
   );
 }
@@ -49,7 +60,12 @@ function SavedStackNavigator() {
       }}
     >
       <SavedStack.Screen name="SavedMain" component={SavedListingsScreen} options={{ title: "Хадгалсан" }} />
-      <SavedStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Зар" }} />
+      <SavedStack.Screen
+        name="ListingDetail"
+        component={ListingDetailScreen}
+        initialParams={{}}
+        options={{ title: "Зар" }}
+      />
     </SavedStack.Navigator>
   );
 }
@@ -67,6 +83,7 @@ function MessagesStackNavigator() {
       <MessagesStack.Screen
         name="Chat"
         component={ChatScreen}
+        initialParams={{}}
         options={{ title: "Чат", headerBackTitleVisible: true }}
       />
     </MessagesStack.Navigator>
@@ -106,9 +123,49 @@ function ProfileStackNavigator() {
   );
 }
 
+function AdminStackNavigator() {
+  return (
+    <AdminStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: "#fff" },
+        headerTintColor: "#111827",
+        headerTitleStyle: { fontWeight: "700" },
+      }}
+    >
+      <AdminStack.Screen name="AdminMain" component={AdminScreen} options={{ title: "Админ" }} />
+    </AdminStack.Navigator>
+  );
+}
+
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const tabBarH = 56 + Math.max(insets.bottom, 8);
+  const { isAdmin, email } = useAuth();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    getPendingListingsCount().then(setPendingCount).catch(() => {});
+    const interval = setInterval(
+      () => getPendingListingsCount().then(setPendingCount).catch(() => {}),
+      10000
+    );
+    return () => clearInterval(interval);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!email) {
+      setUnreadCount(0);
+      return;
+    }
+    getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+    const interval = setInterval(
+      () => getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {}),
+      5000
+    );
+    return () => clearInterval(interval);
+  }, [email]);
 
   return (
     <Tab.Navigator
@@ -157,6 +214,7 @@ function MainTabs() {
               color={color}
             />
           ),
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 9 ? "9+" : unreadCount) : undefined,
         }}
       />
       <Tab.Screen
@@ -169,6 +227,19 @@ function MainTabs() {
           ),
         }}
       />
+      {isAdmin && (
+        <Tab.Screen
+          name="AdminTab"
+          component={AdminStackNavigator}
+          options={{
+            title: "Админ",
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons name={focused ? "shield" : "shield-outline"} size={size} color={color} />
+            ),
+            tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          }}
+        />
+      )}
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}

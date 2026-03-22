@@ -20,6 +20,8 @@ function CategoryTileWeb({ item, active, onChange }) {
   const pulse = useRef(new Animated.Value(1)).current;
   const press = useRef(new Animated.Value(0)).current;
 
+  const useNativeDriver = Platform.OS !== "web";
+
   useEffect(() => {
     if (!active) {
       pulse.setValue(1);
@@ -30,13 +32,13 @@ function CategoryTileWeb({ item, active, onChange }) {
         Animated.timing(pulse, {
           toValue: 1.03,
           duration: 880,
-          useNativeDriver: true,
+          useNativeDriver,
           isInteraction: false,
         }),
         Animated.timing(pulse, {
           toValue: 1,
           duration: 880,
-          useNativeDriver: true,
+          useNativeDriver,
           isInteraction: false,
         }),
       ])
@@ -56,7 +58,7 @@ function CategoryTileWeb({ item, active, onChange }) {
       onPressIn={() => {
         Animated.spring(press, {
           toValue: 1,
-          useNativeDriver: true,
+          useNativeDriver,
           friction: 6,
           tension: 120,
         }).start();
@@ -64,7 +66,7 @@ function CategoryTileWeb({ item, active, onChange }) {
       onPressOut={() => {
         Animated.spring(press, {
           toValue: 0,
-          useNativeDriver: true,
+          useNativeDriver,
           friction: 6,
           tension: 120,
         }).start();

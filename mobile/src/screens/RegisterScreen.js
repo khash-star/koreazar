@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { registerWithEmail, authErrorMessage } from "../services/authService";
+import { showAlert } from "../utils/showAlert";
 
 export default function RegisterScreen({ navigation }) {
   const [name, setName] = useState("");
@@ -20,11 +20,11 @@ export default function RegisterScreen({ navigation }) {
 
   async function onRegister() {
     if (!email.trim() || !password) {
-      Alert.alert("Анхаар", "Имэйл болон нууц үг заавал");
+      showAlert("Анхаар", "Имэйл болон нууц үг заавал");
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Анхаар", "Нууц үг дор хаяж 6 тэмдэгт");
+      showAlert("Анхаар", "Нууц үг дор хаяж 6 тэмдэгт");
       return;
     }
     setBusy(true);
@@ -32,7 +32,7 @@ export default function RegisterScreen({ navigation }) {
       await registerWithEmail(email, password, name);
       navigation.replace("Main");
     } catch (e) {
-      Alert.alert("Бүртгэл амжилтгүй", authErrorMessage(e?.code));
+      showAlert("Бүртгэл амжилтгүй", authErrorMessage(e?.code) || e?.message);
     } finally {
       setBusy(false);
     }

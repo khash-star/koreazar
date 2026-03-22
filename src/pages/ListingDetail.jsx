@@ -50,6 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { toast } from '@/components/ui/use-toast';
 
 const conditionLabels = {
   new: 'Шинэ',
@@ -88,16 +89,17 @@ export default function ListingDetail() {
   const isSaved = savedListings.some(s => s.listing_id === listingId);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (isSaved) {
+    mutationFn: async (action) => {
+      if (action === 'unsave') {
         const saved = savedListings.find(s => s.listing_id === listingId);
         await entities.SavedListing.delete(saved.id);
       } else {
         await entities.SavedListing.create({ listing_id: listingId });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, action) => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
+      toast({ title: action === 'unsave' ? 'Хадгалсанаас хасагдлаа' : 'Хадгалагдлаа', variant: 'default' });
     }
   });
 
@@ -108,7 +110,7 @@ export default function ListingDetail() {
       redirectToLogin();
       return;
     }
-    saveMutation.mutate();
+    saveMutation.mutate(isSaved ? 'unsave' : 'save');
   };
 
   // Update view count
@@ -120,33 +122,73 @@ export default function ListingDetail() {
     }
   }, [listing?.id]);
 
+  // Meta / SEO
+  const DEFAULT_TITLE = 'Koreazar - Солонгост буй Монголчуудын зарын сайт';
+  const DEFAULT_DESC = 'Солонгост амьдарч буй Монголчуудын хувьд зориулсан зарын сайт. Автомашин, орон сууц, ажлын байр, бараа, үйлчилгээний зарууд.';
+  useEffect(() => {
+    if (!listing) return;
+    document.title = `${listing.title || 'Зар'} - Koreazar`;
+    const descMeta = document.querySelector('meta[name="description"]');
+    if (descMeta) {
+      const desc = listing.description
+        ? (listing.description.slice(0, 155) + (listing.description.length > 155 ? '...' : ''))
+        : `${listing.title} - Солонгост буй Монголчуудын зарын сайт`;
+      descMeta.setAttribute('content', desc);
+    }
+    return () => {
+      document.title = DEFAULT_TITLE;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute('content', DEFAULT_DESC);
+    };
+  }, [listing?.id, listing?.title, listing?.description]);
+
   const formatPrice = (price) => {
     if (!price) return 'Үнэ тохирно';
     return '₩' + new Intl.NumberFormat('ko-KR').format(price);
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    const shareTitle = listing?.title || 'Зар - Koreazar';
     if (navigator.share) {
-      navigator.share({
-        title: listing?.title,
-        url: window.location.href
-      });
+      try {
+        await navigator.share({ title: shareTitle, url: shareUrl, text: shareTitle });
+        toast({ title: 'Хуваалцлаа', variant: 'default' });
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          navigator.clipboard?.writeText(shareUrl).then(() => {
+            toast({ title: 'Холбоос хуулагдлаа', variant: 'default' });
+          });
+        }
+      }
     } else {
-      setShowShareDialog(true);
+      try {
+        await navigator.clipboard?.writeText(shareUrl);
+        toast({ title: 'Холбоос хуулагдлаа', variant: 'default' });
+      } catch {
+        setShowShareDialog(true);
+      }
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(window.location.href);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast({ title: 'Холбоос хуулагдлаа', variant: 'default' });
+      setShowShareDialog(false);
+    } catch {
+      toast({ title: 'Хуулах боломжгүй', variant: 'destructive' });
+    }
   };
 
   const deleteMutation = useMutation({
     mutationFn: (id) => entities.Listing.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['listings']);
-      queryClient.invalidateQueries(['myListings']);
-      queryClient.invalidateQueries(['allListings']);
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
       setDeleteId(null);
+      toast({ title: 'Зар устгагдлаа', variant: 'default' });
       navigate(createPageUrl('Home'));
     },
   });

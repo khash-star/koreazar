@@ -14,6 +14,7 @@ import * as entities from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { toast } from '@/components/ui/use-toast';
 
 const conditionLabels = {
   new: 'Шинэ',
@@ -40,16 +41,17 @@ export default function ListingCard({ listing, isAboveFold = false }) {
   const isSaved = savedListings.some(s => s.listing_id === listing.id);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (isSaved) {
+    mutationFn: async (action) => {
+      if (action === 'unsave') {
         const saved = savedListings.find(s => s.listing_id === listing.id);
         await entities.SavedListing.delete(saved.id);
       } else {
         await entities.SavedListing.create({ listing_id: listing.id });
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, action) => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
+      toast({ title: action === 'unsave' ? 'Хадгалсанаас хасагдлаа' : 'Хадгалагдлаа', variant: 'default' });
     }
   });
 
@@ -60,7 +62,7 @@ export default function ListingCard({ listing, isAboveFold = false }) {
       redirectToLogin();
       return;
     }
-    saveMutation.mutate();
+    saveMutation.mutate(isSaved ? 'unsave' : 'save');
   };
   
   const getSubcategoryLabel = () => {
@@ -75,22 +77,10 @@ export default function ListingCard({ listing, isAboveFold = false }) {
     return '₩' + new Intl.NumberFormat('ko-KR').format(price);
   };
 
-  // Debug: Check if listing.id exists
-  React.useEffect(() => {
-    if (!listing.id) {
-      console.warn('⚠️ ListingCard: listing.id is missing!', listing);
-    }
-  }, [listing.id]);
-
   const listingUrl = listing.id ? createPageUrl(`ListingDetail?id=${listing.id}`) : '#';
 
   return (
-    <Link to={listingUrl} onClick={(e) => {
-      if (!listing.id) {
-        e.preventDefault();
-        console.error('❌ ListingCard: Cannot navigate - listing.id is missing');
-      }
-    }}>
+    <Link to={listingUrl}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

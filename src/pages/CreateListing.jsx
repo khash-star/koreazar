@@ -25,6 +25,7 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { toast } from '@/components/ui/use-toast';
 
 import { locations } from '@/constants/locations';
 
@@ -88,9 +89,8 @@ export default function CreateListing() {
     mutationFn: async (data) => {
       return entities.Listing.create(data);
     },
-    onSuccess: (result) => {
-      // Show success message and navigate to home
-      alert('Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.');
+    onSuccess: () => {
+      toast({ title: 'Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.', variant: 'default' });
       navigate(createPageUrl('Home'));
     }
   });

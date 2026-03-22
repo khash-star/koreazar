@@ -9,6 +9,7 @@ import {
   orderBy,
   query,
   Timestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
@@ -109,4 +110,29 @@ export async function deleteListing(id) {
   if (!id) throw new Error("ID шаардлагатай.");
   const ref = doc(db, "listings", id);
   await deleteDoc(ref);
+}
+
+export async function getPendingListingsCount() {
+  const listingsRef = collection(db, "listings");
+  const q = query(listingsRef, where("status", "==", "pending"), limit(500));
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+}
+
+export async function getPendingListings(limitCount = 100) {
+  const listingsRef = collection(db, "listings");
+  const q = query(
+    listingsRef,
+    where("status", "==", "pending"),
+    orderBy("created_date", "desc"),
+    limit(Math.min(limitCount, 200))
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(normalizeListing);
+}
+
+export async function updateListing(id, data) {
+  if (!id) throw new Error("ID шаардлагатай.");
+  const ref = doc(db, "listings", id);
+  await updateDoc(ref, { ...data, updated_date: Timestamp.now() });
 }

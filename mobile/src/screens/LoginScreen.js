@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { loginWithEmail, authErrorMessage, sendResetEmail } from "../services/authService";
+import { showAlert } from "../utils/showAlert";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -19,7 +19,7 @@ export default function LoginScreen({ navigation }) {
 
   async function onLogin() {
     if (!email.trim() || !password) {
-      Alert.alert("Анхаар", "Имэйл болон нууц үгээ оруулна уу");
+      showAlert("Анхаар", "Имэйл болон нууц үгээ оруулна уу");
       return;
     }
     setBusy(true);
@@ -28,7 +28,7 @@ export default function LoginScreen({ navigation }) {
       if (navigation.canGoBack()) navigation.goBack();
       else navigation.replace("Main");
     } catch (e) {
-      Alert.alert("Нэвтрэлт амжилтгүй", authErrorMessage(e?.code));
+      showAlert("Нэвтрэлт амжилтгүй", authErrorMessage(e?.code) || e?.message || "Имэйл эсвэл нууц үг буруу");
     } finally {
       setBusy(false);
     }
@@ -36,14 +36,14 @@ export default function LoginScreen({ navigation }) {
 
   async function onForgot() {
     if (!email.trim()) {
-      Alert.alert("Анхаар", "Нууц үг сэргээхийн тулд имэйлээ оруулна уу");
+      showAlert("Анхаар", "Нууц үг сэргээхийн тулд имэйлээ оруулна уу");
       return;
     }
     try {
       await sendResetEmail(email);
-      Alert.alert("Илгээгдлээ", "Имэйлээ шалгаад зааврыг дагана уу");
+      showAlert("Илгээгдлээ", "Имэйлээ шалгаад зааврыг дагана уу");
     } catch (e) {
-      Alert.alert("Алдаа", authErrorMessage(e?.code));
+      showAlert("Алдаа", authErrorMessage(e?.code) || e?.message);
     }
   }
 

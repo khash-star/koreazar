@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
+import { toast } from '@/components/ui/use-toast';
 
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -211,6 +212,7 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ['conversation'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       setMessage('');
+      toast({ title: 'Мессеж илгээгдлээ', variant: 'default' });
     }
   });
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,10 @@ import FeaturedListingCard from '@/components/listings/FeaturedListingCard';
 import WelcomeModal from '@/components/WelcomeModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/services/authService';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function Home() {
+  const queryClient = useQueryClient();
   const listingsRef = useRef(null);
   const location = useLocation();
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -142,7 +144,7 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const { data: listings = [], isLoading } = useQuery({
+  const { data: listings = [], isLoading, refetch: refetchListings } = useQuery({
     queryKey: ['listings', filters],
     queryFn: async () => {
       let query = { status: 'active' };
@@ -273,9 +275,30 @@ export default function Home() {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
+  const { pullDistance, isRefreshing } = usePullToRefresh(
+    () => Promise.all([refetchListings(), queryClient.invalidateQueries({ queryKey: ['bannerAds'] })]),
+    isLoading
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
       <WelcomeModal isOpen={showWelcome} onClose={handleCloseWelcome} />
+      {/* Pull-to-refresh indicator (mobile only) */}
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-center py-3 bg-amber-500/95 text-white text-sm font-medium md:hidden transition-opacity"
+          style={{ opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1) }}
+        >
+          {isRefreshing ? (
+            <span className="flex items-center gap-2">
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Сэргээж байна...
+            </span>
+          ) : (
+            <span>{pullDistance >= 80 ? 'Суллаад сэргээнэ үү' : 'Доош чирнэ үү'}</span>
+          )}
+        </div>
+      )}
       
       {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-amber-600 to-orange-500 text-white py-3 z-50 shadow-lg">

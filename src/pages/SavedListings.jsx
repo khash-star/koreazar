@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ListingCard from '@/components/listings/ListingCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { toast } from '@/components/ui/use-toast';
 
 export default function SavedListings() {
   const queryClient = useQueryClient();
@@ -44,6 +45,7 @@ export default function SavedListings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['savedListings'] });
+      toast({ title: 'Хадгалсанаас хасагдлаа', variant: 'default' });
     }
   });
 

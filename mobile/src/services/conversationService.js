@@ -134,3 +134,18 @@ export async function updateMessage(id, data) {
   const messageRef = doc(db, "messages", id);
   await updateDoc(messageRef, data);
 }
+
+/** Хэрэглэгчийн уншаагүй мессежийн нийт тоо */
+export async function getUnreadMessagesCount(email) {
+  if (!email) return 0;
+  try {
+    const conv1 = await filterConversations({ participant_1: email });
+    const conv2 = await filterConversations({ participant_2: email });
+    const total =
+      conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
+      conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
+    return total;
+  } catch (e) {
+    return 0;
+  }
+}
