@@ -92,7 +92,7 @@ export default function UpgradeListing() {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h2>
           <Link to={createPageUrl('MyListings')}>
-            <Button className="bg-amber-500 hover:bg-amber-600">
+            <Button className="bg-amber-600 hover:bg-amber-700">
               Миний зар руу буцах
             </Button>
           </Link>

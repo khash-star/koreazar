@@ -107,7 +107,7 @@ export default function MyListings() {
           <p className="text-gray-500 mb-6">Зараа удирдахын тулд нэвтэрнэ үү</p>
           <Button
             onClick={() => redirectToLogin()}
-            className="bg-amber-500 hover:bg-amber-600"
+            className="bg-amber-600 hover:bg-amber-700"
           >
             Нэвтрэх
           </Button>
@@ -135,13 +135,13 @@ export default function MyListings() {
             </div>
             <div className="flex flex-col gap-2">
               <Link to={createPageUrl('CreateListing')}>
-                <Button className="w-full bg-amber-500 hover:bg-amber-600">
+                <Button className="w-full bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-5 h-5 mr-2" />
                   Зар нэмэх
                 </Button>
               </Link>
               <Link to={createPageUrl('RequestBannerAd')}>
-                <Button className="w-full bg-amber-500 hover:bg-amber-600">
+                <Button className="w-full bg-amber-600 hover:bg-amber-700">
                   <span className="text-lg mr-2">+</span>
                   Баннер
                 </Button>
@@ -298,7 +298,7 @@ export default function MyListings() {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Танд зар байхгүй байна</h3>
             <p className="text-gray-500 mb-6">Эхний зараа нэмээрэй</p>
             <Link to={createPageUrl('CreateListing')}>
-              <Button className="bg-amber-500 hover:bg-amber-600">
+              <Button className="bg-amber-600 hover:bg-amber-700">
                 <Plus className="w-5 h-5 mr-2" />
                 Зар нэмэх
               </Button>

@@ -370,7 +370,7 @@ export default function Home() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                     <div className="absolute top-3 right-3">
-                      <span className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded-md font-medium shadow-lg">
+                      <span className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-md font-medium shadow-lg">
                         ...
                       </span>
                     </div>
@@ -431,8 +431,8 @@ export default function Home() {
                 }}
                 className={`px-3 py-2 rounded-xl font-medium transition-all text-center ${
                   !filters.category
-                    ? 'bg-amber-500 text-white shadow-xl shadow-amber-500/40 scale-105 border-2 border-amber-600'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
+                    ? 'bg-amber-600 text-white shadow-xl shadow-amber-600/40 scale-105 border-2 border-amber-700'
+                    : 'bg-white text-gray-800 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
                 }`}
               >
                 <div className="text-sm font-semibold">
@@ -452,8 +452,8 @@ export default function Home() {
                     }}
                     className={`px-3 py-2 rounded-xl font-medium transition-all text-center ${
                       filters.category === cat
-                        ? 'bg-amber-500 text-white shadow-xl shadow-amber-500/40 scale-105 border-2 border-amber-600'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
+                        ? 'bg-amber-600 text-white shadow-xl shadow-amber-600/40 scale-105 border-2 border-amber-700'
+                        : 'bg-white text-gray-800 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
                     }`}
                   >
                     <div className="text-sm font-semibold">{info.name} ({categoryCounts[cat] || 0})</div>
@@ -693,7 +693,7 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h3>
                 <p className="text-gray-500 mb-6">Шүүлтүүрээ өөрчилж үзнэ үү</p>
                 <Link to={createPageUrl('CreateListing')}>
-                  <Button className="bg-amber-500 hover:bg-amber-600 text-white">
+                  <Button className="bg-amber-600 hover:bg-amber-700 text-white">
                     <Plus className="w-5 h-5 mr-2" />
                     Эхний зараа нэмэх
                   </Button>

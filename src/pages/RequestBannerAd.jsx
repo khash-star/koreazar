@@ -127,7 +127,7 @@ export default function RequestBannerAd() {
           className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border-2 border-amber-200"
         >
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
               <span className="text-2xl">🎨</span>
             </div>
             <div>
@@ -262,7 +262,7 @@ export default function RequestBannerAd() {
             <Button
               type="submit"
               disabled={createMutation.isPending || !imageUrl}
-              className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold"
+              className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold"
             >
               {createMutation.isPending ? (
                 <>

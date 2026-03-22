@@ -271,7 +271,7 @@ export default function Messages() {
                           </span>
                         </p>
                         {conv.unreadCount > 0 && (
-                          <span className="flex-shrink-0 ml-2 w-6 h-6 bg-amber-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                          <span className="flex-shrink-0 ml-2 w-6 h-6 bg-amber-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
                             {conv.unreadCount}
                           </span>
                         )}
@@ -294,7 +294,7 @@ export default function Messages() {
             {adminEmail && !hasAdminConversation && (
               <Button
                 onClick={handleMessageAdmin}
-                className="bg-amber-500 hover:bg-amber-600 text-white"
+                className="bg-amber-600 hover:bg-amber-700 text-white"
               >
                 <Shield className="w-4 h-4 mr-2" />
                 Админд мессеж илгээх
@@ -308,7 +308,7 @@ export default function Messages() {
           <div className="mt-4 mb-4">
             <Button
               onClick={handleMessageAdmin}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
               variant="default"
             >
               <Shield className="w-4 h-4 mr-2" />

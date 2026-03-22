@@ -609,7 +609,7 @@ export default function AdminPanel() {
                                 {user.displayName || user.email?.split('@')[0] || 'Хэрэглэгч'}
                               </h3>
                               {user.role === 'admin' && (
-                                <span className="px-2 py-0.5 text-xs bg-amber-500 text-white rounded">Админ</span>
+                                <span className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded">Админ</span>
                               )}
                             </div>
                             
@@ -705,7 +705,7 @@ export default function AdminPanel() {
                         {selectedUser.displayName || selectedUser.email?.split('@')[0] || 'Хэрэглэгч'}
                       </h3>
                       {selectedUser.role === 'admin' && (
-                        <span className="px-2 py-0.5 text-xs bg-amber-500 text-white rounded">Админ</span>
+                        <span className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded">Админ</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mt-1">{selectedUser.email}</p>

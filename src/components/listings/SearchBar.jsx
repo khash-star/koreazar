@@ -78,7 +78,7 @@ export default function SearchBar({ onSearch, initialFilters = {} }) {
         </Button>
         <Button
           onClick={handleSearch}
-          className="h-14 px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+          className="h-14 px-8 rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
         >
           Хайх
         </Button>

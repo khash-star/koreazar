@@ -335,7 +335,7 @@ export default function Chat() {
                       <div
                         className={`max-w-[70%] rounded-2xl px-4 py-2 ${
                           isOwnMessage
-                            ? 'bg-amber-500 text-white'
+                            ? 'bg-amber-600 text-white'
                             : 'bg-white text-gray-900 border border-gray-200'
                         }`}
                       >
@@ -380,7 +380,7 @@ export default function Chat() {
             <Button
               onClick={handleSend}
               disabled={!message.trim() || sendMutation.isPending}
-              className="h-11 w-11 rounded-xl bg-amber-500 hover:bg-amber-600 flex-shrink-0"
+              className="h-11 w-11 rounded-xl bg-amber-600 hover:bg-amber-700 flex-shrink-0"
               size="icon"
             >
               {sendMutation.isPending ? (

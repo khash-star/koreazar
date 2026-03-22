@@ -217,7 +217,7 @@ export default function EditListing() {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h2>
           <Link to={createPageUrl('MyListings')}>
-            <Button className="bg-amber-500 hover:bg-amber-600">
+            <Button className="bg-amber-600 hover:bg-amber-700">
               Миний зар руу буцах
             </Button>
           </Link>
@@ -242,7 +242,7 @@ export default function EditListing() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Хандах эрхгүй</h2>
           <p className="text-gray-600 mb-4">Та зөвхөн өөрийн зарыг засах боломжтой</p>
           <Link to={createPageUrl(`ListingDetail?id=${listingId}`)}>
-            <Button className="bg-amber-500 hover:bg-amber-600">
+            <Button className="bg-amber-600 hover:bg-amber-700">
               Зарын дэлгэрэнгүй руу буцах
             </Button>
           </Link>
@@ -286,7 +286,7 @@ export default function EditListing() {
                     <X className="w-4 h-4 text-white" />
                   </button>
                   {index === 0 && (
-                    <span className="absolute bottom-2 left-2 text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                    <span className="absolute bottom-2 left-2 text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full">
                       Гол зураг
                     </span>
                   )}
@@ -755,7 +755,7 @@ export default function EditListing() {
             <Button
               type="submit"
               disabled={updateMutation.isPending || !formData.title || !formData.category}
-              className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-lg font-semibold"
+              className="w-full h-14 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-lg font-semibold"
             >
               {updateMutation.isPending ? (
                 <>

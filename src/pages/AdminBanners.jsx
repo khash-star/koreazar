@@ -164,7 +164,7 @@ export default function AdminBanners() {
               </div>
             </div>
             <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) setEditingBannerId(null); }}>
-              <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600">
+              <Button onClick={openAddDialog} className="bg-amber-600 hover:bg-amber-700">
                 <Plus className="w-5 h-5 mr-2" />
                 Баннер нэмэх
               </Button>
@@ -269,7 +269,7 @@ export default function AdminBanners() {
         ) : banners.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">Баннер зар байхгүй байна</p>
-            <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600">
+            <Button onClick={openAddDialog} className="bg-amber-600 hover:bg-amber-700">
               <Plus className="w-5 h-5 mr-2" />
               Эхний баннераа нэмэх
             </Button>

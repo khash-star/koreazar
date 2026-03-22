@@ -64,7 +64,7 @@ export default function SavedListings() {
           <p className="text-gray-500 mb-6">Хадгалсан зарыг харахын тулд нэвтэрнэ үү</p>
           <Button
             onClick={() => redirectToLogin()}
-            className="bg-amber-500 hover:bg-amber-600"
+            className="bg-amber-600 hover:bg-amber-700"
           >
             Нэвтрэх
           </Button>
@@ -139,7 +139,7 @@ export default function SavedListings() {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Хадгалсан зар байхгүй байна</h3>
             <p className="text-gray-500 mb-6">Таалагдсан зараа хадгалж эхэлцгээе</p>
             <Link to={createPageUrl('Home')}>
-              <Button className="bg-amber-500 hover:bg-amber-600">
+              <Button className="bg-amber-600 hover:bg-amber-700">
                 Зар үзэх
               </Button>
             </Link>

@@ -232,7 +232,7 @@ export default function CreateListing() {
                     <X className="w-4 h-4 text-white" />
                   </button>
                   {index === 0 && (
-                    <span className="absolute bottom-2 left-2 text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">
+                    <span className="absolute bottom-2 left-2 text-xs bg-amber-600 text-white px-2 py-0.5 rounded-full">
                       Гол зураг
                     </span>
                   )}
@@ -719,7 +719,7 @@ export default function CreateListing() {
             <Button
               type="submit"
               disabled={createMutation.isPending || !formData.title || !formData.category}
-              className="w-full h-14 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-lg font-semibold"
+              className="w-full h-14 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-lg font-semibold"
             >
               {createMutation.isPending ? (
                 <>

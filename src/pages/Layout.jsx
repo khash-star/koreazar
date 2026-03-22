@@ -107,7 +107,7 @@ export default function Layout({ children, currentPageName }) {
       {/* Admin Button (Desktop) */}
       {(userData?.role === 'admin' || user?.role === 'admin') && (
         <Link to={createPageUrl('AdminPanel')} className="hidden md:block fixed top-4 right-4 z-50">
-          <Button className="bg-amber-500 hover:bg-amber-600 text-white shadow-lg">
+          <Button className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg">
             <Shield className="w-4 h-4 mr-2" />
             Админ удирдлага
           </Button>

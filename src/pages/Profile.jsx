@@ -339,7 +339,7 @@ export default function Profile() {
                 <p className="text-sm text-gray-500 mt-1">Нийт {listings.length} зар</p>
               </div>
               <Link to={createPageUrl('CreateListing')}>
-                <Button className="bg-amber-500 hover:bg-amber-600">
+                <Button className="bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Зар нэмэх
                 </Button>
@@ -471,7 +471,7 @@ export default function Profile() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Зар байхгүй байна</h3>
                 <p className="text-gray-500 mb-6">Анхны зараа нэмж эхэлцгээе</p>
                 <Link to={createPageUrl('CreateListing')}>
-                  <Button className="bg-amber-500 hover:bg-amber-600">
+                  <Button className="bg-amber-600 hover:bg-amber-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Зар нэмэх
                   </Button>

@@ -401,7 +401,7 @@ export default function ListingDetail() {
                 <h3 className="font-semibold text-gray-900 mb-4">Зар удирдах</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <Link to={createPageUrl(`EditListing?id=${listingId}`)}>
-                    <Button className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600">
+                    <Button className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700">
                       <Edit2 className="w-5 h-5 mr-2" />
                       Засах
                     </Button>
@@ -433,7 +433,7 @@ export default function ListingDetail() {
                       }
                       window.location.href = createPageUrl(`Chat?otherUserEmail=${listing.created_by}&listingId=${listing.id}`);
                     }}
-                    className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
+                    className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700"
                   >
                     <Mail className="w-5 h-5 mr-2" />
                     Мессеж илгээх
@@ -458,7 +458,7 @@ export default function ListingDetail() {
                         }
                         setShowPhone(true);
                       }}
-                      className="w-full h-12 rounded-xl bg-amber-500 hover:bg-amber-600"
+                      className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700"
                     >
                       <Phone className="w-5 h-5 mr-2" />
                       Утас харах
@@ -532,7 +532,7 @@ export default function ListingDetail() {
                   }
                   setShowPhone(true);
                 }}
-                className="w-full h-11 rounded-xl bg-amber-500 hover:bg-amber-600"
+                className="w-full h-11 rounded-xl bg-amber-600 hover:bg-amber-700"
               >
                 <Phone className="w-5 h-5 mr-2" />
                 Утас харах

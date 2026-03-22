@@ -58,7 +58,7 @@ export default function WelcomeModal({ isOpen, onClose }) {
 
                 <div className="grid gap-4 mb-8">
                   <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-xl">
-                    <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
                       <Search className="w-5 h-5 text-white" />
                     </div>
                     <div>

@@ -446,7 +446,7 @@ export default function AIBot() {
                     <div
                       className={`rounded-2xl px-4 py-3 ${
                         isUser
-                          ? 'bg-amber-500 text-white'
+                          ? 'bg-amber-600 text-white'
                           : 'bg-white border border-amber-200 text-gray-900'
                       }`}
                     >
@@ -459,7 +459,7 @@ export default function AIBot() {
                     )}
                   </div>
                   {isUser && (
-                    <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-amber-600 flex items-center justify-center flex-shrink-0">
                       <User className="h-6 w-6 text-white" />
                     </div>
                   )}
@@ -490,7 +490,7 @@ export default function AIBot() {
           <Button
             type="submit"
             disabled={!message.trim() || isSending || !conversationId || limitExceeded}
-            className="bg-amber-500 hover:bg-amber-600 text-white px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-amber-600 hover:bg-amber-700 text-white px-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -564,7 +564,7 @@ export default function AIBot() {
                 setShowLimitDialog(false);
                 window.location.href = '/Home';
               }}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
             >
               Нүүр хуудас руу буцах
             </Button>
