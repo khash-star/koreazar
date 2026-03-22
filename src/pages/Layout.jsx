@@ -43,6 +43,18 @@ export default function Layout({ children, currentPageName }) {
 
   const savedCount = savedListings.length;
 
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+
+  // Get pending listings count for admin (шинэ зарын хүсэлт)
+  const { data: pendingListings = [] } = useQuery({
+    queryKey: ['pending-count'],
+    queryFn: () => entities.Listing.filter({ status: 'pending' }),
+    enabled: isAdmin,
+    refetchInterval: 5000,
+    retry: false
+  });
+  const pendingCount = pendingListings.length;
+
   // Get unread message count
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unreadMessages', userData?.email || user?.email],
@@ -181,11 +193,16 @@ export default function Layout({ children, currentPageName }) {
                 to={createPageUrl('AdminPanel')}
                 aria-label="Админ удирдлага"
                 aria-current={currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
+                className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
                   currentPageName === 'AdminPanel' || currentPageName === 'AdminNewListings' || currentPageName === 'AdminAllListings' ? 'text-amber-600' : 'text-gray-700'
                 }`}
               >
                 <Shield className="w-5 h-5" aria-hidden />
+                {pendingCount > 0 && (
+                  <span className="absolute -top-0.5 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {pendingCount > 9 ? '9+' : pendingCount}
+                  </span>
+                )}
                 <span className="text-[10px] leading-tight font-medium">Админ</span>
               </Link>
             )}
