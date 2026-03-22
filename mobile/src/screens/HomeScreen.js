@@ -190,6 +190,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <FlatList
+      key="list-2col"
       scrollEventThrottle={16}
       data={displayedListings}
       keyExtractor={(item) => item.id}
