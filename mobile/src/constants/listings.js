@@ -124,9 +124,6 @@ export const subcategoryConfig = {
     { value: 'phone_sell', label: 'Гар утас зарна' },
     { value: 'number_sell', label: 'Дугаар зарна' },
     { value: 'sim_card', label: 'Сим карт' },
-    { value: 'event', label: 'Арга хэмжээ/Уулзалт' },
-    { value: 'announcement', label: 'Мэдээлэл' },
-    { value: 'looking_for', label: 'Хайж байна' },
     { value: 'other', label: 'Бусад' },
   ],
   free: [
