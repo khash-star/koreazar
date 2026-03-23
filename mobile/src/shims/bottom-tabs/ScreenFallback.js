@@ -13,6 +13,26 @@ try {
 } catch (e) {
   // Ignore
 }
+
+/** RN 0.76+: pointerEvents must be in style, not as a View prop (avoids deprecation warning). */
+function viewPropsWithoutLegacyPointerEvents(rest) {
+  if (!rest || typeof rest !== "object") return rest;
+  const { pointerEvents, style, ...other } = rest;
+  if (!Object.prototype.hasOwnProperty.call(rest, "pointerEvents")) {
+    return rest;
+  }
+  const peStyle = { pointerEvents };
+  let nextStyle = style;
+  if (style == null) {
+    nextStyle = peStyle;
+  } else if (Array.isArray(style)) {
+    nextStyle = [...style, peStyle];
+  } else {
+    nextStyle = [style, peStyle];
+  }
+  return { ...other, style: nextStyle };
+}
+
 export const MaybeScreenContainer = ({ enabled, ...rest }) => {
   if (Screens?.screensEnabled?.()) {
     return /*#__PURE__*/ _jsx(Screens.ScreenContainer, {
@@ -20,9 +40,7 @@ export const MaybeScreenContainer = ({ enabled, ...rest }) => {
       ...rest,
     });
   }
-  return /*#__PURE__*/ _jsx(View, {
-    ...rest,
-  });
+  return /*#__PURE__*/ _jsx(View, viewPropsWithoutLegacyPointerEvents(rest));
 };
 export function MaybeScreen({ enabled, active, ...rest }) {
   if (Screens?.screensEnabled?.()) {
@@ -32,7 +50,5 @@ export function MaybeScreen({ enabled, active, ...rest }) {
       ...rest,
     });
   }
-  return /*#__PURE__*/ _jsx(View, {
-    ...rest,
-  });
+  return /*#__PURE__*/ _jsx(View, viewPropsWithoutLegacyPointerEvents(rest));
 }

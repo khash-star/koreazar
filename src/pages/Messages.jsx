@@ -245,13 +245,17 @@ export default function Messages() {
                 >
                   <div className="flex gap-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                      {conv.otherUser.full_name?.[0]?.toUpperCase() || '?'}
+                      {(adminEmail && conv.otherUser.email === adminEmail
+                        ? 'А'
+                        : conv.otherUser.full_name?.[0] || '?').toUpperCase()}
                     </div>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <h3 className="font-semibold text-gray-900 truncate">
-                          {conv.otherUser.displayName || conv.otherUser.email}
+                          {adminEmail && conv.otherUser.email === adminEmail
+                            ? 'АДМИН'
+                            : (conv.otherUser.displayName || conv.otherUser.email)}
                         </h3>
                         {(conv.last_message_time || conv.last_message_date) && (
                           <span className="text-xs text-gray-500 flex-shrink-0 ml-2">

@@ -263,12 +263,16 @@ export default function Chat() {
               />
             ) : (
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-                {otherUser?.displayName?.[0]?.toUpperCase() || otherUser?.full_name?.[0]?.toUpperCase() || '?'}
+                {(adminEmail && otherUser?.email === adminEmail
+                  ? 'А'
+                  : otherUser?.displayName?.[0] || otherUser?.full_name?.[0] || '?').toUpperCase()}
               </div>
             )}
             <div>
               <h2 className="font-semibold text-gray-900">
-                {otherUser?.displayName || otherUser?.full_name || otherUser?.email || 'Уншиж байна...'}
+                {adminEmail && otherUser?.email === adminEmail
+                  ? 'АДМИН'
+                  : (otherUser?.displayName || otherUser?.full_name || otherUser?.email || 'Уншиж байна...')}
               </h2>
               {listing && (
                 <p className="text-xs text-gray-500">
