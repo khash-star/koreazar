@@ -15,6 +15,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
+import { getListingAutoApprove } from "../services/appConfigService.js";
 import { createListing } from "../services/listingService.js";
 import { uploadImageFromUri } from "../services/storageService.js";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
@@ -29,31 +30,36 @@ import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHel
 import { showAlert } from "../utils/showAlert.js";
 
 export default function CreateListingScreen({ navigation }) {
-  const { email, isAuthenticated, userData } = useAuth();
+  const { email, isAuthenticated, userData, user } = useAuth();
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
+  const lockedPhone = (userData?.phone || user?.phoneNumber || "").trim();
+  const createInitialForm = useCallback(
+    () => ({
+      title: "",
+      description: "",
+      category: "",
+      subcategory: "",
+      condition: "used",
+      price: "",
+      is_negotiable: true,
+      location: "",
+      phone: lockedPhone,
+      kakao_id: "",
+      wechat_id: "",
+      whatsapp: "",
+    }),
+    [lockedPhone]
+  );
 
   useEffect(() => {
-    if (userData?.phone) {
-      setForm((f) => ({ ...f, phone: userData.phone || f.phone }));
+    if (lockedPhone) {
+      setForm((f) => ({ ...f, phone: lockedPhone }));
     }
-  }, [userData?.phone]);
+  }, [lockedPhone]);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    category: "",
-    subcategory: "",
-    condition: "used",
-    price: "",
-    is_negotiable: true,
-    location: "",
-    phone: "",
-    kakao_id: "",
-    wechat_id: "",
-    whatsapp: "",
-  });
+  const [form, setForm] = useState(createInitialForm);
 
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -71,10 +77,13 @@ export default function CreateListingScreen({ navigation }) {
     if (toAdd.length === 0) return;
     setUploading(true);
     try {
-      for (const asset of toAdd) {
-        const { file_url } = await uploadImageFromUri(asset.uri);
-        setImages((prev) => [...prev, { w800: file_url, w640: file_url, w400: file_url, w150: file_url }]);
-      }
+      const uploaded = await Promise.all(
+        toAdd.map(async (asset) => {
+          const { file_url } = await uploadImageFromUri(asset.uri);
+          return { w800: file_url, w640: file_url, w400: file_url, w150: file_url };
+        })
+      );
+      setImages((prev) => [...prev, ...uploaded]);
     } catch (e) {
       showAlert("Алдаа", e?.message || "Зураг upload амжилтгүй");
     } finally {
@@ -116,16 +125,22 @@ export default function CreateListingScreen({ navigation }) {
     submittingRef.current = true;
     setLoading(true);
     try {
+      const autoApprove = await getListingAutoApprove();
       const submitData = {
         ...form,
         price: priceNum,
         images,
-        status: "pending",
+        status: autoApprove ? "active" : "pending",
       };
       const created = await createListing(submitData);
+      // Keep Create tab clean after successful submit.
+      setImages([]);
+      setForm(createInitialForm());
       showAlert(
         "Амжилттай",
-        "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
+        autoApprove
+          ? "Зар илгээгдлээ. Нүүр хуудсан дээр харагдана."
+          : "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
         [{ text: "OK", onPress: () => navigateToListingDetail(navigation, created.id) }]
       );
     } catch (e) {
@@ -215,8 +230,12 @@ export default function CreateListingScreen({ navigation }) {
                 key={key}
                 style={[styles.chip, form.category === key && styles.chipActive]}
                 onPress={() => {
-                  update("category", key);
-                  if (key === "free") update("price", "");
+                  setForm((prev) => ({
+                    ...prev,
+                    category: key,
+                    subcategory: "",
+                    price: key === "free" ? "" : prev.price,
+                  }));
                 }}
               >
                 <Text style={styles.chipIcon}>{info.icon}</Text>
@@ -299,15 +318,15 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.label}>Холбоо барих</Text>
           <TextInput
-            style={[styles.input, userData?.phone && styles.inputDisabled]}
+            style={[styles.input, lockedPhone && styles.inputDisabled]}
             value={form.phone}
             onChangeText={(v) => update("phone", v)}
             placeholder="Утас"
             placeholderTextColor="#9ca3af"
             keyboardType="phone-pad"
-            editable={!userData?.phone}
+            editable={!lockedPhone}
           />
-          {userData?.phone ? (
+          {lockedPhone ? (
             <Text style={styles.inputHint}>Профайл дээрх дугаар ашиглагдана</Text>
           ) : null}
           <TextInput

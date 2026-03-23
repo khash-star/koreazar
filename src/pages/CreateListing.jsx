@@ -25,6 +25,7 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { getListingAutoApprove } from '@/services/appConfigService';
 import { toast } from '@/components/ui/use-toast';
 
 import { locations, conditionOptions } from '@/constants/listings';
@@ -89,10 +90,16 @@ export default function CreateListing() {
     mutationFn: async (data) => {
       return entities.Listing.create(data);
     },
-    onSuccess: () => {
-      toast({ title: 'Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.', variant: 'default' });
+    onSuccess: (_, variables) => {
+      const isActive = variables.status === 'active';
+      toast({
+        title: isActive
+          ? 'Зар амжилттай илгээгдлээ! Нүүр хуудсан дээр харагдана.'
+          : 'Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.',
+        variant: 'default',
+      });
       navigate(createPageUrl('Home'));
-    }
+    },
   });
 
   const handleImageUpload = async (e) => {
@@ -148,15 +155,16 @@ export default function CreateListing() {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    const autoApprove = await getListingAutoApprove().catch(() => false);
     const submitData = {
       ...formData,
       price: formData.category === 'free' ? 0 : Number(formData.price) || 0,
       images,
-      status: 'pending',
-      views: 0
+      status: autoApprove ? 'active' : 'pending',
+      views: 0,
     };
 
     // Convert numeric fields
@@ -167,13 +175,18 @@ export default function CreateListing() {
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
     // Remove empty category-specific fields
-    Object.keys(submitData).forEach(key => {
-      if ((key.startsWith('vehicle_') || key.startsWith('electronics_') || 
-           key.startsWith('realestate_') || key.startsWith('job_')) && !submitData[key]) {
+    Object.keys(submitData).forEach((key) => {
+      if (
+        (key.startsWith('vehicle_') ||
+          key.startsWith('electronics_') ||
+          key.startsWith('realestate_') ||
+          key.startsWith('job_')) &&
+        !submitData[key]
+      ) {
         delete submitData[key];
       }
     });
-    
+
     createMutation.mutate(submitData);
   };
 

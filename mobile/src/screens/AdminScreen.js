@@ -15,6 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import {
+  getListingAutoApprove,
+  setListingAutoApprove,
+} from "../services/appConfigService";
+import {
   deleteListing,
   getPendingListings,
   updateListing,
@@ -35,14 +39,20 @@ export default function AdminScreen({ navigation }) {
   const [autoApprove, setAutoApprove] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(AUTO_APPROVE_KEY).then((v) =>
-      setAutoApprove(v === "true")
-    );
+    getListingAutoApprove()
+      .then((v) => setAutoApprove(v))
+      .catch(() => {
+        AsyncStorage.getItem(AUTO_APPROVE_KEY).then((s) =>
+          setAutoApprove(s === "true")
+        );
+      });
   }, []);
 
-  useEffect(() => {
-    AsyncStorage.setItem(AUTO_APPROVE_KEY, String(autoApprove));
-  }, [autoApprove]);
+  const handleAutoApproveChange = useCallback((value) => {
+    setAutoApprove(value);
+    AsyncStorage.setItem(AUTO_APPROVE_KEY, String(value));
+    setListingAutoApprove(value).catch(() => {});
+  }, []);
 
   const load = useCallback(
     async (isRefresh) => {
@@ -194,7 +204,7 @@ export default function AdminScreen({ navigation }) {
             <Text style={styles.autoApproveLabel}>Автоматаар зөвшөөрөх</Text>
             <Switch
               value={autoApprove}
-              onValueChange={setAutoApprove}
+              onValueChange={handleAutoApproveChange}
               trackColor={{ false: "#d1d5db", true: "#22c55e" }}
               thumbColor="#fff"
             />

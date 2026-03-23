@@ -26,6 +26,7 @@ import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { getListingAutoApprove, setListingAutoApprove } from '@/services/appConfigService';
 
 const AUTO_APPROVE_KEY = 'admin_auto_approve_listings';
 
@@ -35,13 +36,31 @@ export default function AdminNewListings() {
   const [deleteId, setDeleteId] = useState(null);
   const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
   const [checkingListingId, setCheckingListingId] = useState(null);
-  const [autoApprove, setAutoApprove] = useState(() => {
+  const [autoApprove, setAutoApproveState] = useState(() => {
     try {
       return localStorage.getItem(AUTO_APPROVE_KEY) === 'true';
     } catch {
       return false;
     }
   });
+  const [autoApproveLoaded, setAutoApproveLoaded] = useState(false);
+
+  useEffect(() => {
+    getListingAutoApprove()
+      .then((v) => {
+        setAutoApproveState(v);
+        setAutoApproveLoaded(true);
+      })
+      .catch(() => setAutoApproveLoaded(true));
+  }, []);
+
+  const setAutoApprove = (value) => {
+    setAutoApproveState(value);
+    try {
+      localStorage.setItem(AUTO_APPROVE_KEY, String(value));
+    } catch { /* ignore */ }
+    setListingAutoApprove(value).catch(() => {});
+  };
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
@@ -49,13 +68,6 @@ export default function AdminNewListings() {
     refetchInterval: autoApprove ? 10000 : false,
   });
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(AUTO_APPROVE_KEY, String(autoApprove));
-    } catch {
-      /* ignore */
-    }
-  }, [autoApprove]);
 
 
   const deleteMutation = useMutation({

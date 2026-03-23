@@ -104,6 +104,12 @@ service cloud.firestore {
         request.resource.data.user_email == request.auth.token.email;
     }
     
+    // App config (e.g. listingAutoApprove) - read by any auth, write by admin only
+    match /config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
     // AI Usage Tracking
     match /ai_usage/{usageId} {
       // Allow read if document exists and user owns it or is admin
