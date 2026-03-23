@@ -663,9 +663,13 @@ export default function CreateListing() {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="010-1234-5678"
-                className="mt-2 h-11 rounded-lg"
+                className={`mt-2 h-11 rounded-lg ${userData?.phone ? 'bg-gray-100 cursor-not-allowed opacity-90' : ''}`}
+                readOnly={!!userData?.phone}
                 required
               />
+              {userData?.phone && (
+                <p className="text-xs text-gray-500 mt-1">Профайл дээрх дугаар ашиглагдана</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

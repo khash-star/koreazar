@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -29,9 +29,15 @@ import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHel
 import { showAlert } from "../utils/showAlert.js";
 
 export default function CreateListingScreen({ navigation }) {
-  const { email, isAuthenticated } = useAuth();
+  const { email, isAuthenticated, userData } = useAuth();
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (userData?.phone) {
+      setForm((f) => ({ ...f, phone: userData.phone || f.phone }));
+    }
+  }, [userData?.phone]);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
   const [form, setForm] = useState({
@@ -293,13 +299,17 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.label}>Холбоо барих</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, userData?.phone && styles.inputDisabled]}
             value={form.phone}
             onChangeText={(v) => update("phone", v)}
             placeholder="Утас"
             placeholderTextColor="#9ca3af"
             keyboardType="phone-pad"
+            editable={!userData?.phone}
           />
+          {userData?.phone ? (
+            <Text style={styles.inputHint}>Профайл дээрх дугаар ашиглагдана</Text>
+          ) : null}
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
             value={form.kakao_id}
@@ -372,6 +382,8 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 14, fontWeight: "700", color: "#374151", marginBottom: 8 },
   input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, backgroundColor: "#f9fafb" },
+  inputDisabled: { backgroundColor: "#f3f4f6", opacity: 0.9 },
+  inputHint: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
   textArea: { minHeight: 100, textAlignVertical: "top" },
   imageRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   imgWrap: { position: "relative", width: 80, height: 80, borderRadius: 10, overflow: "hidden" },
