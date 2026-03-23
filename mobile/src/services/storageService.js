@@ -1,14 +1,15 @@
 /**
  * Firebase Storage upload (expo-image-picker URI).
  *
- * Web: fetch → Blob → uploadBytes() (ажиллана).
- * Native: Firebase JS SDK (uploadBytes/Blob) нь storage/unknown өгдөг тул REST API uploadType=media
- * ашиглана — raw bytes, Blob шаардлагагүй.
+ * Web: fetch → Blob → uploadBytes().
+ * Native: REST `uploadType=media` (raw bytes) — JS SDK multipart/Blob-оос зайлсхийх.
+ * Bucket ID нь EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET-тай яг адил байх ёстой (2024+ ихэвчлэн `*.firebasestorage.app`).
  */
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage, auth } from "../config/firebase";
+import { SDK_VERSION } from "firebase/app";
+import { storage, auth, getStorageBucketId } from "../config/firebase";
 
 const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
 
@@ -42,49 +43,58 @@ async function blobFromPickerUri(uri, ext, timestamp) {
 }
 
 /**
- * Native-only: Firebase Storage REST API uploadType=media (raw bytes, no Blob).
+ * Native: Firebase Storage REST — bucket нь env-тэй нэг (шинэ default: *.firebasestorage.app).
  */
 async function uploadViaRestApi(storageRef, bytes, contentType) {
   const user = auth.currentUser;
   if (!user) throw new Error("Нэвтэрсний дараа зураг оруулна уу.");
 
-  const token = await user.getIdToken();
-  const bucket = storageRef.bucket;
-  const path = encodeURIComponent(storageRef.fullPath);
-  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?name=${path}&uploadType=media`;
+  const bucket = getStorageBucketId();
+  if (!bucket) {
+    throw new Error("EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET тохируулаагүй байна.");
+  }
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-    xhr.setRequestHeader("Authorization", `Firebase ${token}`);
-    xhr.setRequestHeader("Content-Type", contentType);
-    xhr.responseType = "text";
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) return resolve();
-      let msg = `Upload алдаа (${xhr.status})`;
-      try {
-        const j = JSON.parse(xhr.responseText || "{}");
-        if (j?.error?.message) msg = j.error.message;
-      } catch {
-        /* ignore */
-      }
-      reject(new Error(msg));
-    };
-    xhr.onerror = () => reject(new Error("Сүлжээний алдаа (upload)."));
-    xhr.send(bytes);
+  const token = await user.getIdToken();
+  const objectPath = storageRef.fullPath;
+  const nameParam = encodeURIComponent(objectPath);
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?name=${nameParam}&uploadType=media`;
+
+  const appId = storage.app?.options?.appId;
+  const headers = {
+    Authorization: `Firebase ${token}`,
+    "Content-Type": contentType,
+    "X-Firebase-Storage-Version": `webjs/${SDK_VERSION}`,
+  };
+  if (appId) headers["X-Firebase-GMPID"] = appId;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: bytes,
   });
+
+  if (res.ok) return;
+
+  let msg = `Upload алдаа (${res.status})`;
+  try {
+    const text = await res.text();
+    const j = JSON.parse(text || "{}");
+    if (j?.error?.message) msg = j.error.message;
+  } catch {
+    /* ignore */
+  }
+  if (res.status === 404) {
+    msg += `\n\nBucket "${bucket}" олдсонгүй. Firebase Console → Storage дээрх bucket (ихэвчлэн PROJECT_ID.firebasestorage.app) болон EAS дээрх EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET яг ижил эсэхийг шалгана уу.`;
+  }
+  throw new Error(msg);
 }
 
 function assertStorageConfig() {
-  const bucket = storage?.app?.options?.storageBucket || "";
-  if (!bucket || typeof bucket !== "string") {
+  if (!getStorageBucketId()) {
     throw new Error("Firebase Storage bucket тохируулагдаагүй (EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).");
   }
 }
 
-/**
- * Native: file → base64 → Uint8Array → REST API (Blob ашиглахгүй).
- */
 async function uploadNative(storageRef, uri, ext, timestamp, contentType) {
   let readUri = uri;
   if (uri.startsWith("content://")) {

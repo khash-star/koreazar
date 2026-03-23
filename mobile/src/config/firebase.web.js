@@ -25,4 +25,10 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+/** REST URL / SDK-д ижил bucket ID. */
+export function getStorageBucketId() {
+  const b = firebaseConfig.storageBucket || "";
+  return b.replace(/^gs:\/\//, "").trim();
+}
+
 export default app;

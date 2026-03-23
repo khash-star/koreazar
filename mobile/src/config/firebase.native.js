@@ -49,4 +49,10 @@ function toGsBucketUrl(bucket) {
 const gsBucket = toGsBucketUrl(firebaseConfig.storageBucket);
 export const storage = gsBucket ? getStorage(app, gsBucket) : getStorage(app);
 
+/** REST URL / SDK-д ижил bucket ID (2024+ ихэвчлэн `PROJECT_ID.firebasestorage.app`). */
+export function getStorageBucketId() {
+  const b = firebaseConfig.storageBucket || "";
+  return b.replace(/^gs:\/\//, "").trim();
+}
+
 export default app;
