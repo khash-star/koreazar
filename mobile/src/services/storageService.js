@@ -1,17 +1,16 @@
 /**
  * Firebase Storage upload (expo-image-picker URI).
  *
- * Web + Native: fetch(localUri) → Blob → uploadBytes()
- * (uploadString/base64-г Firebase web SDK native дээр ашиглахгүй — multipart + RN Blob хязгаарлалт.)
- *
- * Native: content:// эхлэлийг эхлээд file:// cache руу хуулна (fetch зөв ажиллахын тулд).
+ * Web: fetch → Blob → uploadBytes() (ажиллана).
+ * Native: Firebase JS SDK (uploadBytes/Blob) нь storage/unknown өгдөг тул REST API uploadType=media
+ * ашиглана — raw bytes, Blob шаардлагагүй.
  */
 import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../config/firebase";
+import { storage, auth } from "../config/firebase";
 
-const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB safety limit
+const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
 
 function contentTypeForExtension(ext) {
   const e = (ext || "jpg").toLowerCase().replace(/^\./, "");
@@ -22,9 +21,14 @@ function contentTypeForExtension(ext) {
   return "image/jpeg";
 }
 
-/**
- * URI-аас Blob (RN / web хоёуланд fetch(file://) ажиллана).
- */
+function base64ToUint8Array(b64) {
+  const binary = typeof atob !== "undefined" ? atob(b64) : "";
+  const len = binary.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 async function blobFromPickerUri(uri, ext, timestamp) {
   let readUri = uri;
   if (Platform.OS !== "web" && uri.startsWith("content://")) {
@@ -33,88 +37,73 @@ async function blobFromPickerUri(uri, ext, timestamp) {
     readUri = cached;
   }
   const response = await fetch(readUri);
-  if (!response.ok) {
-    throw new Error("Зураг уншихад алдаа гарлаа.");
-  }
+  if (!response.ok) throw new Error("Зураг уншихад алдаа гарлаа.");
   return response.blob();
 }
 
-function getFirebaseErrorMessage(error) {
-  const code = error?.code || "";
-  const serverResponse = error?.customData?.serverResponse || "";
-  if (serverResponse) {
-    try {
-      const parsed = JSON.parse(serverResponse);
-      const serverMsg = parsed?.error?.message;
-      if (serverMsg) {
-        return `${error?.message || "Upload failed"}\n${serverMsg}`;
+/**
+ * Native-only: Firebase Storage REST API uploadType=media (raw bytes, no Blob).
+ */
+async function uploadViaRestApi(storageRef, bytes, contentType) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Нэвтэрсний дараа зураг оруулна уу.");
+
+  const token = await user.getIdToken();
+  const bucket = storageRef.bucket;
+  const path = encodeURIComponent(storageRef.fullPath);
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?name=${path}&uploadType=media`;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Authorization", `Firebase ${token}`);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.responseType = "text";
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let msg = `Upload алдаа (${xhr.status})`;
+      try {
+        const j = JSON.parse(xhr.responseText || "{}");
+        if (j?.error?.message) msg = j.error.message;
+      } catch {
+        /* ignore */
       }
-    } catch {
-      // ignore parse error and show raw response below
-    }
-  }
-  if (serverResponse) {
-    return `${error?.message || "Upload failed"}\n${serverResponse}`;
-  }
-  if (code === "storage/unauthorized") {
-    return "Зураг upload хийх эрхгүй байна (Storage Rules/auth).";
-  }
-  if (code === "storage/canceled") {
-    return "Зураг upload цуцлагдсан.";
-  }
-  if (code === "storage/unknown") {
-    return "Firebase Storage unknown алдаа гарлаа. Bucket/Rules/Auth тохиргоог шалгана уу.";
-  }
-  return error?.message || "Зураг upload хийхэд алдаа гарлаа.";
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error("Сүлжээний алдаа (upload)."));
+    xhr.send(bytes);
+  });
 }
 
 function assertStorageConfig() {
   const bucket = storage?.app?.options?.storageBucket || "";
   if (!bucket || typeof bucket !== "string") {
-    throw new Error("Firebase Storage bucket тохируулагдаагүй байна (EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).");
-  }
-}
-
-async function uploadNativeWithFallback(storageRef, uri, ext, timestamp, contentType) {
-  // 1) Preferred: local file uri -> blob
-  try {
-    const blob = await blobFromPickerUri(uri, ext, timestamp);
-    if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
-      throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
-    }
-    await uploadBytes(storageRef, blob, { contentType: blob.type || contentType });
-    return;
-  } catch (firstErr) {
-    // 2) Fallback: file -> base64 -> data URL -> blob (avoids unstable file:// fetch on some iOS builds)
-    try {
-      let readUri = uri;
-      if (uri.startsWith("content://")) {
-        const cached = `${FileSystem.cacheDirectory}upload_retry_${timestamp}.${ext}`;
-        await FileSystem.copyAsync({ from: uri, to: cached });
-        readUri = cached;
-      }
-      const base64 = await FileSystem.readAsStringAsync(readUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const dataUrl = `data:${contentType};base64,${base64}`;
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
-        throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
-      }
-      await uploadBytes(storageRef, blob, { contentType: blob.type || contentType });
-      return;
-    } catch (secondErr) {
-      const primary = secondErr?.code ? secondErr : firstErr;
-      throw new Error(getFirebaseErrorMessage(primary));
-    }
+    throw new Error("Firebase Storage bucket тохируулагдаагүй (EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).");
   }
 }
 
 /**
+ * Native: file → base64 → Uint8Array → REST API (Blob ашиглахгүй).
+ */
+async function uploadNative(storageRef, uri, ext, timestamp, contentType) {
+  let readUri = uri;
+  if (uri.startsWith("content://")) {
+    const cached = `${FileSystem.cacheDirectory}upload_${timestamp}.${ext}`;
+    await FileSystem.copyAsync({ from: uri, to: cached });
+    readUri = cached;
+  }
+  const base64 = await FileSystem.readAsStringAsync(readUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  const bytes = base64ToUint8Array(base64);
+  if (bytes.length > MAX_IMAGE_UPLOAD_BYTES) {
+    throw new Error("Зураг хэт том. 15MB-аас бага сонгоно уу.");
+  }
+  await uploadViaRestApi(storageRef, bytes, contentType);
+}
+
+/**
  * Upload image from local URI (expo-image-picker result).
- * @param {string} uri - blob: (web), file:// or content:// (native)
- * @returns {Promise<{file_url: string}>}
  */
 export async function uploadImageFromUri(uri) {
   assertStorageConfig();
@@ -128,12 +117,12 @@ export async function uploadImageFromUri(uri) {
   if (Platform.OS === "web") {
     const blob = await blobFromPickerUri(uri, ext, timestamp);
     if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
-      throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
+      throw new Error("Зураг хэт том. 15MB-аас бага сонгоно уу.");
     }
     const contentType = blob.type || fallbackType;
     await uploadBytes(storageRef, blob, { contentType });
   } else {
-    await uploadNativeWithFallback(storageRef, uri, ext, timestamp, fallbackType);
+    await uploadNative(storageRef, uri, ext, timestamp, fallbackType);
   }
 
   const downloadURL = await getDownloadURL(storageRef);
