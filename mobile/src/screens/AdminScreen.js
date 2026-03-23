@@ -1,10 +1,12 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -22,6 +24,7 @@ import { navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
 
 const IMG_H = 100;
+const AUTO_APPROVE_KEY = "admin_auto_approve_listings";
 
 export default function AdminScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
@@ -29,26 +32,69 @@ export default function AdminScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
   const [actioningId, setActioningId] = useState(null);
+  const [autoApprove, setAutoApprove] = useState(false);
 
-  const load = useCallback(async (isRefresh) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      const data = await getPendingListings();
-      setRows(data);
-    } catch (e) {
-      showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  useEffect(() => {
+    AsyncStorage.getItem(AUTO_APPROVE_KEY).then((v) =>
+      setAutoApprove(v === "true")
+    );
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(AUTO_APPROVE_KEY, String(autoApprove));
+  }, [autoApprove]);
+
+  const load = useCallback(
+    async (isRefresh) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+        const data = await getPendingListings();
+        setRows(data);
+        if (autoApprove && data.length > 0) {
+          for (const item of data) {
+            try {
+              await updateListing(item.id, { status: "active" });
+            } catch {
+              /* skip on error */
+            }
+          }
+          setRows([]);
+        }
+      } catch (e) {
+        showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [autoApprove]
+  );
 
   useFocusEffect(
     useCallback(() => {
       load(false);
-    }, [load])
+      if (!autoApprove) return;
+      const t = setInterval(() => load(true), 15000);
+      return () => clearInterval(t);
+    }, [load, autoApprove])
   );
+
+  useEffect(() => {
+    if (autoApprove && rows.length > 0) {
+      const approveAll = async () => {
+        for (const item of rows) {
+          try {
+            await updateListing(item.id, { status: "active" });
+          } catch {
+            /* skip */
+          }
+        }
+        setRows([]);
+      };
+      approveAll();
+    }
+  }, [autoApprove]);
 
   const handleApprove = useCallback(
     async (item) => {
@@ -143,14 +189,25 @@ export default function AdminScreen({ navigation }) {
         />
       }
       ListHeaderComponent={
-        rows.length > 0 ? (
-          <View style={styles.header}>
-            <Ionicons name="shield" size={24} color="#ea580c" />
-            <Text style={styles.headerText}>
-              {rows.length} батлах хүлээгдэж буй зар
-            </Text>
+        <View style={styles.headerWrap}>
+          <View style={styles.autoApproveRow}>
+            <Text style={styles.autoApproveLabel}>Автоматаар зөвшөөрөх</Text>
+            <Switch
+              value={autoApprove}
+              onValueChange={setAutoApprove}
+              trackColor={{ false: "#d1d5db", true: "#22c55e" }}
+              thumbColor="#fff"
+            />
           </View>
-        ) : null
+          {rows.length > 0 ? (
+            <View style={styles.header}>
+              <Ionicons name="shield" size={24} color="#ea580c" />
+              <Text style={styles.headerText}>
+                {rows.length} батлах хүлээгдэж буй зар
+              </Text>
+            </View>
+          ) : null}
+        </View>
       }
       ListEmptyComponent={
         <View style={styles.empty}>
@@ -229,11 +286,24 @@ export default function AdminScreen({ navigation }) {
 const styles = StyleSheet.create({
   list: { padding: 16 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  headerWrap: { marginBottom: 16 },
+  autoApproveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fef3c7",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  autoApproveLabel: { fontSize: 15, fontWeight: "600", color: "#92400e" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 16,
     paddingHorizontal: 4,
   },
   headerText: { fontSize: 15, fontWeight: "600", color: "#374151" },

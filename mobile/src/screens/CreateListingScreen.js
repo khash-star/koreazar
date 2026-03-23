@@ -97,8 +97,9 @@ export default function CreateListingScreen({ navigation }) {
       showAlert("Алдаа", "Ангилал сонгоно уу.");
       return;
     }
-    const priceNum = Number(form.price?.replace(/\D/g, "")) || 0;
-    if (priceNum <= 0) {
+    const isFreeCategory = form.category === "free";
+    const priceNum = isFreeCategory ? 0 : Number(form.price?.replace(/\D/g, "")) || 0;
+    if (!isFreeCategory && priceNum <= 0) {
       showAlert("Алдаа", "Үнэ оруулна уу (₩).");
       return;
     }
@@ -207,7 +208,10 @@ export default function CreateListingScreen({ navigation }) {
               <Pressable
                 key={key}
                 style={[styles.chip, form.category === key && styles.chipActive]}
-                onPress={() => update("category", key)}
+                onPress={() => {
+                  update("category", key);
+                  if (key === "free") update("price", "");
+                }}
               >
                 <Text style={styles.chipIcon}>{info.icon}</Text>
                 <Text style={[styles.chipText, form.category === key && styles.chipTextActive]}>{info.name}</Text>
@@ -250,22 +254,24 @@ export default function CreateListingScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Price */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Үнэ (₩) *</Text>
-          <TextInput
-            style={styles.input}
-            value={form.price}
-            onChangeText={(v) => update("price", v.replace(/[^0-9]/g, ""))}
-            placeholder="0"
-            placeholderTextColor="#9ca3af"
-            keyboardType="numeric"
-          />
-          <View style={styles.negotiableRow}>
-            <Text style={styles.negotiableLabel}>Үнэ тохирно</Text>
-            <Switch value={form.is_negotiable} onValueChange={(v) => update("is_negotiable", v)} trackColor={{ false: "#d1d5db", true: "#fed7aa" }} thumbColor="#ea580c" />
+        {/* Price - hidden for free category */}
+        {form.category !== "free" && (
+          <View style={styles.section}>
+            <Text style={styles.label}>Үнэ (₩) *</Text>
+            <TextInput
+              style={styles.input}
+              value={form.price}
+              onChangeText={(v) => update("price", v.replace(/[^0-9]/g, ""))}
+              placeholder="0"
+              placeholderTextColor="#9ca3af"
+              keyboardType="numeric"
+            />
+            <View style={styles.negotiableRow}>
+              <Text style={styles.negotiableLabel}>Үнэ тохирно</Text>
+              <Switch value={form.is_negotiable} onValueChange={(v) => update("is_negotiable", v)} trackColor={{ false: "#d1d5db", true: "#fed7aa" }} thumbColor="#ea580c" />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Location */}
         <View style={styles.section}>

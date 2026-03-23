@@ -183,7 +183,7 @@ export default function EditListing() {
     
     const submitData = {
       ...formData,
-      price: Number(formData.price) || 0,
+      price: formData.category === 'free' ? 0 : Number(formData.price) || 0,
       images
     };
 
@@ -350,7 +350,14 @@ export default function EditListing() {
                   <Label className="text-base font-semibold">Ангилал *</Label>
                   <Select
                     value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value, subcategory: '' })}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        category: value,
+                        subcategory: '',
+                        ...(value === 'free' ? { price: '' } : {}),
+                      })
+                    }
                     required
                   >
                     <SelectTrigger className="mt-2 h-12 rounded-xl">
@@ -629,29 +636,33 @@ export default function EditListing() {
             transition={{ delay: 0.2 }}
             className="bg-white rounded-2xl p-6 shadow-sm space-y-5"
           >
-            <div>
-              <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
-              <Input
-                id="price"
-                type="number"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                placeholder="0"
-                className="mt-2 h-12 rounded-xl text-lg"
-                required
-              />
-            </div>
+            {formData.category !== 'free' && (
+              <>
+                <div>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    placeholder="0"
+                    className="mt-2 h-12 rounded-xl text-lg"
+                    required
+                  />
+                </div>
 
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <Label className="text-base font-semibold">Үнэ тохирно</Label>
-                <p className="text-sm text-gray-500">Үнийн хэлэлцээ хийх боломжтой</p>
-              </div>
-              <Switch
-                checked={formData.is_negotiable}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_negotiable: checked })}
-              />
-            </div>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <Label className="text-base font-semibold">Үнэ тохирно</Label>
+                    <p className="text-sm text-gray-500">Үнийн хэлэлцээ хийх боломжтой</p>
+                  </div>
+                  <Switch
+                    checked={formData.is_negotiable}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_negotiable: checked })}
+                  />
+                </div>
+              </>
+            )}
 
             <div>
               <Label className="text-base font-semibold">Байршил</Label>

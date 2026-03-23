@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -24,6 +24,10 @@ import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+
+const AUTO_APPROVE_KEY = 'admin_auto_approve_listings';
 
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
@@ -31,11 +35,28 @@ export default function AdminNewListings() {
   const [deleteId, setDeleteId] = useState(null);
   const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
   const [checkingListingId, setCheckingListingId] = useState(null);
+  const [autoApprove, setAutoApprove] = useState(() => {
+    try {
+      return localStorage.getItem(AUTO_APPROVE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
+    refetchInterval: autoApprove ? 10000 : false,
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AUTO_APPROVE_KEY, String(autoApprove));
+    } catch {
+      /* ignore */
+    }
+  }, [autoApprove]);
+
 
   const deleteMutation = useMutation({
     mutationFn: (id) => entities.Listing.delete(id),
@@ -55,6 +76,20 @@ export default function AdminNewListings() {
       queryClient.invalidateQueries(['allListings']);
     },
   });
+
+  const approvedIdsRef = useRef(new Set());
+  useEffect(() => {
+    if (!autoApprove) return;
+    if (listings.length === 0) {
+      approvedIdsRef.current.clear();
+      return;
+    }
+    const toApprove = listings.filter((l) => !approvedIdsRef.current.has(l.id));
+    toApprove.forEach((l) => {
+      approvedIdsRef.current.add(l.id);
+      updateStatusMutation.mutate({ id: l.id, status: 'active' });
+    });
+  }, [autoApprove, listings]);
 
   const handleApprove = (id) => {
     updateStatusMutation.mutate({ id, status: 'active' });
@@ -125,18 +160,31 @@ export default function AdminNewListings() {
               <p className="text-sm text-gray-500">{listings.length} батлах хүлээгдэж буй зар</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleExportCSV}
-              disabled={listings.length === 0}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              CSV экспорт
-            </Button>
-            <Link to={createPageUrl('AdminAllListings')}>
-              <Button variant="outline">Бүх зар үзэх</Button>
-            </Link>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <Switch
+                id="auto-approve"
+                checked={autoApprove}
+                onCheckedChange={setAutoApprove}
+                className="data-[state=checked]:bg-green-600"
+              />
+              <Label htmlFor="auto-approve" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Автоматаар зөвшөөрөх
+              </Label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                disabled={listings.length === 0}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                CSV экспорт
+              </Button>
+              <Link to={createPageUrl('AdminAllListings')}>
+                <Button variant="outline">Бүх зар үзэх</Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
