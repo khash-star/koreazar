@@ -100,7 +100,14 @@ export default function MessagesScreen({ navigation }) {
         return tb - ta;
       });
 
-      setRows(enriched);
+      const seen = new Set();
+      const deduped = enriched.filter((c) => {
+        const k = c.id;
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      setRows(deduped);
     } catch (e) {
       console.warn("MessagesScreen load:", e?.message);
       setRows([]);
@@ -187,7 +194,7 @@ export default function MessagesScreen({ navigation }) {
       <FlatList
         scrollEventThrottle={16}
         data={filteredRows}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item?.id || `msg-${index}`}
         ListHeaderComponent={listHeader}
         refreshControl={
           <RefreshControl
