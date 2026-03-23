@@ -3,7 +3,8 @@
  * Web: fetch(blob:) works. Native: expo-file-system (fetch file:// fails on RN).
  */
 import { Platform } from "react-native";
-import * as FileSystem from "expo-file-system";
+// SDK 55+: legacy API — main "expo-file-system" has no EncodingType; readAsStringAsync throws there.
+import * as FileSystem from "expo-file-system/legacy";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../config/firebase";
 
