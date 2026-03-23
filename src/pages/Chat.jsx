@@ -213,6 +213,9 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       setMessage('');
       toast({ title: 'Мессеж илгээгдлээ', variant: 'default' });
+    },
+    onError: (err) => {
+      toast({ title: 'Алдаа', description: err?.message || 'Мессеж илгээж чадсангүй', variant: 'destructive' });
     }
   });
 
@@ -381,7 +384,7 @@ export default function Chat() {
             />
             <Button
               onClick={handleSend}
-              disabled={!message.trim() || sendMutation.isPending}
+              disabled={!message.trim() || sendMutation.isPending || !otherUser?.email}
               className="h-11 w-11 rounded-xl bg-amber-600 hover:bg-amber-700 flex-shrink-0"
               size="icon"
             >

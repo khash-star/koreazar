@@ -230,7 +230,7 @@ export default function Messages() {
             {filteredConversations.map((conv) => (
               <Link
                 key={conv.id}
-                to={createPageUrl(`Chat?conversationId=${conv.id}`)}
+                to={createPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`)}
               >
                 <motion.div
                   whileHover={{ scale: 1.01 }}

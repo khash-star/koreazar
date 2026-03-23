@@ -239,20 +239,21 @@ export default function AdminPanel() {
               </motion.div>
             </Link>
             
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setShowUserSearch(true)}
-              className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200 cursor-pointer"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600 mb-1">Мессеж</p>
-                  <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Хэрэглэгч: {usersLoading ? '...' : allUsers.length}</p>
+            <Link to={createPageUrl('Messages')}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-200 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Мессеж (хариу бичих)</p>
+                    <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Хэрэглэгч: {usersLoading ? '...' : allUsers.length}</p>
+                  </div>
+                  <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
                 </div>
-                <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
-              </div>
-            </motion.div>
+              </motion.div>
+            </Link>
             
             <motion.div
               whileHover={{ scale: 1.02 }}
@@ -503,6 +504,31 @@ export default function AdminPanel() {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-sm text-gray-600">Хүсэлтүүдийг батлах, татгалзах</p>
+              </div>
+            </motion.div>
+          </Link>
+
+          <Link to={createPageUrl('Messages')}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Мессеж унших, хариу бичих</h2>
+                  <p className="text-sm text-gray-500">Хэрэглэгчдээс ирсэн мессежид хариу өгөх</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-sm text-gray-600">
+                  {unreadMessagesCount > 0 ? `${unreadMessagesCount} уншаагүй мессеж байна` : 'Мессежийн жагсаалт руу орох'}
+                </p>
               </div>
             </motion.div>
           </Link>
