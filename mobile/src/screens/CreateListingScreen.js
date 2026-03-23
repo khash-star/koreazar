@@ -17,7 +17,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
 import { createListing } from "../services/listingService.js";
 import { uploadImageFromUri } from "../services/storageService.js";
-import { categoryInfo, locations, subcategoryConfig, conditionOptions } from "../constants/listingForm.js";
+import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
+
+const conditionOptions = _conditionOptions ?? [
+  { value: "new", label: "Шинэ" },
+  { value: "like_new", label: "Бараг шинэ" },
+  { value: "used", label: "Хэрэглэсэн" },
+  { value: "for_parts", label: "Сэлбэгт" },
+];
 import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert.js";
 

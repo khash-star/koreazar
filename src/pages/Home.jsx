@@ -452,10 +452,10 @@ export default function Home() {
                   setFilters(prev => ({ ...prev, category: '', subcategory: '' }));
                   setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
                 }}
-                className={`px-3 py-2 rounded-xl font-medium transition-all text-center ${
+                className={`px-3 py-2 rounded-xl font-medium transition-all duration-200 text-center outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] ${
                   !filters.category
-                    ? 'bg-amber-600 text-white shadow-xl shadow-amber-600/40 scale-105 border-2 border-amber-700'
-                    : 'bg-white text-gray-800 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
+                    ? 'bg-amber-500 text-white shadow-md hover:shadow-lg border border-amber-600'
+                    : 'bg-white text-gray-800 hover:bg-gray-50 shadow-sm hover:shadow border border-gray-200 hover:border-amber-200'
                 }`}
               >
                 <div className="text-sm font-semibold">
@@ -473,10 +473,10 @@ export default function Home() {
                       setFilters(prev => ({ ...prev, category: cat, subcategory: '' }));
                       setTimeout(() => listingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
                     }}
-                    className={`px-3 py-2 rounded-xl font-medium transition-all text-center ${
+                    className={`px-3 py-2 rounded-xl font-medium transition-all duration-200 text-center outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] ${
                       filters.category === cat
-                        ? 'bg-amber-600 text-white shadow-xl shadow-amber-600/40 scale-105 border-2 border-amber-700'
-                        : 'bg-white text-gray-800 hover:bg-gray-50 border-2 border-gray-200 hover:border-amber-300'
+                        ? 'bg-amber-500 text-white shadow-md hover:shadow-lg border border-amber-600'
+                        : 'bg-white text-gray-800 hover:bg-gray-50 shadow-sm hover:shadow border border-gray-200 hover:border-amber-200'
                     }`}
                   >
                     <div className="text-sm font-semibold">{info.name} ({categoryCounts[cat] || 0})</div>

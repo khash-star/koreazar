@@ -61,7 +61,17 @@ npm run sync-listings
 
 Дараа нь commit хийж, EAS build ажиллуулна.
 
-## 5) Next steps
+## 5) App Store screenshots
+
+Хураангуй: 1242×2688 (босоо), 2688×1242 (хэвтээ) зургуудыг **репогийн root**-оос:
+
+```bash
+npm run generate-app-store-screenshots
+```
+
+Эх сурвалж: `mobile/screenshots-source/*.png`. Эхний удаа скрипт энэ хавтсыг үүсгэнэ — screenshot-уудаа тэнд тавиад дахин ажиллуулна. Гаралт: `mobile/app-store-screenshots/`.
+
+## 6) Next steps
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)

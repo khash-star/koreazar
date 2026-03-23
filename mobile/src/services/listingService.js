@@ -86,6 +86,26 @@ export async function getListingById(id) {
   return normalizeListing(snap);
 }
 
+function sanitizeForFirestore(obj) {
+  if (obj === undefined) return undefined;
+  if (obj === null) return null;
+  if (obj instanceof Timestamp || obj instanceof Date) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeForFirestore).filter((v) => v !== undefined);
+  }
+  if (typeof obj === "object" && obj.constructor === Object) {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) {
+        const s = sanitizeForFirestore(v);
+        if (s !== undefined) out[k] = s;
+      }
+    }
+    return out;
+  }
+  return obj;
+}
+
 export async function createListing(data) {
   const { auth } = await import("../config/firebase");
   const userEmail = data.created_by || auth.currentUser?.email || "";
@@ -93,7 +113,7 @@ export async function createListing(data) {
     throw new Error("Нэвтэрнэ үү.");
   }
   const listingsRef = collection(db, "listings");
-  const listingData = {
+  const raw = {
     ...data,
     created_by: userEmail,
     created_date: Timestamp.now(),
@@ -102,6 +122,7 @@ export async function createListing(data) {
     status: data.status || "pending",
     listing_type: data.listing_type || "regular",
   };
+  const listingData = sanitizeForFirestore(raw);
   const docRef = await addDoc(listingsRef, listingData);
   return { id: docRef.id, ...listingData };
 }
