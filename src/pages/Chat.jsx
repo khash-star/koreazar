@@ -48,41 +48,43 @@ export default function Chat() {
 
   // Create conversation if needed
   useEffect(() => {
-    const createConversation = async () => {
+    const ensureConversation = async () => {
       const email = userData?.email || user?.email;
       if (!email || !otherUserEmail || conversationId) return;
       
-      // Check if conversation exists
-      const existing1 = await entities.Conversation.filter({
-        participant_1: email,
-        participant_2: otherUserEmail
-      });
-      
-      const existing2 = await entities.Conversation.filter({
-        participant_1: otherUserEmail,
-        participant_2: email
-      });
-      
-      if (existing1.length > 0) {
-        setActualConversationId(existing1[0].id);
-      } else if (existing2.length > 0) {
-        setActualConversationId(existing2[0].id);
-      } else {
-        // Create new conversation
-        const newConv = await entities.Conversation.create({
+      try {
+        const existing1 = await entities.Conversation.filter({
           participant_1: email,
-          participant_2: otherUserEmail,
-          last_message: '',
-          last_message_time: new Date().toISOString(),
-          last_message_sender: email,
-          unread_count_p1: 0,
-          unread_count_p2: 0
+          participant_2: otherUserEmail
         });
-        setActualConversationId(newConv.id);
+        
+        const existing2 = await entities.Conversation.filter({
+          participant_1: otherUserEmail,
+          participant_2: email
+        });
+        
+        if (existing1.length > 0) {
+          setActualConversationId(existing1[0].id);
+        } else if (existing2.length > 0) {
+          setActualConversationId(existing2[0].id);
+        } else {
+          const newConv = await entities.Conversation.create({
+            participant_1: email,
+            participant_2: otherUserEmail,
+            last_message: '',
+            last_message_time: new Date().toISOString(),
+            last_message_sender: email,
+            unread_count_p1: 0,
+            unread_count_p2: 0
+          });
+          setActualConversationId(newConv.id);
+        }
+      } catch (err) {
+        console.error('Chat: create conversation error', err);
       }
     };
     
-    createConversation();
+    ensureConversation();
   }, [userData?.email, user?.email, otherUserEmail, conversationId]);
 
   const { data: conversation } = useQuery({
@@ -155,20 +157,23 @@ export default function Chat() {
       const email = userData?.email || user?.email;
       if (!email || !actualConversationId || !conversation) return;
       
-      const unreadMessages = messages.filter(
-        m => m.receiver_email === email && !m.is_read
-      );
-      
-      for (const msg of unreadMessages) {
-        await entities.Message.update(msg.id, { is_read: true });
-      }
-      
-      // Update conversation unread count
-      if (unreadMessages.length > 0) {
-        const isParticipant1 = conversation.participant_1 === email;
-        await entities.Conversation.update(actualConversationId, {
-          [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
-        });
+      try {
+        const unreadMessages = messages.filter(
+          m => m.receiver_email === email && !m.is_read
+        );
+        
+        for (const msg of unreadMessages) {
+          await entities.Message.update(msg.id, { is_read: true });
+        }
+        
+        if (unreadMessages.length > 0) {
+          const isParticipant1 = conversation.participant_1 === email;
+          await entities.Conversation.update(actualConversationId, {
+            [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
+          });
+        }
+      } catch (err) {
+        console.error('Chat: mark as read error', err);
       }
     };
     

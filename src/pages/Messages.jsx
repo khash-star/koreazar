@@ -13,7 +13,6 @@ import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
 import { findConversation, createConversation } from '@/services/conversationService';
-import { Timestamp } from 'firebase/firestore';
 
 export default function Messages() {
   const { user, userData, isAuthenticated } = useAuth();

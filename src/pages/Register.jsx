@@ -51,7 +51,7 @@ export default function Register() {
       if (!/^\d+$/.test(phoneDigits)) {
         setPhoneError('Утасны дугаар зөвхөн тоо байх ёстой.');
       } else if (phoneDigits.length < 8 || phoneDigits.length > 11) {
-        setPhoneError('Утасны дугаар .');
+        setPhoneError('Утасны дугаар 8-11 оронтой байх ёстой.');
       } else {
         setPhoneError('');
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { login, resetPassword } from '@/services/authService';
 import { loginWithFacebook } from '@/services/facebookAuthService';
@@ -11,10 +11,21 @@ import { toast } from '@/components/ui/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
+/** Same-origin path only – prevents open redirect */
+function safeRedirectPath(url) {
+  if (!url || typeof url !== 'string') return null;
+  const s = url.trim();
+  if (s.startsWith('http://') || s.startsWith('https://')) return null;
+  if (/[<>"']/.test(s)) return null;
+  const path = s.startsWith('/') ? s : '/' + s;
+  return path === '/' || path.startsWith('/Login') ? null : path;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || createPageUrl('Home');
+  const rawRedirect = searchParams.get('redirect') || '';
+  const redirectUrl = safeRedirectPath(rawRedirect) || createPageUrl('Home');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,8 +43,7 @@ export default function Login() {
     try {
       await loginWithFacebook();
       setTimeout(() => {
-        const cleanUrl = redirectUrl.startsWith('/Login') ? createPageUrl('Home') : redirectUrl;
-        navigate(cleanUrl || createPageUrl('Home'));
+        navigate(redirectUrl);
       }, 100);
     } catch (err) {
       console.error('Facebook login error:', err);
@@ -53,9 +63,7 @@ export default function Login() {
       await login(email, password);
       // AuthContext automatically updates, wait a bit for context to update
       setTimeout(() => {
-        // Clean redirect URL - remove /Login prefix if present
-        const cleanUrl = redirectUrl.startsWith('/Login') ? createPageUrl('Home') : redirectUrl;
-        navigate(cleanUrl || createPageUrl('Home'));
+        navigate(redirectUrl);
       }, 100);
     } catch (err) {
       console.error('Login error:', err);
@@ -283,7 +291,7 @@ export default function Login() {
                 ) : (
                   <>
                     <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328л-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
                     Facebook-р нэвтрэх
                   </>
