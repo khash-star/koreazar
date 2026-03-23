@@ -23,6 +23,17 @@ Release апп нээгдэхэд crash гарвал ихэвчлэн **EAS дэ
 
    **Энэ төсөл (зөв bucket):** `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=koreazar-32e7a.firebasestorage.app` — Firebase Console → **Storage** дээрх bucket нэртэй **яг ижил** байх ёстой (`zarkorea.appspot.com` эсвэл хуучин `*.appspot.com` биш).
 
+   **Энэ төсөл (зөв authDomain):** `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=koreazar-32e7a.firebaseapp.com` — SDK дээрх `authDomain`-тай **яг ижил** (`zarkorea.firebaseapp.com` биш).
+
+### Локал `.env`-аас EAS руу шууд илгээх
+
+`mobile/.env` зөв болсны дараа production-д синк хийх:
+
+```bash
+cd mobile
+npx eas env:push production --path .env --force
+```
+
 4. **Visibility:** `Plain text` (EXPO_PUBLIC нь bundle-д орно — "Secret" нь зарим тохиолдолд build-д орохгүй байж болно; Expo-ийн заавар дагана)
 
 5. Дахин build:
