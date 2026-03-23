@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from "react-native";
 import { registerWithEmail, authErrorMessage } from "../services/authService";
 import { showAlert } from "../utils/showAlert";

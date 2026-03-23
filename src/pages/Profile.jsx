@@ -142,7 +142,7 @@ export default function Profile() {
 
     // Validate phone if provided
     if (formData.phone && formData.phone.trim()) {
-      const phoneDigits = formData.phone.replace(/[\s\-\(\)\+]/g, '');
+      const phoneDigits = formData.phone.replace(/[\s\-()+]/g, '');
       if (!/^\d+$/.test(phoneDigits)) {
         setError('Утасны дугаар зөвхөн тоо байх ёстой.');
         return;

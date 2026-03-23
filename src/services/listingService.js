@@ -61,17 +61,15 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
  * @returns {Promise<Array>} Filtered listings
  */
 export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
-  try {
-    const listingsRef = collection(db, 'listings');
-    const conditions = [];
-    
-    // Build where conditions
-    Object.keys(filters).forEach(key => {
+  const listingsRef = collection(db, 'listings');
+  const conditions = [];
+  Object.keys(filters).forEach(key => {
       if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
         conditions.push(where(key, '==', filters[key]));
       }
-    });
-    
+  });
+
+  try {
     // Handle order by (support '-' prefix for descending)
     const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';

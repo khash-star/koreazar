@@ -19,12 +19,8 @@ import { db } from '@/firebase/config';
  * @returns {Promise<User>} Firebase User object
  */
 export const login = async (email, password) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error) {
-    throw error;
-  }
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return userCredential.user;
 };
 
 /**
@@ -85,11 +81,7 @@ export const register = async (email, password, displayName = null, phone = null
  * @returns {Promise<void>}
  */
 export const logout = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    throw error;
-  }
+  await signOut(auth);
 };
 
 /**
@@ -98,11 +90,7 @@ export const logout = async () => {
  * @returns {Promise<void>}
  */
 export const resetPassword = async (email) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-  } catch (error) {
-    throw error;
-  }
+  await sendPasswordResetEmail(auth, email);
 };
 
 /**

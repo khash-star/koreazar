@@ -4,13 +4,12 @@
  */
 "use strict";
 
-import * as React from "react";
 import { View } from "react-native";
 import { jsx as _jsx } from "react/jsx-runtime";
 let Screens;
 try {
   Screens = require("react-native-screens");
-} catch (e) {
+} catch (_e) {
   // Ignore
 }
 

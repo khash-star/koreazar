@@ -13,8 +13,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { categoryInfo } from "../../constants/listingForm.js";
 
-const GAP = 8;
-
 const SPRING_PRESS_IN = { damping: 14, stiffness: 400, mass: 0.32 };
 const SPRING_PRESS_OUT = { damping: 16, stiffness: 340, mass: 0.32 };
 

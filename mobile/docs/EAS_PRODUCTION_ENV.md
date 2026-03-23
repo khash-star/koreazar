@@ -17,9 +17,11 @@ Release апп нээгдэхэд crash гарвал ихэвчлэн **EAS дэ
    | `EXPO_PUBLIC_FIREBASE_API_KEY` | AIza... |
    | `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | project.firebaseapp.com |
    | `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | project-id |
-   | `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | project.appspot.com |
+   | `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | project-id.firebasestorage.app |
    | `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | 123456789 |
    | `EXPO_PUBLIC_FIREBASE_APP_ID` | 1:...:web:... |
+
+   **Энэ төсөл (зөв bucket):** `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=koreazar-32e7a.firebasestorage.app` — Firebase Console → **Storage** дээрх bucket нэртэй **яг ижил** байх ёстой (`zarkorea.appspot.com` эсвэл хуучин `*.appspot.com` биш).
 
 4. **Visibility:** `Plain text` (EXPO_PUBLIC нь bundle-д орно — "Secret" нь зарим тохиолдолд build-д орохгүй байж болно; Expo-ийн заавар дагана)
 

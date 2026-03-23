@@ -48,3 +48,6 @@ upload_certificate.pem
 .gradle/
 build/
 app/build/
+
+# EAS / local build artifacts
+mobile/builds/

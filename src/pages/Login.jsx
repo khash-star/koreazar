@@ -265,6 +265,7 @@ export default function Login() {
             </Button>
           </form>
 
+          {/* eslint-disable-next-line no-constant-binary-expression -- Facebook login disabled for now */}
           {false && (
             <div className="mt-4">
               <div className="relative">

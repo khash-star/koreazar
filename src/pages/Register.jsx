@@ -47,7 +47,7 @@ export default function Register() {
     
     // Real-time phone validation
     if (name === 'phone' && value && value.trim()) {
-      const phoneDigits = value.replace(/[\s\-\(\)\+]/g, '');
+      const phoneDigits = value.replace(/[\s\-()+]/g, '');
       if (!/^\d+$/.test(phoneDigits)) {
         setPhoneError('Утасны дугаар зөвхөн тоо байх ёстой.');
       } else if (phoneDigits.length < 8 || phoneDigits.length > 11) {
@@ -95,7 +95,7 @@ export default function Register() {
     }
 
     if (formData.phone && formData.phone.trim()) {
-      const phoneDigits = formData.phone.replace(/[\s\-\(\)\+]/g, '');
+      const phoneDigits = formData.phone.replace(/[\s\-()+]/g, '');
       if (!/^\d+$/.test(phoneDigits) || phoneDigits.length < 8 || phoneDigits.length > 11) {
         setError('Утасны дугаар зөвхөн тоо, 8-11 оронтой байх ёстой.');
         setPhoneError('Утасны дугаар зөвхөн тоо, 8-11 оронтой байх ёстой.');

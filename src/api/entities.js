@@ -113,7 +113,7 @@ export const Conversation = {
 
 // Message entity
 export const Message = {
-  filter: async (filters = {}, orderBy = 'created_date') => {
+  filter: async (filters = {}, _orderBy = 'created_date') => {
     if (filters.conversation_id) {
       return conversationService.listMessages(filters.conversation_id);
     }
@@ -132,11 +132,11 @@ export const Message = {
 // BannerAd entity
 export const BannerAd = {
   list: (orderBy = '-order') => bannerService.listBannerAds(orderBy),
-  filter: async (filters = {}, orderBy = '-order') => {
+  filter: async (filters = {}, _orderBy = '-order') => {
     if (filters.is_active !== undefined) {
       return bannerService.filterBannerAds({ is_active: filters.is_active });
     }
-    return bannerService.listBannerAds(orderBy);
+    return bannerService.listBannerAds(_orderBy);
   },
   create: (data) => bannerService.createBannerAd(data),
   update: (id, data) => bannerService.updateBannerAd(id, data),
@@ -145,8 +145,8 @@ export const BannerAd = {
 
 // BannerRequest entity
 export const BannerRequest = {
-  list: (orderBy = '-created_date') => bannerService.listBannerRequests(),
-  filter: async (filters = {}, orderBy = '-created_date') => {
+  list: (_orderBy = '-created_date') => bannerService.listBannerRequests(),
+  filter: async (filters = {}, _orderBy = '-created_date') => {
     if (filters.created_by) {
       return bannerService.filterBannerRequests({ created_by: filters.created_by });
     }

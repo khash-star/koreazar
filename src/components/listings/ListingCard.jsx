@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import { motion } from 'framer-motion';
-import { MapPin, Clock, Eye, Heart, Crown, Star } from 'lucide-react';
+import { MapPin, Clock, Heart, Crown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
@@ -106,7 +106,7 @@ export default function ListingCard({ listing, isAboveFold = false }) {
                 width={400}
                 height={267}
                 loading={isAboveFold ? 'eager' : 'lazy'}
-                fetchpriority={isAboveFold ? 'high' : undefined}
+                fetchPriority={isAboveFold ? 'high' : undefined}
                 decoding="async"
                 sizes="(max-width: 768px) 312px, 350px"
                 className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

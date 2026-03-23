@@ -145,7 +145,7 @@ export async function getUnreadMessagesCount(email) {
       conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
       conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
     return total;
-  } catch (e) {
+  } catch (_e) {
     return 0;
   }
 }

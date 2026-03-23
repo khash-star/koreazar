@@ -386,7 +386,7 @@ export default function Home() {
                       width={800}
                       height={400}
                       loading={index === 0 ? 'eager' : 'lazy'}
-                      fetchpriority={index === 0 ? 'high' : undefined}
+                      fetchPriority={index === 0 ? 'high' : undefined}
                       decoding="async"
                       sizes="(max-width: 768px) 50vw, 600px"
                       className={`w-full h-full object-cover ${prefersReducedMotion ? '' : 'group-hover:scale-105 transition-transform duration-150'}`}

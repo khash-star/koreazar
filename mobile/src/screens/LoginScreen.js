@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { loginWithEmail, authErrorMessage, sendResetEmail } from "../services/authService";

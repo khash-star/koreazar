@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { categoryInfo } from "../../constants/listingForm.js";
 
-const GAP = 8;
 
 function chunkIntoRows(list, size) {
   const rows = [];

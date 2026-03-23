@@ -90,7 +90,7 @@ export const sanitizeURL = (url) => {
 export const isValidPhone = (phone) => {
   if (!phone || typeof phone !== 'string') return false;
   // Allow digits, spaces, +, -, and parentheses
-  const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+  const phoneRegex = /^[\d\s+\-()]+$/;
   return phoneRegex.test(phone.trim()) && phone.trim().length >= 8;
 };
 
