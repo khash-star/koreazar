@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon-ios-1024.png",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "bundleIdentifier": "com.zarkorea.twa",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.zarkorea.twa",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

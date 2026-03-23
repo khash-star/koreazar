@@ -37,6 +37,16 @@ function createAuth() {
 
 export const auth = createAuth();
 export const db = getFirestore(app);
-export const storage = getStorage(app);
+
+/** `gs://...` — default bucket-ийг тодорхой зааж өгнө (storage/unknown зарим төхөөрөмж дээр буурахад тусална). */
+function toGsBucketUrl(bucket) {
+  if (!bucket || typeof bucket !== "string") return undefined;
+  const b = bucket.trim();
+  if (b.startsWith("gs://")) return b;
+  return `gs://${b}`;
+}
+
+const gsBucket = toGsBucketUrl(firebaseConfig.storageBucket);
+export const storage = gsBucket ? getStorage(app, gsBucket) : getStorage(app);
 
 export default app;
