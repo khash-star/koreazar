@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,14 +9,23 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useAuth } from "../context/AuthContext";
 import { loginWithEmail, authErrorMessage, sendResetEmail } from "../services/authService";
 import { showAlert } from "../utils/showAlert";
 
 export default function LoginScreen({ navigation }) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.replace("Main");
+    }
+  }, [isAuthenticated, authLoading, navigation]);
 
   async function onLogin() {
     if (!email.trim() || !password) {

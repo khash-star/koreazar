@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -23,7 +25,7 @@ import { getListingImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
-const CARD_IMG_H = 95;
+const CARD_IMG_H = 130;
 const GAP = 12;
 const PAD_H = 16;
 
@@ -189,6 +191,49 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  const emptyText =
+    selectedCategory && listings.length > 0
+      ? "Энэ ангилалд одоогоор зар алга."
+      : "Идэвхтэй зар байхгүй.";
+
+  if (Platform.OS === "web") {
+    const rows = [];
+    for (let i = 0; i < displayedListings.length; i += 2) {
+      rows.push(displayedListings.slice(i, i + 2));
+    }
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.listContent, { paddingBottom: 24 + tabBarHeight }]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
+        }
+      >
+        {listHeader}
+        {displayedListings.length === 0 ? (
+          <Text style={styles.empty}>{emptyText}</Text>
+        ) : (
+          <View style={styles.gridWrap}>
+            {rows.map((row, rowIdx) => (
+              <View key={rowIdx} style={styles.row}>
+                {row.map((item) => (
+                  <ListingItem
+                    key={item.id}
+                    item={item}
+                    onPress={onPressListing}
+                    cardWidth={CARD_WIDTH}
+                  />
+                ))}
+                {row.length === 1 && <View style={{ width: CARD_WIDTH }} />}
+              </View>
+            ))}
+          </View>
+        )}
+        {error ? <Text style={styles.footerError}>{error}</Text> : null}
+      </ScrollView>
+    );
+  }
+
   return (
     <FlatList
       key="list-2col"
@@ -206,19 +251,11 @@ export default function HomeScreen({ navigation }) {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
-      renderItem={({ item }) => <ListingItem item={item} onPress={onPressListing} cardWidth={CARD_WIDTH} />}
-      ListEmptyComponent={
-        <Text style={styles.empty}>
-          {selectedCategory && listings.length > 0
-            ? "Энэ ангилалд одоогоор зар алга."
-            : "Идэвхтэй зар байхгүй."}
-        </Text>
-      }
-      ListFooterComponent={
-        error ? (
-          <Text style={styles.footerError}>{error}</Text>
-        ) : null
-      }
+      renderItem={({ item }) => (
+        <ListingItem item={item} onPress={onPressListing} cardWidth={CARD_WIDTH} />
+      )}
+      ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
+      ListFooterComponent={error ? <Text style={styles.footerError}>{error}</Text> : null}
     />
   );
 }
@@ -234,6 +271,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD_H,
     paddingBottom: 24,
     paddingTop: 4,
+  },
+  gridWrap: {
+    marginTop: 4,
   },
   row: {
     flexDirection: "row",
@@ -259,10 +299,11 @@ const styles = StyleSheet.create({
     height: CARD_IMG_H,
     backgroundColor: "#f3f4f6",
     position: "relative",
+    overflow: "hidden",
   },
   cardImage: {
     width: "100%",
-    height: CARD_IMG_H,
+    height: "100%",
   },
   cardImagePlaceholder: {
     flex: 1,
