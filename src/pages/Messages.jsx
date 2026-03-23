@@ -187,9 +187,9 @@ export default function Messages() {
             </Link>
             {userData?.role === 'admin' && (
               <img 
-                src="/admin_logo.png" 
-                alt="Admin Logo" 
-                className="w-10 h-10 object-contain"
+                src="/icon-180.png" 
+                alt="Koreazar" 
+                className="w-10 h-10 object-contain rounded-lg"
               />
             )}
             <div>

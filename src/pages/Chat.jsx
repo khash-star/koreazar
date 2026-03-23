@@ -258,8 +258,8 @@ export default function Chat() {
           <div className="flex items-center gap-3 flex-1">
             {adminEmail && otherUser?.email === adminEmail ? (
               <img 
-                src="/admin_logo.png" 
-                alt="Admin Logo" 
+                src="/icon-180.png" 
+                alt="АДМИН" 
                 className="w-10 h-10 object-contain rounded-full"
               />
             ) : (
