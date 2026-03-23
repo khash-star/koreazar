@@ -346,8 +346,9 @@ export default function AdminPanel() {
           >
             <h3 className="text-lg font-bold text-gray-900 mb-4">Заруудын категори</h3>
             {categoryChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={categoryChartData}>
+              <div style={{ minHeight: 300, width: '100%' }}>
+                <ResponsiveContainer width="100%" height={300} minHeight={300}>
+                  <BarChart data={categoryChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="name" 
@@ -358,12 +359,13 @@ export default function AdminPanel() {
                   />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value, name, props) => [value, props.payload.fullName]}
+                    formatter={(value, _name, props) => [value, props?.payload?.fullName ?? props?.payload?.name ?? value]}
                   />
                   <Legend />
                   <Bar dataKey="value" fill="#f59e0b" name="Тоо" />
                 </BarChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-gray-400">
                 Өгөгдөл байхгүй
@@ -380,8 +382,9 @@ export default function AdminPanel() {
           >
             <h3 className="text-lg font-bold text-gray-900 mb-4">Заруудын статус</h3>
             {statusChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
+              <div style={{ minHeight: 300, width: '100%' }}>
+                <ResponsiveContainer width="100%" height={300} minHeight={300}>
+                  <PieChart>
                   <Pie
                     data={statusChartData}
                     cx="50%"
@@ -399,7 +402,8 @@ export default function AdminPanel() {
                   <Tooltip />
                   <Legend />
                 </PieChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-gray-400">
                 Өгөгдөл байхгүй

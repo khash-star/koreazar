@@ -50,7 +50,13 @@ export default function Messages() {
       // Get user conversations (either participant_1 or participant_2)
       const convs1 = await entities.Conversation.filter({ participant_1: userEmail });
       const convs2 = await entities.Conversation.filter({ participant_2: userEmail });
-      const allConvs = [...convs1, ...convs2];
+      // Deduplicate by id (same conv can appear in both filters in some backends)
+      const seen = new Set();
+      const allConvs = [...convs1, ...convs2].filter(c => {
+        if (seen.has(c.id)) return false;
+        seen.add(c.id);
+        return true;
+      });
       
       // Get user data for all other users in conversations
       const otherEmails = [...new Set(allConvs.map(conv => 
@@ -227,9 +233,9 @@ export default function Messages() {
           </div>
         ) : filteredConversations.length > 0 ? (
           <div className="space-y-2">
-            {filteredConversations.map((conv) => (
+            {filteredConversations.map((conv, idx) => (
               <Link
-                key={conv.id}
+                key={conv.id || `conv-${idx}`}
                 to={createPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`)}
               >
                 <motion.div

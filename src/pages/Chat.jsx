@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -332,9 +331,7 @@ export default function Chat() {
                       </div>
                     )}
                     
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                    <div
                       className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
@@ -351,7 +348,7 @@ export default function Chat() {
                           {format(new Date(msg.created_date), 'HH:mm')}
                         </p>
                       </div>
-                    </motion.div>
+                    </div>
                   </React.Fragment>
                 );
               })}
