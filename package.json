@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run sync-listings && npm run generate-pwa-icons && vite build",
     "generate-pwa-icons": "node scripts/generate-pwa-icons.mjs",
+    "generate-mobile-ios-icon": "node mobile/scripts/generate-ios-icon.mjs",
     "sync-listings": "node scripts/sync-listings.mjs",
     "generate-app-store-screenshots": "node scripts/generate-app-store-screenshots.mjs",
     "lint": "eslint .",

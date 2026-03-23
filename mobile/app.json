@@ -4,7 +4,7 @@
     "slug": "zarkorea-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-ios-1024.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -13,7 +13,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "8",
+      "icon": "./assets/icon-ios-1024.png",
+      "buildNumber": "10",
       "bundleIdentifier": "com.zarkorea.twa",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -21,7 +22,7 @@
     },
     "android": {
       "package": "com.zarkorea.twa",
-      "versionCode": 17,
+      "versionCode": 18,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -52,8 +53,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Зар нэмэхэд зургаа сонгоно.",
-          "cameraPermission": "Зургаа авахад камер хэрэгтэй."
+          "photosPermission": "Зураг оруулахын тулд таны зургийн цомог руу нэвтрэх зөвшөөрөл хэрэгтэй.",
+          "cameraPermission": "Зураг дарахын тулд камер ашиглах зөвшөөрөл хэрэгтэй."
         }
       ]
     ],

@@ -11,6 +11,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../config/firebase";
 
+const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB safety limit
+
 function contentTypeForExtension(ext) {
   const e = (ext || "jpg").toLowerCase().replace(/^\./, "");
   if (e === "png") return "image/png";
@@ -41,21 +43,45 @@ function getFirebaseErrorMessage(error) {
   const code = error?.code || "";
   const serverResponse = error?.customData?.serverResponse || "";
   if (serverResponse) {
+    try {
+      const parsed = JSON.parse(serverResponse);
+      const serverMsg = parsed?.error?.message;
+      if (serverMsg) {
+        return `${error?.message || "Upload failed"}\n${serverMsg}`;
+      }
+    } catch {
+      // ignore parse error and show raw response below
+    }
+  }
+  if (serverResponse) {
     return `${error?.message || "Upload failed"}\n${serverResponse}`;
   }
   if (code === "storage/unauthorized") {
-    return "Зураг upload хийх эрхгүй байна (Storage Rules).";
+    return "Зураг upload хийх эрхгүй байна (Storage Rules/auth).";
   }
   if (code === "storage/canceled") {
     return "Зураг upload цуцлагдсан.";
   }
+  if (code === "storage/unknown") {
+    return "Firebase Storage unknown алдаа гарлаа. Bucket/Rules/Auth тохиргоог шалгана уу.";
+  }
   return error?.message || "Зураг upload хийхэд алдаа гарлаа.";
+}
+
+function assertStorageConfig() {
+  const bucket = storage?.app?.options?.storageBucket || "";
+  if (!bucket || typeof bucket !== "string") {
+    throw new Error("Firebase Storage bucket тохируулагдаагүй байна (EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET).");
+  }
 }
 
 async function uploadNativeWithFallback(storageRef, uri, ext, timestamp, contentType) {
   // 1) Preferred: local file uri -> blob
   try {
     const blob = await blobFromPickerUri(uri, ext, timestamp);
+    if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
+      throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
+    }
     await uploadBytes(storageRef, blob, { contentType: blob.type || contentType });
     return;
   } catch (firstErr) {
@@ -73,6 +99,9 @@ async function uploadNativeWithFallback(storageRef, uri, ext, timestamp, content
       const dataUrl = `data:${contentType};base64,${base64}`;
       const response = await fetch(dataUrl);
       const blob = await response.blob();
+      if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
+        throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
+      }
       await uploadBytes(storageRef, blob, { contentType: blob.type || contentType });
       return;
     } catch (secondErr) {
@@ -88,6 +117,7 @@ async function uploadNativeWithFallback(storageRef, uri, ext, timestamp, content
  * @returns {Promise<{file_url: string}>}
  */
 export async function uploadImageFromUri(uri) {
+  assertStorageConfig();
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 12);
   const ext = uri.split(".").pop()?.split("?")[0] || "jpg";
@@ -97,6 +127,9 @@ export async function uploadImageFromUri(uri) {
 
   if (Platform.OS === "web") {
     const blob = await blobFromPickerUri(uri, ext, timestamp);
+    if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {
+      throw new Error("Зураг хэт том байна. 15MB-аас бага зураг сонгоно уу.");
+    }
     const contentType = blob.type || fallbackType;
     await uploadBytes(storageRef, blob, { contentType });
   } else {

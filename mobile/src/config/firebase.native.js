@@ -16,6 +16,9 @@ const firebaseConfig = {
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.warn("Firebase config is missing. Fill EXPO_PUBLIC_FIREBASE_* variables.");
 }
+if (!firebaseConfig.storageBucket) {
+  console.warn("Firebase storageBucket missing. Set EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET.");
+}
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
