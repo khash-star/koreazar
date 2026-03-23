@@ -82,7 +82,7 @@ export default function Login() {
     try {
       await resetPassword(resetEmail);
       setShowResetPassword(false);
-      toast({ title: 'Имэйл илгээгдлээ', description: 'Имэйл хайрцгаа шалгаад зааврыг дагана уу.', variant: 'default' });
+      toast({ title: 'Имэйл илгээгдлээ', description: 'Имэйл хайрцгаа шалгаад зааврыг дагана уу. Spam email-аа давхар шалгаарай.', variant: 'default' });
     } catch (err) {
       setError(getErrorMessage(err.code));
     } finally {

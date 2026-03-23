@@ -52,7 +52,7 @@ export default function LoginScreen({ navigation }) {
     setResetting(true);
     try {
       await sendResetEmail(email);
-      showAlert("Имэйл илгээгдлээ", "Имэйл хайрцгаа шалгаад зааврыг дагана уу.");
+      showAlert("Имэйл илгээгдлээ", "Имэйл хайрцгаа шалгаад зааврыг дагана уу. Spam email-аа давхар шалгаарай.");
     } catch (e) {
       showAlert("Алдаа", authErrorMessage(e?.code) || e?.message);
     } finally {
