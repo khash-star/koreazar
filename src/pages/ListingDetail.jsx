@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { categoryInfo } from '@/components/listings/CategoryCard';
+import ListingCard from '@/components/listings/ListingCard';
 import { subcategoryConfig, conditionLabels } from '@/constants/listings';
 import {
   Dialog,
@@ -71,6 +72,26 @@ export default function ListingDetail() {
       return results[0];
     },
     enabled: !!listingId
+  });
+
+  const { data: similarListings = [], isLoading: isSimilarLoading } = useQuery({
+    queryKey: ['similarListings', listingId, listing?.category, listing?.subcategory],
+    queryFn: async () => {
+      if (!listing?.category) return [];
+      const results = await entities.Listing.filter({ category: listing.category });
+      const normalized = (results || []).filter((l) => l?.id && l.id !== listingId);
+
+      // Prefer same subcategory (when available), then fill with rest.
+      const sameSub = listing.subcategory
+        ? normalized.filter((l) => l.subcategory === listing.subcategory)
+        : [];
+      const others = listing.subcategory
+        ? normalized.filter((l) => l.subcategory !== listing.subcategory)
+        : normalized;
+
+      return [...sameSub, ...others].slice(0, 8);
+    },
+    enabled: !!listingId && !!listing?.category,
   });
 
   const { data: savedListings = [] } = useQuery({
@@ -542,6 +563,41 @@ export default function ListingDetail() {
               </div>
             </div>
           </motion.div>
+        </div>
+
+        {/* Similar Listings */}
+        <div className="px-4 pb-10 md:pb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-gray-900">Ижил төстэй зарууд</h2>
+            <Link to={createPageUrl(`Home?category=${listing.category}&scroll=listings`)} className="text-sm text-amber-700 hover:underline">
+              Бүгдийг харах
+            </Link>
+          </div>
+
+          {isSimilarLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl overflow-hidden">
+                  <Skeleton className="aspect-[4/3] w-full" />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-6 w-1/2" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : similarListings.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {similarListings.map((l, index) => (
+                <ListingCard key={l.id} listing={l} isAboveFold={index < 2} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-6 text-sm text-gray-600 border border-gray-100">
+              Одоогоор ижил төрлийн өөр зар алга байна.
+            </div>
+          )}
         </div>
       </div>
 
