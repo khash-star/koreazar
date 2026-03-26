@@ -8,7 +8,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin } from '@/services/authService';
+import { redirectToLogin, getAdminEmail } from '@/services/authService';
 import {
   ArrowLeft,
   Phone,
@@ -125,6 +125,29 @@ export default function ListingDetail() {
       return;
     }
     saveMutation.mutate(isSaved ? 'unsave' : 'save');
+  };
+
+  const handleReportToAdmin = async () => {
+    if (loading) return;
+    const email = userData?.email || user?.email;
+    if (!email) {
+      redirectToLogin(window.location.href);
+      return;
+    }
+
+    try {
+      const adminEmail = await getAdminEmail();
+      if (!adminEmail) {
+        toast({ title: 'Админий мэдээлэл олдсонгүй', variant: 'destructive' });
+        return;
+      }
+      window.location.href = createPageUrl(
+        `Chat?otherUserEmail=${encodeURIComponent(adminEmail)}&listingId=${listing.id}`
+      );
+    } catch (error) {
+      console.error('Error opening admin report chat:', error);
+      toast({ title: 'Санал гомдол илгээхэд алдаа гарлаа', variant: 'destructive' });
+    }
   };
 
   // Update view count
@@ -520,6 +543,15 @@ export default function ListingDetail() {
                       Утас харах
                     </Button>
                   )
+                )}
+                {!isOwner && (
+                  <Button
+                    onClick={handleReportToAdmin}
+                    variant="outline"
+                    className="w-full h-12 rounded-xl border-amber-300 text-amber-700 hover:bg-amber-50"
+                  >
+                    Санал гомдол
+                  </Button>
                 )}
 
                 <div className="grid grid-cols-2 gap-3">
