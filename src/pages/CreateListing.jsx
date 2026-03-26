@@ -26,7 +26,6 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { getListingAutoApprove } from '@/services/appConfigService';
-import { toast } from '@/components/ui/use-toast';
 
 import { locations, conditionOptions } from '@/constants/listings';
 
@@ -90,15 +89,8 @@ export default function CreateListing() {
     mutationFn: async (data) => {
       return entities.Listing.create(data);
     },
-    onSuccess: (_, variables) => {
-      const isActive = variables.status === 'active';
-      toast({
-        title: isActive
-          ? 'Зар амжилттай илгээгдлээ! Нүүр хуудсан дээр харагдана.'
-          : 'Зар амжилттай илгээгдлээ! Админ баталгаажуулсны дараа харагдана.',
-        variant: 'default',
-      });
-      navigate(createPageUrl('Home'));
+    onSuccess: () => {
+      navigate(createPageUrl('Home'), { replace: true });
     },
   });
 
