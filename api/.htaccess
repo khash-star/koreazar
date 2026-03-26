@@ -4,6 +4,13 @@ DirectoryIndex index.php index.html
 # Hide folder file listing (security)
 Options -Indexes
 
+# Pass Authorization: Bearer ... to PHP (many hosts strip it; CGI/FastCGI fix)
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
 # Block direct web access to secrets
 <FilesMatch "^\.env$">
   Require all denied
