@@ -1,9 +1,8 @@
-// AI Service - OpenAI API integration
-import axios from 'axios';
+// AI Service - AI API integration via backend proxy
 import { recordAIUsage, checkDailyLimit } from './aiUsageService';
+import { auth } from '@/firebase/config';
 
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
 // Default daily limits
 const DEFAULT_DAILY_LIMIT = 20; // requests per day
@@ -17,10 +16,6 @@ const DEFAULT_DAILY_LIMIT = 20; // requests per day
  * @returns {Promise<{response: string, usage?: Object}>} AI response and usage data
  */
 export const getAIResponse = async (userMessage, conversationHistory = [], userEmail = null, dailyLimit = DEFAULT_DAILY_LIMIT) => {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
   // Check daily limit if userEmail is provided
   if (userEmail) {
     try {
@@ -74,31 +69,43 @@ export const getAIResponse = async (userMessage, conversationHistory = [], userE
       { role: 'user', content: userMessage }
     ];
 
-    const response = await axios.post(
-      OPENAI_API_URL,
-      {
-        model: 'gpt-4o-mini', // More cost-effective model
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Нэвтрээгүй хэрэглэгч байна');
+    }
+    const idToken = await currentUser.getIdToken(true);
 
-    const aiResponse = response.data.choices[0]?.message?.content || 'Уучлаарай, хариулт өгөхөд алдаа гарлаа.';
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('action', 'ai_chat');
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        temperature: 0.7,
+        max_tokens: 500,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+
+    const aiResponse = payload?.data?.response || 'Уучлаарай, хариулт өгөхөд алдаа гарлаа.';
     
     // Record usage if userEmail is provided
-    if (userEmail && response.data.usage) {
+    if (userEmail && payload?.data?.usage) {
       try {
         await recordAIUsage(userEmail, {
-          prompt_tokens: response.data.usage.prompt_tokens || 0,
-          completion_tokens: response.data.usage.completion_tokens || 0,
-          total_tokens: response.data.usage.total_tokens || 0
+          prompt_tokens: payload.data.usage.prompt_tokens || 0,
+          completion_tokens: payload.data.usage.completion_tokens || 0,
+          total_tokens: payload.data.usage.total_tokens || 0
         });
       } catch (usageError) {
         console.error('Error recording usage:', usageError);
@@ -108,20 +115,11 @@ export const getAIResponse = async (userMessage, conversationHistory = [], userE
 
     return {
       response: aiResponse,
-      usage: response.data.usage || null
+      usage: payload?.data?.usage || null
     };
   } catch (error) {
     console.error('OpenAI API error:', error);
-    
-    if (error.response?.status === 401) {
-      throw new Error('OpenAI API key буруу байна');
-    } else if (error.response?.status === 429) {
-      throw new Error('Хэт олон хүсэлт илгээсэн. Түр хүлээгээд дахин оролдоно уу.');
-    } else if (error.response?.status === 500) {
-      throw new Error('OpenAI сервер дээр алдаа гарлаа. Дахин оролдоно уу.');
-    } else {
-      throw new Error('AI хариулт авахад алдаа гарлаа. Дахин оролдоно уу.');
-    }
+    throw new Error(error?.message || 'AI хариулт авахад алдаа гарлаа. Дахин оролдоно уу.');
   }
 };
 
@@ -147,29 +145,8 @@ export const getRemainingRequests = async (userEmail, dailyLimit = DEFAULT_DAILY
  * @returns {Promise<boolean>} True if API key is valid
  */
 export const validateAPIKey = async () => {
-  if (!OPENAI_API_KEY) {
-    return false;
-  }
-
-  try {
-    const response = await axios.post(
-      OPENAI_API_URL,
-      {
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: 'test' }],
-        max_tokens: 5
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    return response.status === 200;
-  } catch (error) {
-    return false;
-  }
+  // API key validation now happens on backend proxy.
+  return true;
 };
 
 /**
@@ -178,10 +155,6 @@ export const validateAPIKey = async () => {
  * @returns {Promise<{approved: boolean, reason: string, score: number, suggestions?: string[]}>} AI check result
  */
 export const checkListingWithAI = async (listing) => {
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key is not configured');
-  }
-
   // Prepare listing data for AI
   const listingData = {
     title: listing.title || '',
@@ -239,27 +212,32 @@ export const checkListingWithAI = async (listing) => {
 Зөвхөн JSON формат дахь хариулт өгнө үү.`;
 
   try {
-    const response = await axios.post(
-      OPENAI_API_URL,
-      {
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3, // Lower temperature for more consistent results
-        max_tokens: 500,
-        response_format: { type: 'json_object' }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      throw new Error('Нэвтрээгүй хэрэглэгч байна');
+    }
+    const idToken = await currentUser.getIdToken(true);
+    const url = new URL(API_BASE_URL);
+    url.searchParams.set('action', 'ai_moderate');
 
-    const aiResponse = response.data.choices[0]?.message?.content || '{}';
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        listing: listingData,
+        systemPrompt,
+        userPrompt,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || `HTTP ${response.status}`;
+      throw new Error(message);
+    }
+    const aiResponse = payload?.data?.raw || '{}';
     
     try {
       const result = JSON.parse(aiResponse);
@@ -283,16 +261,7 @@ export const checkListingWithAI = async (listing) => {
     }
   } catch (error) {
     console.error('OpenAI API error:', error);
-    
-    if (error.response?.status === 401) {
-      throw new Error('OpenAI API key буруу байна');
-    } else if (error.response?.status === 429) {
-      throw new Error('Хэт олон хүсэлт илгээсэн. Түр хүлээгээд дахин оролдоно уу.');
-    } else if (error.response?.status === 500) {
-      throw new Error('OpenAI сервер дээр алдаа гарлаа. Дахин оролдоно уу.');
-    } else {
-      throw new Error('AI шалгалт хийхэд алдаа гарлаа. Дахин оролдоно уу.');
-    }
+    throw new Error(error?.message || 'AI шалгалт хийхэд алдаа гарлаа. Дахин оролдоно уу.');
   }
 };
 

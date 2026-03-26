@@ -39,6 +39,68 @@ try {
             ], JSON_UNESCAPED_UNICODE);
             break;
 
+        case 'ai_chat':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=ai_chat'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            require_firebase_user();
+            $body = read_json_body();
+            $messages = isset($body['messages']) && is_array($body['messages']) ? $body['messages'] : [];
+            if (count($messages) === 0) {
+                http_response_code(400);
+                echo json_encode(['error' => 'messages is required'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $temperature = isset($body['temperature']) ? (float) $body['temperature'] : 0.7;
+            $maxTokens = isset($body['max_tokens']) ? (int) $body['max_tokens'] : 500;
+            $openai = openai_chat_completion([
+                'model' => (string) (getenv('OPENAI_MODEL') ?: 'gpt-4o-mini'),
+                'messages' => $messages,
+                'temperature' => max(0.0, min(1.5, $temperature)),
+                'max_tokens' => max(32, min(1200, $maxTokens)),
+            ]);
+            if (!isset($openai['choices'][0]['message']['content'])) {
+                throw new RuntimeException('Invalid OpenAI response format');
+            }
+            echo json_encode([
+                'data' => [
+                    'response' => (string) $openai['choices'][0]['message']['content'],
+                    'usage' => $openai['usage'] ?? null,
+                ],
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'ai_moderate':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=ai_moderate'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            require_firebase_user();
+            $body = read_json_body();
+            $systemPrompt = isset($body['systemPrompt']) ? trim((string) $body['systemPrompt']) : '';
+            $userPrompt = isset($body['userPrompt']) ? trim((string) $body['userPrompt']) : '';
+            if ($systemPrompt === '' || $userPrompt === '') {
+                http_response_code(400);
+                echo json_encode(['error' => 'systemPrompt and userPrompt are required'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $openai = openai_chat_completion([
+                'model' => (string) (getenv('OPENAI_MODEL') ?: 'gpt-4o-mini'),
+                'messages' => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $userPrompt],
+                ],
+                'temperature' => 0.3,
+                'max_tokens' => 500,
+                'response_format' => ['type' => 'json_object'],
+            ]);
+            $raw = isset($openai['choices'][0]['message']['content']) ? (string) $openai['choices'][0]['message']['content'] : '{}';
+            echo json_encode(['data' => ['raw' => $raw, 'usage' => $openai['usage'] ?? null]], JSON_UNESCAPED_UNICODE);
+            break;
+
         case 'listings':
             if ($method === 'GET') {
                 $category = isset($_GET['category']) ? trim((string) $_GET['category']) : '';
@@ -447,6 +509,77 @@ function require_firebase_user(): array
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     return ['uid' => $uid, 'email' => $email];
+}
+
+/**
+ * @param array<string,mixed> $payload
+ * @return array<string,mixed>
+ */
+function openai_chat_completion(array $payload): array
+{
+    $apiKey = trim((string) (getenv('OPENAI_API_KEY') ?: ''));
+    if ($apiKey === '') {
+        throw new RuntimeException('OPENAI_API_KEY missing in api/.env');
+    }
+
+    $url = 'https://api.openai.com/v1/chat/completions';
+    $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    if (!is_string($jsonPayload)) {
+        throw new RuntimeException('Cannot encode OpenAI payload');
+    }
+
+    $headers = [
+        "Authorization: Bearer {$apiKey}",
+        'Content-Type: application/json',
+    ];
+
+    $resp = null;
+    $statusCode = 0;
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        $resp = curl_exec($ch);
+        $statusCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        if ($resp === false) {
+            $err = curl_error($ch);
+            curl_close($ch);
+            throw new RuntimeException('OpenAI request failed: ' . $err);
+        }
+        curl_close($ch);
+    } else {
+        $opts = [
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $jsonPayload,
+                'timeout' => 25,
+                'ignore_errors' => true,
+            ],
+        ];
+        $ctx = stream_context_create($opts);
+        $resp = @file_get_contents($url, false, $ctx);
+        if (!is_string($resp)) {
+            throw new RuntimeException('OpenAI request failed');
+        }
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', (string) $http_response_header[0], $m)) {
+            $statusCode = (int) $m[1];
+        }
+    }
+
+    $decoded = json_decode((string) $resp, true);
+    if (!is_array($decoded)) {
+        throw new RuntimeException('Invalid OpenAI response');
+    }
+    if ($statusCode >= 400) {
+        $message = isset($decoded['error']['message']) ? (string) $decoded['error']['message'] : 'OpenAI request failed';
+        throw new RuntimeException($message);
+    }
+    return $decoded;
 }
 
 /**
