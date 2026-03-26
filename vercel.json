@@ -15,7 +15,7 @@
       "destination": "/.well-known/assetlinks.json"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
