@@ -1,21 +1,53 @@
-// Listing Service - Firestore CRUD operations
+// Listing Service - PHP MySQL API CRUD operations
+import { auth } from '@/firebase/config';
 
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp 
-} from 'firebase/firestore';
-import { db } from '@/firebase/config';
-import { convertTimestamp } from '@/utils/firestoreDates';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
+
+const buildApiUrl = (action, params = {}) => {
+  const url = new URL(API_BASE_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') {
+      url.searchParams.set(k, String(v));
+    }
+  });
+  return url.toString();
+};
+
+const requestJson = async (url, options = {}) => {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.message || payload?.error || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return payload;
+};
+
+const getAuthHeaders = async () => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('Хэрэглэгч нэвтрээгүй байна');
+  }
+  const token = await user.getIdToken(true);
+  return { Authorization: `Bearer ${token}` };
+};
+
+const normalizeListing = (item) => {
+  if (!item || typeof item !== 'object') return null;
+  return {
+    ...item,
+    id: item?.id != null ? String(item.id) : '',
+    images: Array.isArray(item.images) ? item.images : [],
+  };
+};
 
 /**
  * Бүх listings-ийг авах
@@ -25,27 +57,16 @@ import { convertTimestamp } from '@/utils/firestoreDates';
  */
 export const listListings = async (orderByField = 'created_date', limitCount = 100) => {
   try {
-    const listingsRef = collection(db, 'listings');
-    const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-
-    const q = query(
-      listingsRef,
-      orderBy(orderField, orderDirection),
-      limit(limitCount)
-    );
-    const querySnapshot = await getDocs(q);
-
-    const result = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date),
-        updated_date: convertTimestamp(data.updated_date),
-        listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
-      };
-    });
+    const payload = await requestJson(buildApiUrl('listings', {
+      limit: limitCount,
+      status: 'active',
+    }));
+    const result = (payload?.data || []).map(normalizeListing);
+    // API currently returns created_at desc. Keep compatibility for asc requests.
+    if (orderDirection === 'asc') {
+      return [...result].reverse();
+    }
     return result;
   } catch (error) {
     console.error('Error listing listings:', error);
@@ -61,83 +82,34 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
  * @returns {Promise<Array>} Filtered listings
  */
 export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
-  const listingsRef = collection(db, 'listings');
-  const conditions = [];
-  Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-        conditions.push(where(key, '==', filters[key]));
-      }
-  });
-
   try {
-    // Handle order by (support '-' prefix for descending)
-    const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-    
-    // Build query
-    let q;
-    if (conditions.length > 0) {
-      q = query(listingsRef, ...conditions, orderBy(orderField, orderDirection), limit(limitCount));
-    } else {
-      q = query(listingsRef, orderBy(orderField, orderDirection), limit(limitCount));
+    const params = { limit: limitCount };
+    if (filters.category) params.category = filters.category;
+    if (filters.subcategory) params.subcategory = filters.subcategory;
+    if (filters.status !== undefined && filters.status !== null && filters.status !== '') {
+      params.status = filters.status;
+    } else if (!filters.created_by) {
+      params.status = 'active';
     }
-    
-    const querySnapshot = await getDocs(q);
-    
-    const result = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date),
-        updated_date: convertTimestamp(data.updated_date),
-        listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
-      };
+
+    const payload = await requestJson(buildApiUrl('listings', params));
+    let result = (payload?.data || []).map(normalizeListing);
+
+    // Server-side currently supports category/subcategory/status. Apply the rest client-side.
+    Object.keys(filters).forEach((key) => {
+      const value = filters[key];
+      if (value === undefined || value === null || value === '') return;
+      if (key === 'category' || key === 'subcategory' || key === 'status') return;
+      result = result.filter((item) => String(item?.[key] ?? '') === String(value));
     });
-    
-    return result;
+
+    if (orderDirection === 'asc') {
+      result = [...result].reverse();
+    }
+    return result.slice(0, limitCount);
   } catch (error) {
     console.error('Error filtering listings:', error);
-
-    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
-      // Ийм тохиолдолд илүү энгийн query ашиглах эсвэл client-side filter хийх
-      if (conditions.length > 1) {
-        // Эхлээд orderBy-гүй query хийж, дараа нь client-side filter хийх
-        try {
-          const simpleQuery = query(listingsRef, ...conditions, limit(limitCount * 2));
-          const simpleSnapshot = await getDocs(simpleQuery);
-          let simpleResult = simpleSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              created_date: convertTimestamp(data.created_date),
-              updated_date: convertTimestamp(data.updated_date),
-              listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
-            };
-          });
-          
-          // Client-side sorting
-          const orderField = orderByField.startsWith('-') ? orderByField.slice(1) : orderByField;
-          simpleResult.sort((a, b) => {
-            const aVal = a[orderField];
-            const bVal = b[orderField];
-            if (!aVal || !bVal) return 0;
-            const comparison = aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-            return orderByField.startsWith('-') ? -comparison : comparison;
-          });
-          
-          // Limit
-          simpleResult = simpleResult.slice(0, limitCount);
-          return simpleResult;
-        } catch (fallbackError) {
-          console.error('Fallback query also failed:', fallbackError);
-          // Эцсийн fallback: хоосон массив
-          return [];
-        }
-      }
-    }
-    
     throw error;
   }
 };
@@ -149,32 +121,17 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
  */
 export const createListing = async (data) => {
   try {
-    const listingsRef = collection(db, 'listings');
-    
-    // Get current user email from auth if not provided
-    const { auth } = await import('@/firebase/config');
-    const userEmail = data.created_by || auth.currentUser?.email || '';
-    
-    if (!userEmail) {
-      throw new Error('Хэрэглэгчийн мэдээлэл олдсонгүй. Нэвтэрнэ үү.');
-    }
-    
-    const listingData = {
-      ...data,
-      created_by: userEmail,
-      created_date: Timestamp.now(),
-      updated_date: Timestamp.now(),
-      views: 0,
-      status: data.status || 'pending',
-      listing_type: data.listing_type || 'regular'
-    };
-    
-    const docRef = await addDoc(listingsRef, listingData);
-    
-    return {
-      id: docRef.id,
-      ...listingData
-    };
+    const headers = await getAuthHeaders();
+    const payload = await requestJson(buildApiUrl('listings'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        ...data,
+        status: data.status || 'pending',
+        listing_type: data.listing_type || 'regular',
+      }),
+    });
+    return normalizeListing(payload?.data || {});
   } catch (error) {
     console.error('Error creating listing:', error);
     throw error;
@@ -189,13 +146,12 @@ export const createListing = async (data) => {
  */
 export const updateListing = async (id, data) => {
   try {
-    const listingRef = doc(db, 'listings', id);
-    const updateData = {
-      ...data,
-      updated_date: Timestamp.now()
-    };
-    
-    await updateDoc(listingRef, updateData);
+    const headers = await getAuthHeaders();
+    await requestJson(buildApiUrl('listing', { id }), {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(data),
+    });
   } catch (error) {
     console.error('Error updating listing:', error);
     throw error;
@@ -209,8 +165,11 @@ export const updateListing = async (id, data) => {
  */
 export const deleteListing = async (id) => {
   try {
-    const listingRef = doc(db, 'listings', id);
-    await deleteDoc(listingRef);
+    const headers = await getAuthHeaders();
+    await requestJson(buildApiUrl('listing', { id }), {
+      method: 'DELETE',
+      headers,
+    });
   } catch (error) {
     console.error('Error deleting listing:', error);
     throw error;
@@ -225,26 +184,9 @@ export const deleteListing = async (id) => {
 export const getListing = async (id) => {
   try {
     if (!id) return null;
-    
-    const listingRef = doc(db, 'listings', id);
-    const listingSnap = await getDoc(listingRef);
-    
-    if (listingSnap.exists()) {
-      const data = listingSnap.data();
-      // Convert Firestore Timestamps to JavaScript Dates
-      const convertedData = {
-        ...data,
-        created_date: convertTimestamp(data.created_date),
-        updated_date: convertTimestamp(data.updated_date),
-        listing_type_expires: data.listing_type_expires ? convertTimestamp(data.listing_type_expires) : undefined
-      };
-      
-      return {
-        id: listingSnap.id,
-        ...convertedData
-      };
-    }
-    return null;
+
+    const payload = await requestJson(buildApiUrl('listing', { id }));
+    return normalizeListing(payload?.data);
   } catch (error) {
     console.error('Error getting listing:', error);
     // Don't throw error, return null instead to show "not found" message
