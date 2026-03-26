@@ -144,18 +144,25 @@ try {
             }
 
             if ($method === 'PUT' || $method === 'PATCH') {
-                $authUser = require_firebase_user();
                 $existing = fetch_listing_or_null($pdo, $id);
                 if (!$existing) {
                     http_response_code(404);
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
-                enforce_listing_ownership($existing, $authUser);
 
                 $body = read_json_body();
                 $payload = extract_listing_payload($body, true);
                 unset($payload['firebase_uid'], $payload['created_by']);
+
+                // Allow public, view-only increment used by listing detail page.
+                $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
+                $existingViews = isset($existing['views']) ? (int) $existing['views'] : 0;
+                $requestedViews = isset($payload['views']) ? (int) $payload['views'] : $existingViews;
+                if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
+                    $authUser = require_firebase_user();
+                    enforce_listing_ownership($existing, $authUser);
+                }
 
                 $setParts = [];
                 $params = [':id' => $id];
