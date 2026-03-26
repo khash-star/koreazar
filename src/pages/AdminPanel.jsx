@@ -6,10 +6,12 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Users, Search, TrendingUp, Eye, LogIn, Loader2, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllUsers } from '@/services/authService';
 import { sendMessageToAllUsers } from '@/services/conversationService';
+import { db } from '@/firebase/config';
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   Dialog,
@@ -22,6 +24,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 
 export default function AdminPanel() {
+  const queryClient = useQueryClient();
   const { user, userData, loading: authLoading } = useAuth();
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [message, setMessage] = useState('');
@@ -156,12 +159,80 @@ export default function AdminPanel() {
     }
   });
 
+  const blockUserMutation = useMutation({
+    mutationFn: async ({ uid, blocked }) => {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        blocked,
+        blockedAt: blocked ? new Date() : null,
+        blockedBy: blocked ? (userData?.email || user?.email || 'admin') : null,
+      });
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      setSelectedUser((prev) => prev ? { ...prev, blocked: variables.blocked } : prev);
+    },
+    onError: (error) => {
+      console.error('Error updating blocked status:', error);
+      alert('Хэрэглэгчийн төлөв шинэчлэхэд алдаа гарлаа');
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async ({ uid }) => {
+      const userRef = doc(db, 'users', uid);
+      await deleteDoc(userRef);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      setSelectedUser(null);
+      alert('Хэрэглэгч амжилттай устгагдлаа');
+    },
+    onError: (error) => {
+      console.error('Error deleting user document:', error);
+      alert('Хэрэглэгч устгахад алдаа гарлаа');
+    },
+  });
+
   const handleSendMessage = () => {
     if (!message.trim()) {
       alert('Мессеж оруулах шаардлагатай.');
       return;
     }
     sendMessageMutation.mutate(message.trim());
+  };
+
+  const handleToggleBlockUser = () => {
+    if (!selectedUser) return;
+    if (selectedUser.role === 'admin') {
+      alert('Админ хэрэглэгчийг блоклох боломжгүй');
+      return;
+    }
+    if (selectedUser.id === user?.uid) {
+      alert('Өөрийгөө блоклох боломжгүй');
+      return;
+    }
+    const nextBlocked = !selectedUser.blocked;
+    const confirmText = nextBlocked
+      ? `${selectedUser.email} хэрэглэгчийг блоклох уу?`
+      : `${selectedUser.email} хэрэглэгчийн блокыг цуцлах уу?`;
+
+    if (!window.confirm(confirmText)) return;
+    blockUserMutation.mutate({ uid: selectedUser.id, blocked: nextBlocked });
+  };
+
+  const handleDeleteUser = () => {
+    if (!selectedUser) return;
+    if (selectedUser.role === 'admin') {
+      alert('Админ хэрэглэгчийг устгах боломжгүй');
+      return;
+    }
+    if (selectedUser.id === user?.uid) {
+      alert('Өөрийгөө устгах боломжгүй');
+      return;
+    }
+    if (!window.confirm(`${selectedUser.email} хэрэглэгчийг устгах уу?`)) return;
+    deleteUserMutation.mutate({ uid: selectedUser.id });
   };
   
   if (authLoading) {
@@ -672,6 +743,9 @@ export default function AdminPanel() {
                               {user.role === 'admin' && (
                                 <span className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded">Админ</span>
                               )}
+                              {user.blocked && (
+                                <span className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded">Блоклосон</span>
+                              )}
                             </div>
                             
                             <div className="space-y-1 mb-3">
@@ -810,6 +884,14 @@ export default function AdminPanel() {
                         </span>
                       </p>
                     </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Төлөв</p>
+                      <p className="text-sm text-gray-900">
+                        <span className={`px-2 py-0.5 rounded ${selectedUser.blocked ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {selectedUser.blocked ? 'Блоклосон' : 'Идэвхтэй'}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -903,6 +985,29 @@ export default function AdminPanel() {
             </div>
           )}
           <DialogFooter>
+            {selectedUser && selectedUser.role !== 'admin' && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleToggleBlockUser}
+                  disabled={blockUserMutation.isPending || deleteUserMutation.isPending}
+                  className={selectedUser.blocked ? 'border-emerald-300 text-emerald-700' : 'border-amber-300 text-amber-700'}
+                >
+                  {blockUserMutation.isPending
+                    ? 'Түр хүлээнэ үү...'
+                    : selectedUser.blocked
+                      ? 'Блок цуцлах'
+                      : 'Блоклох'}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteUser}
+                  disabled={deleteUserMutation.isPending || blockUserMutation.isPending}
+                >
+                  {deleteUserMutation.isPending ? 'Устгаж байна...' : 'Устгах'}
+                </Button>
+              </>
+            )}
             <Button variant="outline" onClick={() => setSelectedUser(null)}>
               Хаах
             </Button>
