@@ -3,6 +3,7 @@
 import * as listingService from '@/services/listingService';
 import * as conversationService from '@/services/conversationService';
 import * as bannerService from '@/services/bannerService';
+import * as listingReportService from '@/services/listingReportService';
 
 // Listing entity - Firestore service ашиглах
 export const Listing = {
@@ -155,6 +156,15 @@ export const BannerRequest = {
   create: (data) => bannerService.createBannerRequest(data),
   update: (id, data) => bannerService.updateBannerRequest(id, data),
   delete: (id) => bannerService.deleteBannerRequest(id)
+};
+
+// ListingReport entity
+export const ListingReport = {
+  list: () => listingReportService.listListingReports(),
+  filter: (filters = {}) => listingReportService.filterListingReports(filters),
+  create: (data) => listingReportService.createListingReport(data),
+  update: (id, data) => listingReportService.updateListingReport(id, data),
+  delete: (id) => listingReportService.deleteListingReport(id)
 };
 
 // User - Firebase Auth ашиглах (authService-ээс)

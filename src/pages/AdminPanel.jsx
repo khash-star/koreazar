@@ -3,7 +3,7 @@ import * as entities from '@/api/entities';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Users, Search, TrendingUp, Eye, LogIn, Loader2 } from 'lucide-react';
+import { ArrowLeft, Clock, List, Shield, Settings, MessageSquare, Send, Star, Users, Search, TrendingUp, Eye, LogIn, Loader2, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -69,6 +69,12 @@ export default function AdminPanel() {
     },
     enabled: !!(userData?.email || user?.email) && isAdmin,
     refetchInterval: 5000
+  });
+
+  const { data: pendingReports = [] } = useQuery({
+    queryKey: ['pending-listing-reports'],
+    queryFn: () => entities.ListingReport.filter({ status: 'pending' }),
+    enabled: isAdmin,
   });
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
@@ -508,6 +514,31 @@ export default function AdminPanel() {
               </div>
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-sm text-gray-600">Хүсэлтүүдийг батлах, татгалзах</p>
+              </div>
+            </motion.div>
+          </Link>
+
+          <Link to={createPageUrl('AdminListingReports')}>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.33 }}
+              whileHover={{ y: -4, scale: 1.02 }}
+              className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                  <Flag className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Зарын гомдол</h2>
+                  <p className="text-sm text-gray-500">Хэрэглэгчийн санал, гомдлын шалгалт</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-sm text-gray-600">
+                  {pendingReports.length > 0 ? `${pendingReports.length} шинэ гомдол` : 'Шинэ гомдол алга'}
+                </p>
               </div>
             </motion.div>
           </Link>

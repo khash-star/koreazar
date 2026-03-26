@@ -1,5 +1,9 @@
 {
   "projects": {
-    "default": "koreazar-32e7a"
-  }
+    "default": "koreazar-32e7a",
+    "firebase deploy --only firestore:rules": "koreazar-32e7a",
+    "What alias do you want to use for this project?": "koreazar-32e7a"
+  },
+  "targets": {},
+  "etags": {}
 }

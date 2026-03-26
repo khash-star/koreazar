@@ -47,6 +47,20 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if isAdmin();
     }
+
+    // Listing reports (санал/гомдол)
+    match /listing_reports/{reportId} {
+      // Admin can read all reports, reporter can read own reports
+      allow read: if request.auth != null && (
+        isAdmin() ||
+        resource.data.reporter_email == request.auth.token.email
+      );
+      // Any authenticated user can create only for self
+      allow create: if request.auth != null &&
+        request.resource.data.reporter_email == request.auth.token.email;
+      // Only admin can update/delete report status
+      allow update, delete: if isAdmin();
+    }
     
     // Saved listings
     match /saved_listings/{savedId} {

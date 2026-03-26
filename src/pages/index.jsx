@@ -10,6 +10,7 @@ const Register = lazy(() => import('./Register'));
 const AdminAllListings = lazy(() => import('./AdminAllListings'));
 const AdminBannerRequests = lazy(() => import('./AdminBannerRequests'));
 const AdminBanners = lazy(() => import('./AdminBanners'));
+const AdminListingReports = lazy(() => import('./AdminListingReports'));
 const AdminNewListings = lazy(() => import('./AdminNewListings'));
 const AdminPanel = lazy(() => import('./AdminPanel'));
 const CreateListing = lazy(() => import('./CreateListing'));
@@ -29,6 +30,7 @@ const PAGES = {
   AdminAllListings,
   AdminBannerRequests,
   AdminBanners,
+  AdminListingReports,
   AdminNewListings,
   AdminPanel,
   CreateListing,
@@ -90,6 +92,8 @@ function PagesContent() {
             <Route path="/AdminBannerRequests" element={<LayoutWrapper currentPageName={currentPage}><AdminBannerRequests /></LayoutWrapper>} />
             
             <Route path="/AdminBanners" element={<LayoutWrapper currentPageName={currentPage}><AdminBanners /></LayoutWrapper>} />
+            
+            <Route path="/AdminListingReports" element={<LayoutWrapper currentPageName={currentPage}><AdminListingReports /></LayoutWrapper>} />
             
             <Route path="/AdminNewListings" element={<LayoutWrapper currentPageName={currentPage}><AdminNewListings /></LayoutWrapper>} />
             

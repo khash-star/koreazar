@@ -8,7 +8,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin, getAdminEmail } from '@/services/authService';
+import { redirectToLogin } from '@/services/authService';
 import {
   ArrowLeft,
   Phone,
@@ -62,6 +62,9 @@ export default function ListingDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState('Буруу үнэ');
+  const [reportDetails, setReportDetails] = useState('');
   const [deleteId, setDeleteId] = useState(null);
   const { user, userData, isAuthenticated, loading } = useAuth();
 
@@ -117,6 +120,20 @@ export default function ListingDetail() {
     }
   });
 
+  const reportMutation = useMutation({
+    mutationFn: async (payload) => entities.ListingReport.create(payload),
+    onSuccess: () => {
+      toast({ title: 'Гомдол амжилттай илгээгдлээ', variant: 'default' });
+      setShowReportDialog(false);
+      setReportDetails('');
+      setReportReason('Буруу үнэ');
+    },
+    onError: (error) => {
+      console.error('Error submitting listing report:', error);
+      toast({ title: 'Гомдол илгээхэд алдаа гарлаа', variant: 'destructive' });
+    },
+  });
+
   const handleSave = () => {
     if (loading) return;
     const email = userData?.email || user?.email;
@@ -134,20 +151,25 @@ export default function ListingDetail() {
       redirectToLogin(window.location.href);
       return;
     }
+    setShowReportDialog(true);
+  };
 
-    try {
-      const adminEmail = await getAdminEmail();
-      if (!adminEmail) {
-        toast({ title: 'Админий мэдээлэл олдсонгүй', variant: 'destructive' });
-        return;
-      }
-      window.location.href = createPageUrl(
-        `Chat?otherUserEmail=${encodeURIComponent(adminEmail)}&listingId=${listing.id}`
-      );
-    } catch (error) {
-      console.error('Error opening admin report chat:', error);
-      toast({ title: 'Санал гомдол илгээхэд алдаа гарлаа', variant: 'destructive' });
+  const submitReport = () => {
+    const email = userData?.email || user?.email;
+    if (!email) {
+      redirectToLogin(window.location.href);
+      return;
     }
+    reportMutation.mutate({
+      listing_id: listing.id,
+      listing_title: listing.title,
+      listing_owner: listing.created_by || null,
+      category: listing.category || null,
+      reason: reportReason,
+      details: reportDetails?.trim() || null,
+      reporter_email: email,
+      status: 'pending',
+    });
   };
 
   // Update view count
@@ -710,6 +732,47 @@ export default function ListingDetail() {
               className="flex-1 p-3 bg-gray-100 rounded-lg text-sm"
             />
             <Button onClick={copyToClipboard}>Хуулах</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Listing Report Dialog */}
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Гомдол мэдүүлэх</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              {['Зарагдсан бараа', 'Буруу үнэ', 'Буруу дугаар', 'Зураг утга илэрхийлэхгүй байна', 'Спам', 'Залилан байна'].map((reason) => (
+                <label key={reason} className="flex items-center gap-3 text-sm">
+                  <input
+                    type="radio"
+                    name="listing-report-reason"
+                    value={reason}
+                    checked={reportReason === reason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                  />
+                  <span>{reason}</span>
+                </label>
+              ))}
+            </div>
+            <div>
+              <label className="text-sm font-medium">Та нөхцөл байдлыг илүү дэлгэрэнгүй тайлбарлана уу</label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Сэтгэгдлээ энд бичнэ үү"
+                className="mt-2 w-full min-h-[110px] rounded-lg border border-gray-300 p-3 text-sm"
+              />
+            </div>
+            <Button
+              onClick={submitReport}
+              disabled={reportMutation.isPending}
+              className="w-full h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white"
+            >
+              {reportMutation.isPending ? 'Илгээж байна...' : 'Гомдол илгээх'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

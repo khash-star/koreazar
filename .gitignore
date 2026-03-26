@@ -52,3 +52,4 @@ app/build/
 
 # EAS / local build artifacts
 mobile/builds/
+.github.zip
