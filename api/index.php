@@ -93,6 +93,13 @@ try {
                     break;
                 }
 
+                // Best-effort auxiliary upserts for legacy/shared schemas.
+                upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
+                ensure_category_best_effort($pdo, (string) $payload['category']);
+                if (!empty($payload['location']) && is_string($payload['location'])) {
+                    ensure_region_best_effort($pdo, $payload['location']);
+                }
+
                 $sql = 'INSERT INTO listings (
                     firebase_uid, created_by, category, subcategory, title, description, price, is_negotiable,
                     `condition`, status, listing_type, listing_type_expires, location, phone, kakao_id, wechat_id,
@@ -456,4 +463,233 @@ function enforce_listing_ownership(array $existing, array $authUser): void
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * @return array<int,string>
+ */
+function get_table_columns(PDO $pdo, string $table): array
+{
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM `' . str_replace('`', '', $table) . '`');
+        $rows = $stmt ? $stmt->fetchAll() : [];
+        $cols = [];
+        foreach ($rows as $r) {
+            if (isset($r['Field']) && is_string($r['Field'])) {
+                $cols[] = $r['Field'];
+            }
+        }
+        return $cols;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+
+function table_has(PDO $pdo, string $table, string $col): bool
+{
+    static $cache = [];
+    $key = $table . '::' . $col;
+    if (array_key_exists($key, $cache)) {
+        return $cache[$key];
+    }
+    $cols = get_table_columns($pdo, $table);
+    $ok = in_array($col, $cols, true);
+    $cache[$key] = $ok;
+    return $ok;
+}
+
+function slugify(string $v): string
+{
+    $s = trim(mb_strtolower($v));
+    if ($s === '') return '';
+    $s = preg_replace('/[^a-z0-9]+/u', '-', $s);
+    $s = trim((string) $s, '-');
+    return $s === '' ? 'n-a' : $s;
+}
+
+function upsert_user_best_effort(PDO $pdo, string $firebaseUid, ?string $email): void
+{
+    if ($firebaseUid === '') return;
+    try {
+        $emailVal = $email ?: null;
+
+        // Preferred schema: users(firebase_uid, email, display_name, role, ...)
+        if (table_has($pdo, 'users', 'firebase_uid')) {
+            $stmt = $pdo->prepare('SELECT id FROM users WHERE firebase_uid = :uid LIMIT 1');
+            $stmt->execute([':uid' => $firebaseUid]);
+            $row = $stmt->fetch();
+            if ($row) {
+                if (table_has($pdo, 'users', 'email')) {
+                    $u = $pdo->prepare('UPDATE users SET email = COALESCE(:email, email), updated_at = NOW() WHERE id = :id');
+                    $u->execute([':email' => $emailVal, ':id' => $row['id']]);
+                }
+                return;
+            }
+
+            $cols = ['firebase_uid'];
+            $vals = [':firebase_uid'];
+            $params = [':firebase_uid' => $firebaseUid];
+            if (table_has($pdo, 'users', 'email')) {
+                $cols[] = 'email';
+                $vals[] = ':email';
+                $params[':email'] = $emailVal;
+            }
+            if (table_has($pdo, 'users', 'role')) {
+                $cols[] = 'role';
+                $vals[] = ':role';
+                $params[':role'] = 'user';
+            }
+            $sql = 'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+            $ins = $pdo->prepare($sql);
+            $ins->execute($params);
+            return;
+        }
+
+        // Legacy schema fallback: users(name, email, password, phone, role, ...)
+        if (table_has($pdo, 'users', 'email')) {
+            $stmt = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+            $stmt->execute([':email' => $emailVal]);
+            $row = $stmt->fetch();
+            if ($row) return;
+
+            $cols = [];
+            $vals = [];
+            $params = [];
+            if (table_has($pdo, 'users', 'name')) {
+                $cols[] = 'name';
+                $vals[] = ':name';
+                $params[':name'] = $emailVal ? strstr($emailVal, '@', true) ?: 'user' : 'user';
+            }
+            if (table_has($pdo, 'users', 'email')) {
+                $cols[] = 'email';
+                $vals[] = ':email';
+                $params[':email'] = $emailVal ?: ($firebaseUid . '@firebase.local');
+            }
+            if (table_has($pdo, 'users', 'password')) {
+                $cols[] = 'password';
+                $vals[] = ':password';
+                $params[':password'] = '';
+            }
+            if (table_has($pdo, 'users', 'role')) {
+                $cols[] = 'role';
+                $vals[] = ':role';
+                $params[':role'] = 'user';
+            }
+            if ($cols) {
+                $sql = 'INSERT INTO users (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+                $ins = $pdo->prepare($sql);
+                $ins->execute($params);
+            }
+        }
+    } catch (Throwable $e) {
+        // Intentionally swallow: listing creation should still proceed.
+    }
+}
+
+function ensure_category_best_effort(PDO $pdo, string $category): void
+{
+    $category = trim($category);
+    if ($category === '') return;
+    try {
+        if (!table_has($pdo, 'categories', 'name') && !table_has($pdo, 'categories', 'slug')) return;
+
+        $exists = false;
+        if (table_has($pdo, 'categories', 'slug')) {
+            $slug = slugify($category);
+            $q = $pdo->prepare('SELECT id FROM categories WHERE slug = :slug LIMIT 1');
+            $q->execute([':slug' => $slug]);
+            $exists = (bool) $q->fetch();
+        }
+        if (!$exists && table_has($pdo, 'categories', 'name')) {
+            $q = $pdo->prepare('SELECT id FROM categories WHERE name = :name LIMIT 1');
+            $q->execute([':name' => $category]);
+            $exists = (bool) $q->fetch();
+        }
+        if ($exists) return;
+
+        $cols = [];
+        $vals = [];
+        $params = [];
+        if (table_has($pdo, 'categories', 'name')) {
+            $cols[] = 'name';
+            $vals[] = ':name';
+            $params[':name'] = $category;
+        }
+        if (table_has($pdo, 'categories', 'slug')) {
+            $cols[] = 'slug';
+            $vals[] = ':slug';
+            $params[':slug'] = slugify($category);
+        }
+        if (table_has($pdo, 'categories', 'sort_order')) {
+            $cols[] = 'sort_order';
+            $vals[] = ':sort_order';
+            $params[':sort_order'] = 999;
+        }
+        if (table_has($pdo, 'categories', 'is_active')) {
+            $cols[] = 'is_active';
+            $vals[] = ':is_active';
+            $params[':is_active'] = 1;
+        }
+        if (!$cols) return;
+
+        $sql = 'INSERT INTO categories (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+        $ins = $pdo->prepare($sql);
+        $ins->execute($params);
+    } catch (Throwable $e) {
+        // best effort only
+    }
+}
+
+function ensure_region_best_effort(PDO $pdo, string $region): void
+{
+    $region = trim($region);
+    if ($region === '') return;
+    try {
+        if (!table_has($pdo, 'regions', 'name') && !table_has($pdo, 'regions', 'slug')) return;
+
+        $exists = false;
+        if (table_has($pdo, 'regions', 'slug')) {
+            $slug = slugify($region);
+            $q = $pdo->prepare('SELECT id FROM regions WHERE slug = :slug LIMIT 1');
+            $q->execute([':slug' => $slug]);
+            $exists = (bool) $q->fetch();
+        }
+        if (!$exists && table_has($pdo, 'regions', 'name')) {
+            $q = $pdo->prepare('SELECT id FROM regions WHERE name = :name LIMIT 1');
+            $q->execute([':name' => $region]);
+            $exists = (bool) $q->fetch();
+        }
+        if ($exists) return;
+
+        $cols = [];
+        $vals = [];
+        $params = [];
+        if (table_has($pdo, 'regions', 'name')) {
+            $cols[] = 'name';
+            $vals[] = ':name';
+            $params[':name'] = $region;
+        }
+        if (table_has($pdo, 'regions', 'slug')) {
+            $cols[] = 'slug';
+            $vals[] = ':slug';
+            $params[':slug'] = slugify($region);
+        }
+        if (table_has($pdo, 'regions', 'sort_order')) {
+            $cols[] = 'sort_order';
+            $vals[] = ':sort_order';
+            $params[':sort_order'] = 999;
+        }
+        if (table_has($pdo, 'regions', 'is_active')) {
+            $cols[] = 'is_active';
+            $vals[] = ':is_active';
+            $params[':is_active'] = 1;
+        }
+        if (!$cols) return;
+
+        $sql = 'INSERT INTO regions (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+        $ins = $pdo->prepare($sql);
+        $ins->execute($params);
+    } catch (Throwable $e) {
+        // best effort only
+    }
 }
