@@ -61,6 +61,13 @@ service cloud.firestore {
       // Only admin can update/delete report status
       allow update, delete: if isAdmin();
     }
+
+    // Footer feedback messages
+    match /feedback_messages/{feedbackId} {
+      allow create: if request.auth != null &&
+        request.resource.data.email == request.auth.token.email;
+      allow read, update, delete: if isAdmin();
+    }
     
     // Saved listings
     match /saved_listings/{savedId} {

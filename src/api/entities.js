@@ -4,6 +4,7 @@ import * as listingService from '@/services/listingService';
 import * as conversationService from '@/services/conversationService';
 import * as bannerService from '@/services/bannerService';
 import * as listingReportService from '@/services/listingReportService';
+import * as feedbackService from '@/services/feedbackService';
 
 // Listing entity - Firestore service ашиглах
 export const Listing = {
@@ -165,6 +166,10 @@ export const ListingReport = {
   create: (data) => listingReportService.createListingReport(data),
   update: (id, data) => listingReportService.updateListingReport(id, data),
   delete: (id) => listingReportService.deleteListingReport(id)
+};
+
+export const Feedback = {
+  create: (data) => feedbackService.createFeedback(data),
 };
 
 // User - Firebase Auth ашиглах (authService-ээс)
