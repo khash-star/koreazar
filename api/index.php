@@ -195,6 +195,8 @@ try {
                     break;
                 }
 
+                enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
+
                 // Best-effort auxiliary upserts for legacy/shared schemas.
                 upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
                 $listingCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
@@ -270,6 +272,7 @@ try {
                 if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($existing, $authUser);
+                    enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
                 }
 
                 $setParts = [];
@@ -672,6 +675,100 @@ function enforce_listing_ownership(array $existing, array $authUser): void
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * @param mixed $v
+ */
+function normalize_listing_type_value($v): string
+{
+    if ($v === null || $v === '') {
+        return '';
+    }
+
+    return strtolower(trim((string) $v));
+}
+
+/**
+ * App admin: APP_ADMIN_UIDS env and/or MySQL users.role = admin (when schema supports it).
+ *
+ * @param array{uid:string,email:?string} $authUser
+ */
+function is_app_admin(PDO $pdo, array $authUser): bool
+{
+    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    if ($uid === '') {
+        return false;
+    }
+
+    $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
+    $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
+    if (in_array($uid, $adminUids, true)) {
+        return true;
+    }
+
+    if (table_has($pdo, 'users', 'firebase_uid') && table_has($pdo, 'users', 'role')) {
+        try {
+            $stmt = $pdo->prepare('SELECT role FROM users WHERE firebase_uid = :uid LIMIT 1');
+            $stmt->execute([':uid' => $uid]);
+            $row = $stmt->fetch();
+            if ($row && isset($row['role']) && normalize_listing_type_value($row['role']) === 'admin') {
+                return true;
+            }
+        } catch (Throwable $e) {
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use admin panel / APP_ADMIN_UIDS).
+ *
+ * @param array<string,mixed> $payload
+ * @param array<string,mixed>|null $existing
+ * @param array{uid:string,email:?string} $authUser
+ */
+function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $payload, ?array $existing, bool $isCreate): void
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    if ($isCreate) {
+        $lt = normalize_listing_type_value($payload['listing_type'] ?? '');
+        if ($lt === 'vip' || $lt === 'featured') {
+            http_response_code(403);
+            echo json_encode(['error' => 'VIP/Онцгой зар олгох эрх зөвхөн админд'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        return;
+    }
+
+    if ($existing === null) {
+        return;
+    }
+
+    if (array_key_exists('listing_type', $payload)) {
+        $lt = normalize_listing_type_value($payload['listing_type']);
+        if ($lt === 'vip' || $lt === 'featured') {
+            http_response_code(403);
+            echo json_encode(['error' => 'VIP/Онцгой зар олгох эрх зөвхөн админд'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
+    $existingLt = normalize_listing_type_value($existing['listing_type'] ?? 'regular');
+    if (($existingLt === 'vip' || $existingLt === 'featured') && array_key_exists('listing_type_expires', $payload)) {
+        $demoting = array_key_exists('listing_type', $payload)
+            && normalize_listing_type_value($payload['listing_type']) === 'regular';
+        if (!$demoting) {
+            http_response_code(403);
+            echo json_encode(['error' => 'VIP/Онцгой зарын хугацааг зөвхөн админ сунгаж болно'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
 }
 
 /**

@@ -233,6 +233,7 @@ export default function MyListings() {
                                 Засах
                               </Link>
                             </DropdownMenuItem>
+                            {(userData?.role === 'admin' || user?.role === 'admin') && (
                             <DropdownMenuItem asChild>
                               <Link to={createPageUrl(`UpgradeListing?id=${listing.id}`)}>
                                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,6 +242,7 @@ export default function MyListings() {
                                 VIP болгох
                               </Link>
                             </DropdownMenuItem>
+                            )}
                             {listing.status === 'active' && (
                               <DropdownMenuItem
                                 onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'sold' })}

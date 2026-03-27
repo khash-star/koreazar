@@ -30,7 +30,7 @@ const statusLabel = { active: "Идэвхтэй", pending: "Хүлээгдэж �
 
 export default function MyListingsScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
-  const { email, isAuthenticated } = useAuth();
+  const { email, isAuthenticated, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -239,9 +239,11 @@ export default function MyListingsScreen({ navigation }) {
             >
               <Text style={styles.modalItemText}>Засах</Text>
             </Pressable>
-            <Pressable style={styles.modalItem} onPress={handleMakeVIP}>
-              <Text style={styles.modalItemText}>VIP болгох</Text>
-            </Pressable>
+            {isAdmin ? (
+              <Pressable style={styles.modalItem} onPress={handleMakeVIP}>
+                <Text style={styles.modalItemText}>VIP болгох</Text>
+              </Pressable>
+            ) : null}
             <Pressable style={styles.modalItem} onPress={handleStatusToggle}>
               <Text style={styles.modalItemText}>
                 {menuItem?.status === "active" ? "Зарагдсан гэж тэмдэглэх" : "Идэвхжүүлэх"}

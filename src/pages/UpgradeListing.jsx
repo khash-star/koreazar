@@ -8,6 +8,7 @@ import { ArrowLeft, Crown, Star, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 
 const LISTING_TYPES = {
   regular: {
@@ -47,7 +48,11 @@ const LISTING_TYPES = {
 
 export default function UpgradeListing() {
   const navigate = useNavigate();
+  const { user, userData } = useAuth();
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   const [listingId, setListingId] = useState(null);
+
+  const canApplyListingType = (typeKey) => typeKey === 'regular' || isAdmin;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -70,7 +75,7 @@ export default function UpgradeListing() {
       
       return entities.Listing.update(listingId, {
         listing_type: type,
-        listing_type_expires: expiresDate.toISOString()
+        listing_type_expires: type === 'regular' ? null : expiresDate.toISOString()
       });
     },
     onSuccess: () => {
@@ -202,6 +207,8 @@ export default function UpgradeListing() {
                     </>
                   ) : isCurrentType ? (
                     <>Одоогийн төлөв</>
+                  ) : !canApplyListingType(key) ? (
+                    <>Зөвхөн админ</>
                   ) : (
                     <>
                       {key === 'vip' && <Crown className="w-5 h-5 mr-2" />}
