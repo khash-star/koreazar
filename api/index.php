@@ -271,7 +271,7 @@ try {
                 $requestedViews = isset($payload['views']) ? (int) $payload['views'] : $existingViews;
                 if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
                     $authUser = require_firebase_user();
-                    enforce_listing_ownership($existing, $authUser);
+                    enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
                 }
 
@@ -305,7 +305,7 @@ try {
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
-                enforce_listing_ownership($existing, $authUser);
+                enforce_listing_ownership($pdo, $existing, $authUser);
                 $stmt = $pdo->prepare('DELETE FROM listings WHERE id = :id');
                 $stmt->execute([':id' => $id]);
                 if ($stmt->rowCount() === 0) {
@@ -658,17 +658,14 @@ function openai_chat_completion(array $payload): array
  * @param array<string,mixed> $existing
  * @param array{uid:string,email:?string} $authUser
  */
-function enforce_listing_ownership(array $existing, array $authUser): void
+function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): void
 {
     $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
     $uid = $authUser['uid'];
     if ($ownerUid === $uid) {
         return;
     }
-
-    $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
-    $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
-    if (in_array($uid, $adminUids, true)) {
+    if (is_app_admin($pdo, $authUser)) {
         return;
     }
 

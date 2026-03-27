@@ -206,26 +206,6 @@ export default function MessagesScreen({ navigation }) {
     }
   }, [deleteTarget, load]);
 
-  if (!isAuthenticated || !email) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.title}>Мессеж</Text>
-        <Text style={styles.sub}>Нэвтэрсний дараа хэрэглэгчидтэй чатлана.</Text>
-        <Pressable style={styles.btn} onPress={() => navigateToLogin(navigation)}>
-          <Text style={styles.btnText}>Нэвтрэх</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (loading && rows.length === 0) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#ea580c" />
-      </View>
-    );
-  }
-
   const openAdminChat = useCallback(() => {
     if (adminEmail) navigation.navigate("Chat", { otherUserEmail: adminEmail });
   }, [adminEmail, navigation]);
@@ -317,6 +297,26 @@ export default function MessagesScreen({ navigation }) {
     },
     [email, navigation, openDeleteConversationModal]
   );
+
+  if (!isAuthenticated || !email) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.title}>Мессеж</Text>
+        <Text style={styles.sub}>Нэвтэрсний дараа хэрэглэгчидтэй чатлана.</Text>
+        <Pressable style={styles.btn} onPress={() => navigateToLogin(navigation)}>
+          <Text style={styles.btnText}>Нэвтрэх</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (loading && rows.length === 0) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#ea580c" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
