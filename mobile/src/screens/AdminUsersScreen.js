@@ -30,6 +30,11 @@ export default function AdminUsersScreen() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const closeProfileModal = useCallback(() => {
+    setConfirmDeleteOpen(false);
+    setSelectedUser(null);
+  }, []);
+
   const load = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
@@ -63,6 +68,7 @@ export default function AdminUsersScreen() {
   }, [rows, q]);
 
   const openUserProfile = useCallback(async (user) => {
+    setConfirmDeleteOpen(false);
     setSelectedUser(user);
     setStatsLoading(true);
     setUserStats({ total: 0, active: 0, pending: 0 });
@@ -132,14 +138,13 @@ export default function AdminUsersScreen() {
     try {
       await deleteUserProfile(selectedUser.id);
       setRows((prev) => prev.filter((u) => u.id !== selectedUser.id));
-      setConfirmDeleteOpen(false);
-      setSelectedUser(null);
+      closeProfileModal();
     } catch (e) {
       showAlert("Алдаа", e?.message || "Хэрэглэгч устгаж чадсангүй.");
     } finally {
       setDeleting(false);
     }
-  }, [selectedUser]);
+  }, [selectedUser, closeProfileModal]);
 
   if (loading && !refreshing) {
     return (
@@ -185,13 +190,27 @@ export default function AdminUsersScreen() {
       visible={!!selectedUser}
       transparent
       animationType="fade"
-      onRequestClose={() => setSelectedUser(null)}
+      onRequestClose={() => {
+        if (deleting) return;
+        if (confirmDeleteOpen) setConfirmDeleteOpen(false);
+        else closeProfileModal();
+      }}
     >
-      <Pressable style={styles.modalBackdrop} onPress={() => setSelectedUser(null)}>
-        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.modalBackdrop}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            if (deleting) return;
+            if (confirmDeleteOpen) setConfirmDeleteOpen(false);
+            else closeProfileModal();
+          }}
+          accessibilityRole="button"
+        />
+        <View style={styles.modalCardWrap} pointerEvents="box-none">
+          <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Хэрэглэгчийн профайл</Text>
-            <Pressable onPress={() => setSelectedUser(null)}>
+            <Pressable onPress={closeProfileModal}>
               <Text style={styles.closeText}>✕</Text>
             </Pressable>
           </View>
@@ -259,43 +278,47 @@ export default function AdminUsersScreen() {
             >
               <Text style={styles.dangerBtnText}>Устгах</Text>
             </Pressable>
-            <Pressable style={[styles.actionBtn, styles.closeBtn]} onPress={() => setSelectedUser(null)}>
+            <Pressable style={[styles.actionBtn, styles.closeBtn]} onPress={closeProfileModal}>
               <Text style={styles.closeBtnText}>Хаах</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-    <Modal
-      visible={confirmDeleteOpen}
-      transparent
-      animationType="fade"
-      onRequestClose={() => !deleting && setConfirmDeleteOpen(false)}
-    >
-      <Pressable style={styles.modalBackdrop} onPress={() => !deleting && setConfirmDeleteOpen(false)}>
-        <Pressable style={styles.confirmCard} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.confirmTitle}>Хэрэглэгч устгах уу?</Text>
-          <Text style={styles.confirmText}>
-            {selectedUser?.email || "Сонгосон хэрэглэгч"} профайлыг устгах гэж байна. Энэ үйлдлийг буцаах боломжгүй.
-          </Text>
-          <View style={styles.confirmActions}>
-            <Pressable
-              style={[styles.actionBtn, styles.closeBtn, deleting && styles.dimBtn]}
-              onPress={() => setConfirmDeleteOpen(false)}
-              disabled={deleting}
-            >
-              <Text style={styles.closeBtnText}>Цуцлах</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.actionBtn, styles.dangerBtn, deleting && styles.dimBtn]}
-              onPress={confirmDeleteUser}
-              disabled={deleting}
-            >
-              <Text style={styles.dangerBtnText}>{deleting ? "Устгаж байна..." : "Тийм, устгах"}</Text>
-            </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+
+        {confirmDeleteOpen && (
+          <View style={styles.confirmOverlay} pointerEvents="box-none">
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => !deleting && setConfirmDeleteOpen(false)}
+              accessibilityRole="button"
+            />
+            <View style={styles.confirmCardWrap} pointerEvents="box-none">
+              <View style={styles.confirmCard}>
+                <Text style={styles.confirmTitle}>Хэрэглэгч устгах уу?</Text>
+                <Text style={styles.confirmText}>
+                  {selectedUser?.email || "Сонгосон хэрэглэгч"} профайлыг устгах гэж байна. Энэ үйлдлийг буцаах боломжгүй.
+                </Text>
+                <View style={styles.confirmActions}>
+                  <Pressable
+                    style={[styles.actionBtn, styles.closeBtn, deleting && styles.dimBtn]}
+                    onPress={() => setConfirmDeleteOpen(false)}
+                    disabled={deleting}
+                  >
+                    <Text style={styles.closeBtnText}>Цуцлах</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionBtn, styles.dangerBtn, deleting && styles.dimBtn]}
+                    onPress={confirmDeleteUser}
+                    disabled={deleting}
+                  >
+                    <Text style={styles.dangerBtnText}>{deleting ? "Устгаж байна..." : "Тийм, устгах"}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
     </Modal>
     </>
   );
@@ -328,8 +351,30 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: "700", color: "#0f172a" },
   meta: { marginTop: 2, color: "#64748b", fontSize: 13 },
   role: { marginTop: 6, fontSize: 12, color: "#334155", fontWeight: "700" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", padding: 16 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  modalCardWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    padding: 16,
+  },
   modalCard: { backgroundColor: "#fff", borderRadius: 14, padding: 14 },
+  /** Нэг Modal дотор — iPad дээр давхар Modal-ийн touch/stack алдааг засна */
+  confirmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 16,
+    zIndex: 50,
+    elevation: 50,
+  },
+  confirmCardWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    padding: 16,
+  },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalTitle: { fontSize: 30, fontWeight: "800", color: "#111827" },
   closeText: { fontSize: 20, color: "#6b7280", fontWeight: "700" },
