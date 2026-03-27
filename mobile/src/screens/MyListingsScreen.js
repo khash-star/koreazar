@@ -83,6 +83,19 @@ export default function MyListingsScreen({ navigation }) {
   const openActions = useCallback((item) => setMenuItem(item), []);
 
   const closeActions = useCallback(() => setMenuItem(null), []);
+  const closeActionsThen = useCallback(
+    (next) => {
+      closeActions();
+      // RN Web + Modal: avoid aria-hidden focus warning by blurring before route change/dialog.
+      if (typeof document !== "undefined" && document?.activeElement?.blur) {
+        document.activeElement.blur();
+      }
+      setTimeout(() => {
+        if (typeof next === "function") next();
+      }, 0);
+    },
+    [closeActions]
+  );
 
   const handleStatusToggle = useCallback(async () => {
     if (!menuItem) return;
@@ -223,8 +236,7 @@ export default function MyListingsScreen({ navigation }) {
               style={styles.modalItem}
               onPress={() => {
                 if (!menuItem) return;
-                closeActions();
-                navigateToHomeListing(navigation, menuItem.id);
+                closeActionsThen(() => navigateToHomeListing(navigation, menuItem.id));
               }}
             >
               <Text style={styles.modalItemText}>Харах</Text>
@@ -233,8 +245,7 @@ export default function MyListingsScreen({ navigation }) {
               style={styles.modalItem}
               onPress={() => {
                 if (!menuItem?.id) return;
-                closeActions();
-                navigateToEditListing(navigation, menuItem.id);
+                closeActionsThen(() => navigateToEditListing(navigation, menuItem.id));
               }}
             >
               <Text style={styles.modalItemText}>Засах</Text>
@@ -246,10 +257,11 @@ export default function MyListingsScreen({ navigation }) {
                   handleMakeVIP();
                   return;
                 }
-                closeActions();
-                showAlert(
-                  "VIP хүсэлт",
-                  "VIP болгох хүсэлт зөвхөн админаар баталгаажна. Админ руу мессежээр хүсэлт илгээнэ үү."
+                closeActionsThen(() =>
+                  showAlert(
+                    "VIP хүсэлт",
+                    "VIP болгох хүсэлт зөвхөн админаар баталгаажна. Админ руу мессежээр хүсэлт илгээнэ үү."
+                  )
                 );
               }}
             >
@@ -264,8 +276,7 @@ export default function MyListingsScreen({ navigation }) {
               style={styles.modalItem}
               onPress={() => {
                 if (!menuItem) return;
-                closeActions();
-                handleDelete(menuItem);
+                closeActionsThen(() => handleDelete(menuItem));
               }}
             >
               <Text style={styles.modalDangerText}>Устгах</Text>

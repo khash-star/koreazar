@@ -47,6 +47,12 @@ function listingExpiresToIso(exp) {
   return undefined;
 }
 
+function formatPriceWithGrouping(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 export default function CreateListingScreen({ navigation }) {
   const route = useRoute();
   const editListingId =
@@ -129,7 +135,10 @@ export default function CreateListingScreen({ navigation }) {
           category: listing.category || "",
           subcategory: listing.subcategory || "",
           condition: listing.condition || "used",
-          price: listing.category === "free" ? "" : String(listing.price ?? ""),
+          price:
+            listing.category === "free"
+              ? ""
+              : String(listing.price ?? "").replace(/\D/g, ""),
           is_negotiable: listing.is_negotiable === false || listing.is_negotiable === 0 ? false : true,
           location: listing.location || "",
           contact_name: lockedName || "",
@@ -437,7 +446,7 @@ export default function CreateListingScreen({ navigation }) {
             <Text style={styles.label}>Үнэ (₩) *</Text>
             <TextInput
               style={styles.input}
-              value={form.price}
+              value={formatPriceWithGrouping(form.price)}
               onChangeText={(v) => update("price", v.replace(/[^0-9]/g, ""))}
               placeholder="0"
               placeholderTextColor="#9ca3af"
