@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -56,8 +56,10 @@ export default function MessagesScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingConv, setDeletingConv] = useState(false);
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     if (!email) {
       setRows([]);
       setLoading(false);
@@ -131,13 +133,19 @@ export default function MessagesScreen({ navigation }) {
           const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
           return tb - ta;
         });
-      setRows(deduped);
+      if (seq === loadSeqRef.current) {
+        setRows(deduped);
+      }
     } catch (e) {
       console.warn("MessagesScreen load:", e?.message);
-      setRows([]);
+      if (seq === loadSeqRef.current) {
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [email]);
 
@@ -218,32 +226,96 @@ export default function MessagesScreen({ navigation }) {
     );
   }
 
-  const openAdminChat = () => {
+  const openAdminChat = useCallback(() => {
     if (adminEmail) navigation.navigate("Chat", { otherUserEmail: adminEmail });
-  };
+  }, [adminEmail, navigation]);
 
-  const listHeader = (
-    <View style={styles.headerSection}>
-      <View style={styles.headerTop}>
-        <Text style={styles.headerSub}>{rows.length} харилцаа</Text>
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.headerSection}>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerSub}>{rows.length} харилцаа</Text>
+        </View>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Хайх..."
+            placeholderTextColor="#9ca3af"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+        {showAdminBtn && filteredRows.length > 0 ? (
+          <Pressable style={[styles.adminBtn, styles.adminBtnTop]} onPress={openAdminChat}>
+            <Ionicons name="shield-checkmark" size={20} color="#fff" />
+            <Text style={styles.adminBtnTextFilled}>Админд мессеж илгээх</Text>
+          </Pressable>
+        ) : null}
       </View>
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Хайх..."
-          placeholderTextColor="#9ca3af"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-      {showAdminBtn && filteredRows.length > 0 ? (
-        <Pressable style={[styles.adminBtn, styles.adminBtnTop]} onPress={openAdminChat}>
-          <Ionicons name="shield-checkmark" size={20} color="#fff" />
-          <Text style={styles.adminBtnTextFilled}>Админд мессеж илгээх</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    ),
+    [rows.length, searchQuery, showAdminBtn, filteredRows.length, openAdminChat]
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    load();
+  }, [load]);
+
+  const renderRow = useCallback(
+    ({ item }) => {
+      const messageText = String(item.last_message ?? "").trim() || "Мессеж илгээх...";
+      const mine = normalizeEmail(item.last_message_sender) === normalizeEmail(email);
+      return (
+        <View style={styles.row} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.rowMain}
+            activeOpacity={0.65}
+            onPress={() =>
+              navigation.navigate("Chat", {
+                conversationId: item.id,
+                otherUserEmail: item.otherEmail,
+              })
+            }
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(item.otherName || "?").slice(0, 1).toUpperCase()}</Text>
+            </View>
+            <View style={styles.rowBody}>
+              <View style={styles.rowTop}>
+                <Text style={styles.rowName} numberOfLines={1}>
+                  {item.otherName}
+                </Text>
+                <Text style={styles.rowTime}>{formatTimeAgo(item.last_message_time || item.last_message_date)}</Text>
+              </View>
+              <Text style={styles.preview} numberOfLines={2}>
+                {mine ? <Text style={styles.previewPrefix}>Та: </Text> : null}
+                {messageText}
+              </Text>
+            </View>
+            {item.unreadCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.rowDeleteWrap}
+            activeOpacity={0.55}
+            onPress={() => openDeleteConversationModal(item)}
+            hitSlop={{ top: 14, bottom: 14, left: 12, right: 14 }}
+            accessibilityLabel="Харилцаа устгах"
+            delayPressIn={0}
+            collapsable={false}
+          >
+            <View style={styles.rowDeleteInner}>
+              <Ionicons name="trash-outline" size={22} color="#dc2626" />
+            </View>
+          </TouchableOpacity>
+        </View>
+      );
+    },
+    [email, navigation, openDeleteConversationModal]
   );
 
   return (
@@ -291,10 +363,7 @@ export default function MessagesScreen({ navigation }) {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              load();
-            }}
+            onRefresh={onRefresh}
             tintColor="#ea580c"
           />
         }
@@ -315,61 +384,7 @@ export default function MessagesScreen({ navigation }) {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.row} pointerEvents="box-none">
-            <TouchableOpacity
-              style={styles.rowMain}
-              activeOpacity={0.65}
-              onPress={() =>
-                navigation.navigate("Chat", {
-                  conversationId: item.id,
-                  otherUserEmail: item.otherEmail,
-                })
-              }
-            >
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{(item.otherName || "?").slice(0, 1).toUpperCase()}</Text>
-              </View>
-              <View style={styles.rowBody}>
-                <View style={styles.rowTop}>
-                  <Text style={styles.rowName} numberOfLines={1}>
-                    {item.otherName}
-                  </Text>
-                  <Text style={styles.rowTime}>{formatTimeAgo(item.last_message_time || item.last_message_date)}</Text>
-                </View>
-                <Text style={styles.preview} numberOfLines={2}>
-                  <Text>
-                    {normalizeEmail(item.last_message_sender) === normalizeEmail(email) ? (
-                      <Text style={styles.previewPrefix}>Та: </Text>
-                    ) : null}
-                    {(() => {
-                      const s = String(item.last_message ?? "").trim();
-                      return s || "Мессеж илгээх...";
-                    })()}
-                  </Text>
-                </Text>
-              </View>
-              {item.unreadCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.rowDeleteWrap}
-              activeOpacity={0.55}
-              onPress={() => openDeleteConversationModal(item)}
-              hitSlop={{ top: 14, bottom: 14, left: 12, right: 14 }}
-              accessibilityLabel="Харилцаа устгах"
-              delayPressIn={0}
-              collapsable={false}
-            >
-              <View style={styles.rowDeleteInner}>
-                <Ionicons name="trash-outline" size={22} color="#dc2626" />
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={renderRow}
       />
     </View>
   );

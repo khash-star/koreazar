@@ -53,8 +53,11 @@ export default function ChatScreen({ route, navigation }) {
   const [draft, setDraft] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
+  const mountedRef = useRef(true);
+  const scrollTimerRef = useRef(null);
 
   useEffect(() => {
+    mountedRef.current = true;
     const show = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
       (e) => setKeyboardHeight(e.endCoordinates.height)
@@ -64,13 +67,22 @@ export default function ChatScreen({ route, navigation }) {
       () => setKeyboardHeight(0)
     );
     return () => {
+      mountedRef.current = false;
+      if (scrollTimerRef.current) {
+        clearTimeout(scrollTimerRef.current);
+        scrollTimerRef.current = null;
+      }
       show.remove();
       hide.remove();
     };
   }, []);
 
   const scrollToEnd = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current) return;
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
   };
 
   const resolveConversation = useCallback(async () => {
@@ -115,6 +127,7 @@ export default function ChatScreen({ route, navigation }) {
     if (!convId || !email) return;
     try {
       const list = await listMessages(convId, 120);
+      if (!mountedRef.current) return;
       setMessages(list);
       scrollToEnd();
 
@@ -147,6 +160,7 @@ export default function ChatScreen({ route, navigation }) {
     if (!convId || !email) return;
     try {
       const conv = await getConversation(convId);
+      if (!mountedRef.current) return;
       setConversation(conv);
       if (!conv) return;
 
@@ -161,12 +175,14 @@ export default function ChatScreen({ route, navigation }) {
         const u = await getUserByEmail(other);
         displayName = u?.displayName || other.split("@")[0];
       }
+      if (!mountedRef.current) return;
       setOtherUser({ email: other, displayName });
 
       navigation.setOptions({ title: displayName || "Чат" });
 
       if (listingId) {
         const l = await getListingById(listingId);
+        if (!mountedRef.current) return;
         setListing(l);
       } else {
         setListing(null);
@@ -186,20 +202,21 @@ export default function ChatScreen({ route, navigation }) {
     setLoading(true);
     loadMeta()
       .then(() => fetchMessages())
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (mountedRef.current) setLoading(false);
+      });
   }, [convId, loadMeta, fetchMessages]);
 
   useFocusEffect(
     useCallback(() => {
       if (!convId) return;
-      fetchMessages();
       const sub = AppState.addEventListener("change", (state) => {
         if (state === "active") fetchMessages();
       });
       const t = setInterval(() => {
         if (AppState.currentState !== "active") return;
         fetchMessages();
-      }, 8000);
+      }, 10000);
       return () => {
         clearInterval(t);
         sub.remove();

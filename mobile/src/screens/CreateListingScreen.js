@@ -169,7 +169,10 @@ export default function CreateListingScreen({ navigation }) {
     try {
       const uploaded = await Promise.all(
         toAdd.map(async (asset) => {
-          const { file_url } = await uploadImageFromUri(asset.uri);
+          const { file_url } = await uploadImageFromUri(asset.uri, {
+            mimeType: asset.mimeType,
+            fileName: asset.fileName,
+          });
           return { w800: file_url, w640: file_url, w400: file_url, w150: file_url };
         })
       );

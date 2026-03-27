@@ -96,11 +96,15 @@ export default function AdminBannersScreen() {
       aspect: [2, 1],
     });
     if (result.canceled) return;
-    const uri = result.assets?.[0]?.uri;
+    const picked = result.assets?.[0];
+    const uri = picked?.uri;
     if (!uri) return;
     setUploading(true);
     try {
-      const uploaded = await uploadImageFromUri(uri);
+      const uploaded = await uploadImageFromUri(uri, {
+        mimeType: picked?.mimeType,
+        fileName: picked?.fileName,
+      });
       setForm((prev) => ({ ...prev, image_url: uploaded.file_url || "" }));
     } catch (e) {
       showAlert("Алдаа", e?.message || "Зураг upload амжилтгүй");

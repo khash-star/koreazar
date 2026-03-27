@@ -12,15 +12,7 @@ import {
 import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
-
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.zarkorea.com/index.php";
-
-function buildUserSyncUrl() {
-  const url = new URL(API_BASE_URL);
-  url.searchParams.set("action", "user_sync");
-  return url.toString();
-}
+import { buildApiUrl, requestJson } from "./apiClient";
 
 async function persistCustomerIdFromSync(user, data) {
   const cid = data?.customer_id;
@@ -40,11 +32,10 @@ async function persistCustomerIdFromSync(user, data) {
 async function syncUserToMySql(user, profile = {}) {
   if (!user) return;
   try {
-    const token = await user.getIdToken(true);
-    const res = await fetch(buildUserSyncUrl(), {
+    const token = await user.getIdToken();
+    const data = await requestJson(buildApiUrl("user_sync"), {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
@@ -53,9 +44,9 @@ async function syncUserToMySql(user, profile = {}) {
         city: profile.city || "",
         district: profile.district || "",
       }),
+      timeoutMs: 10000,
     });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) await persistCustomerIdFromSync(user, data);
+    await persistCustomerIdFromSync(user, data);
   } catch (e) {
     console.warn("MySQL user sync failed:", e?.message || e);
   }

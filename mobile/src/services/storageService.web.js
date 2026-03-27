@@ -15,6 +15,23 @@ function contentTypeForExtension(ext) {
   return "image/jpeg";
 }
 
+function extensionForMimeType(mimeType) {
+  const t = String(mimeType || "").toLowerCase();
+  if (t === "image/png") return "png";
+  if (t === "image/webp") return "webp";
+  if (t === "image/gif") return "gif";
+  if (t === "image/heic") return "heic";
+  if (t === "image/heif") return "heif";
+  return "jpg";
+}
+
+function extractExtensionFromName(fileName) {
+  if (!fileName || typeof fileName !== "string") return "";
+  const name = fileName.split("?")[0];
+  const ext = name.includes(".") ? name.split(".").pop() : "";
+  return String(ext || "").trim().toLowerCase();
+}
+
 async function blobFromPickerUri(uri) {
   const response = await fetch(uri);
   if (!response.ok) throw new Error("Зураг уншихад алдаа гарлаа.");
@@ -27,14 +44,17 @@ function assertStorageConfig() {
   }
 }
 
-export async function uploadImageFromUri(uri) {
+export async function uploadImageFromUri(uri, options = {}) {
   assertStorageConfig();
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 12);
-  const ext = uri.split(".").pop()?.split("?")[0] || "jpg";
+  const extFromName = extractExtensionFromName(options.fileName);
+  const extFromUri = extractExtensionFromName(uri);
+  const extFromMime = extensionForMimeType(options.mimeType);
+  const ext = extFromName || extFromUri || extFromMime || "jpg";
   const fileName = `${timestamp}_${random}.${ext}`;
   const storageRef = ref(storage, `images/${fileName}`);
-  const fallbackType = contentTypeForExtension(ext);
+  const fallbackType = options.mimeType || contentTypeForExtension(ext);
 
   const blob = await blobFromPickerUri(uri);
   if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {

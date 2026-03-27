@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -28,7 +28,7 @@ const PAD_H = 16;
 /** Зургийн хэсэг: өргөн дэлгэц дээр тогтмол өндөр биш, харьцаагаар (iPad гэх мэт) */
 const CARD_IMAGE_ASPECT = 4 / 3;
 
-function ListingItem({ item, onPress, cardWidth }) {
+const ListingItem = React.memo(function ListingItem({ item, onPress, cardWidth }) {
   const first = item.images?.[0];
   const uri = first ? getListingImageUrl(first, "w400") : "";
 
@@ -70,7 +70,7 @@ function ListingItem({ item, onPress, cardWidth }) {
       </View>
     </Pressable>
   );
-}
+});
 
 export default function HomeScreen({ navigation }) {
   const { width: windowWidth } = useWindowDimensions();
@@ -136,6 +136,11 @@ export default function HomeScreen({ navigation }) {
       navigation.navigate("ListingDetail", { listingId: id });
     },
     [navigation]
+  );
+
+  const renderListingItem = useCallback(
+    ({ item }) => <ListingItem item={item} onPress={onPressListing} cardWidth={cardWidth} />,
+    [onPressListing, cardWidth]
   );
 
   const vipMarquee = useMemo(
@@ -214,9 +219,7 @@ export default function HomeScreen({ navigation }) {
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
-      renderItem={({ item }) => (
-        <ListingItem item={item} onPress={onPressListing} cardWidth={cardWidth} />
-      )}
+      renderItem={renderListingItem}
       ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
       ListFooterComponent={error ? <Text style={styles.footerError}>{error}</Text> : null}
     />

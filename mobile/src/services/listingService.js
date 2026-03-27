@@ -1,41 +1,15 @@
 import { auth } from "../config/firebase";
 import { toDate } from "../utils/firestoreDates";
+import { buildApiUrl, requestJson } from "./apiClient";
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.zarkorea.com/index.php";
 const TYPE_ORDER = { vip: 0, featured: 1, regular: 2 };
-
-function buildApiUrl(action, params = {}) {
-  const url = new URL(API_BASE_URL);
-  url.searchParams.set("action", action);
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") {
-      url.searchParams.set(k, String(v));
-    }
-  });
-  return url.toString();
-}
-
-async function requestJson(url, options = {}) {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const message = payload?.message || payload?.error || `HTTP ${res.status}`;
-    throw new Error(message);
-  }
-  return payload;
-}
+const LATEST_CACHE_TTL_MS = 15000;
+let latestListingsCache = { at: 0, key: "", data: null, pending: null };
 
 async function getAuthHeaders() {
   const user = auth.currentUser;
   if (!user) throw new Error("Хэрэглэгч нэвтрээгүй байна");
-  const token = await user.getIdToken(true);
+  const token = await user.getIdToken();
   return { Authorization: `Bearer ${token}` };
 }
 
@@ -88,17 +62,42 @@ function sortHomeListings(listings) {
 }
 
 export async function getLatestListings(limitCount = 50) {
-  const payload = await requestJson(
-    buildApiUrl("listings", { status: "active", limit: Math.min(limitCount, 100) })
-  );
-  const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
-  return sortHomeListings(rows);
+  const safeLimit = Math.min(limitCount, 100);
+  const cacheKey = `active:${safeLimit}`;
+  const now = Date.now();
+  if (
+    latestListingsCache.data &&
+    latestListingsCache.key === cacheKey &&
+    now - latestListingsCache.at < LATEST_CACHE_TTL_MS
+  ) {
+    return latestListingsCache.data;
+  }
+  if (latestListingsCache.pending && latestListingsCache.key === cacheKey) {
+    return latestListingsCache.pending;
+  }
+  latestListingsCache.key = cacheKey;
+  latestListingsCache.pending = (async () => {
+    const payload = await requestJson(buildApiUrl("listings", { status: "active", limit: safeLimit }), {
+      retries: 1,
+    });
+    const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
+    const sorted = sortHomeListings(rows);
+    latestListingsCache = { at: Date.now(), key: cacheKey, data: sorted, pending: null };
+    return sorted;
+  })();
+  try {
+    return await latestListingsCache.pending;
+  } catch (e) {
+    latestListingsCache.pending = null;
+    throw e;
+  }
 }
 
 export async function getListingsByCreator(email, limitCount = 50) {
   if (!email) return [];
   const payload = await requestJson(
-    buildApiUrl("listings", { created_by: email, limit: Math.min(limitCount, 100) })
+    buildApiUrl("listings", { created_by: email, limit: Math.min(limitCount, 100) }),
+    { retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
@@ -110,7 +109,8 @@ export async function getListingsByCustomerId(customerId, limitCount = 50) {
     buildApiUrl("listings", {
       customer_id: String(customerId),
       limit: Math.min(limitCount, 100),
-    })
+    }),
+    { retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
@@ -118,7 +118,7 @@ export async function getListingsByCustomerId(customerId, limitCount = 50) {
 export async function getListingById(id) {
   if (!id) return null;
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id }));
+    const payload = await requestJson(buildApiUrl("listing", { id }), { retries: 1 });
     return normalizeListing(payload?.data);
   } catch {
     return null;
@@ -159,13 +159,16 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
-  const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }));
+  const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
+    retries: 1,
+  });
   return (payload?.data || []).length;
 }
 
 export async function getPendingListings(limitCount = 100) {
   const payload = await requestJson(
-    buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) })
+    buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
+    { retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }

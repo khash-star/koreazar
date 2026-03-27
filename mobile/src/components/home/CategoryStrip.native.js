@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import Animated, {
@@ -122,15 +122,18 @@ function CategoryTile({ item, active, onChange }) {
  * @param {string | null} value — null = бүгд
  */
 export default function CategoryStrip({ value, onChange }) {
-  const categoryList = [
-    { key: null, name: "Бүгд", icon: "📋" },
-    ...Object.entries(categoryInfo).map(([key, info]) => ({
-      key,
-      name: info.name,
-      icon: info.icon,
-    })),
-  ];
-  const rows = chunkIntoRows(categoryList, 3);
+  const categoryList = useMemo(
+    () => [
+      { key: null, name: "Бүгд", icon: "📋" },
+      ...Object.entries(categoryInfo).map(([key, info]) => ({
+        key,
+        name: info.name,
+        icon: info.icon,
+      })),
+    ],
+    []
+  );
+  const rows = useMemo(() => chunkIntoRows(categoryList, 3), [categoryList]);
 
   return (
     <View style={styles.wrap}>
