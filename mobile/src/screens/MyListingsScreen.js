@@ -239,11 +239,22 @@ export default function MyListingsScreen({ navigation }) {
             >
               <Text style={styles.modalItemText}>Засах</Text>
             </Pressable>
-            {isAdmin ? (
-              <Pressable style={styles.modalItem} onPress={handleMakeVIP}>
-                <Text style={styles.modalItemText}>VIP болгох</Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              style={styles.modalItem}
+              onPress={() => {
+                if (isAdmin) {
+                  handleMakeVIP();
+                  return;
+                }
+                closeActions();
+                showAlert(
+                  "VIP хүсэлт",
+                  "VIP болгох хүсэлт зөвхөн админаар баталгаажна. Админ руу мессежээр хүсэлт илгээнэ үү."
+                );
+              }}
+            >
+              <Text style={styles.modalItemText}>{isAdmin ? "VIP болгох" : "VIP хүсэлт"}</Text>
+            </Pressable>
             <Pressable style={styles.modalItem} onPress={handleStatusToggle}>
               <Text style={styles.modalItemText}>
                 {menuItem?.status === "active" ? "Зарагдсан гэж тэмдэглэх" : "Идэвхжүүлэх"}

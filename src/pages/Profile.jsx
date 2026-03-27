@@ -470,16 +470,14 @@ export default function Profile() {
                                     Засах
                                   </Link>
                                 </DropdownMenuItem>
-                                {(userData?.role === 'admin' || user?.role === 'admin') && (
                                 <DropdownMenuItem asChild>
                                   <Link to={createPageUrl(`UpgradeListing?id=${listing.id}`)}>
                                     <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                                     </svg>
-                                    VIP болгох
+                                    {userData?.role === 'admin' || user?.role === 'admin' ? 'VIP болгох' : 'VIP хүсэлт'}
                                   </Link>
                                 </DropdownMenuItem>
-                                )}
                                 {listing.status === 'active' && (
                                   <DropdownMenuItem
                                     onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'sold' })}
