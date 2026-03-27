@@ -85,8 +85,13 @@ export default function CreateListingScreen({ navigation }) {
     [lockedName, lockedPhone]
   );
 
+  /** Профайл ирэхэд бөглөнө; профайл хоосон бол (засах) зар дээрх утас хэвээр үлдэнэ. */
   useEffect(() => {
-    setForm((f) => ({ ...f, contact_name: lockedName, phone: lockedPhone }));
+    setForm((f) => ({
+      ...f,
+      contact_name: lockedName ? lockedName : f.contact_name,
+      phone: lockedPhone ? lockedPhone : f.phone,
+    }));
   }, [lockedName, lockedPhone]);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
@@ -117,6 +122,7 @@ export default function CreateListingScreen({ navigation }) {
           return;
         }
         setInitialListing(listing);
+        const listingPhone = listing.phone != null ? String(listing.phone).trim() : "";
         setForm({
           title: listing.title || "",
           description: listing.description || "",
@@ -126,8 +132,8 @@ export default function CreateListingScreen({ navigation }) {
           price: listing.category === "free" ? "" : String(listing.price ?? ""),
           is_negotiable: listing.is_negotiable === false || listing.is_negotiable === 0 ? false : true,
           location: listing.location || "",
-          contact_name: lockedName,
-          phone: lockedPhone,
+          contact_name: lockedName || "",
+          phone: lockedPhone || listingPhone,
           kakao_id: listing.kakao_id || "",
           wechat_id: listing.wechat_id || "",
           whatsapp: listing.whatsapp || "",
@@ -196,7 +202,8 @@ export default function CreateListingScreen({ navigation }) {
       showAlert("Алдаа", "Ангилал сонгоно уу.");
       return;
     }
-    if (!lockedPhone) {
+    const phoneForListing = (lockedPhone || form.phone || "").trim();
+    if (!phoneForListing) {
       showAlert("Алдаа", "Профайл дээр утасны дугаараа оруулсны дараа зар нэмнэ үү.");
       return;
     }
@@ -227,7 +234,7 @@ export default function CreateListingScreen({ navigation }) {
           price: priceNum,
           is_negotiable: form.is_negotiable,
           location: form.location || "",
-          phone: lockedPhone,
+          phone: phoneForListing,
           kakao_id: form.kakao_id || "",
           wechat_id: form.wechat_id || "",
           whatsapp: form.whatsapp || "",
@@ -261,7 +268,7 @@ export default function CreateListingScreen({ navigation }) {
       const submitData = {
         ...form,
         contact_name: lockedName,
-        phone: lockedPhone,
+        phone: phoneForListing,
         price: priceNum,
         images,
         status: autoApprove ? "active" : "pending",
