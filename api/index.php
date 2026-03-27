@@ -30,6 +30,28 @@ function quote_mysql_identifier(string $name): string
     return '`' . str_replace('`', '``', $name) . '`';
 }
 
+/**
+ * JS/Firebase ISO-8601 → MySQL DATETIME (YYYY-MM-DD HH:MM:SS).
+ */
+function normalize_mysql_datetime(mixed $val): ?string
+{
+    if ($val === null || $val === '') {
+        return null;
+    }
+    if (!is_string($val) && !is_numeric($val)) {
+        return null;
+    }
+    $s = trim((string) $val);
+    if ($s === '') {
+        return null;
+    }
+    try {
+        return (new DateTimeImmutable($s))->format('Y-m-d H:i:s');
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 $action = $_GET['action'] ?? 'health';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $debug = filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN);
@@ -408,6 +430,11 @@ function extract_listing_payload(array $body, bool $partial = false): array
             } else {
                 $payload[$key] = json_encode([], JSON_UNESCAPED_UNICODE);
             }
+            continue;
+        }
+
+        if ($key === 'listing_type_expires') {
+            $payload[$key] = normalize_mysql_datetime($val);
             continue;
         }
 
