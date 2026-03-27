@@ -410,7 +410,7 @@ function extract_listing_payload(array $body, bool $partial = false): array
                 continue;
             }
             if ($key === 'status') {
-                $payload[$key] = 'active';
+                $payload[$key] = 'pending';
             } elseif ($key === 'is_negotiable') {
                 $payload[$key] = 0;
             } elseif ($key === 'views') {

@@ -55,17 +55,33 @@ export default function AdminScreen({ navigation }) {
     getListingAutoApprove()
       .then((v) => setAutoApprove(v))
       .catch(() => {
-        AsyncStorage.getItem(AUTO_APPROVE_KEY).then((s) =>
-          setAutoApprove(s === "true")
-        );
+        AsyncStorage.getItem(AUTO_APPROVE_KEY).then((s) => {
+          const cached = s === "true";
+          setAutoApprove(cached);
+          showAlert(
+            "Анхаар",
+            "Автоматаар зөвшөөрөх тохиргоог серверээс уншиж чадсангүй. Cached утгыг түр ашиглалаа."
+          );
+        });
       });
   }, []);
 
-  const handleAutoApproveChange = useCallback((value) => {
+  const handleAutoApproveChange = useCallback(async (value) => {
+    const prev = autoApprove;
     setAutoApprove(value);
-    AsyncStorage.setItem(AUTO_APPROVE_KEY, String(value));
-    setListingAutoApprove(value).catch(() => {});
-  }, []);
+    await AsyncStorage.setItem(AUTO_APPROVE_KEY, String(value));
+    try {
+      await setListingAutoApprove(value);
+    } catch (e) {
+      setAutoApprove(prev);
+      await AsyncStorage.setItem(AUTO_APPROVE_KEY, String(prev));
+      showAlert(
+        "Алдаа",
+        e?.message ||
+          "Автоматаар зөвшөөрөх тохиргоо серверт хадгалагдсангүй. Өмнөх утга руу буцаалаа."
+      );
+    }
+  }, [autoApprove]);
 
   const load = useCallback(
     async (isRefresh) => {
