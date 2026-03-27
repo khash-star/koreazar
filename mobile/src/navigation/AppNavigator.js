@@ -367,6 +367,11 @@ function MainTabs() {
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate("ProfileTab", { screen: "ProfileMain", params: {} });
+          },
+        })}
         options={{
           title: "Профайл",
           tabBarIcon: ({ color, size, focused }) => (
