@@ -33,7 +33,7 @@ function quote_mysql_identifier(string $name): string
 /**
  * JS/Firebase ISO-8601 → MySQL DATETIME (YYYY-MM-DD HH:MM:SS).
  */
-function normalize_mysql_datetime(mixed $val): ?string
+function normalize_mysql_datetime($val): ?string
 {
     if ($val === null || $val === '') {
         return null;

@@ -61,7 +61,7 @@ function CategoryTile({ item, active, onChange }) {
   }, [active]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    const p = pressed.value;
+    const p = Math.max(0, Math.min(1, pressed.value));
     const scale = pulse.value * (1 + 0.045 * p);
     const translateY = -4 * p;
     const base = {
@@ -78,9 +78,10 @@ function CategoryTile({ item, active, onChange }) {
       };
     }
     if (isAndroid) {
+      const elevation = p < 0.03 ? 0 : 2 + 8 * p;
       return {
         ...base,
-        elevation: 2 + 8 * p,
+        elevation,
       };
     }
     return base;
@@ -97,7 +98,8 @@ function CategoryTile({ item, active, onChange }) {
         pressed.value = withSpring(1, SPRING_PRESS_IN);
       }}
       onPressOut={() => {
-        pressed.value = withSpring(0, SPRING_PRESS_OUT);
+        // Avoid tiny spring residue on Android that leaves ghost shadow.
+        pressed.value = withTiming(0, { duration: 90 });
       }}
       onPress={handlePress}
       android_ripple={null}
