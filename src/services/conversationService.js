@@ -11,9 +11,10 @@ import {
   where, 
   orderBy,
   limit,
-  Timestamp 
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 
 // Conversations
@@ -214,6 +215,69 @@ export const updateMessage = async (id, data) => {
     console.error('Error updating message:', error);
     throw error;
   }
+};
+
+export const deleteMessage = async (messageId) => {
+  if (!messageId) throw new Error('Мессежийн ID байхгүй');
+  await deleteDoc(doc(db, 'messages', String(messageId)));
+};
+
+/** Яриа болон түүний бүх мессежийг устгана */
+export const deleteConversationAndMessages = async (conversationId) => {
+  const user = auth.currentUser;
+  if (!user?.uid) throw new Error('Нэвтэрнэ үү');
+  await user.getIdToken(true);
+
+  const cid = String(conversationId ?? '').trim();
+  if (!cid) throw new Error('Ярианы ID байхгүй');
+
+  const convRef = doc(db, 'conversations', cid);
+
+  // 1) Яриаг эхэлж устгаад жагсаалтаас шууд алга болгоно.
+  // 2) Мессежүүдийг best-effort хэлбэрээр араас нь устгана.
+  await deleteDoc(convRef);
+
+  void (async () => {
+    try {
+      const messagesRef = collection(db, 'messages');
+      const q = query(messagesRef, where('conversation_id', '==', cid));
+      const snap = await getDocs(q);
+      const docs = [...snap.docs];
+
+      for (let i = 0; i < docs.length; i += 500) {
+        const chunk = docs.slice(i, i + 500);
+        const batch = writeBatch(db);
+        chunk.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+    } catch {
+      // best-effort only
+    }
+  })();
+};
+
+/** Устгасны дараа ярианы урьдчилгааг үлдсэн мессежүүдээс тохируулна */
+export const syncConversationLastMessageFromMessages = async (conversationId) => {
+  const list = await listMessages(conversationId, 200);
+  if (!list.length) {
+    await updateConversation(conversationId, {
+      last_message: '',
+      last_message_date: Timestamp.now(),
+      last_message_time: new Date().toISOString(),
+      last_message_sender: ''
+    });
+    return;
+  }
+  const last = list[list.length - 1];
+  await updateConversation(conversationId, {
+    last_message: String(last.message ?? ''),
+    last_message_date: Timestamp.now(),
+    last_message_time:
+      last.created_date instanceof Date
+        ? last.created_date.toISOString()
+        : new Date().toISOString(),
+    last_message_sender: last.sender_email || ''
+  });
 };
 
 export const getMessage = async (id) => {

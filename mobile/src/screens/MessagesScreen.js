@@ -1,18 +1,28 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
-import { filterConversations } from "../services/conversationService.js";
+import {
+  deleteConversationAndMessages,
+  emailQueryVariants,
+  filterConversations,
+} from "../services/conversationService.js";
+import { normalizeEmail } from "../utils/emailNormalize.js";
+import { showAlert } from "../utils/showAlert";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
@@ -44,6 +54,8 @@ export default function MessagesScreen({ navigation }) {
   const [rows, setRows] = useState([]);
   const [adminEmail, setAdminEmail] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingConv, setDeletingConv] = useState(false);
 
   const load = useCallback(async () => {
     if (!email) {
@@ -55,21 +67,31 @@ export default function MessagesScreen({ navigation }) {
       const admin = await getAdminEmail();
       setAdminEmail(admin);
 
-      const [convs1, convs2] = await Promise.all([
-        filterConversations({ participant_1: email }),
-        filterConversations({ participant_2: email }),
-      ]);
-      const all = [...convs1, ...convs2];
+      const variants = emailQueryVariants(email);
+      const me = normalizeEmail(email);
+      const convLists = await Promise.all(
+        variants.map(async (em) => {
+          const [asP1, asP2] = await Promise.all([
+            filterConversations({ participant_1: em }),
+            filterConversations({ participant_2: em }),
+          ]);
+          return [...asP1, ...asP2];
+        })
+      );
+      const all = convLists.flat();
       const otherEmails = [
         ...new Set(
-          all.map((c) => (c.participant_1 === email ? c.participant_2 : c.participant_1))
+          all.map((c) => {
+            const p1 = normalizeEmail(c.participant_1);
+            return p1 === me ? c.participant_2 : c.participant_1;
+          })
         ),
       ];
 
       const nameMap = new Map();
       await Promise.all(
         otherEmails.map(async (em) => {
-          if (em === admin) {
+          if (admin && normalizeEmail(em) === normalizeEmail(admin)) {
             nameMap.set(em, "АДМИН");
             return;
           }
@@ -79,8 +101,9 @@ export default function MessagesScreen({ navigation }) {
       );
 
       const enriched = all.map((conv) => {
-        const other = conv.participant_1 === email ? conv.participant_2 : conv.participant_1;
-        const unread = conv.participant_1 === email ? conv.unread_count_p1 : conv.unread_count_p2;
+        const p1 = normalizeEmail(conv.participant_1);
+        const other = p1 === me ? conv.participant_2 : conv.participant_1;
+        const unread = p1 === me ? conv.unread_count_p1 : conv.unread_count_p2;
         return {
           ...conv,
           otherEmail: other,
@@ -89,24 +112,25 @@ export default function MessagesScreen({ navigation }) {
         };
       });
 
-      enriched.sort((a, b) => {
-        const aAdmin = a.otherEmail === admin;
-        const bAdmin = b.otherEmail === admin;
-        if (aAdmin && !bAdmin) return -1;
-        if (!aAdmin && bAdmin) return 1;
-        if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
-        const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
-        const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
-        return tb - ta;
-      });
-
       const seen = new Set();
-      const deduped = enriched.filter((c) => {
-        const k = c.id;
-        if (!k || seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
+      const deduped = enriched
+        .filter((c) => {
+          const k = c.id;
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        })
+        .sort((a, b) => {
+          const adminN = admin ? normalizeEmail(admin) : "";
+          const aAdmin = adminN && normalizeEmail(a.otherEmail) === adminN;
+          const bAdmin = adminN && normalizeEmail(b.otherEmail) === adminN;
+          if (aAdmin && !bAdmin) return -1;
+          if (!aAdmin && bAdmin) return 1;
+          if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
+          const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
+          const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
+          return tb - ta;
+        });
       setRows(deduped);
     } catch (e) {
       console.warn("MessagesScreen load:", e?.message);
@@ -121,8 +145,17 @@ export default function MessagesScreen({ navigation }) {
     useCallback(() => {
       setLoading(true);
       load();
-      const t = setInterval(load, 8000);
-      return () => clearInterval(t);
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") load();
+      });
+      const t = setInterval(() => {
+        if (AppState.currentState !== "active") return;
+        load();
+      }, 12000);
+      return () => {
+        clearInterval(t);
+        sub.remove();
+      };
     }, [load])
   );
 
@@ -137,8 +170,33 @@ export default function MessagesScreen({ navigation }) {
     );
   }, [rows, searchQuery]);
 
-  const hasAdminConversation = rows.some((r) => r.otherEmail === adminEmail);
+  const hasAdminConversation =
+    adminEmail && rows.some((r) => normalizeEmail(r.otherEmail) === normalizeEmail(adminEmail));
   const showAdminBtn = adminEmail && !hasAdminConversation;
+
+  const openDeleteConversationModal = useCallback((item) => {
+    setDeleteTarget(item);
+  }, []);
+
+  const runDeleteConversation = useCallback(async () => {
+    const item = deleteTarget;
+    if (!item?.id) return;
+    setDeletingConv(true);
+    try {
+      await deleteConversationAndMessages(item.id);
+      setDeleteTarget(null);
+      await load();
+    } catch (e) {
+      const code = e?.code || "";
+      const msg =
+        code === "permission-denied"
+          ? "Эрх хүрэхгүй байна. Дахин нэвтэрч, Firestore дүрмийг шинэчилсэн эсэхээ шалгана уу."
+          : e?.message || "Устгаж чадсангүй";
+      showAlert("Алдаа", msg);
+    } finally {
+      setDeletingConv(false);
+    }
+  }, [deleteTarget, load]);
 
   if (!isAuthenticated || !email) {
     return (
@@ -167,7 +225,6 @@ export default function MessagesScreen({ navigation }) {
   const listHeader = (
     <View style={styles.headerSection}>
       <View style={styles.headerTop}>
-        <Text style={styles.headerTitle}>Мессеж</Text>
         <Text style={styles.headerSub}>{rows.length} харилцаа</Text>
       </View>
       <View style={styles.searchWrap}>
@@ -191,8 +248,43 @@ export default function MessagesScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deletingConv && setDeleteTarget(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => !deletingConv && setDeleteTarget(null)}>
+          <Pressable style={styles.confirmCard} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.confirmTitle}>Харилцаа устгах уу?</Text>
+            <Text style={styles.confirmText}>
+              {deleteTarget?.otherName || deleteTarget?.otherEmail || "Энэ"} хэрэглэгчтэй харилцааг болон бүх
+              мессежийг устгана. Буцаах боломжгүй.
+            </Text>
+            <View style={styles.confirmActions}>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnCancel]}
+                onPress={() => !deletingConv && setDeleteTarget(null)}
+                disabled={deletingConv}
+              >
+                <Text style={styles.confirmBtnCancelText}>Цуцлах</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmBtn, styles.confirmBtnDanger, deletingConv && styles.confirmBtnDisabled]}
+                onPress={runDeleteConversation}
+                disabled={deletingConv}
+              >
+                <Text style={styles.confirmBtnDangerText}>
+                  {deletingConv ? "Устгаж байна..." : "Устгах"}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
       <FlatList
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="always"
         data={filteredRows}
         keyExtractor={(item, index) => item?.id || `msg-${index}`}
         ListHeaderComponent={listHeader}
@@ -224,38 +316,59 @@ export default function MessagesScreen({ navigation }) {
           </View>
         }
         renderItem={({ item }) => (
-          <Pressable
-            style={styles.row}
-            onPress={() =>
-              navigation.navigate("Chat", {
-                conversationId: item.id,
-                otherUserEmail: item.otherEmail,
-              })
-            }
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(item.otherName || "?").slice(0, 1).toUpperCase()}</Text>
-            </View>
-            <View style={styles.rowBody}>
-              <View style={styles.rowTop}>
-                <Text style={styles.rowName} numberOfLines={1}>
-                  {item.otherName}
+          <View style={styles.row} pointerEvents="box-none">
+            <TouchableOpacity
+              style={styles.rowMain}
+              activeOpacity={0.65}
+              onPress={() =>
+                navigation.navigate("Chat", {
+                  conversationId: item.id,
+                  otherUserEmail: item.otherEmail,
+                })
+              }
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{(item.otherName || "?").slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={styles.rowBody}>
+                <View style={styles.rowTop}>
+                  <Text style={styles.rowName} numberOfLines={1}>
+                    {item.otherName}
+                  </Text>
+                  <Text style={styles.rowTime}>{formatTimeAgo(item.last_message_time || item.last_message_date)}</Text>
+                </View>
+                <Text style={styles.preview} numberOfLines={2}>
+                  <Text>
+                    {normalizeEmail(item.last_message_sender) === normalizeEmail(email) ? (
+                      <Text style={styles.previewPrefix}>Та: </Text>
+                    ) : null}
+                    {(() => {
+                      const s = String(item.last_message ?? "").trim();
+                      return s || "Мессеж илгээх...";
+                    })()}
+                  </Text>
                 </Text>
-                <Text style={styles.rowTime}>{formatTimeAgo(item.last_message_time || item.last_message_date)}</Text>
               </View>
-              <Text style={styles.preview} numberOfLines={2}>
-                {item.last_message_sender === email && (
-                  <Text style={styles.previewPrefix}>Та: </Text>
-                )}
-                {item.last_message || "Мессеж илгээх..."}
-              </Text>
-            </View>
-            {item.unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
+              {item.unreadCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.rowDeleteWrap}
+              activeOpacity={0.55}
+              onPress={() => openDeleteConversationModal(item)}
+              hitSlop={{ top: 14, bottom: 14, left: 12, right: 14 }}
+              accessibilityLabel="Харилцаа устгах"
+              delayPressIn={0}
+              collapsable={false}
+            >
+              <View style={styles.rowDeleteInner}>
+                <Ionicons name="trash-outline" size={22} color="#dc2626" />
               </View>
-            ) : null}
-          </Pressable>
+            </TouchableOpacity>
+          </View>
         )}
       />
     </View>
@@ -271,8 +384,7 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   headerSection: { backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#e5e7eb" },
   headerTop: { marginBottom: 12 },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  headerSub: { fontSize: 14, color: "#6b7280", marginTop: 2 },
+  headerSub: { fontSize: 16, fontWeight: "600", color: "#374151" },
   searchWrap: { flexDirection: "row", alignItems: "center", backgroundColor: "#f9fafb", borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb" },
   searchIcon: { marginLeft: 12 },
   searchInput: { flex: 1, paddingVertical: 10, paddingHorizontal: 10, paddingLeft: 6, fontSize: 16 },
@@ -294,12 +406,34 @@ const styles = StyleSheet.create({
   adminBtnTextFilled: { color: "#fff", fontWeight: "700", fontSize: 16 },
   row: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    alignItems: "stretch",
     backgroundColor: "#fff",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e5e7eb",
+  },
+  rowMain: {
+    flex: 1,
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+    paddingLeft: 16,
+    paddingVertical: 12,
+    paddingRight: 8,
+  },
+  rowDeleteWrap: {
+    flexShrink: 0,
+    width: 48,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 20,
+    ...(Platform.OS === "android" ? { elevation: 20 } : {}),
+  },
+  rowDeleteInner: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatar: {
     width: 48,
@@ -328,4 +462,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  confirmCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  confirmTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 8 },
+  confirmText: { fontSize: 15, color: "#4b5563", lineHeight: 22, marginBottom: 20 },
+  confirmActions: { flexDirection: "row", justifyContent: "flex-end", gap: 12 },
+  confirmBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  confirmBtnCancel: { backgroundColor: "#f3f4f6" },
+  confirmBtnCancelText: { fontWeight: "700", color: "#374151" },
+  confirmBtnDanger: { backgroundColor: "#dc2626" },
+  confirmBtnDangerText: { fontWeight: "700", color: "#fff" },
+  confirmBtnDisabled: { opacity: 0.6 },
 });

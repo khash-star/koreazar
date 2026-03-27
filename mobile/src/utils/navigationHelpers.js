@@ -58,10 +58,27 @@ export function navigateToListingDetail(navigation, listingId) {
   }
 }
 
-/** Зар нэмэх таб руу */
+/** Зар нэмэх таб руу (засах горимын listingId цэвэрлэнэ) */
 export function navigateToCreateListing(navigation) {
   const tab = getBottomTabNavigator(navigation);
   if (tab?.navigate) {
-    tab.navigate("CreateTab", { screen: "CreateMain" });
+    tab.navigate("CreateTab", { screen: "CreateMain", params: {} });
+  }
+}
+
+/** Зар засах — Create таб дээр listingId дамжуулна */
+export function navigateToEditListing(navigation, listingId) {
+  if (!listingId) return;
+  const tab = getBottomTabNavigator(navigation);
+  if (tab?.navigate) {
+    tab.navigate("CreateTab", { screen: "CreateMain", params: { listingId: String(listingId) } });
+  }
+}
+
+/** Профайл → Миний зарууд */
+export function navigateToMyListings(navigation) {
+  const tab = getBottomTabNavigator(navigation);
+  if (tab?.navigate) {
+    tab.navigate("ProfileTab", { screen: "MyListings" });
   }
 }

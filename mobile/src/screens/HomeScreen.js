@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
-  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,12 +23,10 @@ import { getListingImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
-const CARD_IMG_H = 130;
 const GAP = 12;
 const PAD_H = 16;
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = (SCREEN_WIDTH - PAD_H * 2 - GAP) / 2;
+/** Зургийн хэсэг: өргөн дэлгэц дээр тогтмол өндөр биш, харьцаагаар (iPad гэх мэт) */
+const CARD_IMAGE_ASPECT = 4 / 3;
 
 function ListingItem({ item, onPress, cardWidth }) {
   const first = item.images?.[0];
@@ -77,6 +73,11 @@ function ListingItem({ item, onPress, cardWidth }) {
 }
 
 export default function HomeScreen({ navigation }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const cardWidth = useMemo(
+    () => (windowWidth - PAD_H * 2 - GAP) / 2,
+    [windowWidth]
+  );
   const tabBarHeight = useBottomTabBarHeight();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -196,44 +197,6 @@ export default function HomeScreen({ navigation }) {
       ? "Энэ ангилалд одоогоор зар алга."
       : "Идэвхтэй зар байхгүй.";
 
-  if (Platform.OS === "web") {
-    const rows = [];
-    for (let i = 0; i < displayedListings.length; i += 2) {
-      rows.push(displayedListings.slice(i, i + 2));
-    }
-    return (
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={[styles.listContent, { paddingBottom: 24 + tabBarHeight }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
-        }
-      >
-        {listHeader}
-        {displayedListings.length === 0 ? (
-          <Text style={styles.empty}>{emptyText}</Text>
-        ) : (
-          <View style={styles.gridWrap}>
-            {rows.map((row, rowIdx) => (
-              <View key={rowIdx} style={styles.row}>
-                {row.map((item) => (
-                  <ListingItem
-                    key={item.id}
-                    item={item}
-                    onPress={onPressListing}
-                    cardWidth={CARD_WIDTH}
-                  />
-                ))}
-                {row.length === 1 && <View style={{ width: CARD_WIDTH }} />}
-              </View>
-            ))}
-          </View>
-        )}
-        {error ? <Text style={styles.footerError}>{error}</Text> : null}
-      </ScrollView>
-    );
-  }
-
   return (
     <FlatList
       key="list-2col"
@@ -252,7 +215,7 @@ export default function HomeScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#ea580c" />
       }
       renderItem={({ item }) => (
-        <ListingItem item={item} onPress={onPressListing} cardWidth={CARD_WIDTH} />
+        <ListingItem item={item} onPress={onPressListing} cardWidth={cardWidth} />
       )}
       ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
       ListFooterComponent={error ? <Text style={styles.footerError}>{error}</Text> : null}
@@ -271,9 +234,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: PAD_H,
     paddingBottom: 24,
     paddingTop: 4,
-  },
-  gridWrap: {
-    marginTop: 4,
   },
   row: {
     flexDirection: "row",
@@ -296,7 +256,8 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
   },
   cardImageWrap: {
-    height: CARD_IMG_H,
+    width: "100%",
+    aspectRatio: CARD_IMAGE_ASPECT,
     backgroundColor: "#f3f4f6",
     position: "relative",
     overflow: "hidden",

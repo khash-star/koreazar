@@ -1,4 +1,4 @@
 /**
- * Вэб: react-native-reanimated ачаалахгүй (Metro / semver алдаа гаргахгүй).
- * Native → bootstrap.native.js
+ * Expo web entry: reanimated ачаалахгүй.
+ * iOS/Android: Metro нь bootstrap.native.js сонгоно (reanimated шаардлага).
  */

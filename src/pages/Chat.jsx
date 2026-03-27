@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
+import { deleteMessage, syncConversationLastMessageFromMessages } from '@/services/conversationService';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Chat() {
@@ -228,6 +229,25 @@ export default function Chat() {
     sendMutation.mutate(message);
   };
 
+  const handleAdminDeleteMessage = async (msg) => {
+    if (userData?.role !== 'admin' || !actualConversationId) return;
+    if (!window.confirm('Энэ мессежийг устгах уу?')) return;
+    try {
+      await deleteMessage(msg.id);
+      await syncConversationLastMessageFromMessages(actualConversationId);
+      queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast({ title: 'Мессеж устгагдлаа' });
+    } catch (err) {
+      toast({
+        title: 'Алдаа',
+        description: err?.message || 'Устгаж чадсангүй',
+        variant: 'destructive'
+      });
+    }
+  };
+
   // Show loading while auth is checking
   if (loading) {
     return (
@@ -341,8 +361,20 @@ export default function Chat() {
                     )}
                     
                     <div
-                      className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-end gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                     >
+                      {userData?.role === 'admin' && !isOwnMessage && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleAdminDeleteMessage(msg)}
+                          aria-label="Мессеж устгах"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       <div
                         className={`max-w-[70%] rounded-2xl px-4 py-2 ${
                           isOwnMessage
@@ -357,6 +389,18 @@ export default function Chat() {
                           {format(new Date(msg.created_date), 'HH:mm')}
                         </p>
                       </div>
+                      {userData?.role === 'admin' && isOwnMessage && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleAdminDeleteMessage(msg)}
+                          aria-label="Мессеж устгах"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </React.Fragment>
                 );

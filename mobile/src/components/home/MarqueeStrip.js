@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Animated, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { getListingImageUrl } from "../../utils/imageUrl";
+import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const ITEM_W = 300;
 const ITEM_H = 160;
@@ -56,7 +57,7 @@ export default function MarqueeStrip({ banners, vipListings, onPressListing }) {
   if (items.length === 0) return null;
 
   const openBanner = (url) => {
-    if (url && url !== "#") Linking.openURL(url).catch(() => {});
+    openExternalUrlSafe(url);
   };
 
   return (

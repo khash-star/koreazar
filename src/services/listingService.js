@@ -42,9 +42,11 @@ const getAuthHeaders = async () => {
 
 const normalizeListing = (item) => {
   if (!item || typeof item !== 'object') return null;
+  const cid = item.customer_id;
   return {
     ...item,
     id: item?.id != null ? String(item.id) : '',
+    customer_id: cid != null && cid !== '' ? Number(cid) : undefined,
     images: Array.isArray(item.images) ? item.images : [],
   };
 };
@@ -87,6 +89,9 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     const params = { limit: limitCount };
     if (filters.category) params.category = filters.category;
     if (filters.subcategory) params.subcategory = filters.subcategory;
+    if (filters.customer_id != null && filters.customer_id !== '') {
+      params.customer_id = String(filters.customer_id);
+    }
     if (filters.status !== undefined && filters.status !== null && filters.status !== '') {
       params.status = filters.status;
     } else if (!filters.created_by) {

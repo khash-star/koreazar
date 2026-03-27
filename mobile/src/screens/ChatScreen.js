@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -10,17 +10,22 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
+import { showAlert } from "../utils/showAlert";
 import {
   createConversation,
   createMessage,
+  deleteMessage,
   findConversation,
   getConversation,
   listMessages,
+  syncConversationLastMessageFromMessages,
   updateConversation,
   updateMessage,
 } from "../services/conversationService.js";
@@ -28,11 +33,15 @@ import { getListingById } from "../services/listingService.js";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
+import { normalizeEmail } from "../utils/emailNormalize.js";
 import { Timestamp } from "firebase/firestore";
 
 export default function ChatScreen({ route, navigation }) {
   const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route?.params ?? {};
-  const { email } = useAuth();
+  const normalizedOtherEmail = typeof paramOther === "string" ? paramOther.trim().toLowerCase() : "";
+  const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value);
+
+  const { email, isAdmin } = useAuth();
 
   const [convId, setConvId] = useState(paramConvId || null);
   const [conversation, setConversation] = useState(null);
@@ -70,31 +79,37 @@ export default function ChatScreen({ route, navigation }) {
       setConvId(paramConvId);
       return;
     }
-    if (!paramOther) {
+    if (!normalizedOtherEmail) {
       setLoading(false);
       return;
     }
-    if (paramOther === email) {
-      Alert.alert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
+    if (!isValidEmail(normalizedOtherEmail)) {
+      showAlert("Чат", "Хэрэглэгчийн имэйл буруу байна.");
       setLoading(false);
       navigation.goBack();
       return;
     }
-    let existing = await findConversation(email, paramOther);
+    if (normalizedOtherEmail === normalizeEmail(email)) {
+      showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
+      setLoading(false);
+      navigation.goBack();
+      return;
+    }
+    let existing = await findConversation(normalizeEmail(email), normalizedOtherEmail);
     if (!existing) {
       const iso = new Date().toISOString();
       existing = await createConversation({
-        participant_1: email,
-        participant_2: paramOther,
+        participant_1: normalizeEmail(email),
+        participant_2: normalizedOtherEmail,
         last_message: "",
         last_message_time: iso,
-        last_message_sender: email,
+        last_message_sender: normalizeEmail(email),
         unread_count_p1: 0,
         unread_count_p2: 0,
       });
     }
     setConvId(existing.id);
-  }, [email, paramConvId, paramOther, navigation]);
+  }, [email, paramConvId, normalizedOtherEmail, navigation]);
 
   const fetchMessages = useCallback(async () => {
     if (!convId || !email) return;
@@ -105,7 +120,8 @@ export default function ChatScreen({ route, navigation }) {
 
       const conv = await getConversation(convId);
       if (!conv) return;
-      const unread = list.filter((m) => m.receiver_email === email && !m.is_read);
+      const me = normalizeEmail(email);
+      const unread = list.filter((m) => normalizeEmail(m.receiver_email) === me && !m.is_read);
       if (unread.length === 0) return;
       for (const m of unread) {
         try {
@@ -114,7 +130,7 @@ export default function ChatScreen({ route, navigation }) {
           /* ignore */
         }
       }
-      const isP1 = conv.participant_1 === email;
+      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(email);
       try {
         await updateConversation(convId, {
           [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,
@@ -134,10 +150,13 @@ export default function ChatScreen({ route, navigation }) {
       setConversation(conv);
       if (!conv) return;
 
-      const other = conv.participant_1 === email ? conv.participant_2 : conv.participant_1;
+      const other =
+        normalizeEmail(conv.participant_1) === normalizeEmail(email)
+          ? conv.participant_2
+          : conv.participant_1;
       const admin = await getAdminEmail();
       let displayName;
-      if (admin && other === admin) displayName = "АДМИН";
+      if (admin && normalizeEmail(other) === normalizeEmail(admin)) displayName = "АДМИН";
       else {
         const u = await getUserByEmail(other);
         displayName = u?.displayName || other.split("@")[0];
@@ -174,14 +193,48 @@ export default function ChatScreen({ route, navigation }) {
     useCallback(() => {
       if (!convId) return;
       fetchMessages();
-      const t = setInterval(fetchMessages, 4000);
-      return () => clearInterval(t);
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") fetchMessages();
+      });
+      const t = setInterval(() => {
+        if (AppState.currentState !== "active") return;
+        fetchMessages();
+      }, 8000);
+      return () => {
+        clearInterval(t);
+        sub.remove();
+      };
     }, [convId, fetchMessages])
   );
 
   useEffect(() => {
     scrollToEnd();
   }, [messages.length]);
+
+  const confirmDeleteMessage = useCallback(
+    (m) => {
+      if (!isAdmin || !convId) return;
+      showAlert("Мессеж устгах", "Энэ мессежийг устгах уу?", [
+        { text: "Цуцлах", style: "cancel" },
+        {
+          text: "Устгах",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMessage(m.id);
+              await syncConversationLastMessageFromMessages(convId);
+              await fetchMessages();
+              const conv = await getConversation(convId);
+              if (conv) setConversation(conv);
+            } catch (e) {
+              showAlert("Алдаа", e?.message || "Устгаж чадсангүй");
+            }
+          },
+        },
+      ]);
+    },
+    [isAdmin, convId, fetchMessages]
+  );
 
   async function handleSend() {
     const text = draft.trim();
@@ -190,19 +243,19 @@ export default function ChatScreen({ route, navigation }) {
     try {
       await createMessage({
         conversation_id: convId,
-        sender_email: email,
-        receiver_email: otherUser.email,
+        sender_email: normalizeEmail(email),
+        receiver_email: normalizeEmail(otherUser.email),
         message: text,
         is_read: false,
       });
-      const isP1 = conversation.participant_1 === email;
+      const isP1 = normalizeEmail(conversation.participant_1) === normalizeEmail(email);
       const otherKey = isP1 ? "unread_count_p2" : "unread_count_p1";
       const prevOther = isP1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
       await updateConversation(convId, {
         last_message: text,
         last_message_date: Timestamp.now(),
         last_message_time: new Date().toISOString(),
-        last_message_sender: email,
+        last_message_sender: normalizeEmail(email),
         [otherKey]: (prevOther || 0) + 1,
       });
       setDraft("");
@@ -211,14 +264,14 @@ export default function ChatScreen({ route, navigation }) {
           ? {
               ...c,
               last_message: text,
-              last_message_sender: email,
+              last_message_sender: normalizeEmail(email),
               [otherKey]: (prevOther || 0) + 1,
             }
           : c
       );
       await fetchMessages();
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Илгээж чадсангүй");
+      showAlert("Алдаа", e?.message || "Илгээж чадсангүй");
     } finally {
       setSending(false);
     }
@@ -282,21 +335,49 @@ export default function ChatScreen({ route, navigation }) {
         </Pressable>
       ) : null}
 
-      <ScrollView ref={scrollRef} style={styles.msgScroll} contentContainerStyle={styles.msgContent}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.msgScroll}
+        contentContainerStyle={styles.msgContent}
+        keyboardShouldPersistTaps="always"
+      >
         {messages.map((m) => {
-          const mine = m.sender_email === email;
+          const mine = normalizeEmail(m.sender_email) === normalizeEmail(email);
+          const delBtn = isAdmin ? (
+            <Pressable
+              style={styles.adminDeleteBtn}
+              onPress={() => confirmDeleteMessage(m)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Мессеж устгах"
+            >
+              <Ionicons name="trash-outline" size={18} color="#dc2626" />
+            </Pressable>
+          ) : null;
+          const bubbleEl = (
+            <View style={[styles.bubble, mine ? styles.bubbleBgMine : styles.bubbleBgTheirs]}>
+              <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
+                {m.message}
+              </Text>
+              <Text style={[styles.timeSmall, mine ? styles.timeMine : styles.timeTheirs]}>
+                {m.created_date instanceof Date
+                  ? m.created_date.toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })
+                  : ""}
+              </Text>
+            </View>
+          );
           return (
             <View key={m.id} style={[styles.bubbleWrap, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-              <View style={[styles.bubble, mine ? styles.bubbleBgMine : styles.bubbleBgTheirs]}>
-                <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : styles.bubbleTextTheirs]}>
-                  {m.message}
-                </Text>
-                <Text style={[styles.timeSmall, mine ? styles.timeMine : styles.timeTheirs]}>
-                  {m.created_date instanceof Date
-                    ? m.created_date.toLocaleTimeString("mn-MN", { hour: "2-digit", minute: "2-digit" })
-                    : ""}
-                </Text>
-              </View>
+              {mine ? (
+                <>
+                  {bubbleEl}
+                  {delBtn}
+                </>
+              ) : (
+                <>
+                  {delBtn}
+                  {bubbleEl}
+                </>
+              )}
             </View>
           );
         })}
@@ -352,9 +433,22 @@ const styles = StyleSheet.create({
   listingPrice: { fontSize: 13, color: "#ea580c", fontWeight: "700", marginTop: 2 },
   msgScroll: { flex: 1 },
   msgContent: { padding: 12, paddingBottom: 20 },
-  bubbleWrap: { marginBottom: 10, maxWidth: "88%" },
+  bubbleWrap: {
+    marginBottom: 10,
+    maxWidth: "88%",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 6,
+    zIndex: 1,
+  },
   bubbleMine: { alignSelf: "flex-end" },
   bubbleTheirs: { alignSelf: "flex-start" },
+  adminDeleteBtn: {
+    marginBottom: 2,
+    zIndex: 20,
+    ...(Platform.OS === "android" ? { elevation: 24 } : {}),
+  },
+  adminDeleteHit: { padding: 8, justifyContent: "center", alignItems: "center" },
   bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
   bubbleBgMine: { backgroundColor: "#ea580c" },
   bubbleBgTheirs: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#e5e7eb" },

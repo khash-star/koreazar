@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ExpoLinking from "expo-linking";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -18,6 +20,13 @@ import CreateListingScreen from "../screens/CreateListingScreen.js";
 import ProfileTabScreen from "../screens/ProfileTabScreen.js";
 import MyListingsScreen from "../screens/MyListingsScreen.js";
 import AdminScreen from "../screens/AdminScreen.js";
+import AdminListingReportsScreen from "../screens/AdminListingReportsScreen.js";
+import AdminNewListingsScreen from "../screens/AdminNewListingsScreen.js";
+import AdminAllListingsScreen from "../screens/AdminAllListingsScreen.js";
+import AdminBannersScreen from "../screens/AdminBannersScreen.js";
+import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
+import AdminUsersScreen from "../screens/AdminUsersScreen.js";
+import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 
 const RootStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,6 +36,63 @@ const MessagesStack = createNativeStackNavigator();
 const CreateStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const AdminStack = createNativeStackNavigator();
+
+const linking = {
+  prefixes: [ExpoLinking.createURL("/"), "zarkorea://"],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          HomeTab: {
+            screens: {
+              HomeMain: "",
+              ListingDetail: {
+                path: "listing/:listingId",
+                parse: {
+                  listingId: (value) => String(value || "").trim(),
+                },
+              },
+            },
+          },
+          MessagesTab: {
+            screens: {
+              MsgMain: "messages",
+              Chat: {
+                path: "chat/:otherUserEmail?",
+                parse: {
+                  otherUserEmail: (value) => (value ? decodeURIComponent(String(value)) : undefined),
+                },
+              },
+            },
+          },
+          SavedTab: {
+            screens: {
+              SavedMain: "saved",
+            },
+          },
+          CreateTab: {
+            screens: {
+              CreateMain: "create",
+            },
+          },
+          ProfileTab: {
+            screens: {
+              ProfileMain: "profile",
+              MyListings: "my-listings",
+            },
+          },
+          AdminTab: {
+            screens: {
+              AdminMain: "admin",
+            },
+          },
+        },
+      },
+      Login: "login",
+      Register: "register",
+    },
+  },
+};
 
 function HomeStackNavigator() {
   return (
@@ -103,7 +169,9 @@ function CreateStackNavigator() {
       <CreateStack.Screen
         name="CreateMain"
         component={CreateListingScreen}
-        options={{ title: "Зар нэмэх" }}
+        options={({ route }) => ({
+          title: route.params?.listingId ? "Зар засах" : "Зар нэмэх",
+        })}
       />
     </CreateStack.Navigator>
   );
@@ -134,6 +202,41 @@ function AdminStackNavigator() {
       }}
     >
       <AdminStack.Screen name="AdminMain" component={AdminScreen} options={{ title: "Админ" }} />
+      <AdminStack.Screen
+        name="AdminNewListings"
+        component={AdminNewListingsScreen}
+        options={{ title: "Шинэ зарууд" }}
+      />
+      <AdminStack.Screen
+        name="AdminAllListings"
+        component={AdminAllListingsScreen}
+        options={{ title: "Бүх зарууд" }}
+      />
+      <AdminStack.Screen
+        name="AdminBanners"
+        component={AdminBannersScreen}
+        options={{ title: "Баннер удирдах" }}
+      />
+      <AdminStack.Screen
+        name="AdminBannerRequests"
+        component={AdminBannerRequestsScreen}
+        options={{ title: "Баннер хүсэлтүүд" }}
+      />
+      <AdminStack.Screen
+        name="AdminUsers"
+        component={AdminUsersScreen}
+        options={{ title: "Хэрэглэгч хайх" }}
+      />
+      <AdminStack.Screen
+        name="AdminBroadcast"
+        component={AdminBroadcastScreen}
+        options={{ title: "Бүх хэрэглэгчдэд мессеж" }}
+      />
+      <AdminStack.Screen
+        name="AdminListingReports"
+        component={AdminListingReportsScreen}
+        options={{ title: "Зарын гомдол" }}
+      />
     </AdminStack.Navigator>
   );
 }
@@ -147,12 +250,22 @@ function MainTabs() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    getPendingListingsCount().then(setPendingCount).catch(() => {});
+    const refresh = () => getPendingListingsCount().then(setPendingCount).catch(() => {});
+    refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
     const interval = setInterval(
-      () => getPendingListingsCount().then(setPendingCount).catch(() => {}),
-      10000
+      () => {
+        if (AppState.currentState !== "active") return;
+        refresh();
+      },
+      20000
     );
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
   }, [isAdmin]);
 
   useEffect(() => {
@@ -160,12 +273,22 @@ function MainTabs() {
       setUnreadCount(0);
       return;
     }
-    getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+    const refresh = () => getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+    refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
     const interval = setInterval(
-      () => getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {}),
-      5000
+      () => {
+        if (AppState.currentState !== "active") return;
+        refresh();
+      },
+      12000
     );
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
   }, [email]);
 
   return (
@@ -257,7 +380,7 @@ function MainTabs() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <RootStack.Navigator>
         <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Нэвтрэх" }} />

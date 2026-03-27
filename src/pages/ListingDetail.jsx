@@ -130,7 +130,11 @@ export default function ListingDetail() {
     },
     onError: (error) => {
       console.error('Error submitting listing report:', error);
-      toast({ title: 'Гомдол илгээхэд алдаа гарлаа', variant: 'destructive' });
+      const msg = error?.code === 'permission-denied'
+        ? 'Permission denied: Firestore rules deploy хийгдээгүй байж магадгүй.'
+        : (error?.message || 'Гомдол илгээхэд алдаа гарлаа');
+      toast({ title: msg, variant: 'destructive' });
+      window.alert(msg);
     },
   });
 
@@ -158,6 +162,10 @@ export default function ListingDetail() {
     const email = userData?.email || user?.email;
     if (!email) {
       redirectToLogin(window.location.href);
+      return;
+    }
+    if (!listing?.id) {
+      toast({ title: 'Зар олдсонгүй', variant: 'destructive' });
       return;
     }
     reportMutation.mutate({

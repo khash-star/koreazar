@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
-  Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
-import { getListingById } from "../services/listingService";
+import { getLatestListings, getListingById } from "../services/listingService";
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
+import { createListingReport } from "../services/listingReportService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { toDate } from "../utils/firestoreDates";
 import { conditionLabels } from "../constants/listings";
 import { useAuth } from "../context/AuthContext.js";
 import { navigateToLogin, navigateToMessagesChat } from "../utils/navigationHelpers.js";
+import { openPhoneDialerSafe } from "../utils/safeLinking";
+import { showAlert } from "../utils/showAlert";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
@@ -32,6 +35,11 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [imageIndex, setImageIndex] = useState(0);
   const [savedDocId, setSavedDocId] = useState(null);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [relatedListings, setRelatedListings] = useState([]);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportReason, setReportReason] = useState("Залилан/сэжигтэй");
+  const [reportComment, setReportComment] = useState("");
 
   const refreshSaved = useCallback(async () => {
     if (!email || !listingId) {
@@ -60,6 +68,11 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
     try {
       setLoading(true);
+      // Route param солигдох үед өмнөх дэлгэрэнгүйг цэвэрлэж холилдохоос сэргийлнэ.
+      setListing(null);
+      setRelatedListings([]);
+      setImageIndex(0);
+      setError("");
       const data = await getListingById(listingId);
       if (!data) {
         setError("Зар олдсонгүй");
@@ -79,6 +92,32 @@ export default function ListingDetailScreen({ route, navigation }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadRelated() {
+      if (!listing?.id || !listing?.category) {
+        if (mounted) setRelatedListings([]);
+        return;
+      }
+      try {
+        const latest = await getLatestListings(60);
+        const related = latest
+          .filter(
+            (row) =>
+              String(row.id) !== String(listing.id) && row.category === listing.category
+          )
+          .slice(0, 10);
+        if (mounted) setRelatedListings(related);
+      } catch {
+        if (mounted) setRelatedListings([]);
+      }
+    }
+    loadRelated();
+    return () => {
+      mounted = false;
+    };
+  }, [listing?.id, listing?.category]);
 
   if (loading) {
     return (
@@ -113,7 +152,7 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   async function toggleSave() {
     if (!isAuthenticated || !email) {
-      Alert.alert("Нэвтрэх", "Зар хадгалахын тулд нэвтэрнэ үү", [
+      showAlert("Нэвтрэх", "Зар хадгалахын тулд нэвтэрнэ үү", [
         { text: "Цуцлах", style: "cancel" },
         { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
       ]);
@@ -129,11 +168,47 @@ export default function ListingDetailScreen({ route, navigation }) {
         setSavedDocId(row.id);
       }
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Амжилтгүй");
+      showAlert("Алдаа", e?.message || "Амжилтгүй");
     } finally {
       setSaveBusy(false);
     }
   }
+
+  function openReportActions() {
+    if (!isAuthenticated || !email) {
+      showAlert("Нэвтрэх", "Санал/гомдол илгээхийн тулд нэвтэрнэ үү", [
+        { text: "Цуцлах", style: "cancel" },
+        { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
+      ]);
+      return;
+    }
+    setReportOpen(true);
+  }
+
+  async function submitReport() {
+    if (!listing?.id) {
+      showAlert("Алдаа", "Зарын ID олдсонгүй");
+      return;
+    }
+    setReportBusy(true);
+    try {
+      await createListingReport({
+        listingId: listing.id,
+        listingTitle: listing.title || "",
+        reason: reportReason,
+        details: reportComment,
+      });
+      setReportOpen(false);
+      setReportComment("");
+      showAlert("Амжилттай", "Санал/гомдол хүлээн авлаа.");
+    } catch (e) {
+      showAlert("Алдаа", e?.message || "Илгээж чадсангүй");
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
+  const isOwner = !!(email && listing.created_by && email === listing.created_by);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -216,7 +291,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Холбоо барих</Text>
           {listing.phone ? (
-            <Pressable onPress={() => Linking.openURL(`tel:${listing.phone}`)}>
+            <Pressable onPress={() => openPhoneDialerSafe(listing.phone)}>
               <Text style={styles.link}>📞 {listing.phone}</Text>
             </Pressable>
           ) : null}
@@ -243,7 +318,7 @@ export default function ListingDetailScreen({ route, navigation }) {
             style={styles.chatBtn}
             onPress={() => {
               if (!isAuthenticated || !email) {
-                Alert.alert("Нэвтрэх", "Чатлахын тулд нэвтэрнэ үү", [
+                showAlert("Нэвтрэх", "Чатлахын тулд нэвтэрнэ үү", [
                   { text: "Цуцлах", style: "cancel" },
                   { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
                 ]);
@@ -258,7 +333,113 @@ export default function ListingDetailScreen({ route, navigation }) {
             <Text style={styles.chatBtnText}>💬 Зар эзэнтэй чатлах</Text>
           </Pressable>
         ) : null}
+
+        {listing.created_by && (!email || listing.created_by !== email) ? (
+          <Pressable style={styles.reportBtn} onPress={openReportActions}>
+            <Text style={styles.reportBtnText}>⚑ Санал/гомдол илгээх</Text>
+          </Pressable>
+        ) : null}
+
+        {!isOwner && relatedListings.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Ижил зарууд</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.relatedRow}
+            >
+              {relatedListings.map((item) => {
+                const first = item.images?.[0];
+                const uri = first ? getListingImageUrl(first, "w400") : "";
+                const priceText = item.price
+                  ? `₩${Number(item.price).toLocaleString("ko-KR")}`
+                  : "Үнэ тохирно";
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={styles.relatedCard}
+                    onPress={() => navigation.push("ListingDetail", { listingId: item.id })}
+                  >
+                    {uri ? (
+                      <Image
+                        source={{ uri }}
+                        style={styles.relatedImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <View style={[styles.relatedImage, styles.relatedImagePh]} />
+                    )}
+                    <View style={styles.relatedBody}>
+                      <Text numberOfLines={2} style={styles.relatedTitle}>
+                        {item.title || "Гарчиггүй"}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.relatedPrice}>
+                        {priceText}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
       </View>
+      <Modal
+        visible={reportOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !reportBusy && setReportOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => !reportBusy && setReportOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Санал/гомдол</Text>
+            <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
+            <View style={styles.reasonList}>
+              {["Залилан/сэжигтэй", "Зохисгүй контент", "Буруу мэдээлэл", "Бусад"].map((r) => (
+                <Pressable
+                  key={r}
+                  style={[styles.reasonChip, reportReason === r && styles.reasonChipActive]}
+                  onPress={() => setReportReason(r)}
+                  disabled={reportBusy}
+                >
+                  <Text style={[styles.reasonChipText, reportReason === r && styles.reasonChipTextActive]}>
+                    {r}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.commentLabel}>Тайлбар (заавал биш)</Text>
+            <TextInput
+              style={styles.commentInput}
+              value={reportComment}
+              onChangeText={setReportComment}
+              placeholder="Нэмэлт тайлбар бичнэ үү..."
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              editable={!reportBusy}
+              maxLength={500}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.modalCancel}
+                onPress={() => setReportOpen(false)}
+                disabled={reportBusy}
+              >
+                <Text style={styles.modalCancelText}>Цуцлах</Text>
+              </Pressable>
+              <Pressable style={styles.modalSubmit} onPress={submitReport} disabled={reportBusy}>
+                {reportBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Илгээх</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -345,4 +526,82 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chatBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  reportBtn: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+  },
+  reportBtnText: { color: "#b91c1c", fontWeight: "700", fontSize: 15 },
+  relatedRow: { gap: 10, paddingRight: 4 },
+  relatedCard: {
+    width: 180,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    overflow: "hidden",
+  },
+  relatedImage: { width: "100%", aspectRatio: 4 / 3, backgroundColor: "#e5e7eb" },
+  relatedImagePh: { backgroundColor: "#e5e7eb" },
+  relatedBody: { padding: 8 },
+  relatedTitle: { fontSize: 13, fontWeight: "600", color: "#111827", minHeight: 32 },
+  relatedPrice: { marginTop: 4, fontSize: 13, fontWeight: "700", color: "#ea580c" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 6 },
+  modalHint: { fontSize: 14, color: "#6b7280", marginBottom: 12 },
+  reasonList: { gap: 8, marginBottom: 14 },
+  reasonChip: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  reasonChipActive: { borderColor: "#ef4444", backgroundColor: "#fef2f2" },
+  reasonChipText: { color: "#374151", fontWeight: "600" },
+  reasonChipTextActive: { color: "#b91c1c" },
+  commentLabel: { fontSize: 13, color: "#6b7280", marginBottom: 6, fontWeight: "600" },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 10,
+    minHeight: 86,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 12,
+    color: "#111827",
+    backgroundColor: "#fff",
+  },
+  modalActions: { flexDirection: "row", gap: 10 },
+  modalCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 10,
+    alignItems: "center",
+    paddingVertical: 11,
+  },
+  modalCancelText: { color: "#374151", fontWeight: "600" },
+  modalSubmit: {
+    flex: 1,
+    backgroundColor: "#dc2626",
+    borderRadius: 10,
+    alignItems: "center",
+    paddingVertical: 11,
+  },
+  modalSubmitText: { color: "#fff", fontWeight: "700" },
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateUserData, redirectToLogin } from '@/services/authService';
+import { updateUserData, redirectToLogin, deleteAccountWithPassword } from '@/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ArrowLeft, Save, Loader2, User, FileText, Plus, Edit2, Trash2, Eye, MoreVertical, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, User, UserX, FileText, Plus, Edit2, Trash2, Eye, MoreVertical, CheckCircle, XCircle } from 'lucide-react';
 import * as entities from '@/api/entities';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,6 +57,11 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [deleteId, setDeleteId] = useState(null);
+  const [accountDeleteOpen, setAccountDeleteOpen] = useState(false);
+  const [accountDeletePassword, setAccountDeletePassword] = useState('');
+  const [accountDeleteTypeConfirm, setAccountDeleteTypeConfirm] = useState('');
+  const [accountDeleteBusy, setAccountDeleteBusy] = useState(false);
+  const [accountDeleteError, setAccountDeleteError] = useState('');
   
   // Fetch user's listings
   const { data: listings = [], isLoading: listingsLoading } = useQuery({
@@ -161,6 +166,24 @@ export default function Profile() {
       whatsapp: formData.whatsapp.trim() || '',
       facebook: formData.facebook.trim() || ''
     });
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (accountDeleteTypeConfirm !== 'УСТГАХ') {
+      setAccountDeleteError('Баталгаажуулахын тулд УСТГАХ гэж яг энэ үгийг бичнэ үү.');
+      return;
+    }
+    setAccountDeleteBusy(true);
+    setAccountDeleteError('');
+    try {
+      await deleteAccountWithPassword(accountDeletePassword);
+      queryClient.clear();
+      navigate(createPageUrl('Home'));
+    } catch (err) {
+      setAccountDeleteError(err?.message || 'Бүртгэл устгахад алдаа гарлаа.');
+    } finally {
+      setAccountDeleteBusy(false);
+    }
   };
 
   if (!isAuthenticated || !user) {
@@ -330,6 +353,34 @@ export default function Profile() {
                 </form>
               </CardContent>
             </Card>
+
+            <Card className="mt-6 border-red-200 bg-red-50/40">
+              <CardHeader>
+                <CardTitle className="text-red-800 text-base flex items-center gap-2">
+                  <UserX className="w-5 h-5" />
+                  Бүртгэл устгах
+                </CardTitle>
+                <CardDescription className="text-red-900/80">
+                  Таны профайл, зарууд, хадгалсан зар, чатын түүх бүрмөсөн устгагдана. Үйлдлийг буцаах боломжгүй.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setAccountDeleteOpen(true);
+                    setAccountDeletePassword('');
+                    setAccountDeleteTypeConfirm('');
+                    setAccountDeleteError('');
+                  }}
+                >
+                  <UserX className="w-4 h-4 mr-2" />
+                  Бүртгэл устгах
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="listings">
@@ -419,6 +470,14 @@ export default function Profile() {
                                     Засах
                                   </Link>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link to={createPageUrl(`UpgradeListing?id=${listing.id}`)}>
+                                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                    </svg>
+                                    VIP болгох
+                                  </Link>
+                                </DropdownMenuItem>
                                 {listing.status === 'active' && (
                                   <DropdownMenuItem
                                     onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'sold' })}
@@ -500,6 +559,80 @@ export default function Profile() {
             </AlertDialog>
           </TabsContent>
         </Tabs>
+
+        <AlertDialog
+          open={accountDeleteOpen}
+          onOpenChange={(open) => {
+            setAccountDeleteOpen(open);
+            if (!open) {
+              setAccountDeletePassword('');
+              setAccountDeleteTypeConfirm('');
+              setAccountDeleteError('');
+            }
+          }}
+        >
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Бүртгэлээ устгах уу?</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4 text-left text-sm text-muted-foreground">
+                  <p>
+                    Нууц үгээ оруулж, баталгаажуулах талбарт <strong className="text-foreground">УСТГАХ</strong> гэж бичнэ үү.
+                  </p>
+                  {accountDeleteError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{accountDeleteError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="acct-del-pwd">Нууц үг</Label>
+                    <Input
+                      id="acct-del-pwd"
+                      type="password"
+                      autoComplete="current-password"
+                      value={accountDeletePassword}
+                      onChange={(e) => setAccountDeletePassword(e.target.value)}
+                      placeholder="Одоогийн нууц үг"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acct-del-confirm">Баталгаажуулах</Label>
+                    <Input
+                      id="acct-del-confirm"
+                      type="text"
+                      value={accountDeleteTypeConfirm}
+                      onChange={(e) => setAccountDeleteTypeConfirm(e.target.value)}
+                      placeholder="УСТГАХ"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+              <AlertDialogCancel disabled={accountDeleteBusy}>Цуцлах</AlertDialogCancel>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={
+                  accountDeleteBusy ||
+                  !accountDeletePassword.trim() ||
+                  accountDeleteTypeConfirm !== 'УСТГАХ'
+                }
+                onClick={handleConfirmDeleteAccount}
+              >
+                {accountDeleteBusy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Устгаж байна…
+                  </>
+                ) : (
+                  'Бүртгэл устгах'
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

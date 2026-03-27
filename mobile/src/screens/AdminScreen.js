@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,6 +16,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
+import { collection, getCountFromServer, query, where } from "firebase/firestore";
 import {
   getListingAutoApprove,
   setListingAutoApprove,
@@ -23,8 +26,11 @@ import {
   getPendingListings,
   updateListing,
 } from "../services/listingService";
+import { getUnreadMessagesCount } from "../services/conversationService";
 import { getListingImageUrl } from "../utils/imageUrl";
-import { navigateToHomeListing } from "../utils/navigationHelpers";
+import { db } from "../config/firebase";
+import { useAuth } from "../context/AuthContext";
+import { getBottomTabNavigator, navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
 
 const IMG_H = 100;
@@ -32,11 +38,18 @@ const AUTO_APPROVE_KEY = "admin_auto_approve_listings";
 
 export default function AdminScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
+  const { email } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
   const [actioningId, setActioningId] = useState(null);
   const [autoApprove, setAutoApprove] = useState(false);
+  const [pendingReportsCount, setPendingReportsCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [usersCount, setUsersCount] = useState(0);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoTitle, setInfoTitle] = useState("");
+  const [infoText, setInfoText] = useState("");
 
   useEffect(() => {
     getListingAutoApprove()
@@ -81,13 +94,62 @@ export default function AdminScreen({ navigation }) {
     [autoApprove]
   );
 
+  const loadAdminStats = useCallback(async () => {
+    try {
+      const reportsQ = query(collection(db, "listing_reports"), where("status", "==", "pending"));
+      const usersRef = collection(db, "users");
+      const [reportsSnap, usersSnap, unread] = await Promise.all([
+        getCountFromServer(reportsQ),
+        getCountFromServer(usersRef),
+        email ? getUnreadMessagesCount(email) : Promise.resolve(0),
+      ]);
+      setPendingReportsCount(reportsSnap.data().count || 0);
+      setUsersCount(usersSnap.data().count || 0);
+      setUnreadMessagesCount(unread || 0);
+    } catch {
+      setPendingReportsCount(0);
+      setUnreadMessagesCount(0);
+      setUsersCount(0);
+    }
+  }, [email]);
+
+  const showInfo = useCallback((title, text) => {
+    setInfoTitle(title || "Мэдэгдэл");
+    setInfoText(text || "");
+    setInfoOpen(true);
+  }, []);
+
+  const showMobileComingSoon = useCallback(() => {
+    showInfo("Тун удахгүй", "Энэ админ цэсийг mobile дотор нэмэхээр ажиллаж байна.");
+  }, [showInfo]);
+
+  const openMessagesTab = useCallback(() => {
+    const tab = getBottomTabNavigator(navigation);
+    if (tab?.navigate) tab.navigate("MessagesTab");
+  }, [navigation]);
+
   useFocusEffect(
     useCallback(() => {
       load(false);
-      if (!autoApprove) return;
-      const t = setInterval(() => load(true), 15000);
-      return () => clearInterval(t);
-    }, [load, autoApprove])
+      loadAdminStats();
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") {
+          load(false);
+          loadAdminStats();
+        }
+      });
+      const t = autoApprove
+        ? setInterval(() => {
+            if (AppState.currentState !== "active") return;
+            load(true);
+          loadAdminStats();
+          }, 25000)
+        : null;
+      return () => {
+        if (t) clearInterval(t);
+        sub.remove();
+      };
+    }, [load, autoApprove, loadAdminStats])
   );
 
   useEffect(() => {
@@ -186,6 +248,7 @@ export default function AdminScreen({ navigation }) {
   }
 
   return (
+    <>
     <FlatList
       scrollEventThrottle={16}
       data={rows}
@@ -200,6 +263,145 @@ export default function AdminScreen({ navigation }) {
       }
       ListHeaderComponent={
         <View style={styles.headerWrap}>
+          <View style={styles.menuCardList}>
+            <Pressable
+              style={styles.menuCard}
+              onPress={() => {
+                navigation.navigate("AdminNewListings");
+              }}
+            >
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#fef3c7" }]}>
+                  <Ionicons name="time-outline" size={22} color="#d97706" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Шинэ зарууд</Text>
+                  <Text style={styles.menuSub}>Батлах хүлээгдэж буй зар</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>
+                  {rows.length > 0 ? `${rows.length} хүлээгдэж буй зар` : "Шинэ зар алга"}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminAllListings")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#dbeafe" }]}>
+                  <Ionicons name="list-outline" size={22} color="#2563eb" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Бүх зарууд</Text>
+                  <Text style={styles.menuSub}>Бүх зарын жагсаалт</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>Хайх, устгах, засах, онцгой/VIP болгох</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminBanners")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#ede9fe" }]}>
+                  <Ionicons name="settings-outline" size={22} color="#7c3aed" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Баннер удирдах</Text>
+                  <Text style={styles.menuSub}>Нүүр хуудасны баннер зар</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>Баннер зар нэмэх, засах, устгах</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminBannerRequests")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#dcfce7" }]}>
+                  <Ionicons name="shield-checkmark-outline" size={22} color="#16a34a" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Баннер хүсэлтүүд</Text>
+                  <Text style={styles.menuSub}>Хэрэглэгчдийн баннер зарын хүсэлт</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>Хүсэлтүүдийг батлах, татгалзах</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminListingReports")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#fee2e2" }]}>
+                  <Ionicons name="flag-outline" size={22} color="#dc2626" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Зарын гомдол</Text>
+                  <Text style={styles.menuSub}>Хэрэглэгчийн санал, гомдлын шалгалт</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>
+                  {pendingReportsCount > 0 ? `${pendingReportsCount} шинэ гомдол` : "Шинэ гомдол алга"}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={openMessagesTab}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#dbeafe" }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={22} color="#2563eb" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Мессеж унших, хариу бичих</Text>
+                  <Text style={styles.menuSub}>Хэрэглэгчдээс ирсэн мессежид хариу өгөх</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>
+                  {unreadMessagesCount > 0
+                    ? `${unreadMessagesCount} уншаагүй мессеж байна`
+                    : "Мессежийн жагсаалт руу орох"}
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminBroadcast")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#fce7f3" }]}>
+                  <Ionicons name="mail-open-outline" size={22} color="#db2777" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Бүх хэрэглэгчдэд мессеж</Text>
+                  <Text style={styles.menuSub}>Бүх хэрэглэгчдэд мессеж илгээх</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooter}>
+                <Text style={styles.menuFooterText}>Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх</Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminUsers")}>
+              <View style={styles.menuHead}>
+                <View style={[styles.menuIconWrap, { backgroundColor: "#e0e7ff" }]}>
+                  <Ionicons name="people-outline" size={22} color="#4f46e5" />
+                </View>
+                <View style={styles.menuHeadText}>
+                  <Text style={styles.menuTitle}>Хэрэглэгч хайх</Text>
+                  <Text style={styles.menuSub}>Хэрэглэгч хайх, мэдээлэл үзэх</Text>
+                </View>
+              </View>
+              <View style={styles.menuFooterInline}>
+                <Text style={styles.menuFooterText}>Имэйл, нэр, утасны дугаараар хайх</Text>
+                <View style={styles.countWrap}>
+                  <Text style={styles.countLabel}>Нийт хэрэглэгч</Text>
+                  <Text style={styles.countValue}>{usersCount}</Text>
+                </View>
+              </View>
+            </Pressable>
+          </View>
+
           <View style={styles.autoApproveRow}>
             <Text style={styles.autoApproveLabel}>Автоматаар зөвшөөрөх</Text>
             <Switch
@@ -290,6 +492,18 @@ export default function AdminScreen({ navigation }) {
         );
       }}
     />
+    <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={() => setInfoOpen(false)}>
+      <Pressable style={styles.modalBackdrop} onPress={() => setInfoOpen(false)}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.modalTitle}>{infoTitle}</Text>
+          <Text style={styles.modalText}>{infoText}</Text>
+          <Pressable style={styles.modalBtn} onPress={() => setInfoOpen(false)}>
+            <Text style={styles.modalBtnText}>Ойлголоо</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 }
 
@@ -297,6 +511,48 @@ const styles = StyleSheet.create({
   list: { padding: 16 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   headerWrap: { marginBottom: 16 },
+  menuCardList: { gap: 12, marginBottom: 14 },
+  menuCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: "#ffffff",
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  menuHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  menuIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuHeadText: { flex: 1 },
+  menuTitle: { fontSize: 16, fontWeight: "700", color: "#0f172a" },
+  menuSub: { marginTop: 1, fontSize: 13, color: "#64748b" },
+  menuFooter: {
+    borderTopWidth: 1,
+    borderTopColor: "#edf2f7",
+    paddingTop: 6,
+  },
+  menuFooterInline: {
+    borderTopWidth: 1,
+    borderTopColor: "#edf2f7",
+    paddingTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  menuFooterText: { fontSize: 13, color: "#334155" },
+  countWrap: { alignItems: "flex-end" },
+  countLabel: { fontSize: 11, color: "#64748b" },
+  countValue: { fontSize: 24, lineHeight: 26, fontWeight: "800", color: "#4f46e5" },
   autoApproveRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -361,4 +617,25 @@ const styles = StyleSheet.create({
   rejectBtn: { backgroundColor: "#ef4444" },
   deleteBtn: { flex: 0, paddingHorizontal: 14, backgroundColor: "#6b7280" },
   actionBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#0f172a", marginBottom: 8 },
+  modalText: { fontSize: 15, color: "#334155", lineHeight: 22, marginBottom: 14 },
+  modalBtn: {
+    alignSelf: "flex-end",
+    backgroundColor: "#ea580c",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  modalBtnText: { color: "#fff", fontWeight: "700" },
 });

@@ -6,11 +6,54 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
+
+const USER_SYNC_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
+const buildUserSyncUrl = () => {
+  const url = new URL(USER_SYNC_API_BASE_URL);
+  url.searchParams.set('action', 'user_sync');
+  return url.toString();
+};
+
+const syncUserToMySql = async (user, profile = {}) => {
+  if (!user) return;
+  try {
+    const token = await user.getIdToken(true);
+    const res = await fetch(buildUserSyncUrl(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        display_name: profile.displayName || user.displayName || user.email?.split('@')[0] || '',
+        phone: profile.phone || '',
+        city: profile.city || '',
+        district: profile.district || '',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.customer_id != null && !Number.isNaN(Number(data.customer_id))) {
+      const customerId = Number(data.customer_id);
+      const userRef = doc(db, 'users', user.uid);
+      try {
+        await updateDoc(userRef, { customerId });
+      } catch {
+        await setDoc(userRef, { customerId }, { merge: true });
+      }
+    }
+  } catch (e) {
+    console.warn('MySQL user sync failed:', e?.message || e);
+  }
+};
 
 /**
  * Нэвтрэх (Email/Password)
@@ -20,6 +63,7 @@ import { db } from '@/firebase/config';
  */
 export const login = async (email, password) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  await syncUserToMySql(userCredential.user, {});
   return userCredential.user;
 };
 
@@ -68,6 +112,10 @@ export const register = async (email, password, displayName = null, phone = null
         // Continue even if Firestore fails - user is still created in Auth
       }
     }
+    await syncUserToMySql(user, {
+      displayName: displayName || user.email.split('@')[0],
+      phone: phone || '',
+    });
 
     return user;
   } catch (error) {
@@ -82,6 +130,45 @@ export const register = async (email, password, displayName = null, phone = null
  */
 export const logout = async () => {
   await signOut(auth);
+};
+
+/**
+ * Бүртгэл бүрэн устгах (нэвтрэх нууц үгээр дахин баталгаажуулна). Apple 5.1.1(v).
+ * @param {string} password - Одоогийн нууц үг
+ */
+export const deleteAccountWithPassword = async (password) => {
+  const user = auth.currentUser;
+  if (!user?.email) throw new Error('Нэвтэрсэн хэрэглэгч олдсонгүй');
+  const pwd = typeof password === 'string' ? password.trim() : '';
+  if (!pwd) throw new Error('Нууц үгээ оруулна уу');
+
+  const credential = EmailAuthProvider.credential(user.email, pwd);
+  try {
+    await reauthenticateWithCredential(user, credential);
+  } catch (e) {
+    const code = e?.code || '';
+    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+      throw new Error('Нууц үг буруу байна');
+    }
+    if (code === 'auth/requires-recent-login' || code === 'auth/user-mismatch') {
+      throw new Error('Аюулгүй байдлын шалтгаанаар дахин нэвтэрч, дахин оролдоно уу');
+    }
+    throw e;
+  }
+
+  const uid = user.uid;
+  const email = user.email;
+  await deleteAllFirestoreDataForUser(uid, email);
+
+  try {
+    await deleteUser(user);
+  } catch (e) {
+    const code = e?.code || '';
+    if (code === 'auth/requires-recent-login') {
+      throw new Error('Өгөгдөл устгагдсан боловч бүртгэлийг бүрэн хаахын тулд дахин нэвтэрч оролдоно уу');
+    }
+    throw e;
+  }
 };
 
 /**
@@ -335,6 +422,7 @@ export const updateUserData = async (uid, data) => {
         // Continue even if Auth update fails
       }
     }
+    await syncUserToMySql(user, data);
   } catch (error) {
     console.error('Error updating user data:', error);
     throw error;

@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -38,7 +37,7 @@ export default function SavedListingsScreen({ navigation }) {
       const data = await getSavedListingsWithDetails(email);
       setRows(data);
     } catch (e) {
-      Alert.alert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+      showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,7 +51,7 @@ export default function SavedListingsScreen({ navigation }) {
   );
 
   async function onUnsave(savedId, title) {
-    Alert.alert("Хасах уу?", title || "Энэ зарыг хадгалснаас хасна", [
+    showAlert("Хасах уу?", title || "Энэ зарыг хадгалснаас хасна", [
       { text: "Цуцлах", style: "cancel" },
       {
         text: "Хасах",
@@ -62,7 +61,7 @@ export default function SavedListingsScreen({ navigation }) {
             await removeSaved(savedId);
             setRows((prev) => prev.filter((r) => r.savedId !== savedId));
           } catch (e) {
-            Alert.alert("Алдаа", e?.message);
+            showAlert("Алдаа", e?.message);
           }
         },
       },

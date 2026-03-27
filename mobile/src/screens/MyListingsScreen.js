@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -13,10 +14,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext.js";
-import { deleteListing, getListingsByCreator } from "../services/listingService.js";
+import { deleteListing, getListingsByCreator, updateListing } from "../services/listingService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
-import { navigateToLogin, navigateToCreateListing, navigateToHomeListing } from "../utils/navigationHelpers.js";
-import { showAlert } from "../utils/showAlert.js";
+import {
+  navigateToLogin,
+  navigateToCreateListing,
+  navigateToHomeListing,
+  navigateToEditListing,
+} from "../utils/navigationHelpers.js";
+import { showAlert } from "../utils/showAlert";
 
 const IMG_H = 120;
 
@@ -28,6 +34,7 @@ export default function MyListingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [menuItem, setMenuItem] = useState(null);
 
   const load = useCallback(async (isRefresh) => {
     if (!email) {
@@ -73,6 +80,53 @@ export default function MyListingsScreen({ navigation }) {
     [load]
   );
 
+  const openActions = useCallback((item) => setMenuItem(item), []);
+
+  const closeActions = useCallback(() => setMenuItem(null), []);
+
+  const handleStatusToggle = useCallback(async () => {
+    if (!menuItem) return;
+    const isActive = menuItem.status === "active";
+    try {
+      await updateListing(menuItem.id, { status: isActive ? "sold" : "active" });
+      closeActions();
+      load(false);
+    } catch (e) {
+      showAlert("Алдаа", e?.message || "Төлөв шинэчилж чадсангүй");
+    }
+  }, [menuItem, closeActions, load]);
+
+  const handleMakeVIP = useCallback(() => {
+    if (!menuItem?.id) return;
+    const id = menuItem.id;
+    const title = menuItem.title || "Зар";
+    closeActions();
+    showAlert(
+      "VIP болгох",
+      `"${title}"-г VIP зар болгох уу? 7 хоногийн турш идэвхтэй болно.`,
+      [
+        { text: "Цуцлах", style: "cancel" },
+        {
+          text: "VIP болгох",
+          onPress: async () => {
+            try {
+              const exp = new Date();
+              exp.setDate(exp.getDate() + 7);
+              await updateListing(id, {
+                listing_type: "vip",
+                listing_type_expires: exp.toISOString(),
+              });
+              load(false);
+              showAlert("Амжилттай", "VIP болголоо.");
+            } catch (e) {
+              showAlert("Алдаа", e?.message || "Шинэчилж чадсангүй");
+            }
+          },
+        },
+      ]
+    );
+  }, [menuItem, closeActions, load]);
+
   useFocusEffect(
     useCallback(() => {
       load(false);
@@ -99,6 +153,7 @@ export default function MyListingsScreen({ navigation }) {
   }
 
   return (
+    <>
     <FlatList
       scrollEventThrottle={16}
       data={rows}
@@ -123,10 +178,11 @@ export default function MyListingsScreen({ navigation }) {
         const uri = img ? getListingImageUrl(img, "w400") : "";
         const status = statusLabel[item.status] || item.status;
         return (
-          <Pressable
-            style={styles.row}
-            onPress={() => navigateToHomeListing(navigation, item.id)}
-          >
+          <View style={styles.row}>
+            <Pressable
+              style={styles.mainPress}
+              onPress={() => navigateToHomeListing(navigation, item.id)}
+            >
             {uri ? (
               <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
             ) : (
@@ -145,19 +201,70 @@ export default function MyListingsScreen({ navigation }) {
                 <Text style={styles.badgeText}>{status}</Text>
               </View>
             </View>
-            <Pressable
-              style={styles.deleteBtn}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleDelete(item);
-              }}
-            >
-              <Ionicons name="trash-outline" size={22} color="#dc2626" />
             </Pressable>
-          </Pressable>
+            <Pressable
+              style={styles.menuBtn}
+              onPress={() => openActions(item)}
+              hitSlop={10}
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+            </Pressable>
+          </View>
         );
       }}
     />
+    <Modal visible={!!menuItem} transparent animationType="fade" onRequestClose={closeActions}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeActions} accessibilityRole="button" />
+        <View style={styles.modalCardWrap} pointerEvents="box-none">
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{menuItem?.title || "Зар"}</Text>
+            <Pressable
+              style={styles.modalItem}
+              onPress={() => {
+                if (!menuItem) return;
+                closeActions();
+                navigateToHomeListing(navigation, menuItem.id);
+              }}
+            >
+              <Text style={styles.modalItemText}>Харах</Text>
+            </Pressable>
+            <Pressable
+              style={styles.modalItem}
+              onPress={() => {
+                if (!menuItem?.id) return;
+                closeActions();
+                navigateToEditListing(navigation, menuItem.id);
+              }}
+            >
+              <Text style={styles.modalItemText}>Засах</Text>
+            </Pressable>
+            <Pressable style={styles.modalItem} onPress={handleMakeVIP}>
+              <Text style={styles.modalItemText}>VIP болгох</Text>
+            </Pressable>
+            <Pressable style={styles.modalItem} onPress={handleStatusToggle}>
+              <Text style={styles.modalItemText}>
+                {menuItem?.status === "active" ? "Зарагдсан гэж тэмдэглэх" : "Идэвхжүүлэх"}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.modalItem}
+              onPress={() => {
+                if (!menuItem) return;
+                closeActions();
+                handleDelete(menuItem);
+              }}
+            >
+              <Text style={styles.modalDangerText}>Устгах</Text>
+            </Pressable>
+            <Pressable style={styles.modalCancelBtn} onPress={closeActions}>
+              <Text style={styles.modalCancelText}>Цуцлах</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }
 
@@ -181,7 +288,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  deleteBtn: {
+  mainPress: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  menuBtn: {
     padding: 12,
     justifyContent: "center",
     alignItems: "center",
@@ -202,4 +314,36 @@ const styles = StyleSheet.create({
   },
   badgePending: { backgroundColor: "#f59e0b" },
   badgeText: { fontSize: 11, color: "#fff", fontWeight: "700" },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  modalCardWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    padding: 24,
+    pointerEvents: "box-none",
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+  },
+  modalTitle: { fontSize: 16, fontWeight: "700", color: "#111827", marginBottom: 8 },
+  modalItem: {
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
+  },
+  modalItemText: { color: "#111827", fontSize: 15, fontWeight: "500" },
+  modalDangerText: { color: "#dc2626", fontSize: 15, fontWeight: "700" },
+  modalCancelBtn: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    paddingVertical: 11,
+    alignItems: "center",
+  },
+  modalCancelText: { color: "#374151", fontWeight: "600" },
 });

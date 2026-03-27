@@ -1,4 +1,4 @@
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, limit, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 
 /** Админы имэйл (users коллекц дээр role === 'admin') */
@@ -28,4 +28,16 @@ export async function getUserByEmail(email) {
     console.warn("getUserByEmail:", e?.message);
     return null;
   }
+}
+
+export async function updateUserBlocked(uid, blocked) {
+  if (!uid) throw new Error("Хэрэглэгчийн ID олдсонгүй");
+  const ref = doc(db, "users", String(uid));
+  await updateDoc(ref, { blocked: !!blocked });
+}
+
+export async function deleteUserProfile(uid) {
+  if (!uid) throw new Error("Хэрэглэгчийн ID олдсонгүй");
+  const ref = doc(db, "users", String(uid));
+  await deleteDoc(ref);
 }

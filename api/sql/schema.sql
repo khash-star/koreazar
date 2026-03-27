@@ -4,6 +4,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- users.id = хэрэглэгчийн тогтмол дугаар (API: customer_id, Firestore: customerId). Шүүх: WHERE id = ?
 CREATE TABLE IF NOT EXISTS `users` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `firebase_uid` VARCHAR(128) NOT NULL,
@@ -17,9 +18,15 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `users_email_index` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE `users`
+  ADD COLUMN IF NOT EXISTS `phone` VARCHAR(64) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `city` VARCHAR(128) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `district` VARCHAR(128) DEFAULT NULL;
+
 CREATE TABLE IF NOT EXISTS `listings` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `firebase_uid` VARCHAR(128) NOT NULL,
+  `customer_id` BIGINT UNSIGNED DEFAULT NULL COMMENT 'users.id — хэрэглэгчийн дугаар',
   `created_by` VARCHAR(255) DEFAULT NULL,
   `category` VARCHAR(64) NOT NULL,
   `subcategory` VARCHAR(64) DEFAULT NULL,
@@ -46,8 +53,12 @@ CREATE TABLE IF NOT EXISTS `listings` (
   KEY `listings_subcategory_index` (`subcategory`),
   KEY `listings_status_index` (`status`),
   KEY `listings_created_at_index` (`created_at`),
-  KEY `listings_firebase_uid_index` (`firebase_uid`)
+  KEY `listings_firebase_uid_index` (`firebase_uid`),
+  KEY `listings_customer_id_index` (`customer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `listings`
+  ADD COLUMN IF NOT EXISTS `customer_id` BIGINT UNSIGNED DEFAULT NULL COMMENT 'users.id';
 
 CREATE TABLE IF NOT EXISTS `listing_images` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Dimensions, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
+import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const GAP = 8;
-const HERO_H = 140;
+/** Өргөн дэлгэц дээр тогтмол өндөр биш — харьцаа хадгална */
+const BANNER_CELL_ASPECT = 2.35;
 
 export default function BannerHero({ banners }) {
   const [idx, setIdx] = useState(0);
-  const screenW = Dimensions.get("window").width;
+  const { width: screenW } = useWindowDimensions();
   const pad = 16;
   const colW = (screenW - pad * 2 - GAP) / 2;
 
@@ -25,13 +27,13 @@ export default function BannerHero({ banners }) {
   const b1 = banners.length > 1 ? banners[(idx + 1) % banners.length] : null;
 
   const open = (url) => {
-    if (url && url !== "#") Linking.openURL(url).catch(() => {});
+    openExternalUrlSafe(url);
   };
 
   return (
     <View style={[styles.wrap, { paddingHorizontal: pad }]}>
       <View style={styles.row}>
-        <Pressable style={[styles.cell, { width: colW, height: HERO_H }]} onPress={() => open(b0?.link)}>
+        <Pressable style={[styles.cell, { width: colW, aspectRatio: BANNER_CELL_ASPECT }]} onPress={() => open(b0?.link)}>
           {b0?.image_url ? (
             <Image source={{ uri: b0.image_url }} style={styles.img} contentFit="cover" cachePolicy="memory-disk" />
           ) : (
@@ -46,7 +48,7 @@ export default function BannerHero({ banners }) {
           ) : null}
         </Pressable>
         {b1 ? (
-          <Pressable style={[styles.cell, { width: colW, height: HERO_H }]} onPress={() => open(b1?.link)}>
+          <Pressable style={[styles.cell, { width: colW, aspectRatio: BANNER_CELL_ASPECT }]} onPress={() => open(b1?.link)}>
             {b1?.image_url ? (
               <Image source={{ uri: b1.image_url }} style={styles.img} contentFit="cover" cachePolicy="memory-disk" />
             ) : (

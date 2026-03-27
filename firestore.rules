@@ -8,6 +8,33 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
+
+    // Имэйлийн регистр (Firebase token ихэвчлэн lower, Firestore-д өөр хэлбэр байж болно)
+    function authEmailLower() {
+      return request.auth.token.email != null
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    function isConversationParticipant() {
+      return request.auth != null &&
+        resource.data.participant_1 != null &&
+        resource.data.participant_2 != null &&
+        (
+          resource.data.participant_1.lower() == authEmailLower() ||
+          resource.data.participant_2.lower() == authEmailLower()
+        );
+    }
+
+    function isMessageSenderOrReceiver() {
+      return request.auth != null &&
+        resource.data.sender_email != null &&
+        resource.data.receiver_email != null &&
+        (
+          resource.data.sender_email.lower() == authEmailLower() ||
+          resource.data.receiver_email.lower() == authEmailLower()
+        );
+    }
     
     // Users collection
     match /users/{userId} {
@@ -80,12 +107,12 @@ service cloud.firestore {
     // Conversations
     match /conversations/{conversationId} {
       allow read: if request.auth != null && 
-        (resource.data.participant_1 == request.auth.token.email || 
-         resource.data.participant_2 == request.auth.token.email);
+        (isConversationParticipant() || isAdmin());
       allow create: if request.auth != null;
       allow update: if request.auth != null && 
-        (resource.data.participant_1 == request.auth.token.email || 
-         resource.data.participant_2 == request.auth.token.email);
+        (isConversationParticipant() || isAdmin());
+      allow delete: if request.auth != null && 
+        (isConversationParticipant() || isAdmin());
     }
     
     // Messages
@@ -93,9 +120,9 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update: if request.auth != null && 
-        (resource.data.sender_email == request.auth.token.email ||
-         resource.data.receiver_email == request.auth.token.email ||
-         isAdmin());
+        (isMessageSenderOrReceiver() || isAdmin());
+      allow delete: if request.auth != null && 
+        (isMessageSenderOrReceiver() || isAdmin());
     }
     
     // AI Conversations
@@ -111,6 +138,8 @@ service cloud.firestore {
       // Allow update if user owns the conversation
       allow update: if request.auth != null && 
         resource.data.user_email == request.auth.token.email;
+      allow delete: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
     }
     
     // AI Messages
@@ -123,6 +152,8 @@ service cloud.firestore {
       // Allow create if user_email matches authenticated user
       allow create: if request.auth != null && 
         request.resource.data.user_email == request.auth.token.email;
+      allow delete: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
     }
     
     // App config (e.g. listingAutoApprove) - read by any auth, write by admin only
@@ -145,6 +176,8 @@ service cloud.firestore {
       // Allow create/update if user_email matches authenticated user
       allow create, update: if request.auth != null && 
         request.resource.data.user_email == request.auth.token.email;
+      allow delete: if request.auth != null && 
+        resource.data.user_email == request.auth.token.email;
     }
   }
 }

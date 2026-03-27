@@ -2,6 +2,7 @@
   "expo": {
     "name": "Zarkorea",
     "slug": "zarkorea-app",
+    "scheme": "zarkorea",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon-ios-1024.png",
@@ -14,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon-ios-1024.png",
-      "buildNumber": "17",
+      "buildNumber": "19",
       "bundleIdentifier": "com.zarkorea.twa",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -22,20 +23,17 @@
     },
     "android": {
       "package": "com.zarkorea.twa",
-      "versionCode": 21,
+      "versionCode": 22,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ],
-      "softwareKeyboardLayoutMode": "resize"
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -56,14 +54,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Зураг оруулахын тулд таны зургийн цомог руу нэвтрэх зөвшөөрөл хэрэгтэй.",
-          "cameraPermission": "Зураг дарахын тулд камер ашиглах зөвшөөрөл хэрэгтэй."
+          "photosPermission": "Зураг оруулахын тулд таны зургийн цомог руу нэвтрэх зөвшөөрөл хэрэгтэй."
         }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "96d89595-cf78-48c8-9695-5c2cc7af53f4"
+        "projectId": "2cccf64b-c6d9-46c3-849f-fd5f96b204ef"
       }
     }
   }

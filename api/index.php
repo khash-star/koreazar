@@ -22,6 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require __DIR__ . '/bootstrap.php';
 
+/**
+ * MySQL column names in SET must be quoted when reserved (`condition`, `status`, …).
+ */
+function quote_mysql_identifier(string $name): string
+{
+    return '`' . str_replace('`', '``', $name) . '`';
+}
+
 $action = $_GET['action'] ?? 'health';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $debug = filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN);
@@ -105,6 +113,8 @@ try {
             if ($method === 'GET') {
                 $category = isset($_GET['category']) ? trim((string) $_GET['category']) : '';
                 $subcategory = isset($_GET['subcategory']) ? trim((string) $_GET['subcategory']) : '';
+                $createdBy = isset($_GET['created_by']) ? trim((string) $_GET['created_by']) : '';
+                $customerIdFilter = isset($_GET['customer_id']) ? (int) $_GET['customer_id'] : 0;
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
@@ -122,6 +132,14 @@ try {
                 if ($subcategory !== '') {
                     $sql .= ' AND subcategory = :subcategory';
                     $params[':subcategory'] = $subcategory;
+                }
+                if ($createdBy !== '') {
+                    $sql .= ' AND created_by = :created_by';
+                    $params[':created_by'] = $createdBy;
+                }
+                if ($customerIdFilter > 0 && table_has($pdo, 'listings', 'customer_id')) {
+                    $sql .= ' AND customer_id = :customer_id';
+                    $params[':customer_id'] = $customerIdFilter;
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -157,17 +175,23 @@ try {
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
                 upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
+                $listingCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
                 ensure_category_best_effort($pdo, (string) $payload['category']);
                 if (!empty($payload['location']) && is_string($payload['location'])) {
                     ensure_region_best_effort($pdo, $payload['location']);
                 }
 
+                $hasListingCustomerId = table_has($pdo, 'listings', 'customer_id');
+                if ($hasListingCustomerId) {
+                    $payload['customer_id'] = $listingCustomerId;
+                }
+
                 $sql = 'INSERT INTO listings (
-                    firebase_uid, created_by, category, subcategory, title, description, price, is_negotiable,
+                    firebase_uid, ' . ($hasListingCustomerId ? 'customer_id, ' : '') . 'created_by, category, subcategory, title, description, price, is_negotiable,
                     `condition`, status, listing_type, listing_type_expires, location, phone, kakao_id, wechat_id,
                     whatsapp, facebook, views, images
                 ) VALUES (
-                    :firebase_uid, :created_by, :category, :subcategory, :title, :description, :price, :is_negotiable,
+                    :firebase_uid, ' . ($hasListingCustomerId ? ':customer_id, ' : '') . ':created_by, :category, :subcategory, :title, :description, :price, :is_negotiable,
                     :condition, :status, :listing_type, :listing_type_expires, :location, :phone, :kakao_id, :wechat_id,
                     :whatsapp, :facebook, :views, :images
                 )';
@@ -215,7 +239,7 @@ try {
 
                 $body = read_json_body();
                 $payload = extract_listing_payload($body, true);
-                unset($payload['firebase_uid'], $payload['created_by']);
+                unset($payload['firebase_uid'], $payload['created_by'], $payload['customer_id']);
 
                 // Allow public, view-only increment used by listing detail page.
                 $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
@@ -229,7 +253,7 @@ try {
                 $setParts = [];
                 $params = [':id' => $id];
                 foreach ($payload as $key => $value) {
-                    $setParts[] = $key . ' = :' . $key;
+                    $setParts[] = quote_mysql_identifier($key) . ' = :' . $key;
                     $params[':' . $key] = $value;
                 }
 
@@ -270,6 +294,24 @@ try {
 
             http_response_code(405);
             echo json_encode(['error' => 'Method not allowed for action=listing'], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'user_sync':
+            if ($method !== 'POST' && $method !== 'PUT' && $method !== 'PATCH') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=user_sync'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $authUser = require_firebase_user();
+            $body = read_json_body();
+            upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body);
+            $customerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
+            echo json_encode([
+                'ok' => true,
+                'uid' => $authUser['uid'],
+                'email' => $authUser['email'],
+                'customer_id' => $customerId,
+            ], JSON_UNESCAPED_UNICODE);
             break;
 
         default:
@@ -647,6 +689,28 @@ function slugify(string $v): string
     return $s === '' ? 'n-a' : $s;
 }
 
+/**
+ * MySQL users.id — бүртгэлийн тогтмол дугаар (customer_id гэж API-д буцаана).
+ */
+function get_user_customer_id_by_firebase_uid(PDO $pdo, string $firebaseUid): ?int
+{
+    if ($firebaseUid === '' || !table_has($pdo, 'users', 'firebase_uid')) {
+        return null;
+    }
+    try {
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE firebase_uid = :uid LIMIT 1');
+        $stmt->execute([':uid' => $firebaseUid]);
+        $row = $stmt->fetch();
+        if (!$row || !isset($row['id'])) {
+            return null;
+        }
+
+        return (int) $row['id'];
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
 function upsert_user_best_effort(PDO $pdo, string $firebaseUid, ?string $email): void
 {
     if ($firebaseUid === '') return;
@@ -723,6 +787,71 @@ function upsert_user_best_effort(PDO $pdo, string $firebaseUid, ?string $email):
         }
     } catch (Throwable $e) {
         // Intentionally swallow: listing creation should still proceed.
+    }
+}
+
+/**
+ * @param array<string,mixed> $body
+ */
+function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string $email, array $body): void
+{
+    if ($firebaseUid === '') return;
+    try {
+        $displayName = isset($body['display_name']) ? trim((string) $body['display_name']) : null;
+        if ($displayName === '') $displayName = null;
+        if ($displayName === null && isset($body['displayName'])) {
+            $displayName = trim((string) $body['displayName']);
+            if ($displayName === '') $displayName = null;
+        }
+        $phone = isset($body['phone']) ? trim((string) $body['phone']) : null;
+        if ($phone === '') $phone = null;
+        $city = isset($body['city']) ? trim((string) $body['city']) : null;
+        if ($city === '') $city = null;
+        $district = isset($body['district']) ? trim((string) $body['district']) : null;
+        if ($district === '') $district = null;
+
+        upsert_user_best_effort($pdo, $firebaseUid, $email);
+
+        if (!table_has($pdo, 'users', 'firebase_uid')) {
+            return;
+        }
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE firebase_uid = :uid LIMIT 1');
+        $stmt->execute([':uid' => $firebaseUid]);
+        $row = $stmt->fetch();
+        if (!$row || !isset($row['id'])) return;
+        $id = (string) $row['id'];
+
+        $set = [];
+        $params = [':id' => $id];
+        if (table_has($pdo, 'users', 'email') && $email !== null) {
+            $set[] = 'email = :email';
+            $params[':email'] = $email;
+        }
+        if (table_has($pdo, 'users', 'display_name') && $displayName !== null) {
+            $set[] = 'display_name = :display_name';
+            $params[':display_name'] = $displayName;
+        }
+        if (table_has($pdo, 'users', 'phone')) {
+            $set[] = 'phone = :phone';
+            $params[':phone'] = $phone;
+        }
+        if (table_has($pdo, 'users', 'city')) {
+            $set[] = 'city = :city';
+            $params[':city'] = $city;
+        }
+        if (table_has($pdo, 'users', 'district')) {
+            $set[] = 'district = :district';
+            $params[':district'] = $district;
+        }
+        if (table_has($pdo, 'users', 'updated_at')) {
+            $set[] = 'updated_at = NOW()';
+        }
+        if (!$set) return;
+        $sql = 'UPDATE users SET ' . implode(', ', $set) . ' WHERE id = :id';
+        $u = $pdo->prepare($sql);
+        $u->execute($params);
+    } catch (Throwable $e) {
+        // best effort only
     }
 }
 

@@ -75,4 +75,4 @@ npm run generate-app-store-screenshots
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)
-- Push notifications (Expo)
+- Push notifications (**одоогоор хэрэгжээгүй**; store listing дээр push feature claim бүү бичээрэй)

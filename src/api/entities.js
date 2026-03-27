@@ -106,10 +106,8 @@ export const Conversation = {
   create: (data) => conversationService.createConversation(data),
   update: (id, data) => conversationService.updateConversation(id, data),
   delete: async (id) => {
-    const { doc, deleteDoc } = await import('firebase/firestore');
-    const { db } = await import('@/firebase/config');
-    const convRef = doc(db, 'conversations', id);
-    await deleteDoc(convRef);
+    const { deleteConversationAndMessages } = await import('@/services/conversationService');
+    await deleteConversationAndMessages(id);
   }
 };
 

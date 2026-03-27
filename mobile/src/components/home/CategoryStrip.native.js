@@ -25,7 +25,6 @@ function chunkIntoRows(list, size) {
 }
 
 function triggerCategoryHaptic() {
-  if (Platform.OS === "web") return;
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
 
@@ -101,7 +100,7 @@ function CategoryTile({ item, active, onChange }) {
         pressed.value = withSpring(0, SPRING_PRESS_OUT);
       }}
       onPress={handlePress}
-      android_ripple={{ color: "rgba(234, 88, 12, 0.2)", foreground: true }}
+      android_ripple={null}
       style={styles.tilePressable}
     >
       <Animated.View style={[styles.tile, active && styles.tileActive, animatedStyle]}>
@@ -182,10 +181,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 6,
     paddingHorizontal: 2,
-    ...Platform.select({
-      web: { cursor: "pointer" },
-      default: {},
-    }),
   },
   tileSpacer: {
     flex: 1,

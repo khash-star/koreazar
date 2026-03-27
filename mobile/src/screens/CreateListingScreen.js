@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRoute } from "@react-navigation/native";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,8 +17,8 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
 import { getListingAutoApprove } from "../services/appConfigService.js";
-import { createListing } from "../services/listingService.js";
-import { uploadImageFromUri } from "../services/storageService.js";
+import { createListing, getListingById, updateListing } from "../services/listingService.js";
+import { uploadImageFromUri } from "../services/storageService";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
 const conditionOptions = _conditionOptions ?? [
@@ -26,13 +27,40 @@ const conditionOptions = _conditionOptions ?? [
   { value: "used", label: "Хэрэглэсэн" },
   { value: "for_parts", label: "Сэлбэгт" },
 ];
-import { navigateToLogin, navigateToListingDetail } from "../utils/navigationHelpers.js";
-import { showAlert } from "../utils/showAlert.js";
+import { navigateToLogin, navigateToListingDetail, navigateToMyListings } from "../utils/navigationHelpers.js";
+import { showAlert } from "../utils/showAlert";
+
+function listingExpiresToIso(exp) {
+  if (!exp) return undefined;
+  if (exp instanceof Date) return exp.toISOString();
+  if (typeof exp === "string") return exp;
+  try {
+    const d = new Date(exp);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
 
 export default function CreateListingScreen({ navigation }) {
+  const route = useRoute();
+  const editListingId =
+    route.params?.listingId != null && String(route.params.listingId).trim() !== ""
+      ? String(route.params.listingId).trim()
+      : null;
+  const prevEditIdRef = useRef(null);
+
   const { email, isAuthenticated, userData, user } = useAuth();
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
+  const lockedName = (
+    userData?.displayName ||
+    user?.displayName ||
+    userData?.email?.split?.("@")?.[0] ||
+    email?.split?.("@")?.[0] ||
+    ""
+  ).trim();
   const lockedPhone = (userData?.phone || user?.phoneNumber || "").trim();
   const createInitialForm = useCallback(
     () => ({
@@ -44,22 +72,74 @@ export default function CreateListingScreen({ navigation }) {
       price: "",
       is_negotiable: true,
       location: "",
+      contact_name: lockedName,
       phone: lockedPhone,
       kakao_id: "",
       wechat_id: "",
       whatsapp: "",
     }),
-    [lockedPhone]
+    [lockedName, lockedPhone]
   );
 
   useEffect(() => {
-    if (lockedPhone) {
-      setForm((f) => ({ ...f, phone: lockedPhone }));
-    }
-  }, [lockedPhone]);
+    setForm((f) => ({ ...f, contact_name: lockedName, phone: lockedPhone }));
+  }, [lockedName, lockedPhone]);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
   const [form, setForm] = useState(createInitialForm);
+  const [initialListing, setInitialListing] = useState(null);
+  const [loadingListing, setLoadingListing] = useState(false);
+
+  useEffect(() => {
+    if (!editListingId) {
+      if (prevEditIdRef.current) {
+        setInitialListing(null);
+        setForm(createInitialForm());
+        setImages([]);
+      }
+      prevEditIdRef.current = null;
+      return;
+    }
+    prevEditIdRef.current = editListingId;
+    let cancelled = false;
+    (async () => {
+      setLoadingListing(true);
+      try {
+        const listing = await getListingById(editListingId);
+        if (cancelled) return;
+        if (!listing) {
+          showAlert("Алдаа", "Зар олдсонгүй.");
+          navigation.setParams({ listingId: undefined });
+          return;
+        }
+        setInitialListing(listing);
+        setForm({
+          title: listing.title || "",
+          description: listing.description || "",
+          category: listing.category || "",
+          subcategory: listing.subcategory || "",
+          condition: listing.condition || "used",
+          price: listing.category === "free" ? "" : String(listing.price ?? ""),
+          is_negotiable: listing.is_negotiable === false || listing.is_negotiable === 0 ? false : true,
+          location: listing.location || "",
+          contact_name: lockedName,
+          phone: lockedPhone,
+          kakao_id: listing.kakao_id || "",
+          wechat_id: listing.wechat_id || "",
+          whatsapp: listing.whatsapp || "",
+        });
+        setImages(Array.isArray(listing.images) ? listing.images : []);
+      } catch (e) {
+        showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+        navigation.setParams({ listingId: undefined });
+      } finally {
+        if (!cancelled) setLoadingListing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [editListingId, navigation]);
 
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -112,6 +192,10 @@ export default function CreateListingScreen({ navigation }) {
       showAlert("Алдаа", "Ангилал сонгоно уу.");
       return;
     }
+    if (!lockedPhone) {
+      showAlert("Алдаа", "Профайл дээр утасны дугаараа оруулсны дараа зар нэмнэ үү.");
+      return;
+    }
     const isFreeCategory = form.category === "free";
     const priceNum = isFreeCategory ? 0 : Number(form.price?.replace(/\D/g, "")) || 0;
     if (!isFreeCategory && priceNum <= 0) {
@@ -122,12 +206,58 @@ export default function CreateListingScreen({ navigation }) {
       showAlert("Алдаа", "Дор хаяж 1 зураг нэмнэ үү.");
       return;
     }
+    if (editListingId) {
+      if (!initialListing) {
+        showAlert("Алдаа", "Зар ачаалагдаж байна.");
+        return;
+      }
+      submittingRef.current = true;
+      setLoading(true);
+      try {
+        await updateListing(editListingId, {
+          title: form.title.trim(),
+          description: form.description || "",
+          category: form.category,
+          subcategory: form.subcategory || "",
+          condition: form.condition,
+          price: priceNum,
+          is_negotiable: form.is_negotiable,
+          location: form.location || "",
+          phone: lockedPhone,
+          kakao_id: form.kakao_id || "",
+          wechat_id: form.wechat_id || "",
+          whatsapp: form.whatsapp || "",
+          images,
+          status: initialListing.status,
+          listing_type: initialListing.listing_type || "regular",
+          listing_type_expires: listingExpiresToIso(initialListing.listing_type_expires),
+        });
+        setInitialListing(null);
+        showAlert("Амжилттай", "Хадгалагдлаа.", [
+          {
+            text: "OK",
+            onPress: () => {
+              navigation.setParams({ listingId: undefined });
+              navigateToMyListings(navigation);
+            },
+          },
+        ]);
+      } catch (e) {
+        showAlert("Алдаа", e?.message || "Хадгалж чадсангүй");
+      } finally {
+        setLoading(false);
+        submittingRef.current = false;
+      }
+      return;
+    }
     submittingRef.current = true;
     setLoading(true);
     try {
       const autoApprove = await getListingAutoApprove();
       const submitData = {
         ...form,
+        contact_name: lockedName,
+        phone: lockedPhone,
         price: priceNum,
         images,
         status: autoApprove ? "active" : "pending",
@@ -162,6 +292,14 @@ export default function CreateListingScreen({ navigation }) {
         <Pressable style={styles.btn} onPress={() => navigateToLogin(navigation)}>
           <Text style={styles.btnText}>Нэвтрэх</Text>
         </Pressable>
+      </View>
+    );
+  }
+
+  if (editListingId && loadingListing) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#ea580c" />
       </View>
     );
   }
@@ -318,17 +456,20 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.label}>Холбоо барих</Text>
           <TextInput
-            style={[styles.input, lockedPhone && styles.inputDisabled]}
+            style={[styles.input, styles.inputDisabled]}
+            value={form.contact_name}
+            placeholder="Нэр"
+            editable={false}
+          />
+          <TextInput
+            style={[styles.input, styles.inputDisabled, { marginTop: 8 }]}
             value={form.phone}
-            onChangeText={(v) => update("phone", v)}
             placeholder="Утас"
             placeholderTextColor="#9ca3af"
             keyboardType="phone-pad"
-            editable={!lockedPhone}
+            editable={false}
           />
-          {lockedPhone ? (
-            <Text style={styles.inputHint}>Профайл дээрх дугаар ашиглагдана</Text>
-          ) : null}
+          <Text style={styles.inputHint}>Профайл дахь нэр, утас автоматаар ашиглагдана</Text>
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
             value={form.kakao_id}
@@ -363,7 +504,7 @@ export default function CreateListingScreen({ navigation }) {
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.submitText} selectable={false}>
-              Зар илгээх
+              {editListingId ? "Хадгалах" : "Зар илгээх"}
             </Text>
           )}
         </Pressable>

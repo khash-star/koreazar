@@ -1,31 +1,69 @@
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { db } from "../config/firebase";
+import { auth } from "../config/firebase";
 import { toDate } from "../utils/firestoreDates";
 
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.zarkorea.com/index.php";
 const TYPE_ORDER = { vip: 0, featured: 1, regular: 2 };
 
-function normalizeListing(docItem) {
-  const data = docItem.data();
+function buildApiUrl(action, params = {}) {
+  const url = new URL(API_BASE_URL);
+  url.searchParams.set("action", action);
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") {
+      url.searchParams.set(k, String(v));
+    }
+  });
+  return url.toString();
+}
+
+async function requestJson(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.message || payload?.error || `HTTP ${res.status}`;
+    throw new Error(message);
+  }
+  return payload;
+}
+
+async function getAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Хэрэглэгч нэвтрээгүй байна");
+  const token = await user.getIdToken(true);
+  return { Authorization: `Bearer ${token}` };
+}
+
+function normalizeImages(images) {
+  if (Array.isArray(images)) return images;
+  if (typeof images === "string") {
+    try {
+      const parsed = JSON.parse(images);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeListing(item) {
+  if (!item || typeof item !== "object") return null;
+  const cid = item.customer_id;
   return {
-    id: docItem.id,
-    ...data,
-    created_date: toDate(data.created_date) || data.created_date,
-    updated_date: toDate(data.updated_date) || data.updated_date,
-    listing_type_expires: data.listing_type_expires
-      ? toDate(data.listing_type_expires) || data.listing_type_expires
+    ...item,
+    id: item?.id != null ? String(item.id) : "",
+    customer_id: cid != null && cid !== "" ? Number(cid) : undefined,
+    images: normalizeImages(item.images),
+    created_date: toDate(item.created_date) || item.created_date,
+    updated_date: toDate(item.updated_date) || item.updated_date,
+    listing_type_expires: item.listing_type_expires
+      ? toDate(item.listing_type_expires) || item.listing_type_expires
       : undefined,
   };
 }
@@ -33,9 +71,7 @@ function normalizeListing(docItem) {
 function applyListingTypeExpiry(listing) {
   if (listing.listing_type === "regular" || !listing.listing_type_expires) return listing;
   const exp = toDate(listing.listing_type_expires);
-  if (exp && exp < new Date()) {
-    return { ...listing, listing_type: "regular" };
-  }
+  if (exp && exp < new Date()) return { ...listing, listing_type: "regular" };
   return listing;
 }
 
@@ -52,108 +88,84 @@ function sortHomeListings(listings) {
 }
 
 export async function getLatestListings(limitCount = 50) {
-  const listingsRef = collection(db, "listings");
-  const q = query(
-    listingsRef,
-    where("status", "==", "active"),
-    orderBy("created_date", "desc"),
-    limit(Math.min(limitCount, 100))
+  const payload = await requestJson(
+    buildApiUrl("listings", { status: "active", limit: Math.min(limitCount, 100) })
   );
-
-  const snapshot = await getDocs(q);
-  const rows = snapshot.docs.map(normalizeListing);
+  const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
   return sortHomeListings(rows);
 }
 
 export async function getListingsByCreator(email, limitCount = 50) {
   if (!email) return [];
-  const listingsRef = collection(db, "listings");
-  const q = query(
-    listingsRef,
-    where("created_by", "==", email),
-    orderBy("created_date", "desc"),
-    limit(Math.min(limitCount, 100))
+  const payload = await requestJson(
+    buildApiUrl("listings", { created_by: email, limit: Math.min(limitCount, 100) })
   );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(normalizeListing);
+  return (payload?.data || []).map(normalizeListing).filter(Boolean);
+}
+
+/** MySQL users.id (customer_id) — шүүх: GET listings&customer_id= */
+export async function getListingsByCustomerId(customerId, limitCount = 50) {
+  if (customerId == null || customerId === "") return [];
+  const payload = await requestJson(
+    buildApiUrl("listings", {
+      customer_id: String(customerId),
+      limit: Math.min(limitCount, 100),
+    })
+  );
+  return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
 
 export async function getListingById(id) {
   if (!id) return null;
-  const ref = doc(db, "listings", id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return normalizeListing(snap);
-}
-
-function sanitizeForFirestore(obj) {
-  if (obj === undefined) return undefined;
-  if (obj === null) return null;
-  if (obj instanceof Timestamp || obj instanceof Date) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(sanitizeForFirestore).filter((v) => v !== undefined);
+  try {
+    const payload = await requestJson(buildApiUrl("listing", { id }));
+    return normalizeListing(payload?.data);
+  } catch {
+    return null;
   }
-  if (typeof obj === "object" && obj.constructor === Object) {
-    const out = {};
-    for (const [k, v] of Object.entries(obj)) {
-      if (v !== undefined) {
-        const s = sanitizeForFirestore(v);
-        if (s !== undefined) out[k] = s;
-      }
-    }
-    return out;
-  }
-  return obj;
 }
 
 export async function createListing(data) {
-  const { auth } = await import("../config/firebase");
-  const userEmail = data.created_by || auth.currentUser?.email || "";
-  if (!userEmail) {
-    throw new Error("Нэвтэрнэ үү.");
-  }
-  const listingsRef = collection(db, "listings");
-  const raw = {
-    ...data,
-    created_by: userEmail,
-    created_date: Timestamp.now(),
-    updated_date: Timestamp.now(),
-    views: 0,
-    status: data.status || "pending",
-    listing_type: data.listing_type || "regular",
-  };
-  const listingData = sanitizeForFirestore(raw);
-  const docRef = await addDoc(listingsRef, listingData);
-  return { id: docRef.id, ...listingData };
-}
-
-export async function deleteListing(id) {
-  if (!id) throw new Error("ID шаардлагатай.");
-  const ref = doc(db, "listings", id);
-  await deleteDoc(ref);
-}
-
-export async function getPendingListingsCount() {
-  const listingsRef = collection(db, "listings");
-  const q = query(listingsRef, where("status", "==", "pending"), limit(500));
-  const snapshot = await getDocs(q);
-  return snapshot.size;
-}
-
-export async function getPendingListings(limitCount = 100) {
-  const listingsRef = collection(db, "listings");
-  const q = query(
-    listingsRef,
-    where("status", "==", "pending"),
-    orderBy("created_date", "desc"),
-    limit(Math.min(limitCount, 200))
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(normalizeListing);
+  const headers = await getAuthHeaders();
+  const payload = await requestJson(buildApiUrl("listings"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      ...data,
+      status: data.status || "pending",
+      listing_type: data.listing_type || "regular",
+    }),
+  });
+  return normalizeListing(payload?.data || {});
 }
 
 export async function updateListing(id, data) {
   if (!id) throw new Error("ID шаардлагатай.");
-  const ref = doc(db, "listings", id);
-  await updateDoc(ref, { ...data, updated_date: Timestamp.now() });
+  const headers = await getAuthHeaders();
+  await requestJson(buildApiUrl("listing", { id }), {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteListing(id) {
+  if (!id) throw new Error("ID шаардлагатай.");
+  const headers = await getAuthHeaders();
+  await requestJson(buildApiUrl("listing", { id }), {
+    method: "DELETE",
+    headers,
+  });
+}
+
+export async function getPendingListingsCount() {
+  const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }));
+  return (payload?.data || []).length;
+}
+
+export async function getPendingListings(limitCount = 100) {
+  const payload = await requestJson(
+    buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) })
+  );
+  return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }

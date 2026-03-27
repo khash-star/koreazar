@@ -1,19 +1,8 @@
-import { Alert, Platform } from "react-native";
-
 /**
- * react-native-web: Alert.alert is a no-op (empty implementation).
- * This helper shows real browser dialogs on web and Alert on iOS/Android.
+ * Expo web: Alert.alert нь no-op тул browser dialog ашиглана.
+ * Зөвхөн вэб багцонд орно — iOS/Android багцад оролцохгүй.
  */
 export function showAlert(title, message, buttons) {
-  if (Platform.OS !== "web") {
-    if (buttons?.length) {
-      Alert.alert(title, message, buttons);
-    } else {
-      Alert.alert(title, message);
-    }
-    return;
-  }
-
   const full = [title, message].filter(Boolean).join("\n\n");
 
   if (!buttons || buttons.length === 0) {
@@ -26,7 +15,7 @@ export function showAlert(title, message, buttons) {
     queueMicrotask(() => {
       try {
         buttons[0].onPress?.();
-      } catch (_) {
+      } catch {
         /* ignore */
       }
     });
@@ -43,7 +32,7 @@ export function showAlert(title, message, buttons) {
         } else {
           buttons.find((b) => b.style === "cancel")?.onPress?.();
         }
-      } catch (_) {
+      } catch {
         /* ignore */
       }
     });

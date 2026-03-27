@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import * as entities from '@/api/entities';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
-import { MessageCircle, Search, ArrowLeft, Shield } from 'lucide-react';
+import { MessageCircle, Search, ArrowLeft, Shield, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,10 +12,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
-import { findConversation, createConversation } from '@/services/conversationService';
+import { findConversation, createConversation, deleteConversationAndMessages } from '@/services/conversationService';
+import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
   const { user, userData, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const userEmail = userData?.email || user?.email;
   const [adminEmail, setAdminEmail] = useState(null);
@@ -136,6 +138,30 @@ export default function Messages() {
     conv.otherUser.email === adminEmail
   );
 
+  const handleDeleteConversation = async (conv) => {
+    const name =
+      conv.otherUser?.displayName || conv.otherUser?.email || 'Хэрэглэгч';
+    if (
+      !window.confirm(
+        `${name}тай харилцааг болон бүх мессежийг устгах уу? Буцаах боломжгүй.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteConversationAndMessages(conv.id);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
+      toast({ title: 'Харилцаа устгагдлаа' });
+    } catch (err) {
+      toast({
+        title: 'Алдаа',
+        description: err?.message || 'Устгаж чадсангүй',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleMessageAdmin = async () => {
     // Check if user is authenticated
     if (!isAuthenticated || !user || !userData) {
@@ -233,62 +259,81 @@ export default function Messages() {
         ) : filteredConversations.length > 0 ? (
           <div className="space-y-2">
             {filteredConversations.map((conv, idx) => (
-              <Link
+              <div
                 key={conv.id || `conv-${idx}`}
-                to={createPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`)}
+                className="flex items-stretch gap-0 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-all overflow-hidden"
               >
-                <motion.div
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="bg-white rounded-xl p-4 hover:shadow-md transition-all"
+                <Link
+                  className="flex-1 min-w-0"
+                  to={createPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`)}
                 >
-                  <div className="flex gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                      {(adminEmail && conv.otherUser.email === adminEmail
-                        ? 'А'
-                        : conv.otherUser.full_name?.[0] || '?').toUpperCase()}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {adminEmail && conv.otherUser.email === adminEmail
-                            ? 'АДМИН'
-                            : (conv.otherUser.displayName || conv.otherUser.email)}
-                        </h3>
-                        {(conv.last_message_time || conv.last_message_date) && (
-                          <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                            {formatDistanceToNow(new Date(conv.last_message_time || conv.last_message_date), { 
-                              addSuffix: true,
-                              locale: mn 
-                            })
-                              .replace(/ойролцоогоор\s*/gi, '')
-                              .replace(/өдрийн/gi, 'Ө')
-                              .replace(/цагийн/gi, 'Ц')
-                              .replace(/сарын/gi, 'С')}
-                          </span>
-                        )}
+                  <motion.div
+                    whileHover={{ scale: 1.005 }}
+                    whileTap={{ scale: 0.995 }}
+                    className="p-4 h-full"
+                  >
+                    <div className="flex gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+                        {(adminEmail && conv.otherUser.email === adminEmail
+                          ? 'А'
+                          : conv.otherUser.full_name?.[0] || '?').toUpperCase()}
                       </div>
                       
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-600 truncate flex-1 min-w-0">
-                          {conv.last_message_sender === userEmail && (
-                            <span className="text-gray-500">Та: </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-semibold text-gray-900 truncate">
+                            {adminEmail && conv.otherUser.email === adminEmail
+                              ? 'АДМИН'
+                              : (conv.otherUser.displayName || conv.otherUser.email)}
+                          </h3>
+                          {(conv.last_message_time || conv.last_message_date) && (
+                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                              {formatDistanceToNow(new Date(conv.last_message_time || conv.last_message_date), { 
+                                addSuffix: true,
+                                locale: mn 
+                              })
+                                .replace(/ойролцоогоор\s*/gi, '')
+                                .replace(/өдрийн/gi, 'Ө')
+                                .replace(/цагийн/gi, 'Ц')
+                                .replace(/сарын/gi, 'С')}
+                            </span>
                           )}
-                          <span className="truncate">
-                            {conv.last_message || 'Мессеж илгээх...'}
-                          </span>
-                        </p>
-                        {conv.unreadCount > 0 && (
-                          <span className="flex-shrink-0 ml-2 w-6 h-6 bg-amber-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                            {conv.unreadCount}
-                          </span>
-                        )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-600 truncate flex-1 min-w-0">
+                            {conv.last_message_sender === userEmail && (
+                              <span className="text-gray-500">Та: </span>
+                            )}
+                            <span className="truncate">
+                              {conv.last_message || 'Мессеж илгээх...'}
+                            </span>
+                          </p>
+                          {conv.unreadCount > 0 && (
+                            <span className="flex-shrink-0 ml-2 w-6 h-6 bg-amber-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                              {conv.unreadCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              </Link>
+                  </motion.div>
+                </Link>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="relative z-20 shrink-0 rounded-none text-red-600 hover:text-red-700 hover:bg-red-50 px-3"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDeleteConversation(conv);
+                  }}
+                  aria-label="Харилцаа устгах"
+                >
+                  <Trash2 className="w-5 h-5 pointer-events-none" />
+                </Button>
+              </div>
             ))}
           </div>
         ) : (
