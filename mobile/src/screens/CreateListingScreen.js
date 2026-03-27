@@ -27,7 +27,11 @@ const conditionOptions = _conditionOptions ?? [
   { value: "used", label: "Хэрэглэсэн" },
   { value: "for_parts", label: "Сэлбэгт" },
 ];
-import { navigateToLogin, navigateToListingDetail, navigateToMyListings } from "../utils/navigationHelpers.js";
+import {
+  navigateToLogin,
+  navigateToListingDetail,
+  navigateToHomeMain,
+} from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
 
 function listingExpiresToIso(exp) {
@@ -238,7 +242,7 @@ export default function CreateListingScreen({ navigation }) {
             text: "OK",
             onPress: () => {
               navigation.setParams({ listingId: undefined });
-              navigateToMyListings(navigation);
+              navigateToHomeMain(navigation);
             },
           },
         ]);

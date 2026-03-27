@@ -42,6 +42,14 @@ export function navigateToMessagesChat(navigation, params) {
   }
 }
 
+/** Нүүр таб → жагсаалт (нүүр хуудас) */
+export function navigateToHomeMain(navigation) {
+  const tab = getBottomTabNavigator(navigation);
+  if (tab?.navigate) {
+    tab.navigate("HomeTab", { screen: "HomeMain" });
+  }
+}
+
 /** Нүүр таб → Зарын дэлгэц */
 export function navigateToHomeListing(navigation, listingId) {
   const tab = getBottomTabNavigator(navigation);
