@@ -125,6 +125,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.agreeFragment}> хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.</Text>
           </View>
         </View>
+        <Text style={styles.prohibitedNote}>Хүчирхийлэл, spam, хууль бус контент хориглоно.</Text>
         {termsError ? <Text style={styles.termsError}>{termsError}</Text> : null}
 
         <Pressable style={[styles.primary, busy && styles.disabled]} onPress={onLogin} disabled={busy}>
@@ -200,4 +201,12 @@ const styles = StyleSheet.create({
   checkMark: { color: "#ea580c", fontSize: 14, fontWeight: "800" },
   agreeLink: { fontSize: 14, lineHeight: 20, color: "#dc2626", fontWeight: "600", textDecorationLine: "underline" },
   termsError: { color: "#dc2626", fontSize: 13, marginBottom: 8, marginLeft: 32 },
+  prohibitedNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#6b7280",
+    marginTop: 2,
+    marginBottom: 4,
+    marginLeft: 32,
+  },
 });

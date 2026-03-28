@@ -292,6 +292,9 @@ export default function Register() {
               </Link>{' '}
               хүлээн зөвшөөрнө.
             </p>
+            <p className="text-xs text-gray-500 mt-2 leading-snug">
+              Хүчирхийлэл, spam, хууль бус контент хориглоно.
+            </p>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>

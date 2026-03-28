@@ -119,6 +119,8 @@ export default function RegisterScreen({ navigation }) {
 
       {!!formError && <Text style={styles.errorText}>{formError}</Text>}
 
+      <Text style={styles.prohibitedNote}>Хүчирхийлэл, spam, хууль бус контент хориглоно.</Text>
+
       <Pressable style={[styles.primary, busy && styles.disabled]} onPress={onRegister} disabled={busy}>
         {busy ? (
           <ActivityIndicator color="#fff" />
@@ -157,6 +159,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.7 },
   primaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   errorText: { color: "#dc2626", marginBottom: 8, fontSize: 13, fontWeight: "600" },
+  prohibitedNote: { fontSize: 12, lineHeight: 17, color: "#6b7280", marginBottom: 10 },
   link: { marginTop: 20, alignItems: "center" },
   linkText: { color: "#2563eb", fontSize: 15, fontWeight: "600" },
 });

@@ -295,6 +295,9 @@ export default function Login() {
                   хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.
                 </span>
               </label>
+              <p className="text-xs text-gray-500 pl-7 mt-1 leading-snug">
+                Хүчирхийлэл, spam, хууль бус контент хориглоно.
+              </p>
               {termsError ? <p className="text-sm text-red-600 pl-7">{termsError}</p> : null}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
