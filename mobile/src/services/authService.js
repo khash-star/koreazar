@@ -9,10 +9,33 @@ import {
   reauthenticateWithCredential,
   deleteUser,
 } from "firebase/auth";
-import { collection, doc, getDocs, setDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
+
+/** Вэбийн authService.TERMS_POLICY_VERSION-тай ижил байлгана уу */
+const TERMS_POLICY_VERSION = "2025-03-28";
+
+async function ensureTermsAcceptanceIfMissing(user) {
+  if (!user?.uid) return;
+  try {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists() && snap.data()?.termsAcceptedAt != null) return;
+    await setDoc(
+      ref,
+      {
+        termsAcceptedAt: serverTimestamp(),
+        termsVersion: TERMS_POLICY_VERSION,
+        termsAckSource: "login",
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("ensureTermsAcceptanceIfMissing:", e?.message || e);
+  }
+}
 
 async function persistCustomerIdFromSync(user, data) {
   const cid = data?.customer_id;
@@ -59,6 +82,7 @@ export function subscribeAuth(callback) {
 export async function loginWithEmail(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
   await syncUserToMySql(cred.user, {});
+  await ensureTermsAcceptanceIfMissing(cred.user);
   return cred.user;
 }
 
@@ -92,6 +116,9 @@ export async function registerWithEmail(
       wechat_id: "",
       whatsapp: "",
       facebook: "",
+      termsAcceptedAt: serverTimestamp(),
+      termsVersion: TERMS_POLICY_VERSION,
+      termsAckSource: "register",
     });
   } catch (e) {
     console.warn("Firestore user doc:", e?.message);

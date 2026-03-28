@@ -3,6 +3,7 @@
 
 import { signInWithPopup, FacebookAuthProvider } from 'firebase/auth';
 import { auth } from '@/firebase/config';
+import { ensureTermsAcceptanceIfMissing } from '@/services/authService';
 
 /**
  * Facebook-р нэвтрэх
@@ -20,7 +21,7 @@ export const loginWithFacebook = async () => {
     
     // The signed-in user info
     const user = result.user;
-    
+    await ensureTermsAcceptanceIfMissing(user);
     return user;
   } catch (error) {
     console.error('Error signing in with Facebook:', error);

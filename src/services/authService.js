@@ -12,9 +12,12 @@ import {
   deleteUser,
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, limit, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
+
+/** Нөхцөл өөрчлөгдөхөд дугаарлаж шинэчлэх (Firestore users.{termsVersion}) */
+export const TERMS_POLICY_VERSION = '2025-03-28';
 
 const USER_SYNC_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 const buildUserSyncUrl = () => {
@@ -56,6 +59,29 @@ const syncUserToMySql = async (user, profile = {}) => {
 };
 
 /**
+ * Үйлчилгээний нөхцөл зөвшөөрсөн тэмдэглэл (хуучин хэрэглэгчдэд талбар байхгүй бол нэг удаа).
+ */
+export async function ensureTermsAcceptanceIfMissing(user) {
+  if (!user?.uid) return;
+  try {
+    const ref = doc(db, 'users', user.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists() && snap.data()?.termsAcceptedAt != null) return;
+    await setDoc(
+      ref,
+      {
+        termsAcceptedAt: serverTimestamp(),
+        termsVersion: TERMS_POLICY_VERSION,
+        termsAckSource: 'login',
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn('ensureTermsAcceptanceIfMissing:', e?.message || e);
+  }
+}
+
+/**
  * Нэвтрэх (Email/Password)
  * @param {string} email - Имэйл хаяг
  * @param {string} password - Нууц үг
@@ -64,6 +90,7 @@ const syncUserToMySql = async (user, profile = {}) => {
 export const login = async (email, password) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
   await syncUserToMySql(userCredential.user, {});
+  await ensureTermsAcceptanceIfMissing(userCredential.user);
   return userCredential.user;
 };
 
@@ -101,7 +128,10 @@ export const register = async (email, password, displayName = null, phone = null
         kakao_id: '',
         wechat_id: '',
         whatsapp: '',
-        facebook: ''
+        facebook: '',
+        termsAcceptedAt: serverTimestamp(),
+        termsVersion: TERMS_POLICY_VERSION,
+        termsAckSource: 'register',
       });
     } catch (firestoreError) {
       // Ignore offline errors - Firestore will sync when online

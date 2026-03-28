@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
@@ -36,9 +37,15 @@ export default function Login() {
   const [resetLoading, setResetLoading] = useState(false);
   const [facebookLoading, setFacebookLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState('');
 
   const handleFacebookLogin = async () => {
     setError('');
+    if (!acceptedTerms) {
+      setTermsError('Эхлээд үйлчилгээний нөхцөлийг зөвшөөрснөө тэмдэглэнэ үү.');
+      return;
+    }
     setFacebookLoading(true);
     try {
       await loginWithFacebook();
@@ -57,6 +64,11 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setTermsError('');
+    if (!acceptedTerms) {
+      setTermsError('Эхлээд үйлчилгээний нөхцөлийг зөвшөөрснөө тэмдэглэнэ үү.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -252,6 +264,38 @@ export default function Login() {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="flex gap-3 items-start cursor-pointer select-none">
+                <Checkbox
+                  checked={acceptedTerms}
+                  onCheckedChange={(v) => {
+                    setAcceptedTerms(!!v);
+                    setTermsError('');
+                  }}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-600 leading-relaxed">
+                  Би ZARKOREA.COM сайтын{' '}
+                  <Link
+                    to={createPageUrl('Privacy')}
+                    className="text-red-600 hover:underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    үйлчилгээний нөхцөл
+                  </Link>
+                  ,{' '}
+                  <Link
+                    to={createPageUrl('Privacy')}
+                    className="text-red-600 hover:underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    зар нийтлэх журмыг
+                  </Link>{' '}
+                  хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.
+                </span>
+              </label>
+              {termsError ? <p className="text-sm text-red-600 pl-7">{termsError}</p> : null}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
