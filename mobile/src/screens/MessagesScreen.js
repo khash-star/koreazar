@@ -16,6 +16,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
+import { auth } from "../config/firebase";
 import {
   deleteConversationAndMessages,
   emailQueryVariants,
@@ -66,6 +67,16 @@ export default function MessagesScreen({ navigation }) {
       return;
     }
     try {
+      if (typeof auth.authStateReady === "function") {
+        await auth.authStateReady();
+      }
+      if (!auth.currentUser) {
+        if (seq === loadSeqRef.current) {
+          setRows([]);
+        }
+        return;
+      }
+
       const admin = await getAdminEmail();
       setAdminEmail(admin);
 
@@ -247,7 +258,7 @@ export default function MessagesScreen({ navigation }) {
       const messageText = String(item.last_message ?? "").trim() || "Мессеж илгээх...";
       const mine = normalizeEmail(item.last_message_sender) === normalizeEmail(email);
       return (
-        <View style={styles.row} pointerEvents="box-none">
+        <View style={[styles.row, styles.rowPointerBoxNone]}>
           <TouchableOpacity
             style={styles.rowMain}
             activeOpacity={0.65}
@@ -426,6 +437,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e5e7eb",
   },
+  rowPointerBoxNone: { pointerEvents: "box-none" },
   rowMain: {
     flex: 1,
     flexShrink: 1,

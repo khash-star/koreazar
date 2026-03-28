@@ -229,7 +229,7 @@ export default function MyListingsScreen({ navigation }) {
     <Modal visible={!!menuItem} transparent animationType="fade" onRequestClose={closeActions}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeActions} accessibilityRole="button" />
-        <View style={styles.modalCardWrap} pointerEvents="box-none">
+        <View style={styles.modalCardWrap}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{menuItem?.title || "Зар"}</Text>
             <Pressable

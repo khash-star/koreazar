@@ -206,7 +206,7 @@ export default function AdminUsersScreen() {
           }}
           accessibilityRole="button"
         />
-        <View style={styles.modalCardWrap} pointerEvents="box-none">
+        <View style={styles.modalCardWrap}>
           <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Хэрэглэгчийн профайл</Text>
@@ -292,7 +292,7 @@ export default function AdminUsersScreen() {
               onPress={() => !deleting && setConfirmDeleteOpen(false)}
               accessibilityRole="button"
             />
-            <View style={styles.confirmCardWrap} pointerEvents="box-none">
+            <View style={styles.confirmCardWrap}>
               <View style={styles.confirmCard}>
                 <Text style={styles.confirmTitle}>Хэрэглэгч устгах уу?</Text>
                 <Text style={styles.confirmText}>
@@ -359,6 +359,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     padding: 16,
+    pointerEvents: "box-none",
   },
   modalCard: { backgroundColor: "#fff", borderRadius: 14, padding: 14 },
   /** Нэг Modal дотор — iPad дээр давхар Modal-ийн touch/stack алдааг засна */
@@ -369,11 +370,13 @@ const styles = StyleSheet.create({
     padding: 16,
     zIndex: 50,
     elevation: 50,
+    pointerEvents: "box-none",
   },
   confirmCardWrap: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     padding: 16,
+    pointerEvents: "box-none",
   },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   modalTitle: { fontSize: 30, fontWeight: "800", color: "#111827" },

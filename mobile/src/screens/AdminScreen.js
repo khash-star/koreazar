@@ -5,6 +5,7 @@ import {
   AppState,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -533,12 +534,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    backgroundColor: "#ffffff",
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 3px 10px rgba(15, 23, 42, 0.06)",
+      },
+      default: {
+        shadowColor: "#0f172a",
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 2,
+      },
+    }),
   },
   menuHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
   menuIconWrap: {

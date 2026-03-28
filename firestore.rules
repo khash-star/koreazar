@@ -9,10 +9,14 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Имэйлийн регистр (Firebase token ихэвчлэн lower, Firestore-д өөр хэлбэр байж болно)
+    // Имэйлийн регистр. Зарим нэвтрэлтээр token.email хоосон байдаг тул users/{uid}.email-ээр нөхөн тооцно.
     function authEmailLower() {
-      return request.auth.token.email != null
+      return request.auth != null && request.auth.token.email != null
         ? request.auth.token.email.lower()
+        : request.auth != null &&
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email != null
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower()
         : '';
     }
 

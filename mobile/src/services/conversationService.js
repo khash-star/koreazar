@@ -228,10 +228,10 @@ export async function syncConversationLastMessageFromMessages(conversationId) {
 }
 
 /** Query-д илгээх имэйлийн хувилбарууд (хуучин өгөгдөл өөр регистртэй байж болно) */
+/** filterConversations аль хэдийн participant имэйлийг normalize хийдэг тул зөвхөн нэг хувилбараар асуулгана. */
 export function emailQueryVariants(email) {
-  const raw = String(email || "").trim();
   const em = normalizeEmail(email);
-  return [...new Set([em, raw].filter(Boolean))];
+  return em ? [em] : [];
 }
 
 /** Хэрэглэгчийн уншаагүй мессежийн нийт тоо */
