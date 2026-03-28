@@ -14,7 +14,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
 import { deleteMessage, syncConversationLastMessageFromMessages } from '@/services/conversationService';
 import { toast } from '@/components/ui/use-toast';
-
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
   const conversationId = urlParams.get('conversationId');
@@ -225,8 +224,9 @@ export default function Chat() {
   });
 
   const handleSend = () => {
-    if (!message.trim() || sendMutation.isPending) return;
-    sendMutation.mutate(message);
+    const trimmed = message.trim();
+    if (!trimmed || sendMutation.isPending) return;
+    sendMutation.mutate(trimmed);
   };
 
   const handleAdminDeleteMessage = async (msg) => {

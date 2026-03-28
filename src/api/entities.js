@@ -119,7 +119,7 @@ export const Message = {
     }
     return [];
   },
-  create: (data) => conversationService.createMessage(data),
+  create: (data, options) => conversationService.createMessage(data, options),
   update: (id, data) => conversationService.updateMessage(id, data),
   delete: async (id) => {
     const { doc, deleteDoc } = await import('firebase/firestore');

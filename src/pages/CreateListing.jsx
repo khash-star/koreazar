@@ -26,6 +26,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { getListingAutoApprove } from '@/services/appConfigService';
+import { checkBannedListingFields } from '@/utils/bannedContent';
 
 import { locations, conditionOptions } from '@/constants/listings';
 
@@ -149,6 +150,12 @@ export default function CreateListing() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const bannedListing = checkBannedListingFields(formData);
+    if (bannedListing.blocked) {
+      alert('Гарчиг, тайлбар эсвэл холбоо барих талбарт зохисгүй үг агуулагдсан байна. Текстээ өөрчилнө үү.');
+      return;
+    }
 
     const autoApprove = await getListingAutoApprove().catch(() => false);
     const submitData = {

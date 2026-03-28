@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/banned_content.php';
 
 /**
  * MySQL column names in SET must be quoted when reserved (`condition`, `status`, …).
@@ -195,6 +196,11 @@ try {
                     break;
                 }
 
+                if (api_find_banned_in_listing_payload($payload) !== null) {
+                    api_respond_prohibited_listing();
+                    break;
+                }
+
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
@@ -273,6 +279,10 @@ try {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
+                    if (api_find_banned_in_listing_payload($payload) !== null) {
+                        api_respond_prohibited_listing();
+                        break;
+                    }
                 }
 
                 $setParts = [];
@@ -748,8 +758,11 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
     }
 
     if (array_key_exists('listing_type', $payload)) {
-        $lt = normalize_listing_type_value($payload['listing_type']);
-        if ($lt === 'vip' || $lt === 'featured') {
+        $newLt = normalize_listing_type_value($payload['listing_type']);
+        $oldLt = normalize_listing_type_value($existing['listing_type'] ?? 'regular');
+        $newIsPromo = ($newLt === 'vip' || $newLt === 'featured');
+        $oldIsPromo = ($oldLt === 'vip' || $oldLt === 'featured');
+        if ($newIsPromo && (!$oldIsPromo || $newLt !== $oldLt)) {
             http_response_code(403);
             echo json_encode(['error' => 'VIP/Онцгой зар олгох эрх зөвхөн админд'], JSON_UNESCAPED_UNICODE);
             exit;
@@ -760,7 +773,12 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
     if (($existingLt === 'vip' || $existingLt === 'featured') && array_key_exists('listing_type_expires', $payload)) {
         $demoting = array_key_exists('listing_type', $payload)
             && normalize_listing_type_value($payload['listing_type']) === 'regular';
-        if (!$demoting) {
+        if ($demoting) {
+            return;
+        }
+        $oldExp = normalize_mysql_datetime($existing['listing_type_expires'] ?? null);
+        $newExp = normalize_mysql_datetime($payload['listing_type_expires'] ?? null);
+        if ($oldExp !== $newExp) {
             http_response_code(403);
             echo json_encode(['error' => 'VIP/Онцгой зарын хугацааг зөвхөн админ сунгаж болно'], JSON_UNESCAPED_UNICODE);
             exit;

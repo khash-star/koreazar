@@ -33,6 +33,7 @@ import {
   navigateToHomeMain,
 } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
+import { checkBannedListingFields } from "../utils/bannedContent";
 
 function listingExpiresToIso(exp) {
   if (!exp) return undefined;
@@ -227,6 +228,14 @@ export default function CreateListingScreen({ navigation }) {
     }
     if (images.length === 0) {
       showAlert("Алдаа", "Дор хаяж 1 зураг нэмнэ үү.");
+      return;
+    }
+    const bannedListing = checkBannedListingFields(form);
+    if (bannedListing.blocked) {
+      showAlert(
+        "Алдаа",
+        "Гарчиг, тайлбар эсвэл холбоо барих талбарт зохисгүй үг агуулагдсан байна. Текстээ өөрчилнө үү."
+      );
       return;
     }
     if (editListingId) {

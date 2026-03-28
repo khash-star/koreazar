@@ -16,23 +16,47 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
+import { checkBannedContent } from '@/utils/bannedContent';
+import { normalizeEmail } from '@/utils/emailNormalize';
 
 // Conversations
 export const listConversations = async () => {
   try {
+    const email = normalizeEmail(auth.currentUser?.email);
+    if (!email) return [];
     const convsRef = collection(db, 'conversations');
-    const q = query(convsRef, orderBy('last_message_date', 'desc'));
-    const querySnapshot = await getDocs(q);
-    
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date),
-        last_message_date: convertTimestamp(data.last_message_date)
-      };
+    const q1 = query(
+      convsRef,
+      where('participant_1', '==', email),
+      orderBy('last_message_date', 'desc')
+    );
+    const q2 = query(
+      convsRef,
+      where('participant_2', '==', email),
+      orderBy('last_message_date', 'desc')
+    );
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    const seen = new Set();
+    const rows = [];
+    for (const s of [snap1, snap2]) {
+      s.docs.forEach((d) => {
+        if (seen.has(d.id)) return;
+        seen.add(d.id);
+        const data = d.data();
+        rows.push({
+          id: d.id,
+          ...data,
+          created_date: convertTimestamp(data.created_date),
+          last_message_date: convertTimestamp(data.last_message_date),
+        });
+      });
+    }
+    rows.sort((a, b) => {
+      const ta = a.last_message_date?.getTime?.() || 0;
+      const tb = b.last_message_date?.getTime?.() || 0;
+      return tb - ta;
     });
+    return rows;
   } catch (error) {
     console.error('Error listing conversations:', error);
     throw error;
@@ -43,13 +67,19 @@ export const filterConversations = async (filters = {}) => {
   try {
     const convsRef = collection(db, 'conversations');
     const conditions = [];
-    
-    Object.keys(filters).forEach(key => {
-      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-        conditions.push(where(key, '==', filters[key]));
-      }
+
+    const normKeys = new Set(['participant_1', 'participant_2', 'last_message_sender']);
+    Object.keys(filters).forEach((key) => {
+      let v = filters[key];
+      if (v === undefined || v === null || v === '') return;
+      if (normKeys.has(key)) v = normalizeEmail(v);
+      conditions.push(where(key, '==', v));
     });
-    
+
+    if (conditions.length === 0) {
+      return [];
+    }
+
     const q = query(convsRef, ...conditions, orderBy('last_message_date', 'desc'));
     const querySnapshot = await getDocs(q);
     
@@ -73,10 +103,14 @@ export const createConversation = async (data) => {
     const convsRef = collection(db, 'conversations');
     const convData = {
       ...data,
+      participant_1: normalizeEmail(data.participant_1),
+      participant_2: normalizeEmail(data.participant_2),
+      last_message_sender:
+        data.last_message_sender != null ? normalizeEmail(data.last_message_sender) : '',
       created_date: Timestamp.now(),
       last_message_date: Timestamp.now(),
-      unread_count_p1: 0,
-      unread_count_p2: 0
+      unread_count_p1: data.unread_count_p1 ?? 0,
+      unread_count_p2: data.unread_count_p2 ?? 0,
     };
     
     const docRef = await addDoc(convsRef, convData);
@@ -125,19 +159,13 @@ export const getConversation = async (id) => {
 // Find conversation between two participants
 export const findConversation = async (email1, email2) => {
   try {
+    const a = normalizeEmail(email1);
+    const b = normalizeEmail(email2);
+    if (!a || !b) return null;
     const convsRef = collection(db, 'conversations');
-    
-    // Check both directions
-    const q1 = query(
-      convsRef,
-      where('participant_1', '==', email1),
-      where('participant_2', '==', email2)
-    );
-    const q2 = query(
-      convsRef,
-      where('participant_1', '==', email2),
-      where('participant_2', '==', email1)
-    );
+
+    const q1 = query(convsRef, where('participant_1', '==', a), where('participant_2', '==', b));
+    const q2 = query(convsRef, where('participant_1', '==', b), where('participant_2', '==', a));
     
     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     
@@ -183,8 +211,18 @@ export const listMessages = async (conversationId, limitCount = 100) => {
   }
 };
 
-export const createMessage = async (data) => {
+/**
+ * @param {object} data
+ * @param {{ skipBannedCheck?: boolean }} [options] — зөвхөн дотоод (админ broadcast) дамжуулалтад true
+ */
+export const createMessage = async (data, options = {}) => {
   try {
+    if (!options.skipBannedCheck) {
+      const msgText = typeof data.message === 'string' ? data.message : '';
+      if (checkBannedContent(msgText).blocked) {
+        throw new Error('Мессежид зохисгүй үг агуулагдсан байна. Өөрөөр бичнэ үү.');
+      }
+    }
     const messagesRef = collection(db, 'messages');
     const messageData = {
       ...data,
@@ -399,13 +437,16 @@ export const sendMessageToAllUsers = async (adminEmail, message) => {
         }
         
         // Мессеж үүсгэх
-        await createMessage({
-          conversation_id: conversation.id,
-          sender_email: adminEmail,
-          receiver_email: user.email,
-          message: message,
-          is_read: false
-        });
+        await createMessage(
+          {
+            conversation_id: conversation.id,
+            sender_email: adminEmail,
+            receiver_email: user.email,
+            message: message,
+            is_read: false,
+          },
+          { skipBannedCheck: true }
+        );
         
         successCount++;
       } catch (error) {

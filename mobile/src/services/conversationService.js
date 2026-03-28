@@ -19,6 +19,7 @@ import {
 import { auth, db } from "../config/firebase";
 import { getAllUsers } from "./authService";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+import { checkBannedContent } from "../utils/bannedContent.js";
 
 function convertTimestamp(value) {
   if (!value) return value;
@@ -33,11 +34,16 @@ function convertTimestamp(value) {
 export async function filterConversations(filters = {}) {
   const convsRef = collection(db, "conversations");
   const conditions = [];
+  const normKeys = new Set(["participant_1", "participant_2", "last_message_sender"]);
   Object.keys(filters).forEach((key) => {
-    if (filters[key] !== undefined && filters[key] !== null && filters[key] !== "") {
-      conditions.push(where(key, "==", filters[key]));
-    }
+    let v = filters[key];
+    if (v === undefined || v === null || v === "") return;
+    if (normKeys.has(key)) v = normalizeEmail(v);
+    conditions.push(where(key, "==", v));
   });
+  if (conditions.length === 0) {
+    return [];
+  }
   const q = query(convsRef, ...conditions, orderBy("last_message_date", "desc"));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map((d) => {
@@ -124,7 +130,17 @@ export async function listMessages(conversationId, limitCount = 100) {
     .reverse();
 }
 
-export async function createMessage(data) {
+/**
+ * @param {object} data
+ * @param {{ skipBannedCheck?: boolean }} [options] — админ broadcast зэрэг дотоод дамжуулалт
+ */
+export async function createMessage(data, options = {}) {
+  if (!options.skipBannedCheck) {
+    const msgText = typeof data.message === "string" ? data.message : "";
+    if (checkBannedContent(msgText).blocked) {
+      throw new Error("Мессежид зохисгүй үг агуулагдсан байна. Өөрөөр бичнэ үү.");
+    }
+  }
   const messagesRef = collection(db, "messages");
   const messageData = {
     ...data,
@@ -282,13 +298,16 @@ export async function sendMessageToAllUsers(adminEmail, message) {
         });
       }
 
-      await createMessage({
-        conversation_id: conv.id,
-        sender_email: adminEmail,
-        receiver_email: receiver,
-        message: text,
-        is_read: false,
-      });
+      await createMessage(
+        {
+          conversation_id: conv.id,
+          sender_email: adminEmail,
+          receiver_email: receiver,
+          message: text,
+          is_read: false,
+        },
+        { skipBannedCheck: true }
+      );
 
       const convLatest = await getConversation(conv.id);
       const adminN = normalizeEmail(adminEmail);

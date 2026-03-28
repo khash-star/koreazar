@@ -288,7 +288,8 @@ export default function ChatScreen({ route, navigation }) {
       );
       await fetchMessages();
     } catch (e) {
-      showAlert("Алдаа", e?.message || "Илгээж чадсангүй");
+      const msg = e?.message || "Илгээж чадсангүй";
+      showAlert("Алдаа", msg);
     } finally {
       setSending(false);
     }
