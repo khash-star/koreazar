@@ -118,10 +118,6 @@ export default function LoginScreen({ navigation }) {
             <Pressable onPress={() => openExternalUrlSafe(PRIVACY_URL)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
               <Text style={styles.agreeLink}>үйлчилгээний нөхцөл</Text>
             </Pressable>
-            <Text style={styles.agreeFragment}>, </Text>
-            <Pressable onPress={() => openExternalUrlSafe(PRIVACY_URL)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-              <Text style={styles.agreeLink}>зар нийтлэх журмыг</Text>
-            </Pressable>
             <Text style={styles.agreeFragment}> хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.</Text>
           </View>
         </View>

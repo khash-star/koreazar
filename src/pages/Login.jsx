@@ -283,14 +283,6 @@ export default function Login() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     үйлчилгээний нөхцөл
-                  </Link>
-                  ,{' '}
-                  <Link
-                    to={createPageUrl('Privacy')}
-                    className="text-red-600 hover:underline font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    зар нийтлэх журмыг
                   </Link>{' '}
                   хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.
                 </span>
