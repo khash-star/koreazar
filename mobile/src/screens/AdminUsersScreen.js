@@ -286,7 +286,7 @@ export default function AdminUsersScreen() {
         </View>
 
         {confirmDeleteOpen && (
-          <View style={styles.confirmOverlay} pointerEvents="box-none">
+          <View style={styles.confirmOverlay}>
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={() => !deleting && setConfirmDeleteOpen(false)}

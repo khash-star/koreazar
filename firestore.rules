@@ -9,35 +9,36 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Имэйлийн регистр. Зарим нэвтрэлтээр token.email хоосон байдаг тул users/{uid}.email-ээр нөхөн тооцно.
+    // Имэйл: token.email заримдаа null биш ч "" байна — энэ үед users/{uid}.email руу шилжих ёстой.
     function authEmailLower() {
-      return request.auth != null && request.auth.token.email != null
+      return request.auth != null &&
+        request.auth.token.email != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() > 0
         ? request.auth.token.email.lower()
         : request.auth != null &&
             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email is string
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email is string &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.size() > 0
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower()
         : '';
     }
 
+    // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
     function isConversationParticipant() {
-      return request.auth != null &&
-        resource.data.participant_1 != null &&
-        resource.data.participant_2 != null &&
-        (
-          resource.data.participant_1.lower() == authEmailLower() ||
-          resource.data.participant_2.lower() == authEmailLower()
-        );
+      let em = authEmailLower();
+      return request.auth != null && em.size() > 0 && (
+        (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
+        (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
+      );
     }
 
     function isMessageSenderOrReceiver() {
-      return request.auth != null &&
-        resource.data.sender_email != null &&
-        resource.data.receiver_email != null &&
-        (
-          resource.data.sender_email.lower() == authEmailLower() ||
-          resource.data.receiver_email.lower() == authEmailLower()
-        );
+      let em = authEmailLower();
+      return request.auth != null && em.size() > 0 && (
+        (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
+        (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
+      );
     }
     
     // Users collection

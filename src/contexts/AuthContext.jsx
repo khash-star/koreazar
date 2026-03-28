@@ -21,9 +21,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     (async () => {
       try {
-        const { onAuthChange, getMe } = await import('@/services/authService');
+        const { onAuthChange, getMe, ensureUserDocEmailForFirestoreRules } = await import(
+          '@/services/authService'
+        );
         unsubRef.current = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
+        await ensureUserDocEmailForFirestoreRules(firebaseUser);
         setUser(firebaseUser);
         // Immediately set basic user data (don't wait for Firestore)
         const basicUserData = {
@@ -38,23 +41,27 @@ export const AuthProvider = ({ children }) => {
         // Then try to get full user data from Firestore (async, don't block)
         try {
           const data = await getMe();
-          
+          let profileForRules = null;
           if (data) {
             setUserData(data); // Update with full Firestore data including role
+            profileForRules = data;
           } else {
             // If getMe returns null, try to get user data directly from Firestore
             const { getUserData } = await import('@/services/authService');
             const userDataFromFirestore = await getUserData(firebaseUser.uid);
             
             if (userDataFromFirestore) {
-              setUserData({
+              const merged = {
                 uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                ...userDataFromFirestore
-              });
+                ...userDataFromFirestore,
+                email: firebaseUser.email || userDataFromFirestore.email,
+              };
+              setUserData(merged);
+              profileForRules = merged;
             }
             // If Firestore doesn't have data, keep the basic userData we set above
           }
+          await ensureUserDocEmailForFirestoreRules(firebaseUser, profileForRules?.email);
         } catch (error) {
           console.error('❌ AuthContext: Failed to get user data from Firestore:', error);
           console.error('❌ AuthContext: Error details:', {

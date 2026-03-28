@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { ArrowLeft, Send, Loader2, Trash2 } from 'lucide-react';
@@ -11,9 +11,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
+import {
+  redirectToLogin,
+  getAdminEmail,
+  getUserByEmail,
+  isSellerBlockedByViewer,
+} from '@/services/authService';
+import { normalizeEmail } from '@/utils/emailNormalize';
 import { deleteMessage, syncConversationLastMessageFromMessages } from '@/services/conversationService';
 import { toast } from '@/components/ui/use-toast';
+import { Timestamp } from 'firebase/firestore';
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
   const conversationId = urlParams.get('conversationId');
@@ -21,11 +28,14 @@ export default function Chat() {
   const listingId = urlParams.get('listingId');
   
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const messagesEndRef = useRef(null);
+  const blockRedirectRef = useRef(false);
   const { user, userData, loading } = useAuth();
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
   const [adminEmail, setAdminEmail] = useState(null);
+  const [chatForbidden, setChatForbidden] = useState(false);
 
   // Get admin email
   useEffect(() => {
@@ -35,6 +45,57 @@ export default function Chat() {
     };
     fetchAdminEmail();
   }, []);
+
+  useEffect(() => {
+    blockRedirectRef.current = false;
+    setChatForbidden(false);
+  }, [conversationId, otherUserEmail]);
+
+  useEffect(() => {
+    if (loading || !userData) return;
+    const myEmail = normalizeEmail(userData?.email || user?.email || '');
+    if (!myEmail || !actualConversationId || otherUserEmail) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const convs = await entities.Conversation.filter({ id: actualConversationId });
+        const conv = convs[0];
+        if (cancelled || !conv) return;
+        const p1 = normalizeEmail(conv.participant_1);
+        const p2 = normalizeEmail(conv.participant_2);
+        const other = p1 === myEmail ? p2 : p1;
+        if (!other) return;
+        let admin = adminEmail;
+        if (!admin) admin = await getAdminEmail();
+        if (admin && normalizeEmail(admin) === other) return;
+        const profile = await getUserByEmail(myEmail);
+        if (profile && isSellerBlockedByViewer(profile, other) && !blockRedirectRef.current) {
+          blockRedirectRef.current = true;
+          setChatForbidden(true);
+          toast({
+            title: 'Чат',
+            description: 'Та энэ хэрэглэгчийг блоклосон.',
+            variant: 'destructive',
+          });
+          navigate(createPageUrl('Messages'));
+        }
+      } catch (e) {
+        console.warn('Chat: block check', e?.message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loading,
+    userData,
+    user,
+    actualConversationId,
+    otherUserEmail,
+    adminEmail,
+    navigate,
+  ]);
 
   useEffect(() => {
     // Wait for auth to finish loading before checking
@@ -51,16 +112,37 @@ export default function Chat() {
     const ensureConversation = async () => {
       const email = userData?.email || user?.email;
       if (!email || !otherUserEmail || conversationId) return;
-      
+
+      const meN = normalizeEmail(email);
+      const otherN = normalizeEmail(otherUserEmail);
+      let admin = adminEmail;
+      if (!admin) admin = await getAdminEmail();
+      if (!(admin && normalizeEmail(admin) === otherN)) {
+        const profile = await getUserByEmail(meN);
+        if (profile && isSellerBlockedByViewer(profile, otherUserEmail)) {
+          if (!blockRedirectRef.current) {
+            blockRedirectRef.current = true;
+            setChatForbidden(true);
+            toast({
+              title: 'Чат',
+              description: 'Та энэ хэрэглэгчийг блоклосон.',
+              variant: 'destructive',
+            });
+            navigate(createPageUrl('Messages'));
+          }
+          return;
+        }
+      }
+
       try {
         const existing1 = await entities.Conversation.filter({
-          participant_1: email,
-          participant_2: otherUserEmail
+          participant_1: meN,
+          participant_2: otherN
         });
         
         const existing2 = await entities.Conversation.filter({
-          participant_1: otherUserEmail,
-          participant_2: email
+          participant_1: otherN,
+          participant_2: meN
         });
         
         if (existing1.length > 0) {
@@ -69,11 +151,11 @@ export default function Chat() {
           setActualConversationId(existing2[0].id);
         } else {
           const newConv = await entities.Conversation.create({
-            participant_1: email,
-            participant_2: otherUserEmail,
+            participant_1: meN,
+            participant_2: otherN,
             last_message: '',
             last_message_time: new Date().toISOString(),
-            last_message_sender: email,
+            last_message_sender: meN,
             unread_count_p1: 0,
             unread_count_p2: 0
           });
@@ -85,7 +167,7 @@ export default function Chat() {
     };
     
     ensureConversation();
-  }, [userData?.email, user?.email, otherUserEmail, conversationId]);
+  }, [userData?.email, user?.email, otherUserEmail, conversationId, listingId, adminEmail, navigate]);
 
   const { data: conversation } = useQuery({
     queryKey: ['conversation', actualConversationId],
@@ -158,8 +240,9 @@ export default function Chat() {
       if (!email || !actualConversationId || !conversation) return;
       
       try {
+        const me = normalizeEmail(email);
         const unreadMessages = messages.filter(
-          m => m.receiver_email === email && !m.is_read
+          (m) => normalizeEmail(m.receiver_email) === me && !m.is_read
         );
         
         for (const msg of unreadMessages) {
@@ -167,10 +250,12 @@ export default function Chat() {
         }
         
         if (unreadMessages.length > 0) {
-          const isParticipant1 = conversation.participant_1 === email;
+          const isParticipant1 =
+            normalizeEmail(conversation.participant_1) === normalizeEmail(email);
           await entities.Conversation.update(actualConversationId, {
             [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
           });
+          queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
         }
       } catch (err) {
         console.error('Chat: mark as read error', err);
@@ -178,7 +263,7 @@ export default function Chat() {
     };
     
     markAsRead();
-  }, [messages, userData?.email, user?.email, actualConversationId, conversation]);
+  }, [messages, userData?.email, user?.email, actualConversationId, conversation, queryClient]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -190,22 +275,26 @@ export default function Chat() {
       const email = userData?.email || user?.email;
       if (!email || !actualConversationId || !otherUser?.email) return;
       
+      const senderNorm = normalizeEmail(email);
+      const receiverNorm = normalizeEmail(otherUser.email);
       const newMessage = await entities.Message.create({
         conversation_id: actualConversationId,
-        sender_email: email,
-        receiver_email: otherUser.email,
+        sender_email: senderNorm,
+        receiver_email: receiverNorm,
         message: messageText,
         is_read: false
       });
       
-      // Update conversation
-      const isParticipant1 = conversation.participant_1 === email;
+      // Update conversation (participant-ийг бага үсгээр харьцуулна — unread зөв талд нэмэгдэнэ)
+      const isParticipant1 =
+        normalizeEmail(conversation.participant_1) === senderNorm;
       const otherUnreadCount = isParticipant1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
       
       await entities.Conversation.update(actualConversationId, {
         last_message: messageText,
         last_message_time: new Date().toISOString(),
-        last_message_sender: email,
+        last_message_date: Timestamp.now(),
+        last_message_sender: senderNorm,
         [isParticipant1 ? 'unread_count_p2' : 'unread_count_p1']: otherUnreadCount + 1
       });
       
@@ -215,6 +304,7 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
       queryClient.invalidateQueries({ queryKey: ['conversation'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
       setMessage('');
       toast({ title: 'Мессеж илгээгдлээ', variant: 'default' });
     },
@@ -253,6 +343,17 @@ export default function Chat() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (chatForbidden) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-6">
+        <p className="text-gray-600 text-center">Та энэ хэрэглэгчийг блоклосон.</p>
+        <Link to={createPageUrl('Messages')}>
+          <Button className="rounded-xl bg-amber-600 hover:bg-amber-700">Мессеж руу буцах</Button>
+        </Link>
       </div>
     );
   }

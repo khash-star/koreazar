@@ -17,6 +17,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
+import { auth } from "../config/firebase";
+import { ensureUserDocEmailForFirestoreRules } from "../services/authService.js";
 import { showAlert } from "../utils/showAlert";
 import {
   createConversation,
@@ -30,10 +32,16 @@ import {
   updateMessage,
 } from "../services/conversationService.js";
 import { getListingById } from "../services/listingService.js";
-import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
+import {
+  getAdminEmail,
+  getUserByEmail,
+  isSellerBlockedByViewer,
+} from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
+import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import { Timestamp } from "firebase/firestore";
 
 export default function ChatScreen({ route, navigation }) {
@@ -53,6 +61,7 @@ export default function ChatScreen({ route, navigation }) {
   const [draft, setDraft] = useState("");
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
   const mountedRef = useRef(true);
   const scrollTimerRef = useRef(null);
 
@@ -87,6 +96,9 @@ export default function ChatScreen({ route, navigation }) {
 
   const resolveConversation = useCallback(async () => {
     if (!email) return;
+    if (auth.currentUser) {
+      await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+    }
     if (paramConvId) {
       setConvId(paramConvId);
       return;
@@ -107,6 +119,19 @@ export default function ChatScreen({ route, navigation }) {
       navigation.goBack();
       return;
     }
+    const adminForBlock = await getAdminEmail();
+    if (
+      !(adminForBlock && normalizeEmail(adminForBlock) === normalizeEmail(normalizedOtherEmail))
+    ) {
+      const myProfile = await getUserByEmail(normalizeEmail(email));
+      if (myProfile && isSellerBlockedByViewer(myProfile, normalizedOtherEmail)) {
+        showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
+          { text: "OK", onPress: () => navigation.goBack() },
+        ]);
+        setLoading(false);
+        return;
+      }
+    }
     let existing = await findConversation(normalizeEmail(email), normalizedOtherEmail);
     if (!existing) {
       const iso = new Date().toISOString();
@@ -121,7 +146,7 @@ export default function ChatScreen({ route, navigation }) {
       });
     }
     setConvId(existing.id);
-  }, [email, paramConvId, normalizedOtherEmail, navigation]);
+  }, [email, paramConvId, normalizedOtherEmail, listingId, navigation]);
 
   const fetchMessages = useCallback(async () => {
     if (!convId || !email) return;
@@ -151,6 +176,7 @@ export default function ChatScreen({ route, navigation }) {
       } catch {
         /* ignore */
       }
+      notifyUnreadTabBadge();
     } catch (e) {
       console.warn("listMessages:", e?.message);
     }
@@ -159,6 +185,9 @@ export default function ChatScreen({ route, navigation }) {
   const loadMeta = useCallback(async () => {
     if (!convId || !email) return;
     try {
+      if (auth.currentUser) {
+        await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+      }
       const conv = await getConversation(convId);
       if (!mountedRef.current) return;
       setConversation(conv);
@@ -177,6 +206,17 @@ export default function ChatScreen({ route, navigation }) {
       }
       if (!mountedRef.current) return;
       setOtherUser({ email: other, displayName });
+
+      if (!(admin && normalizeEmail(admin) === normalizeEmail(other))) {
+        const myProfile = await getUserByEmail(normalizeEmail(email));
+        if (myProfile && isSellerBlockedByViewer(myProfile, other)) {
+          if (!mountedRef.current) return;
+          showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
+            { text: "OK", onPress: () => navigation.goBack() },
+          ]);
+          return;
+        }
+      }
 
       navigation.setOptions({ title: displayName || "Чат" });
 
@@ -209,7 +249,13 @@ export default function ChatScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (!convId) return;
+      const cleanupBlur = () => {
+        blurActiveElementWeb();
+        inputRef.current?.blur?.();
+      };
+      if (!convId) {
+        return cleanupBlur;
+      }
       const sub = AppState.addEventListener("change", (state) => {
         if (state === "active") fetchMessages();
       });
@@ -218,6 +264,7 @@ export default function ChatScreen({ route, navigation }) {
         fetchMessages();
       }, 10000);
       return () => {
+        cleanupBlur();
         clearInterval(t);
         sub.remove();
       };
@@ -255,9 +302,24 @@ export default function ChatScreen({ route, navigation }) {
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text || !email || !convId || !conversation || !otherUser?.email || sending) return;
+    if (!text || !email || !convId || !otherUser?.email || sending) return;
     setSending(true);
     try {
+      if (auth.currentUser) {
+        await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+      }
+      let conv = conversation;
+      if (!conv) {
+        conv = await getConversation(convId);
+        if (conv && mountedRef.current) setConversation(conv);
+      }
+      if (!conv) {
+        showAlert(
+          "Алдаа",
+          "Ярианы мэдээлэл ачаалагдаагүй байна. Сүлжээ, нэвтрэл эсвэл Firestore дүрмээ шалгана уу."
+        );
+        return;
+      }
       await createMessage({
         conversation_id: convId,
         sender_email: normalizeEmail(email),
@@ -265,9 +327,9 @@ export default function ChatScreen({ route, navigation }) {
         message: text,
         is_read: false,
       });
-      const isP1 = normalizeEmail(conversation.participant_1) === normalizeEmail(email);
+      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(email);
       const otherKey = isP1 ? "unread_count_p2" : "unread_count_p1";
-      const prevOther = isP1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
+      const prevOther = isP1 ? conv.unread_count_p2 : conv.unread_count_p1;
       await updateConversation(convId, {
         last_message: text,
         last_message_date: Timestamp.now(),
@@ -276,17 +338,18 @@ export default function ChatScreen({ route, navigation }) {
         [otherKey]: (prevOther || 0) + 1,
       });
       setDraft("");
-      setConversation((c) =>
-        c
-          ? {
-              ...c,
-              last_message: text,
-              last_message_sender: normalizeEmail(email),
-              [otherKey]: (prevOther || 0) + 1,
-            }
-          : c
-      );
+      setConversation((c) => {
+        const base = c ?? conv;
+        if (!base) return c;
+        return {
+          ...base,
+          last_message: text,
+          last_message_sender: normalizeEmail(email),
+          [otherKey]: (prevOther || 0) + 1,
+        };
+      });
       await fetchMessages();
+      notifyUnreadTabBadge();
     } catch (e) {
       const msg = e?.message || "Илгээж чадсангүй";
       showAlert("Алдаа", msg);
@@ -319,12 +382,8 @@ export default function ChatScreen({ route, navigation }) {
     );
   }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
+  const chatBody = (
+    <>
       {listing ? (
         <Pressable
           style={styles.listingBanner}
@@ -408,6 +467,7 @@ export default function ChatScreen({ route, navigation }) {
         ]}
       >
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={draft}
           onChangeText={setDraft}
@@ -428,6 +488,20 @@ export default function ChatScreen({ route, navigation }) {
           )}
         </Pressable>
       </View>
+    </>
+  );
+
+  if (Platform.OS === "web") {
+    return <View style={styles.flex}>{chatBody}</View>;
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      {chatBody}
     </KeyboardAvoidingView>
   );
 }

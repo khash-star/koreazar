@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { subscribeAuth } from "../services/authService";
-import { getUserByEmail } from "../services/userProfileService";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ensureUserDocEmailForFirestoreRules, subscribeAuth } from "../services/authService";
+import { getUserByEmail, getUserProfileByUid } from "../services/userProfileService";
+import { normalizeEmail } from "../utils/emailNormalize.js";
 
 const AuthContext = createContext(null);
 
@@ -18,27 +19,60 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!user?.email) {
+    if (!user?.uid) {
       setUserData(null);
       return;
     }
     let cancelled = false;
-    getUserByEmail(user.email).then((data) => {
+    (async () => {
+      let data = null;
+      if (user.email) {
+        data = await getUserByEmail(normalizeEmail(user.email));
+      }
+      if (!data) {
+        data = await getUserProfileByUid(user.uid);
+      }
       if (!cancelled) setUserData(data);
-    });
-    return () => { cancelled = true; };
-  }, [user?.email]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, user?.email]);
+
+  /** Token-д имэйл байхгүй ч Firestore профайлд байвал дүрмийн authEmailLower() ажиллана */
+  useEffect(() => {
+    if (!user?.uid) return;
+    const pe = userData?.email;
+    if (!pe || typeof pe !== "string" || !pe.trim()) return;
+    ensureUserDocEmailForFirestoreRules(user, pe).catch(() => {});
+  }, [user?.uid, user?.email, userData?.email]);
+
+  const refreshUserData = useCallback(async () => {
+    if (!user?.uid) return;
+    let data = null;
+    if (user.email) {
+      data = await getUserByEmail(normalizeEmail(user.email));
+    }
+    if (!data) {
+      data = await getUserProfileByUid(user.uid);
+    }
+    if (data) setUserData(data);
+  }, [user?.uid, user?.email]);
+
+  const resolvedEmail =
+    normalizeEmail(user?.email || userData?.email || "") || null;
 
   const value = useMemo(
     () => ({
       user,
       userData,
       loading,
-      email: user?.email || null,
+      email: resolvedEmail,
       isAuthenticated: !!user,
       isAdmin: userData?.role === "admin",
+      refreshUserData,
     }),
-    [user, userData, loading]
+    [user, userData, loading, refreshUserData, resolvedEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

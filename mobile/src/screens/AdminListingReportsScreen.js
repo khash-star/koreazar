@@ -1,5 +1,14 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { updateListingReport, listListingReports } from "../services/listingReportService";
 import { toDate } from "../utils/firestoreDates";
@@ -143,11 +152,16 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#fff",
     marginBottom: 10,
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    ...Platform.select({
+      web: { boxShadow: "0 2px 8px rgba(15, 23, 42, 0.05)" },
+      default: {
+        shadowColor: "#0f172a",
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
+      },
+    }),
   },
   cardPending: { borderLeftWidth: 3, borderLeftColor: "#ef4444" },
   cardHandled: { borderLeftWidth: 3, borderLeftColor: "#94a3b8" },

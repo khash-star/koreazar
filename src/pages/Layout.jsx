@@ -117,7 +117,7 @@ export default function Layout({ children, currentPageName }) {
     });
   };
 
-  // Unread badge: auth.currentUser имэйл + Firestore дүрэмтэй нийцүүлсэн; polling-ийг зөөлрүүлсэн (консолыг дүүргэхгүй).
+  // Unread badge: getUnreadMessagesCount нь users/{uid}.email-ийг ашиглаж болно (token.email хоосон үед ч).
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['unreadMessages', user?.uid],
     queryFn: async () => {
@@ -127,8 +127,10 @@ export default function Layout({ children, currentPageName }) {
         return 0;
       }
     },
-    enabled: !authLoading && !!user?.uid && !!user?.email,
-    refetchInterval: 30_000,
+    enabled: !authLoading && !!user?.uid,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 5_000,
     retry: false,
   });
   

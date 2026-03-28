@@ -12,9 +12,23 @@ import {
   deleteUser,
 } from 'firebase/auth';
 import { auth } from '@/firebase/config';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where, limit, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
+} from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
+import { normalizeEmail } from '@/utils/emailNormalize';
 
 /** Нөхцөл өөрчлөгдөхөд дугаарлаж шинэчлэх (Firestore users.{termsVersion}) */
 export const TERMS_POLICY_VERSION = '2025-03-28';
@@ -78,6 +92,32 @@ export async function ensureTermsAcceptanceIfMissing(user) {
     );
   } catch (e) {
     console.warn('ensureTermsAcceptanceIfMissing:', e?.message || e);
+  }
+}
+
+/** conversations дүрэм authEmailLower() — token.email хоосон үед users/{uid}.email ашиглана */
+export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = null) {
+  if (!user?.uid) return;
+  const pick = (raw) => {
+    if (raw == null || raw === '') return '';
+    const s = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+    if (!s) return '';
+    return normalizeEmail(s) || '';
+  };
+  let em = pick(user.email) || pick(profileEmail);
+  if (!em) {
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      em = pick(snap.data()?.email);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!em) return;
+  try {
+    await setDoc(doc(db, 'users', user.uid), { email: em }, { merge: true });
+  } catch (e) {
+    console.warn('ensureUserDocEmailForFirestoreRules:', e?.message || e);
   }
 }
 
@@ -459,3 +499,28 @@ export const updateUserData = async (uid, data) => {
   }
 };
 
+/** Одоогийн хэрэглэгчийн профайл дээр зар эзэн блоклогдсон эсэх */
+export function isSellerBlockedByViewer(userData, sellerEmail) {
+  if (!userData || !sellerEmail) return false;
+  const se = normalizeEmail(sellerEmail);
+  if (!se) return false;
+  const raw = userData.blocked_seller_emails;
+  if (!Array.isArray(raw)) return false;
+  return raw.some((x) => normalizeEmail(x) === se);
+}
+
+/** Зар эзнийг блоклох / блок тайлах */
+export async function setSellerBlockedByEmail(uid, sellerEmail, blocked) {
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid) {
+    throw new Error('Зөвхөн өөрийн тохиргоог өөрчилнө');
+  }
+  const se = normalizeEmail(sellerEmail);
+  if (!se) throw new Error('Зар эзний имэйл олдсонгүй');
+  const userRef = doc(db, 'users', uid);
+  if (blocked) {
+    await updateDoc(userRef, { blocked_seller_emails: arrayUnion(se), updatedAt: new Date() });
+  } else {
+    await updateDoc(userRef, { blocked_seller_emails: arrayRemove(se), updatedAt: new Date() });
+  }
+}

@@ -1,7 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { auth } from "../config/firebase";
-import { getListingById } from "./listingService";
+import { fetchListingByIdResult } from "./listingService";
 import { toDate } from "../utils/firestoreDates";
 
 /**
@@ -39,12 +39,20 @@ export async function removeSaved(savedDocId) {
   await deleteDoc(doc(db, "saved_listings", savedDocId));
 }
 
-/** saved + listing мэдээлэл нэгтгэсэн жагсаалт */
+/** saved + listing мэдээлэл нэгтгэсэн жагсаалт (MySQL-аас устсан зарын хадгалалтыг 404 үед устгана) */
 export async function getSavedListingsWithDetails(email) {
   const saved = await getSavedForUser(email);
   const rows = await Promise.all(
     saved.map(async (s) => {
-      const listing = await getListingById(s.listing_id);
+      const { listing, httpStatus } = await fetchListingByIdResult(s.listing_id);
+      if (!listing && httpStatus === 404) {
+        try {
+          await deleteDoc(doc(db, "saved_listings", s.id));
+        } catch {
+          /* ignore */
+        }
+        return null;
+      }
       return listing ? { savedId: s.id, listing } : null;
     })
   );
@@ -54,7 +62,8 @@ export async function getSavedListingsWithDetails(email) {
 /** Нэг зар хадгалагдсан эсэх (Firestore saved_listings document id) */
 export async function findSavedDocId(email, listingId) {
   if (!email || !listingId) return null;
+  const want = String(listingId);
   const saved = await getSavedForUser(email);
-  const row = saved.find((s) => s.listing_id === listingId);
+  const row = saved.find((s) => String(s.listing_id ?? "") === want);
   return row?.id || null;
 }

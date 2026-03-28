@@ -12,23 +12,29 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
-import { getLatestListings, getListingById } from "../services/listingService";
+import { fetchListingByIdResult, getLatestListings } from "../services/listingService";
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
 import { createListingReport } from "../services/listingReportService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { toDate } from "../utils/firestoreDates";
 import { conditionLabels } from "../constants/listings";
 import { useAuth } from "../context/AuthContext.js";
+import {
+  isSellerBlockedByViewer,
+  setSellerBlockedByEmail,
+} from "../services/userProfileService.js";
+import { normalizeEmail } from "../utils/emailNormalize.js";
 import { navigateToLogin, navigateToMessagesChat } from "../utils/navigationHelpers.js";
 import { openPhoneDialerSafe } from "../utils/safeLinking";
 import { showAlert } from "../utils/showAlert";
+import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
 
 export default function ListingDetailScreen({ route, navigation }) {
   const { listingId } = route?.params ?? {};
-  const { email, isAuthenticated } = useAuth();
+  const { email, isAuthenticated, user, userData, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [listing, setListing] = useState(null);
@@ -40,6 +46,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportReason, setReportReason] = useState("Залилан/сэжигтэй");
   const [reportComment, setReportComment] = useState("");
+  const [blockBusy, setBlockBusy] = useState(false);
 
   const refreshSaved = useCallback(async () => {
     if (!email || !listingId) {
@@ -57,6 +64,9 @@ export default function ListingDetailScreen({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       refreshSaved();
+      return () => {
+        blurActiveElementWeb();
+      };
     }, [refreshSaved])
   );
 
@@ -73,10 +83,21 @@ export default function ListingDetailScreen({ route, navigation }) {
       setRelatedListings([]);
       setImageIndex(0);
       setError("");
-      const data = await getListingById(listingId);
+      const { listing: data, httpStatus } = await fetchListingByIdResult(listingId);
       if (!data) {
         setError("Зар олдсонгүй");
         setListing(null);
+        if (httpStatus === 404 && email) {
+          try {
+            const sid = await findSavedDocId(email, listingId);
+            if (sid) {
+              await removeSaved(sid);
+              setSavedDocId(null);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       } else {
         setListing(data);
         setError("");
@@ -87,7 +108,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [listingId, navigation]);
+  }, [listingId, navigation, email]);
 
   useEffect(() => {
     load();
@@ -185,6 +206,46 @@ export default function ListingDetailScreen({ route, navigation }) {
     setReportOpen(true);
   }
 
+  function toggleBlockSeller() {
+    if (!isAuthenticated || !email) {
+      showAlert("Нэвтрэх", "Блоклохын тулд нэвтэрнэ үү", [
+        { text: "Цуцлах", style: "cancel" },
+        { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
+      ]);
+      return;
+    }
+    if (!user?.uid || !listing?.created_by) {
+      showAlert("Алдаа", "Зар эзний мэдээлэл олдсонгүй");
+      return;
+    }
+    const blocked = isSellerBlockedByViewer(userData, listing.created_by);
+    showAlert(
+      blocked ? "Блок тайлах уу?" : "Блоклох уу?",
+      blocked
+        ? "Дахин энэ хэрэглэгчтэй чатлах боломжтой болно."
+        : "Та энэ зар эзэнтэй шинэ чат эхлүүлэх боломжгүй болно.",
+      [
+        { text: "Цуцлах", style: "cancel" },
+        {
+          text: blocked ? "Тайлах" : "Блоклох",
+          style: blocked ? "default" : "destructive",
+          onPress: async () => {
+            setBlockBusy(true);
+            try {
+              await setSellerBlockedByEmail(user.uid, listing.created_by, !blocked);
+              await refreshUserData();
+              showAlert("Амжилттай", blocked ? "Блок тайллаа." : "Блоклолоо.");
+            } catch (e) {
+              showAlert("Алдаа", e?.message || "Амжилтгүй");
+            } finally {
+              setBlockBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function submitReport() {
     if (!listing?.id) {
       showAlert("Алдаа", "Зарын ID олдсонгүй");
@@ -208,7 +269,15 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
   }
 
-  const isOwner = !!(email && listing.created_by && email === listing.created_by);
+  const isOwner = !!(
+    email &&
+    listing.created_by &&
+    normalizeEmail(email) === normalizeEmail(listing.created_by)
+  );
+  const sellerBlocked = isSellerBlockedByViewer(userData, listing.created_by);
+  const showSellerActions =
+    listing.created_by &&
+    (!email || normalizeEmail(email) !== normalizeEmail(listing.created_by));
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -303,46 +372,85 @@ export default function ListingDetailScreen({ route, navigation }) {
           ) : null}
         </View>
 
-        <Pressable
-          style={[styles.saveBtn, savedDocId && styles.saveBtnActive]}
-          onPress={toggleSave}
-          disabled={saveBusy}
-        >
-          <Text style={[styles.saveBtnText, savedDocId && styles.saveBtnTextActive]}>
-            {saveBusy ? "…" : savedDocId ? "♥ Хадгалсан (дарж хасна)" : "♡ Хадгалах"}
-          </Text>
-        </Pressable>
-
-        {listing.created_by && (!email || listing.created_by !== email) ? (
+        <View style={styles.actionRow}>
           <Pressable
-            style={styles.chatBtn}
-            onPress={() => {
-              if (!isAuthenticated || !email) {
-                showAlert("Нэвтрэх", "Чатлахын тулд нэвтэрнэ үү", [
-                  { text: "Цуцлах", style: "cancel" },
-                  { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
-                ]);
-                return;
-              }
-              navigateToMessagesChat(navigation, {
-                otherUserEmail: listing.created_by,
-                listingId: listing.id,
-              });
-            }}
+            style={[
+              styles.actionChip,
+              styles.actionChipSave,
+              savedDocId && styles.actionChipSaveActive,
+              !showSellerActions && styles.actionChipGrow,
+            ]}
+            onPress={toggleSave}
+            disabled={saveBusy}
           >
-            <Text style={styles.chatBtnText}>💬 Зар эзэнтэй чатлах</Text>
+            <Text
+              style={[styles.actionChipText, styles.actionChipTextSave, savedDocId && styles.actionChipTextSaveActive]}
+              numberOfLines={2}
+            >
+              {saveBusy ? "…" : savedDocId ? "♥ Хадсан" : "♡ Хадгалах"}
+            </Text>
           </Pressable>
-        ) : null}
 
-        {listing.created_by && (!email || listing.created_by !== email) ? (
-          <Pressable style={styles.reportBtn} onPress={openReportActions}>
-            <Text style={styles.reportBtnText}>⚑ Санал/гомдол илгээх</Text>
-          </Pressable>
-        ) : null}
+          {showSellerActions ? (
+            <Pressable
+              style={[styles.actionChip, styles.actionChipChat, sellerBlocked && styles.actionChipChatDisabled]}
+              onPress={() => {
+                if (!isAuthenticated || !email) {
+                  showAlert("Нэвтрэх", "Чатлахын тулд нэвтэрнэ үү", [
+                    { text: "Цуцлах", style: "cancel" },
+                    { text: "Нэвтрэх", onPress: () => navigateToLogin(navigation) },
+                  ]);
+                  return;
+                }
+                if (sellerBlocked) {
+                  showAlert(
+                    "Чат",
+                    "Та энэ хэрэглэгчийг блоклосон. «Тайлах» товчоор блок тайлна уу."
+                  );
+                  return;
+                }
+                navigateToMessagesChat(navigation, {
+                  otherUserEmail: listing.created_by,
+                  listingId: listing.id,
+                });
+              }}
+            >
+              <Text
+                style={[styles.actionChipText, styles.actionChipTextChat, sellerBlocked && styles.actionChipTextChatDisabled]}
+                numberOfLines={2}
+              >
+                💬 Чат
+              </Text>
+            </Pressable>
+          ) : null}
 
-        {!isOwner && relatedListings.length > 0 ? (
+          {showSellerActions ? (
+            <Pressable
+              style={[styles.actionChip, styles.actionChipBlock, blockBusy && styles.actionChipDisabled]}
+              onPress={toggleBlockSeller}
+              disabled={blockBusy}
+            >
+              <Text style={[styles.actionChipText, styles.actionChipTextBlock]} numberOfLines={2}>
+                {blockBusy ? "…" : sellerBlocked ? "🔓 Тайлах" : "🚫 Блок"}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {showSellerActions ? (
+            <Pressable style={[styles.actionChip, styles.actionChipReport]} onPress={openReportActions}>
+              <Text style={[styles.actionChipText, styles.actionChipTextReport]} numberOfLines={2}>
+                ⚑ Гомдол
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {!isOwner ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ижил зарууд</Text>
+            {relatedListings.length === 0 ? (
+              <Text style={styles.muted}>Одоогоор энэ ангилалд өөр зар алга.</Text>
+            ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -382,6 +490,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                 );
               })}
             </ScrollView>
+            )}
           </View>
         ) : null}
       </View>
@@ -503,39 +612,59 @@ const styles = StyleSheet.create({
   link: { fontSize: 16, color: "#2563eb", marginBottom: 6 },
   contactLine: { fontSize: 15, color: "#374151", marginBottom: 4 },
   muted: { color: "#9ca3af" },
-  saveBtn: {
+  actionRow: {
     marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#fecaca",
-    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "stretch",
   },
-  saveBtnActive: {
+  actionChip: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionChipGrow: { flexGrow: 1 },
+  actionChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 14,
+  },
+  actionChipSave: {
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#fecaca",
+  },
+  actionChipSaveActive: {
     borderColor: "#ea580c",
     backgroundColor: "#fff7ed",
   },
-  saveBtnText: { color: "#dc2626", fontWeight: "700", fontSize: 16 },
-  saveBtnTextActive: { color: "#c2410c" },
-  chatBtn: {
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 12,
+  actionChipTextSave: { color: "#dc2626" },
+  actionChipTextSaveActive: { color: "#c2410c" },
+  actionChipChat: {
     backgroundColor: "#2563eb",
-    alignItems: "center",
   },
-  chatBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  reportBtn: {
-    marginTop: 10,
-    paddingVertical: 12,
-    borderRadius: 12,
+  actionChipTextChat: { color: "#fff" },
+  actionChipChatDisabled: { backgroundColor: "#94a3b8" },
+  actionChipTextChatDisabled: { color: "#f1f5f9" },
+  actionChipBlock: {
     backgroundColor: "#fff",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+  },
+  actionChipTextBlock: { color: "#334155" },
+  actionChipReport: {
+    backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#fca5a5",
   },
-  reportBtnText: { color: "#b91c1c", fontWeight: "700", fontSize: 15 },
+  actionChipTextReport: { color: "#b91c1c" },
+  actionChipDisabled: { opacity: 0.6 },
   relatedRow: { gap: 10, paddingRight: 4 },
   relatedCard: {
     width: 180,

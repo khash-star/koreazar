@@ -3,12 +3,13 @@ import * as ExpoLinking from "expo-linking";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { AppState } from "react-native";
+import { AppState, Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getPendingListingsCount } from "../services/listingService";
 import { getUnreadMessagesCount } from "../services/conversationService";
+import { subscribeUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
 import LoginScreen from "../screens/LoginScreen.js";
@@ -36,6 +37,49 @@ const MessagesStack = createNativeStackNavigator();
 const CreateStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const AdminStack = createNativeStackNavigator();
+
+/** RN Web дээр tabBarBadge ихэвчлэн харагдахгүй — икон дээр өөрөө зурна */
+function MessagesTabIconWithBadge({ color, size, focused, unreadCount }) {
+  const n = Number(unreadCount) || 0;
+  const label = n > 99 ? "99+" : n > 9 ? "9+" : n > 0 ? String(n) : null;
+  return (
+    <View
+      style={{
+        width: 32,
+        height: 28,
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "visible",
+        zIndex: 1,
+      }}
+    >
+      <Ionicons
+        name={focused ? "chatbubbles" : "chatbubbles-outline"}
+        size={size}
+        color={color}
+      />
+      {label ? (
+        <View
+          style={{
+            position: "absolute",
+            right: -2,
+            top: -2,
+            minWidth: 18,
+            height: 18,
+            paddingHorizontal: label.length > 1 ? 3 : 0,
+            borderRadius: 9,
+            backgroundColor: "#ef4444",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2,
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 10, fontWeight: "800", lineHeight: 12 }}>{label}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 const linking = {
   prefixes: [ExpoLinking.createURL("/"), "zarkorea://"],
@@ -275,6 +319,7 @@ function MainTabs() {
     }
     const refresh = () => getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
     refresh();
+    const unsubBadge = subscribeUnreadTabBadge(refresh);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") refresh();
     });
@@ -283,9 +328,10 @@ function MainTabs() {
         if (AppState.currentState !== "active") return;
         refresh();
       },
-      12000
+      8000
     );
     return () => {
+      unsubBadge();
       clearInterval(interval);
       sub.remove();
     };
@@ -293,6 +339,7 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
+      detachInactiveScreens={Platform.OS !== "web"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#ea580c",
@@ -331,15 +378,24 @@ function MainTabs() {
         component={MessagesStackNavigator}
         options={{
           title: "Мессеж",
+          tabBarItemStyle: Platform.OS === "web" ? { overflow: "visible" } : undefined,
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons
-              name={focused ? "chatbubbles" : "chatbubbles-outline"}
-              size={size}
+            <MessagesTabIconWithBadge
               color={color}
+              size={size}
+              focused={focused}
+              unreadCount={unreadCount}
             />
           ),
-          tabBarBadge: unreadCount > 0 ? (unreadCount > 9 ? "9+" : unreadCount) : undefined,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate("MessagesTab", { screen: "MsgMain", params: {} });
+            if (email) {
+              getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+            }
+          },
+        })}
       />
       <Tab.Screen
         name="CreateTab"

@@ -13,10 +13,10 @@ const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const origin = context.originModulePath?.replace(/\\/g, "/") || "";
 
+  // BottomTabView-аас бусад файлаас ч ScreenFallback ачаалагдаж болно (RN Web pointerEvents анхааруулга).
   if (
     moduleName === "./ScreenFallback.js" &&
-    origin.includes("@react-navigation/bottom-tabs") &&
-    origin.includes("BottomTabView")
+    origin.includes("@react-navigation/bottom-tabs")
   ) {
     return { type: "sourceFile", filePath: fallbackScreenPath };
   }

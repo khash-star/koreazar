@@ -3,6 +3,14 @@ import { toDate } from "../utils/firestoreDates";
 import { buildApiUrl, requestJson } from "./apiClient";
 
 const TYPE_ORDER = { vip: 0, featured: 1, regular: 2 };
+
+/** MySQL зарын primary key — буруу/хоосон id-ээр ?action=listing дуудахад API 400 өгнө */
+export function parseMysqlListingId(raw) {
+  if (raw == null || raw === "") return null;
+  const n = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return String(n);
+}
 const LATEST_CACHE_TTL_MS = 15000;
 let latestListingsCache = { at: 0, key: "", data: null, pending: null };
 
@@ -115,14 +123,24 @@ export async function getListingsByCustomerId(customerId, limitCount = 50) {
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
 
-export async function getListingById(id) {
-  if (!id) return null;
+/**
+ * @returns {{ listing: object|null, httpStatus?: number }} — 404-ийг saved_listings цэвэрлэхэд ашиглана
+ */
+export async function fetchListingByIdResult(id) {
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) return { listing: null };
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id }), { retries: 1 });
-    return normalizeListing(payload?.data);
-  } catch {
-    return null;
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    return { listing: normalizeListing(payload?.data) };
+  } catch (e) {
+    const st = typeof e?.status === "number" ? e.status : undefined;
+    return { listing: null, httpStatus: st };
   }
+}
+
+export async function getListingById(id) {
+  const { listing } = await fetchListingByIdResult(id);
+  return listing;
 }
 
 export async function createListing(data) {
@@ -136,7 +154,15 @@ export async function createListing(data) {
       listing_type: data.listing_type || "regular",
     }),
   });
-  return normalizeListing(payload?.data || {});
+  const row = normalizeListing(payload?.data || {});
+  if (!row?.id) {
+    throw new Error(
+      typeof payload?.message === "string" && payload.message.trim()
+        ? payload.message
+        : "Зар үүсгэгдсэнгүй. Дахин оролдоно уу."
+    );
+  }
+  return row;
 }
 
 export async function updateListing(id, data) {
@@ -150,9 +176,10 @@ export async function updateListing(id, data) {
 }
 
 export async function deleteListing(id) {
-  if (!id) throw new Error("ID шаардлагатай.");
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) throw new Error("Зарын ID буруу байна.");
   const headers = await getAuthHeaders();
-  await requestJson(buildApiUrl("listing", { id }), {
+  await requestJson(buildApiUrl("listing", { id: mysqlId }), {
     method: "DELETE",
     headers,
   });

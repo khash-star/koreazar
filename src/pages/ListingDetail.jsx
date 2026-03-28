@@ -8,7 +8,12 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin } from '@/services/authService';
+import {
+  redirectToLogin,
+  isSellerBlockedByViewer,
+  setSellerBlockedByEmail,
+} from '@/services/authService';
+import { normalizeEmail } from '@/utils/emailNormalize';
 import {
   ArrowLeft,
   Phone,
@@ -66,7 +71,12 @@ export default function ListingDetail() {
   const [reportReason, setReportReason] = useState('Буруу үнэ');
   const [reportDetails, setReportDetails] = useState('');
   const [deleteId, setDeleteId] = useState(null);
+  const [sellerBlockLocal, setSellerBlockLocal] = useState(null);
   const { user, userData, isAuthenticated, loading } = useAuth();
+
+  useEffect(() => {
+    setSellerBlockLocal(null);
+  }, [listingId]);
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ['listing', listingId],
@@ -305,7 +315,42 @@ export default function ListingDetail() {
   };
 
   const userEmail = userData?.email || user?.email;
-  const isOwner = listing && listing.created_by === userEmail;
+  const isOwner =
+    !!listing?.created_by &&
+    !!userEmail &&
+    normalizeEmail(listing.created_by) === normalizeEmail(userEmail);
+  const sellerBlockedEffective =
+    sellerBlockLocal !== null
+      ? sellerBlockLocal
+      : isSellerBlockedByViewer(userData, listing?.created_by);
+
+  const handleToggleBlockSeller = async () => {
+    if (loading) return;
+    if (!user?.uid || !listing?.created_by) return;
+    const nextBlocked = !sellerBlockedEffective;
+    if (
+      !window.confirm(
+        nextBlocked
+          ? 'Энэ зар эзнийг блоклох уу? Шинэ чат эхлүүлэх боломжгүй болно.'
+          : 'Блок тайлах уу?'
+      )
+    ) {
+      return;
+    }
+    try {
+      await setSellerBlockedByEmail(user.uid, listing.created_by, nextBlocked);
+      setSellerBlockLocal(nextBlocked);
+      toast({
+        title: nextBlocked ? 'Блоклолоо' : 'Блок тайллаа',
+      });
+    } catch (e) {
+      toast({
+        title: 'Алдаа',
+        description: e?.message || 'Амжилтгүй',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
@@ -540,12 +585,28 @@ export default function ListingDetail() {
                         redirectToLogin(window.location.href);
                         return;
                       }
-                      window.location.href = createPageUrl(`Chat?otherUserEmail=${listing.created_by}&listingId=${listing.id}`);
+                      window.location.href = createPageUrl(`Chat?otherUserEmail=${encodeURIComponent(listing.created_by)}&listingId=${listing.id}`);
                     }}
-                    className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700"
+                    disabled={sellerBlockedEffective}
+                    title={
+                      sellerBlockedEffective
+                        ? 'Та энэ хэрэглэгчийг блоклосон. Эхлээд «Блок тайлах» дарна уу.'
+                        : undefined
+                    }
+                    className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60"
                   >
                     <Mail className="w-5 h-5 mr-2" />
                     Мессеж илгээх
+                  </Button>
+                )}
+                {!isOwner && listing.created_by && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleToggleBlockSeller}
+                    className="w-full h-12 rounded-xl border-slate-300 text-slate-800 hover:bg-slate-50"
+                  >
+                    {sellerBlockedEffective ? 'Блок тайлах' : 'Блоклох'}
                   </Button>
                 )}
                 {listing.phone && (

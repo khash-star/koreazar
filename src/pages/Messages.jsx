@@ -16,7 +16,6 @@ import {
   findConversation,
   createConversation,
   deleteConversationAndMessages,
-  isFirestorePermissionDenied,
 } from '@/services/conversationService';
 import { normalizeEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
@@ -44,7 +43,7 @@ export default function Messages() {
   }, [user, userData]);
 
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['conversations', user?.uid, adminEmail],
+    queryKey: ['conversations', userEmail, adminEmail],
     queryFn: async () => {
       if (!userEmail) return [];
 
@@ -60,7 +59,8 @@ export default function Messages() {
         ...new Set(
           allConvs.map((conv) => {
             const p1 = normalizeEmail(conv.participant_1);
-            return p1 === userEmail ? conv.participant_2 : conv.participant_1;
+            const imP1 = userEmail && p1 === userEmail;
+            return imP1 ? conv.participant_2 : conv.participant_1;
           })
         ),
       ];
@@ -81,8 +81,9 @@ export default function Messages() {
 
       return allConvs.map((conv) => {
         const p1 = normalizeEmail(conv.participant_1);
-        const otherEmail = p1 === userEmail ? conv.participant_2 : conv.participant_1;
-        const unreadCount = p1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
+        const imP1 = userEmail && p1 === userEmail;
+        const otherEmail = imP1 ? conv.participant_2 : conv.participant_1;
+        const unreadCount = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
         const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
 
         return {
@@ -96,7 +97,7 @@ export default function Messages() {
         };
       });
     },
-    enabled: !authLoading && !!user?.uid && !!userEmail,
+    enabled: !authLoading && !!userEmail,
     refetchInterval: 30_000,
     retry: false,
   });

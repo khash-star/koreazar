@@ -1,3 +1,6 @@
+import { Platform } from "react-native";
+import { blurActiveElementWeb } from "./blurActiveElementWeb.js";
+
 /**
  * Nested navigator-оос Root stack дээрх дэлгэц рүү шилжих (жишээ нь Login).
  */
@@ -36,6 +39,7 @@ export function getBottomTabNavigator(navigation) {
 
 /** Мессеж таб → Чат дэлгэц (вэбийн Chat?otherUserEmail=…-тай ижил Firestore) */
 export function navigateToMessagesChat(navigation, params) {
+  if (Platform.OS === "web") blurActiveElementWeb();
   const tab = getBottomTabNavigator(navigation);
   if (tab?.navigate) {
     tab.navigate("MessagesTab", { screen: "Chat", params });

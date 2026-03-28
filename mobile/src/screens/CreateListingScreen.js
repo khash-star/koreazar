@@ -27,11 +27,7 @@ const conditionOptions = _conditionOptions ?? [
   { value: "used", label: "Хэрэглэсэн" },
   { value: "for_parts", label: "Сэлбэгт" },
 ];
-import {
-  navigateToLogin,
-  navigateToListingDetail,
-  navigateToHomeMain,
-} from "../utils/navigationHelpers.js";
+import { navigateToLogin, navigateToHomeMain } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
 import { checkBannedListingFields } from "../utils/bannedContent";
 
@@ -168,7 +164,7 @@ export default function CreateListingScreen({ navigation }) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: true,
       quality: 0.85,
     });
@@ -294,7 +290,7 @@ export default function CreateListingScreen({ navigation }) {
         images,
         status: autoApprove ? "active" : "pending",
       };
-      const created = await createListing(submitData);
+      await createListing(submitData);
       // Keep Create tab clean after successful submit.
       setImages([]);
       setForm(createInitialForm());
@@ -303,7 +299,7 @@ export default function CreateListingScreen({ navigation }) {
         autoApprove
           ? "Зар илгээгдлээ. Нүүр хуудсан дээр харагдана."
           : "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
-        [{ text: "OK", onPress: () => navigateToListingDetail(navigation, created.id) }]
+        [{ text: "OK", onPress: () => navigateToHomeMain(navigation) }]
       );
     } catch (e) {
       showAlert("Алдаа", e?.message || "Илгээж чадсангүй");

@@ -90,7 +90,7 @@ export default function AdminBannersScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       quality: 0.8,
       allowsEditing: true,
       aspect: [2, 1],

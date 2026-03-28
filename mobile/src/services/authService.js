@@ -13,6 +13,7 @@ import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } 
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
+import { normalizeEmail } from "../utils/emailNormalize.js";
 
 /** Вэбийн authService.TERMS_POLICY_VERSION-тай ижил байлгана уу */
 const TERMS_POLICY_VERSION = "2025-03-28";
@@ -34,6 +35,32 @@ async function ensureTermsAcceptanceIfMissing(user) {
     );
   } catch (e) {
     console.warn("ensureTermsAcceptanceIfMissing:", e?.message || e);
+  }
+}
+
+/** Firestore conversations дүрэм authEmailLower() — token.email хоосон үед users/{uid}.email ашиглана */
+export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = null) {
+  if (!user?.uid) return;
+  const pick = (raw) => {
+    if (raw == null || raw === "") return "";
+    const s = typeof raw === "string" ? raw.trim() : String(raw).trim();
+    if (!s) return "";
+    return normalizeEmail(s) || "";
+  };
+  let em = pick(user.email) || pick(profileEmail);
+  if (!em) {
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      em = pick(snap.data()?.email);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!em) return;
+  try {
+    await setDoc(doc(db, "users", user.uid), { email: em }, { merge: true });
+  } catch (e) {
+    console.warn("ensureUserDocEmailForFirestoreRules:", e?.message || e);
   }
 }
 
@@ -76,7 +103,13 @@ async function syncUserToMySql(user, profile = {}) {
 }
 
 export function subscribeAuth(callback) {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      callback(null);
+      return;
+    }
+    ensureUserDocEmailForFirestoreRules(user).finally(() => callback(user));
+  });
 }
 
 export async function loginWithEmail(email, password) {
@@ -134,6 +167,52 @@ export async function registerWithEmail(
 
 export async function logout() {
   await signOut(auth);
+}
+
+function trimStr(v) {
+  if (v == null) return "";
+  return String(v).trim();
+}
+
+/** Firestore users/{uid} + Auth displayName + MySQL sync (вэбийн updateUserData-тай ижил түлхүүрүүд). */
+export async function updateUserData(uid, data) {
+  const user = auth.currentUser;
+  if (!user || user.uid !== uid) {
+    throw new Error("Зөвхөн өөрийн мэдээллийг засах боломжтой");
+  }
+  const patch = {
+    displayName: trimStr(data?.displayName),
+    phone: trimStr(data?.phone),
+    city: trimStr(data?.city),
+    district: trimStr(data?.district),
+    kakao_id: trimStr(data?.kakao_id),
+    wechat_id: trimStr(data?.wechat_id),
+    whatsapp: trimStr(data?.whatsapp),
+    facebook: trimStr(data?.facebook),
+    updatedAt: new Date(),
+  };
+  const userRef = doc(db, "users", uid);
+  await setDoc(
+    userRef,
+    {
+      email: user.email || "",
+      ...patch,
+    },
+    { merge: true }
+  );
+  if (patch.displayName) {
+    try {
+      await updateProfile(user, { displayName: patch.displayName });
+    } catch {
+      /* ignore */
+    }
+  }
+  await syncUserToMySql(user, {
+    displayName: patch.displayName || user.displayName || user.email?.split("@")[0] || "",
+    phone: patch.phone,
+    city: patch.city,
+    district: patch.district,
+  });
 }
 
 /** Apple 5.1.1(v) — бүртгэл бүрэн устгах */

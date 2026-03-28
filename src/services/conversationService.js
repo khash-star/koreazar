@@ -20,16 +20,41 @@ import { checkBannedContent } from '@/utils/bannedContent';
 import { normalizeEmail } from '@/utils/emailNormalize';
 
 export function isFirestorePermissionDenied(err) {
-  return err?.code === 'permission-denied' || err?.code === 'firestore/permission-denied';
+  if (err == null) return false;
+  const code = err.code;
+  if (code === 'permission-denied' || code === 'firestore/permission-denied') return true;
+  const msg = String(err.message ?? (typeof err.toString === 'function' ? err.toString() : '') ?? '')
+    .toLowerCase();
+  return msg.includes('missing or insufficient permissions') || msg.includes('permission-denied');
+}
+
+/**
+ * Чатын participant query-д ашиглах имэйл: Auth token-д байхгүй тохиолдолд users/{uid}.email (Firestore дүрэмтэй ижил).
+ */
+export async function resolveChatParticipantEmail() {
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady();
+  }
+  const u = auth.currentUser;
+  if (!u) return '';
+  const fromAuth = normalizeEmail(u.email);
+  if (fromAuth) return fromAuth;
+  try {
+    const snap = await getDoc(doc(db, 'users', u.uid));
+    if (snap.exists()) {
+      const em = normalizeEmail(snap.data()?.email);
+      if (em) return em;
+    }
+  } catch (e) {
+    console.warn('resolveChatParticipantEmail:', e?.message);
+  }
+  return '';
 }
 
 // Conversations
 export const listConversations = async () => {
   try {
-    if (typeof auth.authStateReady === 'function') {
-      await auth.authStateReady();
-    }
-    const email = normalizeEmail(auth.currentUser?.email);
+    const email = await resolveChatParticipantEmail();
     if (!email) return [];
     const convsRef = collection(db, 'conversations');
     const q1 = query(
@@ -65,29 +90,25 @@ export const listConversations = async () => {
     });
     return rows;
   } catch (error) {
-    if (!isFirestorePermissionDenied(error)) {
-      console.error('Error listing conversations:', error);
+    if (isFirestorePermissionDenied(error)) {
+      return [];
     }
+    console.error('Error listing conversations:', error);
     throw error;
   }
 };
 
-/** Нэвтэрсэн хэрэглэгчийн нийт unread — auth.currentUser имэйлтэй тааруулна (Firestore дүрэмтэй нийцнэ). */
+/** Нэвтэрсэн хэрэглэгчийн нийт unread */
 export async function getUnreadMessagesCount() {
-  try {
-    const me = normalizeEmail(auth.currentUser?.email);
-    if (!me) return 0;
-    const rows = await listConversations();
-    let total = 0;
-    for (const c of rows) {
-      const p1 = normalizeEmail(c.participant_1);
-      total += p1 === me ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
-    }
-    return total;
-  } catch (e) {
-    if (isFirestorePermissionDenied(e)) return 0;
-    throw e;
+  const me = await resolveChatParticipantEmail();
+  if (!me) return 0;
+  const rows = await listConversations();
+  let total = 0;
+  for (const c of rows) {
+    const p1 = normalizeEmail(c.participant_1);
+    total += p1 === me ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
   }
+  return total;
 }
 
 export const filterConversations = async (filters = {}) => {
@@ -255,6 +276,8 @@ export const createMessage = async (data, options = {}) => {
     const messagesRef = collection(db, 'messages');
     const messageData = {
       ...data,
+      sender_email: normalizeEmail(data.sender_email),
+      receiver_email: normalizeEmail(data.receiver_email),
       created_date: Timestamp.now(),
       is_read: data.is_read !== undefined ? data.is_read : false
     };

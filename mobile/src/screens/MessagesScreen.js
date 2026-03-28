@@ -14,18 +14,22 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { getApp } from "firebase/app";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
-import { auth } from "../config/firebase";
 import {
   deleteConversationAndMessages,
   emailQueryVariants,
   filterConversations,
 } from "../services/conversationService.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
 import { showAlert } from "../utils/showAlert";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
+import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
+import { auth } from "../config/firebase";
+import { ensureUserDocEmailForFirestoreRules } from "../services/authService.js";
 
 /** Вэбийн formatDistanceToNow-тай адил (өдөр, цаг, минут) */
 function formatTimeAgo(d) {
@@ -49,7 +53,7 @@ function formatTimeAgo(d) {
 }
 
 export default function MessagesScreen({ navigation }) {
-  const { email, isAuthenticated } = useAuth();
+  const { email, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -66,92 +70,126 @@ export default function MessagesScreen({ navigation }) {
       setLoading(false);
       return;
     }
+    if (!auth.currentUser) {
+      setRows([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
-      if (typeof auth.authStateReady === "function") {
-        await auth.authStateReady();
-      }
-      if (!auth.currentUser) {
-        if (seq === loadSeqRef.current) {
-          setRows([]);
-          setAdminEmail(null);
-        }
-        return;
-      }
+      await auth.currentUser.getIdToken(true);
+    } catch {
+      /* ignore */
+    }
+    await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+    let retriedAfterPermission = false;
+    try {
+      while (true) {
+        try {
+          const admin = await getAdminEmail();
+          setAdminEmail(admin);
 
-      const admin = await getAdminEmail();
-      setAdminEmail(admin);
+          const me = normalizeEmail(email);
+          const convLists = await Promise.all(
+            emailQueryVariants(email).map(async (em) => {
+              const [asP1, asP2] = await Promise.all([
+                filterConversations({ participant_1: em }),
+                filterConversations({ participant_2: em }),
+              ]);
+              return [...asP1, ...asP2];
+            })
+          );
+          const all = convLists.flat();
+          const otherEmails = [
+            ...new Set(
+              all.map((c) => {
+                const p1 = normalizeEmail(c.participant_1);
+                const imP1 = me && p1 === me;
+                return imP1 ? c.participant_2 : c.participant_1;
+              })
+            ),
+          ];
 
-      const variants = emailQueryVariants(email);
-      const me = normalizeEmail(email);
-      const convLists = await Promise.all(
-        variants.map(async (em) => {
-          const [asP1, asP2] = await Promise.all([
-            filterConversations({ participant_1: em }),
-            filterConversations({ participant_2: em }),
-          ]);
-          return [...asP1, ...asP2];
-        })
-      );
-      const all = convLists.flat();
-      const otherEmails = [
-        ...new Set(
-          all.map((c) => {
-            const p1 = normalizeEmail(c.participant_1);
-            return p1 === me ? c.participant_2 : c.participant_1;
-          })
-        ),
-      ];
+          const nameMap = new Map();
+          await Promise.all(
+            otherEmails.map(async (em) => {
+              if (admin && normalizeEmail(em) === normalizeEmail(admin)) {
+                nameMap.set(em, "АДМИН");
+                return;
+              }
+              const u = await getUserByEmail(em);
+              nameMap.set(em, u?.displayName || em.split("@")[0]);
+            })
+          );
 
-      const nameMap = new Map();
-      await Promise.all(
-        otherEmails.map(async (em) => {
-          if (admin && normalizeEmail(em) === normalizeEmail(admin)) {
-            nameMap.set(em, "АДМИН");
-            return;
+          const enriched = all.map((conv) => {
+            const p1 = normalizeEmail(conv.participant_1);
+            const imP1 = me && p1 === me;
+            const other = imP1 ? conv.participant_2 : conv.participant_1;
+            const unread = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
+            return {
+              ...conv,
+              otherEmail: other,
+              otherName: nameMap.get(other) || other.split("@")[0],
+              unreadCount: unread || 0,
+            };
+          });
+
+          const seen = new Set();
+          const deduped = enriched
+            .filter((c) => {
+              const k = c.id;
+              if (!k || seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            })
+            .sort((a, b) => {
+              const adminN = admin ? normalizeEmail(admin) : "";
+              const aAdmin = adminN && normalizeEmail(a.otherEmail) === adminN;
+              const bAdmin = adminN && normalizeEmail(b.otherEmail) === adminN;
+              if (aAdmin && !bAdmin) return -1;
+              if (!aAdmin && bAdmin) return 1;
+              if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
+              const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
+              const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
+              return tb - ta;
+            });
+          if (seq === loadSeqRef.current) {
+            setRows(deduped);
+            notifyUnreadTabBadge();
           }
-          const u = await getUserByEmail(em);
-          nameMap.set(em, u?.displayName || em.split("@")[0]);
-        })
-      );
-
-      const enriched = all.map((conv) => {
-        const p1 = normalizeEmail(conv.participant_1);
-        const other = p1 === me ? conv.participant_2 : conv.participant_1;
-        const unread = p1 === me ? conv.unread_count_p1 : conv.unread_count_p2;
-        return {
-          ...conv,
-          otherEmail: other,
-          otherName: nameMap.get(other) || other.split("@")[0],
-          unreadCount: unread || 0,
-        };
-      });
-
-      const seen = new Set();
-      const deduped = enriched
-        .filter((c) => {
-          const k = c.id;
-          if (!k || seen.has(k)) return false;
-          seen.add(k);
-          return true;
-        })
-        .sort((a, b) => {
-          const adminN = admin ? normalizeEmail(admin) : "";
-          const aAdmin = adminN && normalizeEmail(a.otherEmail) === adminN;
-          const bAdmin = adminN && normalizeEmail(b.otherEmail) === adminN;
-          if (aAdmin && !bAdmin) return -1;
-          if (!aAdmin && bAdmin) return 1;
-          if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
-          const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
-          const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
-          return tb - ta;
-        });
-      if (seq === loadSeqRef.current) {
-        setRows(deduped);
-      }
-    } catch (e) {
-      console.warn("MessagesScreen load:", e?.message);
-      if (seq === loadSeqRef.current) {
-        setRows([]);
+          break;
+        } catch (e) {
+          const code = e?.code || "";
+          if (
+            code === "permission-denied" &&
+            auth.currentUser &&
+            email &&
+            !retriedAfterPermission
+          ) {
+            retriedAfterPermission = true;
+            await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+            if (seq !== loadSeqRef.current) return;
+            continue;
+          }
+          const pid = (() => {
+            try {
+              return getApp().options?.projectId || "";
+            } catch {
+              return "";
+            }
+          })();
+          console.warn(
+            "MessagesScreen load:",
+            e?.message,
+            e?.code ? `code=${e.code}` : "",
+            pid ? `Firestore project=${pid}` : ""
+          );
+          if (seq === loadSeqRef.current) {
+            setRows([]);
+          }
+          break;
+        }
       }
     } finally {
       if (seq === loadSeqRef.current) {
@@ -159,7 +197,7 @@ export default function MessagesScreen({ navigation }) {
         setRefreshing(false);
       }
     }
-  }, [email]);
+  }, [email, user?.uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -175,6 +213,7 @@ export default function MessagesScreen({ navigation }) {
       return () => {
         clearInterval(t);
         sub.remove();
+        blurActiveElementWeb();
       };
     }, [load])
   );

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,13 +12,29 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext.js";
-import { deleteAccountWithPassword, logout } from "../services/authService";
+import { deleteAccountWithPassword, logout, updateUserData } from "../services/authService";
+import { showAlert } from "../utils/showAlert";
 import { createFeedback } from "../services/feedbackService";
 import { getBottomTabNavigator, navigateToLogin, navigateToRegister } from "../utils/navigationHelpers.js";
 import { openExternalUrlSafe } from "../utils/safeLinking";
 
+const emptyProfileForm = () => ({
+  displayName: "",
+  phone: "",
+  city: "",
+  district: "",
+  kakao_id: "",
+  wechat_id: "",
+  whatsapp: "",
+  facebook: "",
+});
+
 export default function ProfileTabScreen({ navigation }) {
-  const { user, email, isAuthenticated, loading } = useAuth();
+  const { user, userData, email, isAuthenticated, loading, refreshUserData } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState(emptyProfileForm);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editErr, setEditErr] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [delPwd, setDelPwd] = useState("");
   const [delConfirm, setDelConfirm] = useState("");
@@ -57,6 +75,37 @@ export default function ProfileTabScreen({ navigation }) {
     if (tab?.navigate) tab.navigate("MessagesTab");
   };
 
+  useEffect(() => {
+    if (!editOpen || !user) return;
+    setEditErr("");
+    setProfileForm({
+      displayName: userData?.displayName || user?.displayName || "",
+      phone: userData?.phone || "",
+      city: userData?.city || "",
+      district: userData?.district || "",
+      kakao_id: userData?.kakao_id || "",
+      wechat_id: userData?.wechat_id || "",
+      whatsapp: userData?.whatsapp || "",
+      facebook: userData?.facebook || "",
+    });
+  }, [editOpen, user, userData]);
+
+  const saveProfile = async () => {
+    if (!user?.uid) return;
+    setEditBusy(true);
+    setEditErr("");
+    try {
+      await updateUserData(user.uid, profileForm);
+      await refreshUserData();
+      setEditOpen(false);
+      showAlert("Амжилттай", "Профайлын мэдээлэл шинэчлэгдлээ.");
+    } catch (e) {
+      setEditErr(e?.message || "Хадгалахад алдаа гарлаа.");
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   const submitFeedback = async () => {
     setFeedbackBusy(true);
     setFeedbackErr("");
@@ -82,6 +131,20 @@ export default function ProfileTabScreen({ navigation }) {
           <View style={styles.card}>
             <Text style={styles.label}>Нэвтэрсэн</Text>
             <Text style={styles.email}>{email || user?.email}</Text>
+            {(userData?.displayName || user?.displayName) ? (
+              <Text style={styles.displayName}>
+                {userData?.displayName || user?.displayName}
+              </Text>
+            ) : null}
+            {userData?.phone ? (
+              <Text style={styles.phoneLine}>{userData.phone}</Text>
+            ) : null}
+            <Pressable
+              style={styles.editProfileBtn}
+              onPress={() => setEditOpen(true)}
+            >
+              <Text style={styles.editProfileBtnText}>Профайл засах</Text>
+            </Pressable>
           </View>
           <Pressable
             style={styles.linkBtn}
@@ -139,6 +202,124 @@ export default function ProfileTabScreen({ navigation }) {
           </Pressable>
         </>
       )}
+
+      <Modal
+        visible={editOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !editBusy && setEditOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => !editBusy && setEditOpen(false)}
+          >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.editScroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.modalCardWide}>
+              <Text style={styles.modalTitle}>Профайл засах</Text>
+              <Text style={styles.modalHint}>Нэр, утас зэргээ шинэчилнэ үү. Имэйлийг энд өөрчлөх боломжгүй.</Text>
+              {editErr ? <Text style={styles.modalErr}>{editErr}</Text> : null}
+              <Text style={styles.inputLabel}>Нэр (харуулах)</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.displayName}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, displayName: t }))}
+                placeholder="Таны нэр"
+                editable={!editBusy}
+              />
+              <Text style={styles.inputLabel}>Утас</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.phone}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, phone: t }))}
+                placeholder="010-0000-0000"
+                keyboardType="phone-pad"
+                editable={!editBusy}
+              />
+              <Text style={styles.inputLabel}>Хот</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.city}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, city: t }))}
+                placeholder="Жишээ: Сөүл"
+                editable={!editBusy}
+              />
+              <Text style={styles.inputLabel}>Дүүрэг / хороо</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.district}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, district: t }))}
+                placeholder="Сонголттой"
+                editable={!editBusy}
+              />
+              <Text style={styles.inputLabel}>Kakao ID</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.kakao_id}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, kakao_id: t }))}
+                placeholder="Сонголттой"
+                editable={!editBusy}
+                autoCapitalize="none"
+              />
+              <Text style={styles.inputLabel}>WeChat ID</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.wechat_id}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, wechat_id: t }))}
+                placeholder="Сонголттой"
+                editable={!editBusy}
+                autoCapitalize="none"
+              />
+              <Text style={styles.inputLabel}>WhatsApp</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.whatsapp}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, whatsapp: t }))}
+                placeholder="Сонголттой"
+                editable={!editBusy}
+                autoCapitalize="none"
+              />
+              <Text style={styles.inputLabel}>Facebook</Text>
+              <TextInput
+                style={styles.input}
+                value={profileForm.facebook}
+                onChangeText={(t) => setProfileForm((p) => ({ ...p, facebook: t }))}
+                placeholder="Сонголттой"
+                editable={!editBusy}
+                autoCapitalize="none"
+              />
+              <View style={styles.modalActions}>
+                <Pressable
+                  style={styles.modalCancel}
+                  onPress={() => !editBusy && setEditOpen(false)}
+                  disabled={editBusy}
+                >
+                  <Text style={styles.modalCancelText}>Цуцлах</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.saveProfileBtn, editBusy && styles.modalDeleteDisabled]}
+                  onPress={saveProfile}
+                  disabled={editBusy}
+                >
+                  {editBusy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.saveProfileBtnText}>Хадгалах</Text>
+                  )}
+                </Pressable>
+              </View>
+              </View>
+            </ScrollView>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={closeDeleteModal}>
         <Pressable style={styles.modalBackdrop} onPress={closeDeleteModal}>
@@ -251,6 +432,33 @@ const styles = StyleSheet.create({
   },
   label: { fontSize: 13, color: "#6b7280", marginBottom: 4 },
   email: { fontSize: 16, fontWeight: "600", color: "#111827" },
+  displayName: { fontSize: 15, color: "#374151", marginTop: 8, fontWeight: "500" },
+  phoneLine: { fontSize: 14, color: "#6b7280", marginTop: 4 },
+  editProfileBtn: {
+    marginTop: 14,
+    backgroundColor: "#ea580c",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  editProfileBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  editScroll: { flexGrow: 1, justifyContent: "center", padding: 20, paddingBottom: 36 },
+  modalCardWide: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    maxWidth: 420,
+    width: "100%",
+    alignSelf: "center",
+  },
+  saveProfileBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    backgroundColor: "#ea580c",
+  },
+  saveProfileBtnText: { fontWeight: "700", color: "#fff" },
   btn: {
     backgroundColor: "#ea580c",
     paddingVertical: 14,

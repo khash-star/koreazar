@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+/** PHP 7.x (str_contains нь PHP 8.0+) */
+if (!function_exists('str_contains')) {
+    function str_contains(string $haystack, string $needle): bool
+    {
+        return $needle === '' || strpos($haystack, $needle) !== false;
+    }
+}
+
 /**
  * Контент модераци — үг/хэллэг нь JS-тай ижил (src + mobile/utils/bannedContent.js).
  *

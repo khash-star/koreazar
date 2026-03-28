@@ -3,6 +3,14 @@ import { auth } from '@/firebase/config';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
+/** MySQL зарын ID — буруу id ?action=listing дуудахад API 400 */
+export function parseMysqlListingId(raw) {
+  if (raw == null || raw === '') return null;
+  const n = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return String(n);
+}
+
 const buildApiUrl = (action, params = {}) => {
   const url = new URL(API_BASE_URL);
   url.searchParams.set('action', action);
@@ -151,8 +159,10 @@ export const createListing = async (data) => {
  */
 export const updateListing = async (id, data) => {
   try {
+    const mysqlId = parseMysqlListingId(id);
+    if (!mysqlId) throw new Error('Зарын ID буруу байна.');
     const headers = await getAuthHeaders();
-    await requestJson(buildApiUrl('listing', { id }), {
+    await requestJson(buildApiUrl('listing', { id: mysqlId }), {
       method: 'PATCH',
       headers,
       body: JSON.stringify(data),
@@ -170,8 +180,10 @@ export const updateListing = async (id, data) => {
  */
 export const deleteListing = async (id) => {
   try {
+    const mysqlId = parseMysqlListingId(id);
+    if (!mysqlId) throw new Error('Зарын ID буруу байна.');
     const headers = await getAuthHeaders();
-    await requestJson(buildApiUrl('listing', { id }), {
+    await requestJson(buildApiUrl('listing', { id: mysqlId }), {
       method: 'DELETE',
       headers,
     });
@@ -188,9 +200,10 @@ export const deleteListing = async (id) => {
  */
 export const getListing = async (id) => {
   try {
-    if (!id) return null;
+    const mysqlId = parseMysqlListingId(id);
+    if (!mysqlId) return null;
 
-    const payload = await requestJson(buildApiUrl('listing', { id }));
+    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
     return normalizeListing(payload?.data);
   } catch (error) {
     console.error('Error getting listing:', error);
