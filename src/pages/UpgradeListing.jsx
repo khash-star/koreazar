@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as entities from '@/api/entities';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -48,6 +48,7 @@ const LISTING_TYPES = {
 
 export default function UpgradeListing() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   const [listingId, setListingId] = useState(null);
@@ -79,6 +80,11 @@ export default function UpgradeListing() {
       });
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing', listingId] });
+      queryClient.invalidateQueries({ queryKey: ['similarListings'] });
+      queryClient.invalidateQueries({ queryKey: ['myListings'] });
       navigate(createPageUrl(`ListingDetail?id=${listingId}`));
     }
   });

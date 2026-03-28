@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -30,6 +30,7 @@ import { locations, conditionOptions } from '@/constants/listings';
 
 export default function EditListing() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -121,6 +122,11 @@ export default function EditListing() {
       return entities.Listing.update(listingId, data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing', listingId] });
+      queryClient.invalidateQueries({ queryKey: ['similarListings'] });
+      queryClient.invalidateQueries({ queryKey: ['myListings'] });
       navigate(createPageUrl(`ListingDetail?id=${listingId}`));
     }
   });

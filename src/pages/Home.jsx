@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +18,7 @@ import WelcomeModal from '@/components/WelcomeModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 
 export default function Home() {
   const listingsRef = useRef(null);
@@ -247,29 +248,20 @@ export default function Home() {
     queryFn: () => entities.Listing.filter({ status: 'active' }),
   });
 
-  // Get saved listings for current user
-  const { data: savedListings = [], isLoading: savedLoading } = useQuery({
-    queryKey: ['savedListings', userData?.email || user?.email],
-    queryFn: async () => {
-      const email = userData?.email || user?.email;
-      if (!email) return [];
-      const saved = await entities.SavedListing.filter({ created_by: email }, '-created_date');
-      return saved;
-    },
-    enabled: !!(userData?.email || user?.email)
+  const savedEmail = userData?.email || user?.email;
+  const { data: savedListingsResolved = [], isLoading: savedLoading } = useQuery({
+    queryKey: ['savedListings', savedEmail],
+    queryFn: () => fetchSavedListingsResolved(savedEmail),
+    enabled: !!savedEmail,
   });
 
-  // Get full listing data for saved listings
-  const { data: savedListingsFull = [] } = useQuery({
-    queryKey: ['savedListingsFull', savedListings.map(s => s.listing_id).join(',')],
-    queryFn: async () => {
-      if (savedListings.length === 0) return [];
-      const listingIds = savedListings.map(s => s.listing_id);
-      const allListingsData = await entities.Listing.filter({ status: 'active' });
-      return allListingsData.filter(l => listingIds.includes(l.id));
-    },
-    enabled: savedListings.length > 0
-  });
+  const savedListingsFull = useMemo(
+    () =>
+      savedListingsResolved
+        .map((s) => s.listing)
+        .filter((l) => l && l.status === 'active'),
+    [savedListingsResolved]
+  );
 
   const categoryCounts = allListings.reduce((acc, listing) => {
     acc[listing.category] = (acc[listing.category] || 0) + 1;

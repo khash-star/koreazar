@@ -57,6 +57,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/components/ui/use-toast';
+import { fetchSavedListingsResolved, sameListingSaveId } from '@/services/savedListingsResolve';
 
 export default function ListingDetail() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -107,18 +108,19 @@ export default function ListingDetail() {
     enabled: !!listingId && !!listing?.category,
   });
 
+  const savedEmail = userData?.email || user?.email;
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', user?.email],
-    queryFn: () => entities.SavedListing.filter({ created_by: userData?.email || user?.email }),
-    enabled: !!(userData?.email || user?.email)
+    queryKey: ['savedListings', savedEmail],
+    queryFn: () => fetchSavedListingsResolved(savedEmail),
+    enabled: !!savedEmail,
   });
 
-  const isSaved = savedListings.some(s => s.listing_id === listingId);
+  const isSaved = savedListings.some((s) => sameListingSaveId(s.listing_id, listingId));
 
   const saveMutation = useMutation({
     mutationFn: async (action) => {
       if (action === 'unsave') {
-        const saved = savedListings.find(s => s.listing_id === listingId);
+        const saved = savedListings.find((s) => sameListingSaveId(s.listing_id, listingId));
         await entities.SavedListing.delete(saved.id);
       } else {
         await entities.SavedListing.create({ listing_id: listingId });
@@ -306,6 +308,12 @@ export default function ListingDetail() {
 
   const info = categoryInfo[listing.category] || categoryInfo.other;
   const hasImages = listing.images && listing.images.length > 0;
+  const mysqlListingId =
+    listing?.listing_id != null && String(listing.listing_id) !== ''
+      ? String(listing.listing_id)
+      : listing?.id != null && String(listing.id) !== ''
+        ? String(listing.id)
+        : null;
   
   const getSubcategoryLabel = () => {
     if (!listing.subcategory || !listing.category) return null;
@@ -400,6 +408,14 @@ export default function ListingDetail() {
       <div className="max-w-4xl mx-auto">
         {/* Image Gallery */}
         <div className="relative bg-black">
+          {mysqlListingId && (
+            <div
+              className="absolute top-3 right-3 z-30 rounded-md bg-black/60 px-2.5 py-1 text-xs font-medium text-white tabular-nums pointer-events-none"
+              aria-label={`Зарын дугаар ${mysqlListingId}`}
+            >
+              Зар № {mysqlListingId}
+            </div>
+          )}
           {hasImages ? (
             <div className="relative aspect-[3/2]">
               <AnimatePresence mode="wait">

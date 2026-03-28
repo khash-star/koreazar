@@ -34,7 +34,9 @@ const requestJson = async (url, options = {}) => {
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message = payload?.message || payload?.error || `HTTP ${res.status}`;
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
   return payload;
 };
@@ -194,21 +196,29 @@ export const deleteListing = async (id) => {
 };
 
 /**
+ * Нэг зар — HTTP статустай (хадгалсан зарын 404 цэвэрлэхэд)
+ * @returns {{ listing: Object|null, httpStatus?: number }}
+ */
+export const fetchListingByIdResult = async (id) => {
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) return { listing: null };
+  try {
+    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
+    return { listing: normalizeListing(payload?.data) };
+  } catch (e) {
+    const st = typeof e?.status === 'number' ? e.status : undefined;
+    return { listing: null, httpStatus: st };
+  }
+};
+
+/**
  * Нэг listing-ийг авах
  * @param {string} id - Listing ID
  * @returns {Promise<Object | null>} Listing object or null
  */
 export const getListing = async (id) => {
-  try {
-    const mysqlId = parseMysqlListingId(id);
-    if (!mysqlId) return null;
-
-    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
-    return normalizeListing(payload?.data);
-  } catch (error) {
-    console.error('Error getting listing:', error);
-    // Don't throw error, return null instead to show "not found" message
-    return null;
-  }
+  const { listing } = await fetchListingByIdResult(id);
+  if (!listing) return null;
+  return listing;
 };
 

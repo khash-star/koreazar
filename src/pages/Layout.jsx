@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Home, PlusCircle, User, Shield, Heart, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUnreadMessagesCount } from '@/services/conversationService';
+import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -47,7 +48,7 @@ export default function Layout({ children, currentPageName }) {
     queryFn: () => {
       const email = userData?.email || user?.email;
       if (!email) return [];
-      return entities.SavedListing.filter({ created_by: email });
+      return fetchSavedListingsResolved(email);
     },
     enabled: !!(userData?.email || user?.email),
     retry: false

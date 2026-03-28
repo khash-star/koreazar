@@ -97,11 +97,10 @@ export default function MyListingsScreen({ navigation }) {
     [closeActions]
   );
 
-  const handleStatusToggle = useCallback(async () => {
-    if (!menuItem) return;
-    const isActive = menuItem.status === "active";
+  const handleReactivateListing = useCallback(async () => {
+    if (!menuItem || menuItem.status !== "sold") return;
     try {
-      await updateListing(menuItem.id, { status: isActive ? "sold" : "active" });
+      await updateListing(menuItem.id, { status: "active" });
       closeActions();
       load(false);
     } catch (e) {
@@ -267,11 +266,11 @@ export default function MyListingsScreen({ navigation }) {
             >
               <Text style={styles.modalItemText}>{isAdmin ? "VIP болгох" : "VIP хүсэлт"}</Text>
             </Pressable>
-            <Pressable style={styles.modalItem} onPress={handleStatusToggle}>
-              <Text style={styles.modalItemText}>
-                {menuItem?.status === "active" ? "Зарагдсан гэж тэмдэглэх" : "Идэвхжүүлэх"}
-              </Text>
-            </Pressable>
+            {menuItem?.status === "sold" ? (
+              <Pressable style={styles.modalItem} onPress={handleReactivateListing}>
+                <Text style={styles.modalItemText}>Идэвхжүүлэх</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               style={styles.modalItem}
               onPress={() => {

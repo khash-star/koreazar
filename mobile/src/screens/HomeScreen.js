@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   FlatList,
@@ -111,9 +112,22 @@ export default function HomeScreen({ navigation }) {
     }
   }, []);
 
+  const skipFocusRefetchRef = useRef(true);
+
   useEffect(() => {
     load(false);
   }, [load]);
+
+  /** Зар засах/нэмсний дараа таб руу буцахад жагсаалтыг дахин татна (анхны focus-ийг алгасна) */
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFocusRefetchRef.current) {
+        skipFocusRefetchRef.current = false;
+        return;
+      }
+      load(true);
+    }, [load])
+  );
 
   useLayoutEffect(() => {
     navigation.setOptions({

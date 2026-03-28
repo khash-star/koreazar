@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext.js";
 import { getSavedListingsWithDetails, removeSaved } from "../services/savedListingService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
+import { showAlert } from "../utils/showAlert";
 
 const IMG_H = 140;
 

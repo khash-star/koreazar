@@ -74,6 +74,9 @@ export default function Profile() {
     mutationFn: (id) => entities.Listing.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
+      queryClient.invalidateQueries({ queryKey: ['similarListings'] });
       setDeleteId(null);
     }
   });
@@ -82,6 +85,10 @@ export default function Profile() {
     mutationFn: ({ id, status }) => entities.Listing.update(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
+      queryClient.invalidateQueries({ queryKey: ['listing'] });
+      queryClient.invalidateQueries({ queryKey: ['similarListings'] });
     }
   });
 
@@ -478,14 +485,6 @@ export default function Profile() {
                                     {userData?.role === 'admin' || user?.role === 'admin' ? 'VIP болгох' : 'VIP хүсэлт'}
                                   </Link>
                                 </DropdownMenuItem>
-                                {listing.status === 'active' && (
-                                  <DropdownMenuItem
-                                    onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'sold' })}
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Зарагдсан гэж тэмдэглэх
-                                  </DropdownMenuItem>
-                                )}
                                 {listing.status === 'sold' && (
                                   <DropdownMenuItem
                                     onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'active' })}

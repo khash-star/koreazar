@@ -1,53 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import * as entities from '@/api/entities';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, ArrowLeft, Trash2, AlertCircle } from 'lucide-react';
+import { Heart, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import ListingCard from '@/components/listings/ListingCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
-import { toast } from '@/components/ui/use-toast';
+import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 
 export default function SavedListings() {
-  const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const [isAuthChecking, setIsAuthChecking] = useState(false);
 
+  const savedEmail = userData?.email || user?.email;
   const { data: savedListings = [], isLoading: savedLoading } = useQuery({
-    queryKey: ['savedListings', user?.email],
-    queryFn: () => entities.SavedListing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
-    enabled: !!(userData?.email || user?.email)
+    queryKey: ['savedListings', savedEmail],
+    queryFn: () => fetchSavedListingsResolved(savedEmail),
+    enabled: !!savedEmail,
   });
 
-  const { data: allListings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['listings'],
-    queryFn: () => entities.Listing.list(),
-    enabled: savedListings.length > 0
-  });
-
-  // Keep saved.id for unique React keys (same listing can appear once per save record)
-  const listingsWithKeys = savedListings
-    .map(saved => {
-      const listing = allListings.find(l => l.id === saved.listing_id);
-      return listing ? { listing, savedId: saved.id } : null;
-    })
-    .filter(Boolean);
+  const listingsWithKeys = savedListings.map((saved) => ({
+    listing: saved.listing,
+    savedId: saved.id,
+  }));
   const listings = listingsWithKeys.map(({ listing }) => listing);
-
-  const unsaveMutation = useMutation({
-    mutationFn: (listingId) => {
-      const saved = savedListings.find(s => s.listing_id === listingId);
-      return entities.SavedListing.delete(saved.id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['savedListings'] });
-      toast({ title: 'Хадгалсанаас хасагдлаа', variant: 'default' });
-    }
-  });
 
   if (isAuthChecking) {
     return (
@@ -75,7 +54,7 @@ export default function SavedListings() {
     );
   }
 
-  const isLoading = savedLoading || listingsLoading;
+  const isLoading = savedLoading;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">

@@ -14,6 +14,7 @@ import * as entities from '@/api/entities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { fetchSavedListingsResolved, sameListingSaveId } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
 
 export default function ListingCard({ listing, isAboveFold = false }) {
@@ -24,19 +25,20 @@ export default function ListingCard({ listing, isAboveFold = false }) {
 
   const { user: authUser, userData } = useAuth();
   const user = userData || authUser;
+  const savedEmail = userData?.email || authUser?.email;
 
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', user?.email],
-    queryFn: () => entities.SavedListing.filter({ created_by: user?.email || (userData?.email) }),
-    enabled: !!user?.email
+    queryKey: ['savedListings', savedEmail],
+    queryFn: () => fetchSavedListingsResolved(savedEmail),
+    enabled: !!savedEmail,
   });
 
-  const isSaved = savedListings.some(s => s.listing_id === listing.id);
+  const isSaved = savedListings.some((s) => sameListingSaveId(s.listing_id, listing.id));
 
   const saveMutation = useMutation({
     mutationFn: async (action) => {
       if (action === 'unsave') {
-        const saved = savedListings.find(s => s.listing_id === listing.id);
+        const saved = savedListings.find((s) => sameListingSaveId(s.listing_id, listing.id));
         await entities.SavedListing.delete(saved.id);
       } else {
         await entities.SavedListing.create({ listing_id: listing.id });

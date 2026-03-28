@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -32,6 +32,7 @@ import { locations, conditionOptions } from '@/constants/listings';
 
 export default function CreateListing() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -91,6 +92,10 @@ export default function CreateListing() {
       return entities.Listing.create(data);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      queryClient.invalidateQueries({ queryKey: ['allListings'] });
+      queryClient.invalidateQueries({ queryKey: ['myListings'] });
+      queryClient.invalidateQueries({ queryKey: ['similarListings'] });
       navigate(createPageUrl('Home'), { replace: true });
     },
   });

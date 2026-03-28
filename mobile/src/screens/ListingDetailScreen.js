@@ -279,46 +279,60 @@ export default function ListingDetailScreen({ route, navigation }) {
     listing.created_by &&
     (!email || normalizeEmail(email) !== normalizeEmail(listing.created_by));
 
+  const mysqlListingId =
+    listing?.listing_id != null && String(listing.listing_id) !== ""
+      ? String(listing.listing_id)
+      : listing?.id != null && String(listing.id) !== ""
+        ? String(listing.id)
+        : null;
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-      {mainUri ? (
-        <View style={styles.galleryWrap}>
-          <Image
-            source={{ uri: mainUri }}
-            style={[styles.hero, { height: GALLERY_H }]}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
-          {images.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.thumbRow}
-              contentContainerStyle={styles.thumbRowInner}
-            >
-              {images.map((img, i) => {
-                const uri = getListingImageUrl(img, "w150");
-                if (!uri) return null;
-                return (
-                  <Pressable key={i} onPress={() => setImageIndex(i)}>
-                    <Image
-                      source={{ uri }}
-                      style={[styles.thumb, i === imageIndex && styles.thumbActive]}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                    />
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
-      ) : (
-        <View style={[styles.placeholder, { height: GALLERY_H }]}>
-          <Text style={styles.placeholderText}>Зураг байхгүй</Text>
-        </View>
-      )}
+      <View style={styles.gallerySection}>
+        {mainUri ? (
+          <View style={styles.galleryWrap}>
+            <Image
+              source={{ uri: mainUri }}
+              style={[styles.hero, { height: GALLERY_H }]}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+            {images.length > 1 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.thumbRow}
+                contentContainerStyle={styles.thumbRowInner}
+              >
+                {images.map((img, i) => {
+                  const uri = getListingImageUrl(img, "w150");
+                  if (!uri) return null;
+                  return (
+                    <Pressable key={i} onPress={() => setImageIndex(i)}>
+                      <Image
+                        source={{ uri }}
+                        style={[styles.thumb, i === imageIndex && styles.thumbActive]}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          <View style={[styles.placeholder, { height: GALLERY_H }]}>
+            <Text style={styles.placeholderText}>Зураг байхгүй</Text>
+          </View>
+        )}
+        {mysqlListingId ? (
+          <View style={styles.listingIdCorner} pointerEvents="none" accessibilityLabel={`Зарын дугаар ${mysqlListingId}`}>
+            <Text style={styles.listingIdCornerText}>Зар № {mysqlListingId}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.body}>
         <View style={styles.badgeRow}>
@@ -571,6 +585,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   retryText: { color: "#fff", fontWeight: "600" },
+  gallerySection: { position: "relative", width: "100%" },
+  listingIdCorner: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 20,
+    backgroundColor: "rgba(0,0,0,0.58)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  listingIdCornerText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   galleryWrap: { backgroundColor: "#e5e7eb" },
   hero: { width: "100%", backgroundColor: "#e5e7eb" },
   thumbRow: { maxHeight: 76, marginTop: 8, marginBottom: 8 },
