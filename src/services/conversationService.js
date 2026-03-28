@@ -19,9 +19,16 @@ import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
 import { normalizeEmail } from '@/utils/emailNormalize';
 
+export function isFirestorePermissionDenied(err) {
+  return err?.code === 'permission-denied' || err?.code === 'firestore/permission-denied';
+}
+
 // Conversations
 export const listConversations = async () => {
   try {
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+    }
     const email = normalizeEmail(auth.currentUser?.email);
     if (!email) return [];
     const convsRef = collection(db, 'conversations');
@@ -58,10 +65,30 @@ export const listConversations = async () => {
     });
     return rows;
   } catch (error) {
-    console.error('Error listing conversations:', error);
+    if (!isFirestorePermissionDenied(error)) {
+      console.error('Error listing conversations:', error);
+    }
     throw error;
   }
 };
+
+/** Нэвтэрсэн хэрэглэгчийн нийт unread — auth.currentUser имэйлтэй тааруулна (Firestore дүрэмтэй нийцнэ). */
+export async function getUnreadMessagesCount() {
+  try {
+    const me = normalizeEmail(auth.currentUser?.email);
+    if (!me) return 0;
+    const rows = await listConversations();
+    let total = 0;
+    for (const c of rows) {
+      const p1 = normalizeEmail(c.participant_1);
+      total += p1 === me ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
+    }
+    return total;
+  } catch (e) {
+    if (isFirestorePermissionDenied(e)) return 0;
+    throw e;
+  }
+}
 
 export const filterConversations = async (filters = {}) => {
   try {
@@ -93,7 +120,9 @@ export const filterConversations = async (filters = {}) => {
       };
     });
   } catch (error) {
-    console.error('Error filtering conversations:', error);
+    if (!isFirestorePermissionDenied(error)) {
+      console.error('Error filtering conversations:', error);
+    }
     throw error;
   }
 };

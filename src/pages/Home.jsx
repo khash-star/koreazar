@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function Home() {
-  const queryClient = useQueryClient();
   const listingsRef = useRef(null);
   const location = useLocation();
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -57,12 +56,18 @@ export default function Home() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
+  // Идэвхтэй баннер админаар өөрчлөгдөх хүртэл хэвээр — давтаж Firestore/алдаа шалгахгүй.
   const { data: bannerAds = [] } = useQuery({
     queryKey: ['bannerAds'],
     queryFn: async () => {
       const ads = await entities.BannerAd.filter({ is_active: true }, '-order');
       return ads.length > 0 ? ads : [];
-    }
+    },
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
   });
 
   // Scroll to top when navigating to Home page
@@ -275,10 +280,7 @@ export default function Home() {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
-  const { pullDistance, isRefreshing } = usePullToRefresh(
-    () => Promise.all([refetchListings(), queryClient.invalidateQueries({ queryKey: ['bannerAds'] })]),
-    isLoading
-  );
+  const { pullDistance, isRefreshing } = usePullToRefresh(() => refetchListings(), isLoading);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">

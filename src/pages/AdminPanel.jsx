@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAllUsers } from '@/services/authService';
-import { sendMessageToAllUsers } from '@/services/conversationService';
+import { getUnreadMessagesCount, sendMessageToAllUsers } from '@/services/conversationService';
 import { db } from '@/firebase/config';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -47,31 +47,17 @@ export default function AdminPanel() {
   });
 
   const { data: unreadMessagesCount = 0 } = useQuery({
-    queryKey: ['admin-unread-messages', userData?.email || user?.email],
+    queryKey: ['admin-unread-messages', user?.uid],
     queryFn: async () => {
-      const email = userData?.email || user?.email;
-      if (!email) return 0;
-      
       try {
-        const conv1 = await entities.Conversation.filter({ participant_1: email });
-        const conv2 = await entities.Conversation.filter({ participant_2: email });
-        const allConvs = [...conv1, ...conv2];
-        
-        const totalUnread = allConvs.reduce((sum, conv) => {
-          const unread = conv.participant_1 === email 
-            ? (conv.unread_count_p1 || 0)
-            : (conv.unread_count_p2 || 0);
-          return sum + unread;
-        }, 0);
-        
-        return totalUnread;
-      } catch (error) {
-        console.error('Error fetching unread count:', error);
+        return await getUnreadMessagesCount();
+      } catch {
         return 0;
       }
     },
-    enabled: !!(userData?.email || user?.email) && isAdmin,
-    refetchInterval: 5000
+    enabled: !authLoading && !!user?.uid && !!user?.email && isAdmin,
+    refetchInterval: 30_000,
+    retry: false,
   });
 
   const { data: pendingReports = [] } = useQuery({

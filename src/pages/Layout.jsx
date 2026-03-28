@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Home, PlusCircle, User, Shield, Heart, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getUnreadMessagesCount } from '@/services/conversationService';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function Layout({ children, currentPageName }) {
-  const { user, userData } = useAuth();
+  const { user, userData, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
   const [feedbackForm, setFeedbackForm] = useState({
@@ -116,29 +117,19 @@ export default function Layout({ children, currentPageName }) {
     });
   };
 
-  // Get unread message count
+  // Unread badge: auth.currentUser имэйл + Firestore дүрэмтэй нийцүүлсэн; polling-ийг зөөлрүүлсэн (консолыг дүүргэхгүй).
   const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['unreadMessages', userData?.email || user?.email],
+    queryKey: ['unreadMessages', user?.uid],
     queryFn: async () => {
-      const email = userData?.email || user?.email;
-      if (!email) return 0;
-      
       try {
-        const conv1 = await entities.Conversation.filter({ participant_1: email });
-        const conv2 = await entities.Conversation.filter({ participant_2: email });
-        
-        const totalUnread = conv1.reduce((sum, c) => sum + (c.unread_count_p1 || 0), 0) +
-                            conv2.reduce((sum, c) => sum + (c.unread_count_p2 || 0), 0);
-        
-        return totalUnread;
-      } catch (error) {
-        console.warn('Error loading unread messages count:', error);
+        return await getUnreadMessagesCount();
+      } catch {
         return 0;
       }
     },
-    enabled: !!(userData?.email || user?.email),
-    refetchInterval: 5000,
-    retry: false
+    enabled: !authLoading && !!user?.uid && !!user?.email,
+    refetchInterval: 30_000,
+    retry: false,
   });
   
   return (

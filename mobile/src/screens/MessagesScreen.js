@@ -73,6 +73,7 @@ export default function MessagesScreen({ navigation }) {
       if (!auth.currentUser) {
         if (seq === loadSeqRef.current) {
           setRows([]);
+          setAdminEmail(null);
         }
         return;
       }

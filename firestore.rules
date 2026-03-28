@@ -15,7 +15,7 @@ service cloud.firestore {
         ? request.auth.token.email.lower()
         : request.auth != null &&
             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email != null
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email is string
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower()
         : '';
     }

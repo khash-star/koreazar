@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import * as entities from '@/api/entities';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -12,14 +11,21 @@ import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin, getAdminEmail, getUserByEmail } from '@/services/authService';
-import { findConversation, createConversation, deleteConversationAndMessages } from '@/services/conversationService';
+import {
+  listConversations,
+  findConversation,
+  createConversation,
+  deleteConversationAndMessages,
+  isFirestorePermissionDenied,
+} from '@/services/conversationService';
+import { normalizeEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
-  const { user, userData, isAuthenticated } = useAuth();
+  const { user, userData, isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
-  const userEmail = userData?.email || user?.email;
+  const userEmail = normalizeEmail(userData?.email || user?.email || '');
   const [adminEmail, setAdminEmail] = useState(null);
 
   // Get admin email
@@ -38,90 +44,86 @@ export default function Messages() {
   }, [user, userData]);
 
   const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ['conversations', userEmail, adminEmail],
+    queryKey: ['conversations', user?.uid, adminEmail],
     queryFn: async () => {
       if (!userEmail) return [];
-      
-      // Get admin email if not already set
+
       let currentAdminEmail = adminEmail;
       if (!currentAdminEmail) {
         currentAdminEmail = await getAdminEmail();
       }
-      
-      // Get user conversations (either participant_1 or participant_2)
-      const convs1 = await entities.Conversation.filter({ participant_1: userEmail });
-      const convs2 = await entities.Conversation.filter({ participant_2: userEmail });
-      // Deduplicate by id (same conv can appear in both filters in some backends)
-      const seen = new Set();
-      const allConvs = [...convs1, ...convs2].filter(c => {
-        if (seen.has(c.id)) return false;
-        seen.add(c.id);
-        return true;
-      });
-      
-      // Get user data for all other users in conversations
-      const otherEmails = [...new Set(allConvs.map(conv => 
-        conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1
-      ))];
-      
-      // Fetch user data for all other users
+      const adminNorm = currentAdminEmail ? normalizeEmail(currentAdminEmail) : '';
+
+      const allConvs = await listConversations();
+
+      const otherEmails = [
+        ...new Set(
+          allConvs.map((conv) => {
+            const p1 = normalizeEmail(conv.participant_1);
+            return p1 === userEmail ? conv.participant_2 : conv.participant_1;
+          })
+        ),
+      ];
+
       const userDataMap = new Map();
-      await Promise.all(otherEmails.map(async (email) => {
-        if (email === currentAdminEmail) {
-          userDataMap.set(email, { displayName: 'АДМИН' });
-        } else {
-          const userData = await getUserByEmail(email);
-          userDataMap.set(email, {
-            displayName: userData?.displayName || email.split('@')[0]
-          });
-        }
-      }));
-      
-      return allConvs.map(conv => {
-        const otherEmail = conv.participant_1 === userEmail ? conv.participant_2 : conv.participant_1;
-        const unreadCount = conv.participant_1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
-        
-        // Get display name from user data map
+      await Promise.all(
+        otherEmails.map(async (email) => {
+          if (adminNorm && normalizeEmail(email) === adminNorm) {
+            userDataMap.set(email, { displayName: 'АДМИН' });
+          } else {
+            const u = await getUserByEmail(email);
+            userDataMap.set(email, {
+              displayName: u?.displayName || email.split('@')[0],
+            });
+          }
+        })
+      );
+
+      return allConvs.map((conv) => {
+        const p1 = normalizeEmail(conv.participant_1);
+        const otherEmail = p1 === userEmail ? conv.participant_2 : conv.participant_1;
+        const unreadCount = p1 === userEmail ? conv.unread_count_p1 : conv.unread_count_p2;
         const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
-        
+
         return {
           ...conv,
-          otherUser: { 
-            email: otherEmail, 
+          otherUser: {
+            email: otherEmail,
             displayName: userInfo.displayName,
-            full_name: userInfo.displayName
+            full_name: userInfo.displayName,
           },
-          unreadCount
+          unreadCount,
         };
       });
     },
-    enabled: !!userEmail,
-    refetchInterval: 5000 // Refresh every 5 seconds
+    enabled: !authLoading && !!user?.uid && !!userEmail,
+    refetchInterval: 30_000,
+    retry: false,
   });
 
-  // Sort conversations: admin first, then by unread count, then by last message time
-  const sortedConversations = [...conversations].sort((a, b) => {
-    // Admin conversations first
-    const aIsAdmin = a.otherUser.email === adminEmail;
-    const bIsAdmin = b.otherUser.email === adminEmail;
-    if (aIsAdmin && !bIsAdmin) return -1;
-    if (!aIsAdmin && bIsAdmin) return 1;
-    
-    // Then by unread count (higher first)
-    if (a.unreadCount !== b.unreadCount) {
-      return (b.unreadCount || 0) - (a.unreadCount || 0);
-    }
-    
-    // Then by last message time (newer first)
-    const aTime = a.last_message_time || a.last_message_date || 0;
-    const bTime = b.last_message_time || b.last_message_date || 0;
-    if (aTime && bTime) {
-      return new Date(bTime) - new Date(aTime);
-    }
-    if (aTime) return -1;
-    if (bTime) return 1;
-    return 0;
-  });
+  const adminNorm = adminEmail ? normalizeEmail(adminEmail) : '';
+
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const aIsAdmin = adminNorm && normalizeEmail(a.otherUser.email) === adminNorm;
+      const bIsAdmin = adminNorm && normalizeEmail(b.otherUser.email) === adminNorm;
+      if (aIsAdmin && !bIsAdmin) return -1;
+      if (!aIsAdmin && bIsAdmin) return 1;
+
+      if (a.unreadCount !== b.unreadCount) {
+        return (b.unreadCount || 0) - (a.unreadCount || 0);
+      }
+
+      const aTime = a.last_message_time || a.last_message_date || 0;
+      const bTime = b.last_message_time || b.last_message_date || 0;
+      if (aTime && bTime) {
+        return new Date(bTime) - new Date(aTime);
+      }
+      if (aTime) return -1;
+      if (bTime) return 1;
+      return 0;
+    });
+  }, [conversations, adminNorm]);
 
   const filteredConversations = sortedConversations.filter(conv => {
     if (!searchQuery) return true;
@@ -134,8 +136,8 @@ export default function Messages() {
   });
 
   // Check if user has conversation with admin
-  const hasAdminConversation = conversations.some(conv => 
-    conv.otherUser.email === adminEmail
+  const hasAdminConversation = conversations.some(
+    (conv) => adminEmail && normalizeEmail(conv.otherUser.email) === normalizeEmail(adminEmail)
   );
 
   const handleDeleteConversation = async (conv) => {
@@ -169,16 +171,15 @@ export default function Messages() {
       return;
     }
     
-    if (!adminEmail || !userEmail) return;
-    
+      if (!adminEmail || !userEmail) return;
+
     try {
-      // Find or create conversation with admin
       let conversation = await findConversation(userEmail, adminEmail);
-      
+
       if (!conversation) {
         conversation = await createConversation({
           participant_1: userEmail,
-          participant_2: adminEmail,
+          participant_2: normalizeEmail(adminEmail),
           last_message: '',
           last_message_sender: userEmail,
           unread_count_p1: 0,
@@ -187,7 +188,9 @@ export default function Messages() {
       }
       
       // Navigate to chat with admin
-      window.location.href = createPageUrl(`Chat?conversationId=${conversation.id}&otherUserEmail=${adminEmail}`);
+      window.location.href = createPageUrl(
+        `Chat?conversationId=${encodeURIComponent(conversation.id)}&otherUserEmail=${encodeURIComponent(adminEmail)}`
+      );
     } catch (error) {
       console.error('Error creating conversation with admin:', error);
       alert('Админд мессеж илгээхэд алдаа гарлаа. Дахин оролдоно уу.');
@@ -274,7 +277,7 @@ export default function Messages() {
                   >
                     <div className="flex gap-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
-                        {(adminEmail && conv.otherUser.email === adminEmail
+                        {(adminNorm && normalizeEmail(conv.otherUser.email) === adminNorm
                           ? 'А'
                           : conv.otherUser.full_name?.[0] || '?').toUpperCase()}
                       </div>
@@ -282,7 +285,7 @@ export default function Messages() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-gray-900 truncate">
-                            {adminEmail && conv.otherUser.email === adminEmail
+                            {adminNorm && normalizeEmail(conv.otherUser.email) === adminNorm
                               ? 'АДМИН'
                               : (conv.otherUser.displayName || conv.otherUser.email)}
                           </h3>
@@ -302,7 +305,7 @@ export default function Messages() {
                         
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-gray-600 truncate flex-1 min-w-0">
-                            {conv.last_message_sender === userEmail && (
+                            {normalizeEmail(conv.last_message_sender) === userEmail && (
                               <span className="text-gray-500">Та: </span>
                             )}
                             <span className="truncate">

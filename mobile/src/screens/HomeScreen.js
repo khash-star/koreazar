@@ -91,12 +91,17 @@ export default function HomeScreen({ navigation }) {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const [listingData, bannerData] = await Promise.all([
-        getLatestListings(50),
-        getActiveBannerAds().catch(() => []),
-      ]);
-      setListings(listingData);
-      setBanners(Array.isArray(bannerData) ? bannerData : []);
+      if (isRefresh) {
+        const listingData = await getLatestListings(50);
+        setListings(listingData);
+      } else {
+        const [listingData, bannerData] = await Promise.all([
+          getLatestListings(50),
+          getActiveBannerAds().catch(() => []),
+        ]);
+        setListings(listingData);
+        setBanners(Array.isArray(bannerData) ? bannerData : []);
+      }
       setError("");
     } catch (err) {
       setError(err?.message || "Зарууд ачаалагдсангүй");
