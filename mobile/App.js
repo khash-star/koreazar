@@ -1,4 +1,5 @@
 import "./bootstrap";
+import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { LogBox, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -14,6 +15,12 @@ if (__DEV__ && Platform.OS === "web") {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      import("./src/utils/pushNotifications.js").catch(() => {});
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <SafeAreaProvider>

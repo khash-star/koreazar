@@ -29,10 +29,6 @@ import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
 import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
-import {
-  flushPendingNotificationNavigation,
-  setupPushNotificationNavigation,
-} from "../utils/pushNotifications.js";
 
 const RootStack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -449,7 +445,13 @@ function MainTabs() {
 export default function AppNavigator() {
   useEffect(() => {
     if (Platform.OS === "web") return undefined;
-    return setupPushNotificationNavigation(navigationRef);
+    let cleanup = () => {};
+    import("../utils/pushNotifications.js")
+      .then((m) => {
+        cleanup = m.setupPushNotificationNavigation(navigationRef);
+      })
+      .catch(() => {});
+    return () => cleanup();
   }, []);
 
   return (
@@ -457,7 +459,10 @@ export default function AppNavigator() {
       ref={navigationRef}
       linking={linking}
       onReady={() => {
-        if (Platform.OS !== "web") flushPendingNotificationNavigation(navigationRef);
+        if (Platform.OS === "web") return;
+        import("../utils/pushNotifications.js")
+          .then((m) => m.flushPendingNotificationNavigation(navigationRef))
+          .catch(() => {});
       }}
     >
       <RootStack.Navigator>
