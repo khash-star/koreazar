@@ -5,9 +5,10 @@ import { LogBox, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/context/AuthContext.js";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { isExpoPushNativeAvailable } from "./src/utils/expoPushAvailability.js";
 
 /** RN Web + react-navigation дотоод — бидний код биш, консолыг цэвэрхэн байлгана */
-if (__DEV__ && Platform.OS === "web") {
+if (typeof __DEV__ !== "undefined" && __DEV__ && Platform.OS === "web") {
   LogBox.ignoreLogs([
     "props.pointerEvents is deprecated",
     /shadow.*style props are deprecated/i,
@@ -16,9 +17,8 @@ if (__DEV__ && Platform.OS === "web") {
 
 export default function App() {
   useEffect(() => {
-    if (Platform.OS !== "web") {
-      import("./src/utils/pushNotifications.js").catch(() => {});
-    }
+    if (!isExpoPushNativeAvailable()) return;
+    import("./src/utils/pushNotifications.js").catch(() => {});
   }, []);
 
   return (

@@ -33,6 +33,7 @@ import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
 import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
+import { isExpoPushNativeAvailable } from "../utils/expoPushAvailability.js";
 
 const RootStack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -152,11 +153,6 @@ const linking = {
             screens: {
               ProfileMain: "profile",
               MyListings: "my-listings",
-            },
-          },
-          AdminTab: {
-            screens: {
-              AdminMain: "admin",
             },
           },
         },
@@ -472,7 +468,7 @@ function MainTabs() {
 
 export default function AppNavigator() {
   useEffect(() => {
-    if (Platform.OS === "web") return undefined;
+    if (Platform.OS === "web" || !isExpoPushNativeAvailable()) return undefined;
     let cleanup = () => {};
     import("../utils/pushNotifications.js")
       .then((m) => {
@@ -488,13 +484,17 @@ export default function AppNavigator() {
       theme={navigationTheme}
       linking={linking}
       onReady={() => {
-        if (Platform.OS === "web") return;
+        if (Platform.OS === "web" || !isExpoPushNativeAvailable()) return;
         import("../utils/pushNotifications.js")
           .then((m) => m.flushPendingNotificationNavigation(navigationRef))
           .catch(() => {});
       }}
     >
-      <RootStack.Navigator>
+      <RootStack.Navigator
+        screenOptions={{
+          contentStyle: { backgroundColor: "#f3f4f6" },
+        }}
+      >
         <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Нэвтрэх" }} />
         <RootStack.Screen name="Register" component={RegisterScreen} options={{ title: "Бүртгүүлэх" }} />
