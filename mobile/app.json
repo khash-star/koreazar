@@ -32,13 +32,23 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon-ios-1024.png",
+          "color": "#E6F4FE",
+          "defaultChannel": "default",
+          "sounds": []
+        }
+      ],
       [
         "expo-build-properties",
         {

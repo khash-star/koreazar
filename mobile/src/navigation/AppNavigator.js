@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ExpoLinking from "expo-linking";
-import { NavigationContainer } from "@react-navigation/native";
+import { createNavigationContainerRef, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppState, Platform, Text, View } from "react-native";
@@ -28,8 +28,14 @@ import AdminBannersScreen from "../screens/AdminBannersScreen.js";
 import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
 import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
+import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
+import {
+  flushPendingNotificationNavigation,
+  setupPushNotificationNavigation,
+} from "../utils/pushNotifications.js";
 
 const RootStack = createNativeStackNavigator();
+export const navigationRef = createNavigationContainerRef();
 const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const SavedStack = createNativeStackNavigator();
@@ -134,6 +140,7 @@ const linking = {
       },
       Login: "login",
       Register: "register",
+      Privacy: "privacy-policy",
     },
   },
 };
@@ -440,12 +447,28 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
+  useEffect(() => {
+    if (Platform.OS === "web") return undefined;
+    return setupPushNotificationNavigation(navigationRef);
+  }, []);
+
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={() => {
+        if (Platform.OS !== "web") flushPendingNotificationNavigation(navigationRef);
+      }}
+    >
       <RootStack.Navigator>
         <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
         <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Нэвтрэх" }} />
         <RootStack.Screen name="Register" component={RegisterScreen} options={{ title: "Бүртгүүлэх" }} />
+        <RootStack.Screen
+          name="Privacy"
+          component={PrivacyPolicyScreen}
+          options={{ title: "Нууцлалын бодлого" }}
+        />
       </RootStack.Navigator>
     </NavigationContainer>
   );

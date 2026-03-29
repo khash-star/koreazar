@@ -24,6 +24,13 @@ export function navigateToRegister(navigation) {
   if (root?.navigate) root.navigate("Register");
 }
 
+/** Нууцлалын бодлого — зөвхөн RootStack дээрх Privacy (таб/дэд stack-ээс navigate алдаа гаргахгүй) */
+export function navigateToPrivacyPolicy(navigation) {
+  if (Platform.OS === "web") blurActiveElementWeb();
+  const root = getRootNavigator(navigation);
+  if (root?.navigate) root.navigate("Privacy");
+}
+
 /** Доод таб (HomeTab, MessagesTab, …) олох */
 export function getBottomTabNavigator(navigation) {
   let nav = navigation;

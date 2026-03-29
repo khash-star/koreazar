@@ -12,12 +12,9 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
+import { navigateToPrivacyPolicy } from "../utils/navigationHelpers.js";
 import { loginWithEmail, authErrorMessage, sendResetEmail } from "../services/authService";
 import { showAlert } from "../utils/showAlert";
-import { openExternalUrlSafe } from "../utils/safeLinking";
-
-const PRIVACY_URL = "https://zarkorea.com/Privacy";
-
 export default function LoginScreen({ navigation }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
@@ -115,7 +112,10 @@ export default function LoginScreen({ navigation }) {
           </Pressable>
           <View style={styles.agreeWrap}>
             <Text style={styles.agreeFragment}>Би ZARKOREA.COM сайтын </Text>
-            <Pressable onPress={() => openExternalUrlSafe(PRIVACY_URL)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+            <Pressable
+              onPress={() => navigateToPrivacyPolicy(navigation)}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
               <Text style={styles.agreeLink}>үйлчилгээний нөхцөл</Text>
             </Pressable>
             <Text style={styles.agreeFragment}> хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.</Text>

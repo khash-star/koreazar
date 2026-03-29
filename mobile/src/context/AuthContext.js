@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Platform } from "react-native";
 import { ensureUserDocEmailForFirestoreRules, subscribeAuth } from "../services/authService";
 import { getUserByEmail, getUserProfileByUid } from "../services/userProfileService";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+import { registerAndSavePushToken } from "../utils/pushNotifications.js";
 
 const AuthContext = createContext(null);
 
@@ -46,6 +48,12 @@ export function AuthProvider({ children }) {
     if (!pe || typeof pe !== "string" || !pe.trim()) return;
     ensureUserDocEmailForFirestoreRules(user, pe).catch(() => {});
   }, [user?.uid, user?.email, userData?.email]);
+
+  /** iOS/Android: мессежийн push (дуу) — token-ийг Firestore-д хадгална */
+  useEffect(() => {
+    if (Platform.OS === "web" || !user?.uid) return;
+    registerAndSavePushToken(user.uid).catch(() => {});
+  }, [user?.uid]);
 
   const refreshUserData = useCallback(async () => {
     if (!user?.uid) return;

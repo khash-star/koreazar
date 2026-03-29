@@ -15,7 +15,12 @@ import { useAuth } from "../context/AuthContext.js";
 import { deleteAccountWithPassword, logout, updateUserData } from "../services/authService";
 import { showAlert } from "../utils/showAlert";
 import { createFeedback } from "../services/feedbackService";
-import { getBottomTabNavigator, navigateToLogin, navigateToRegister } from "../utils/navigationHelpers.js";
+import {
+  getBottomTabNavigator,
+  navigateToLogin,
+  navigateToPrivacyPolicy,
+  navigateToRegister,
+} from "../utils/navigationHelpers.js";
 import { openExternalUrlSafe } from "../utils/safeLinking";
 
 const emptyProfileForm = () => ({
@@ -174,7 +179,7 @@ export default function ProfileTabScreen({ navigation }) {
             <Pressable style={styles.helpItem} onPress={openMessagesTab}>
               <Text style={styles.helpItemText}>Админтай холбогдох</Text>
             </Pressable>
-            <Pressable style={styles.helpItem} onPress={() => openExternalUrlSafe("https://zarkorea.com/Privacy")}>
+            <Pressable style={styles.helpItem} onPress={() => navigateToPrivacyPolicy(navigation)}>
               <Text style={styles.helpItemText}>Нууцлалын бодлого</Text>
             </Pressable>
           </View>
