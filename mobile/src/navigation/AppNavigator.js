@@ -1,6 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ExpoLinking from "expo-linking";
-import { createNavigationContainerRef, NavigationContainer } from "@react-navigation/native";
+import {
+  createNavigationContainerRef,
+  DefaultTheme,
+  NavigationContainer,
+} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppState, Platform, Text, View } from "react-native";
@@ -39,6 +43,29 @@ const MessagesStack = createNativeStackNavigator();
 const CreateStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
 const AdminStack = createNativeStackNavigator();
+
+/** createURL зарим iOS/EAS төлөвт алдаа гарвал бүх модуль унаж цагаан дэлгэц гарна */
+function getLinkingPrefixes() {
+  const out = ["zarkorea://"];
+  try {
+    const u = ExpoLinking.createURL("/");
+    if (typeof u === "string" && u.length > 0 && !out.includes(u)) {
+      out.unshift(u);
+    }
+  } catch {
+    // зөвхөн scheme-ээр үлдэнэ
+  }
+  return out;
+}
+
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: "#f3f4f6",
+    card: "#ffffff",
+  },
+};
 
 /** RN Web дээр tabBarBadge ихэвчлэн харагдахгүй — икон дээр өөрөө зурна */
 function MessagesTabIconWithBadge({ color, size, focused, unreadCount }) {
@@ -84,7 +111,7 @@ function MessagesTabIconWithBadge({ color, size, focused, unreadCount }) {
 }
 
 const linking = {
-  prefixes: [ExpoLinking.createURL("/"), "zarkorea://"],
+  prefixes: getLinkingPrefixes(),
   config: {
     screens: {
       Main: {
@@ -342,7 +369,8 @@ function MainTabs() {
 
   return (
     <Tab.Navigator
-      detachInactiveScreens={Platform.OS !== "web"}
+      detachInactiveScreens={Platform.OS === "android"}
+      sceneContainerStyle={{ backgroundColor: "#f3f4f6" }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#ea580c",
@@ -457,6 +485,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer
       ref={navigationRef}
+      theme={navigationTheme}
       linking={linking}
       onReady={() => {
         if (Platform.OS === "web") return;
