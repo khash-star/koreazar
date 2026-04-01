@@ -36,6 +36,8 @@ yarn-error.*
 
 # EAS credentials (keystore, passwords) — git руу хэзээ ч push хийхгүй
 credentials.json
+play-service-account.json
+*-service-account*.json
 keystores/
 
 # typescript
