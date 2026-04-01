@@ -41,7 +41,6 @@ import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
-import { setActiveChatConversationId } from "../utils/chatNotificationState.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import { Timestamp } from "firebase/firestore";
 
@@ -247,13 +246,6 @@ export default function ChatScreen({ route, navigation }) {
         if (mountedRef.current) setLoading(false);
       });
   }, [convId, loadMeta, fetchMessages]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (convId) setActiveChatConversationId(convId);
-      return () => setActiveChatConversationId(null);
-    }, [convId])
-  );
 
   useFocusEffect(
     useCallback(() => {

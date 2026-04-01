@@ -33,7 +33,6 @@ import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
 import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
-import { isExpoPushNativeAvailable } from "../utils/expoPushAvailability.js";
 
 const RootStack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -467,29 +466,8 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  useEffect(() => {
-    if (Platform.OS === "web" || !isExpoPushNativeAvailable()) return undefined;
-    let cleanup = () => {};
-    import("../utils/pushNotifications.js")
-      .then((m) => {
-        cleanup = m.setupPushNotificationNavigation(navigationRef);
-      })
-      .catch(() => {});
-    return () => cleanup();
-  }, []);
-
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      theme={navigationTheme}
-      linking={linking}
-      onReady={() => {
-        if (Platform.OS === "web" || !isExpoPushNativeAvailable()) return;
-        import("../utils/pushNotifications.js")
-          .then((m) => m.flushPendingNotificationNavigation(navigationRef))
-          .catch(() => {});
-      }}
-    >
+    <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
       <RootStack.Navigator
         screenOptions={{
           contentStyle: { backgroundColor: "#f3f4f6" },

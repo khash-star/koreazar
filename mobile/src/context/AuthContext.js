@@ -1,9 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Platform } from "react-native";
 import { ensureUserDocEmailForFirestoreRules, subscribeAuth } from "../services/authService";
 import { getUserByEmail, getUserProfileByUid } from "../services/userProfileService";
 import { normalizeEmail } from "../utils/emailNormalize.js";
-import { isExpoPushNativeAvailable } from "../utils/expoPushAvailability.js";
 
 const AuthContext = createContext(null);
 
@@ -48,14 +46,6 @@ export function AuthProvider({ children }) {
     if (!pe || typeof pe !== "string" || !pe.trim()) return;
     ensureUserDocEmailForFirestoreRules(user, pe).catch(() => {});
   }, [user?.uid, user?.email, userData?.email]);
-
-  /** iOS/Android: push token — native модульгүй APK дээр expo-notifications ачаалахгүй */
-  useEffect(() => {
-    if (Platform.OS === "web" || !user?.uid || !isExpoPushNativeAvailable()) return;
-    import("../utils/pushNotifications.js")
-      .then((m) => m.registerAndSavePushToken(user.uid))
-      .catch(() => {});
-  }, [user?.uid]);
 
   const refreshUserData = useCallback(async () => {
     if (!user?.uid) return;
