@@ -4,8 +4,8 @@ import { Image } from "expo-image";
 import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const GAP = 8;
-/** Өргөн дэлгэц дээр тогтмол өндөр биш — харьцаа хадгална */
-const BANNER_CELL_ASPECT = 2.35;
+/** Өргөн/өндрийн харьцаа — бага = илүү өндөр hero (2.35 нь нэлээд намхан байсан) */
+const BANNER_CELL_ASPECT = 1.82;
 
 export default function BannerHero({ banners }) {
   const [idx, setIdx] = useState(0);
@@ -71,7 +71,7 @@ export default function BannerHero({ banners }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 12, backgroundColor: "#111827", paddingVertical: 10 },
+  wrap: { marginBottom: 14, backgroundColor: "#111827", paddingVertical: 16 },
   row: { flexDirection: "row", gap: GAP, justifyContent: "space-between" },
   cell: { borderRadius: 12, overflow: "hidden", backgroundColor: "#1f2937" },
   img: { width: "100%", height: "100%" },

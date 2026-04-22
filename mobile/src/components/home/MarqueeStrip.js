@@ -5,7 +5,8 @@ import { getListingImageUrl } from "../../utils/imageUrl";
 import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const ITEM_W = 300;
-const ITEM_H = 160;
+/** Hero өндөр болгосон тул VIP/баннер мөрөнд бага зэрэг тэнцвэр */
+const ITEM_H = 148;
 const GAP = 12;
 const PAD_L = 16;
 
