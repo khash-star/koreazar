@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -79,65 +80,74 @@ export default function RegisterScreen({ navigation }) {
     <KeyboardAvoidingView
       style={styles.wrap}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
     >
-      <Text style={styles.label}>Нэр (сонголттой)</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Таны нэр" />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={styles.label}>Нэр (сонголттой)</Text>
+        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Таны нэр" />
 
-      <Text style={styles.label}>Хот *</Text>
-      <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Жишээ: Seoul" />
+        <Text style={styles.label}>Хот *</Text>
+        <TextInput style={styles.input} value={city} onChangeText={setCity} placeholder="Жишээ: Seoul" />
 
-      <Text style={styles.label}>Дүүрэг *</Text>
-      <TextInput style={styles.input} value={district} onChangeText={setDistrict} placeholder="Жишээ: Gangnam-gu" />
+        <Text style={styles.label}>Дүүрэг *</Text>
+        <TextInput style={styles.input} value={district} onChangeText={setDistrict} placeholder="Жишээ: Gangnam-gu" />
 
-      <Text style={styles.label}>Утасны дугаар *</Text>
-      <TextInput
-        style={styles.input}
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Жишээ: 01012345678"
-        keyboardType="phone-pad"
-      />
+        <Text style={styles.label}>Утасны дугаар *</Text>
+        <TextInput
+          style={styles.input}
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Жишээ: 01012345678"
+          keyboardType="phone-pad"
+        />
 
-      <Text style={styles.label}>Имэйл *</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        autoComplete="email"
-      />
+        <Text style={styles.label}>Имэйл *</Text>
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+        />
 
-      <Text style={styles.label}>Нууц үг *</Text>
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="new-password"
-      />
+        <Text style={styles.label}>Нууц үг *</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="new-password"
+        />
 
-      {!!formError && <Text style={styles.errorText}>{formError}</Text>}
+        {!!formError && <Text style={styles.errorText}>{formError}</Text>}
 
-      <Text style={styles.prohibitedNote}>Хүчирхийлэл, spam, хууль бус контент хориглоно.</Text>
+        <Text style={styles.prohibitedNote}>Хүчирхийлэл, spam, хууль бус контент хориглоно.</Text>
 
-      <Pressable style={[styles.primary, busy && styles.disabled]} onPress={onRegister} disabled={busy}>
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.primaryText}>Бүртгүүлэх</Text>
-        )}
-      </Pressable>
+        <Pressable style={[styles.primary, busy && styles.disabled]} onPress={onRegister} disabled={busy}>
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryText}>Бүртгүүлэх</Text>
+          )}
+        </Pressable>
 
-      <Pressable style={styles.link} onPress={() => navigation.goBack()}>
-        <Text style={styles.linkText}>Нэвтрэх хуудас руу буцах</Text>
-      </Pressable>
+        <Pressable style={styles.link} onPress={() => navigation.goBack()}>
+          <Text style={styles.linkText}>Нэвтрэх хуудас руу буцах</Text>
+        </Pressable>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: 20, paddingTop: 24, backgroundColor: "#f8fafc" },
+  wrap: { flex: 1, backgroundColor: "#f8fafc" },
+  scrollContent: { padding: 20, paddingTop: 16, paddingBottom: 48, flexGrow: 1 },
   label: { fontSize: 14, fontWeight: "600", color: "#374151", marginBottom: 6 },
   input: {
     backgroundColor: "#fff",
