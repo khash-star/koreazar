@@ -269,11 +269,6 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
   }
 
-  const isOwner = !!(
-    email &&
-    listing.created_by &&
-    normalizeEmail(email) === normalizeEmail(listing.created_by)
-  );
   const sellerBlocked = isSellerBlockedByViewer(userData, listing.created_by);
   const showSellerActions =
     listing.created_by &&
@@ -459,12 +454,11 @@ export default function ListingDetailScreen({ route, navigation }) {
           ) : null}
         </View>
 
-        {!isOwner ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ижил зарууд</Text>
-            {relatedListings.length === 0 ? (
-              <Text style={styles.muted}>Одоогоор энэ ангилалд өөр зар алга.</Text>
-            ) : (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ижил төстэй зарууд</Text>
+          {relatedListings.length === 0 ? (
+            <Text style={styles.muted}>Одоогоор ижил төрлийн өөр зар алга байна.</Text>
+          ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -504,9 +498,8 @@ export default function ListingDetailScreen({ route, navigation }) {
                 );
               })}
             </ScrollView>
-            )}
-          </View>
-        ) : null}
+          )}
+        </View>
       </View>
       <Modal
         visible={reportOpen}
