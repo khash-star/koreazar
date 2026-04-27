@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon-ios-1024.png",
-      "buildNumber": "22",
+      "buildNumber": "23",
       "bundleIdentifier": "com.zarkorea.twa",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -54,7 +54,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Зураг оруулахын тулд таны зургийн цомог руу нэвтрэх зөвшөөрөл хэрэгтэй."
+          "photosPermission": "Zarkorea uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used. Зар нэмэх эсвэл баннер оруулах үед та сонгосон зургууд л хавсаргагдана (жишээ нь: зарагдах бараа, үйлчилгээний зураг)."
         }
       ]
     ],
