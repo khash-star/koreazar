@@ -195,32 +195,44 @@ export default function MyListingsScreen({ navigation }) {
               style={styles.mainPress}
               onPress={() => navigateToHomeListing(navigation, item.id)}
             >
-            {uri ? (
-              <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.thumb, styles.thumbPh]}>
-                <Text style={styles.thumbPhText}>📷</Text>
+              {uri ? (
+                <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
+              ) : (
+                <View style={[styles.thumb, styles.thumbPh]}>
+                  <Text style={styles.thumbPhText}>📷</Text>
+                </View>
+              )}
+              <View style={styles.body}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title || "Гарчиггүй"}
+                </Text>
+                <Text style={styles.price}>
+                  {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                </Text>
+                <View style={[styles.badge, item.status === "pending" && styles.badgePending]}>
+                  <Text style={styles.badgeText}>{status}</Text>
+                </View>
               </View>
-            )}
-            <View style={styles.body}>
-              <Text style={styles.title} numberOfLines={2}>
-                {item.title || "Гарчиггүй"}
-              </Text>
-              <Text style={styles.price}>
-                {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
-              </Text>
-              <View style={[styles.badge, item.status === "pending" && styles.badgePending]}>
-                <Text style={styles.badgeText}>{status}</Text>
-              </View>
+            </Pressable>
+            <View style={styles.trailingCol}>
+              <Pressable
+                style={styles.visibleBtn}
+                onPress={() => navigateToEditListing(navigation, item.id)}
+                hitSlop={6}
+              >
+                <Text style={styles.visibleBtnText}>Засах</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.visibleBtn, styles.visibleBtnDanger]}
+                onPress={() => handleDelete(item)}
+                hitSlop={6}
+              >
+                <Text style={styles.visibleBtnDangerText}>Устгах</Text>
+              </Pressable>
+              <Pressable style={styles.menuBtn} onPress={() => openActions(item)} hitSlop={8}>
+                <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
+              </Pressable>
             </View>
-            </Pressable>
-            <Pressable
-              style={styles.menuBtn}
-              onPress={() => openActions(item)}
-              hitSlop={10}
-            >
-              <Ionicons name="ellipsis-vertical" size={20} color="#111827" />
-            </Pressable>
           </View>
         );
       }}
@@ -239,15 +251,6 @@ export default function MyListingsScreen({ navigation }) {
               }}
             >
               <Text style={styles.modalItemText}>Харах</Text>
-            </Pressable>
-            <Pressable
-              style={styles.modalItem}
-              onPress={() => {
-                if (!menuItem?.id) return;
-                closeActionsThen(() => navigateToEditListing(navigation, menuItem.id));
-              }}
-            >
-              <Text style={styles.modalItemText}>Засах</Text>
             </Pressable>
             <Pressable
               style={styles.modalItem}
@@ -271,15 +274,6 @@ export default function MyListingsScreen({ navigation }) {
                 <Text style={styles.modalItemText}>Идэвхжүүлэх</Text>
               </Pressable>
             ) : null}
-            <Pressable
-              style={styles.modalItem}
-              onPress={() => {
-                if (!menuItem) return;
-                closeActionsThen(() => handleDelete(menuItem));
-              }}
-            >
-              <Text style={styles.modalDangerText}>Устгах</Text>
-            </Pressable>
             <Pressable style={styles.modalCancelBtn} onPress={closeActions}>
               <Text style={styles.modalCancelText}>Цуцлах</Text>
             </Pressable>
@@ -316,10 +310,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  menuBtn: {
-    padding: 12,
+  trailingCol: {
     justifyContent: "center",
+    alignItems: "stretch",
+    paddingRight: 10,
+    paddingVertical: 8,
+    gap: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: "#f1f5f9",
+    minWidth: 76,
+  },
+  visibleBtn: {
+    borderWidth: 1,
+    borderColor: "#fdba74",
+    backgroundColor: "#fffbeb",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     alignItems: "center",
+  },
+  visibleBtnText: { fontSize: 13, fontWeight: "700", color: "#c2410c" },
+  visibleBtnDanger: {
+    borderColor: "#fecaca",
+    backgroundColor: "#fef2f2",
+  },
+  visibleBtnDangerText: { fontSize: 13, fontWeight: "700", color: "#dc2626" },
+  menuBtn: {
+    paddingVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   thumb: { width: 100, height: IMG_H, backgroundColor: "#e5e7eb" },
   thumbPh: { alignItems: "center", justifyContent: "center" },
@@ -359,7 +378,6 @@ const styles = StyleSheet.create({
     borderTopColor: "#f1f5f9",
   },
   modalItemText: { color: "#111827", fontSize: 15, fontWeight: "500" },
-  modalDangerText: { color: "#dc2626", fontSize: 15, fontWeight: "700" },
   modalCancelBtn: {
     marginTop: 10,
     borderRadius: 10,

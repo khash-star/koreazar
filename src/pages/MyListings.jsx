@@ -214,57 +214,61 @@ export default function MyListings() {
                     </Link>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-1 min-w-0">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                        <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="min-w-0 flex-1">
                           <h3 className="font-semibold text-gray-900 truncate hover:text-amber-600 transition-colors">
                             {listing.title}
                           </h3>
                         </Link>
-                        
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8">
-                              <MoreVertical className="w-4 h-4" />
+                        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                          <Link to={createPageUrl(`EditListing?id=${listing.id}`)}>
+                            <Button variant="outline" size="sm" className="h-9 border-amber-200 text-amber-800 hover:bg-amber-50">
+                              <Edit2 className="w-4 h-4 mr-1.5" />
+                              Засах
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Харах
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to={createPageUrl(`EditListing?id=${listing.id}`)}>
-                                <Edit2 className="w-4 h-4 mr-2" />
-                                Засах
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link to={createPageUrl(`UpgradeListing?id=${listing.id}`)}>
-                                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                </svg>
-                                {userData?.role === 'admin' || user?.role === 'admin' ? 'VIP болгох' : 'VIP хүсэлт'}
-                              </Link>
-                            </DropdownMenuItem>
-                            {listing.status === 'sold' && (
-                              <DropdownMenuItem
-                                onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'active' })}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Идэвхжүүлэх
+                          </Link>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9 border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteId(listing.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1.5" />
+                            Устгах
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" title="Бусад">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Харах
+                                </Link>
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={() => setDeleteId(listing.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Устгах
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <DropdownMenuItem asChild>
+                                <Link to={createPageUrl(`UpgradeListing?id=${listing.id}`)}>
+                                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                  </svg>
+                                  {userData?.role === 'admin' || user?.role === 'admin' ? 'VIP болгох' : 'VIP хүсэлт'}
+                                </Link>
+                              </DropdownMenuItem>
+                              {listing.status === 'sold' && (
+                                <DropdownMenuItem
+                                  onClick={() => updateStatusMutation.mutate({ id: listing.id, status: 'active' })}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Идэвхжүүлэх
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
 
                       <p className="text-lg font-bold text-amber-600 mt-1">
