@@ -5,7 +5,7 @@ import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const GAP = 8;
 /** RN: aspectRatio = өргөн/өндөр. Утга багасах = нүүрэн солигддог баннер илүү өндөр */
-const BANNER_CELL_ASPECT = 1.38;
+const BANNER_CELL_ASPECT = 1.22;
 
 export default function BannerHero({ banners }) {
   const [idx, setIdx] = useState(0);
