@@ -143,11 +143,13 @@ export async function getListingById(id) {
   return listing;
 }
 
-export async function createListing(data) {
+export async function createListing(data, options = {}) {
   const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings"), {
     method: "POST",
     headers,
+    timeoutMs: 20000,
+    ...options,
     body: JSON.stringify({
       ...data,
       status: data.status || "pending",

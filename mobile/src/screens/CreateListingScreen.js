@@ -101,6 +101,7 @@ export default function CreateListingScreen({ navigation }) {
   const [form, setForm] = useState(createInitialForm);
   const [initialListing, setInitialListing] = useState(null);
   const [loadingListing, setLoadingListing] = useState(false);
+  const [autoApprove, setAutoApprove] = useState(false);
 
   useEffect(() => {
     if (!editListingId) {
@@ -156,6 +157,17 @@ export default function CreateListingScreen({ navigation }) {
       cancelled = true;
     };
   }, [editListingId, navigation]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const v = await getListingAutoApprove();
+      if (!cancelled) setAutoApprove(!!v);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pickImage = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -281,7 +293,6 @@ export default function CreateListingScreen({ navigation }) {
     submittingRef.current = true;
     setLoading(true);
     try {
-      const autoApprove = await getListingAutoApprove();
       const submitData = {
         ...form,
         contact_name: lockedName,
@@ -290,7 +301,7 @@ export default function CreateListingScreen({ navigation }) {
         images,
         status: autoApprove ? "active" : "pending",
       };
-      await createListing(submitData);
+      await createListing(submitData, { timeoutMs: 20000 });
       // Keep Create tab clean after successful submit.
       setImages([]);
       setForm(createInitialForm());
