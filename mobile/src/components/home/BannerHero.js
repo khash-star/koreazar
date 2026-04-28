@@ -10,7 +10,7 @@ const BANNER_CELL_ASPECT = 1.0;
 export default function BannerHero({ banners }) {
   const [idx, setIdx] = useState(0);
   const { width: screenW } = useWindowDimensions();
-  const pad = 16;
+  const pad = 12;
   const colW = (screenW - pad * 2 - GAP) / 2;
 
   useEffect(() => {
@@ -71,9 +71,10 @@ export default function BannerHero({ banners }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 14, backgroundColor: "#111827", paddingVertical: 16 },
+  /** Нүүрний #f3f4f6-тай нийцүүлж хар сав багасгана; зураг илүү том харагдана */
+  wrap: { marginBottom: 10, backgroundColor: "#f3f4f6", paddingVertical: 6 },
   row: { flexDirection: "row", gap: GAP, justifyContent: "space-between" },
-  cell: { borderRadius: 12, overflow: "hidden", backgroundColor: "#1f2937" },
+  cell: { borderRadius: 12, overflow: "hidden", backgroundColor: "#e5e7eb" },
   img: { width: "100%", height: "100%" },
   ph: { flex: 1, backgroundColor: "#374151" },
   cap: {

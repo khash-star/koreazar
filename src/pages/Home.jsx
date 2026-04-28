@@ -350,8 +350,8 @@ export default function Home() {
 
       {/* Hero Banner Grid */}
       {showBannersAndVIP && (
-      <div className="bg-gray-900 py-3 md:py-6 mt-12 md:mt-14">
-        <div className="max-w-7xl mx-auto px-4">
+      <div className="bg-gray-100 py-1.5 md:bg-gray-900 md:py-6 mt-12 md:mt-14">
+        <div className="max-w-7xl mx-auto px-3 md:px-4">
           {bannerAds.length > 0 ? (
             <AnimatePresence mode="wait">
               <motion.div
@@ -360,7 +360,7 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: prefersReducedMotion ? 1 : 0 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
-                className="grid grid-cols-2 gap-4"
+                className="grid grid-cols-2 gap-2 md:gap-4"
               >
                 {bannerAds.slice(currentBannerIndex, currentBannerIndex + 2).concat(
                   currentBannerIndex + 2 > bannerAds.length 
@@ -372,7 +372,7 @@ export default function Home() {
                     href={banner.link || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden group block"
+                    className="relative h-[210px] sm:h-[220px] md:h-[320px] rounded-xl overflow-hidden group block"
                   >
                     <img
                       src={banner.image_url}
@@ -396,11 +396,11 @@ export default function Home() {
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 md:gap-4">
               {[1, 2].map((i) => (
                 <div
                   key={i}
-                  className="relative h-[200px] md:h-[320px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"
+                  className="relative h-[210px] sm:h-[220px] md:h-[320px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center"
                 >
                   <div className="text-center text-white/50">
                     <div className="text-4xl mb-2">📢</div>
