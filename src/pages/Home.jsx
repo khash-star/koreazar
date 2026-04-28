@@ -348,9 +348,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hero Banner Grid */}
+      {/* Hero Banner Grid — скроллдоход навигацийн доор наалдана */}
       {showBannersAndVIP && (
-      <div className="bg-gray-100 py-1.5 md:bg-gray-900 md:py-6 mt-12 md:mt-14">
+      <div className="sticky top-12 md:top-14 z-30 bg-gray-100 py-1.5 md:bg-gray-900 md:py-6 mt-12 md:mt-14 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 md:px-4">
           {bannerAds.length > 0 ? (
             <AnimatePresence mode="wait">

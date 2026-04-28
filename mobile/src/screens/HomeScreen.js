@@ -183,7 +183,6 @@ export default function HomeScreen({ navigation }) {
   const listHeader = useMemo(
     () => (
       <View>
-        <BannerHero banners={banners} />
         <CategoryStrip value={selectedCategory} onChange={setSelectedCategory} />
         <MarqueeStrip
           banners={banners}
@@ -222,8 +221,11 @@ export default function HomeScreen({ navigation }) {
       : "Идэвхтэй зар байхгүй.";
 
   return (
-    <FlatList
+    <View style={styles.screenRoot}>
+      <BannerHero banners={banners} />
+      <FlatList
       key="list-2col"
+      style={styles.listFlex}
       scrollEventThrottle={16}
       data={displayedListings}
       keyExtractor={(item) => item.id}
@@ -242,10 +244,13 @@ export default function HomeScreen({ navigation }) {
       ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
       ListFooterComponent={error ? <Text style={styles.footerError}>{error}</Text> : null}
     />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: { flex: 1, backgroundColor: "#f3f4f6" },
+  listFlex: { flex: 1 },
   center: {
     flex: 1,
     alignItems: "center",
