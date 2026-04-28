@@ -14,7 +14,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext.js";
-import { deleteListing, getListingsByCreator, updateListing } from "../services/listingService.js";
+import {
+  deleteListing,
+  getListingsByCreator,
+  getListingsByCustomerId,
+  updateListing,
+} from "../services/listingService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import {
   navigateToLogin,
@@ -27,13 +32,16 @@ import { showAlert } from "../utils/showAlert";
 const IMG_H = 120;
 
 const statusLabel = { active: "Идэвхтэй", pending: "Хүлээгдэж буй" };
+const MY_LISTINGS_CACHE_TTL_MS = 60 * 1000;
+const myListingsCache = new Map();
 
 export default function MyListingsScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
-  const { email, isAuthenticated, isAdmin } = useAuth();
+  const { email, isAuthenticated, isAdmin, userData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [loadError, setLoadError] = useState("");
   const [menuItem, setMenuItem] = useState(null);
 
   const load = useCallback(async (isRefresh) => {
@@ -45,15 +53,57 @@ export default function MyListingsScreen({ navigation }) {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-      const data = await getListingsByCreator(email);
+      setLoadError("");
+      const customerIdRaw = userData?.customerId ?? userData?.customer_id;
+      const customerId =
+        customerIdRaw != null && customerIdRaw !== "" ? Number(customerIdRaw) : null;
+      const cacheKey = Number.isFinite(customerId) && customerId > 0 ? `cid:${customerId}` : `email:${email}`;
+      const cached = myListingsCache.get(cacheKey);
+      if (
+        !isRefresh &&
+        cached?.data &&
+        Date.now() - (cached.at || 0) < MY_LISTINGS_CACHE_TTL_MS &&
+        Array.isArray(cached.data)
+      ) {
+        // Эхлээд кэшээ шууд үзүүлээд, ард нь шинэ өгөгдөл татна.
+        setRows(cached.data);
+        setLoading(false);
+      }
+      let data = [];
+
+      // MySQL primary key-аар шүүх нь ихэвчлэн хурдан, тогтвортой.
+      if (Number.isFinite(customerId) && customerId > 0) {
+        try {
+          data = await getListingsByCustomerId(customerId, 20, {
+            timeoutMs: 12000,
+            retries: 1,
+            retryDelayMs: 300,
+          });
+        } catch {
+          data = await getListingsByCreator(email, 20, {
+            timeoutMs: 12000,
+            retries: 1,
+            retryDelayMs: 300,
+          });
+        }
+      } else {
+        data = await getListingsByCreator(email, 20, {
+          timeoutMs: 12000,
+          retries: 1,
+          retryDelayMs: 300,
+        });
+      }
       setRows(data);
+      myListingsCache.set(cacheKey, { at: Date.now(), data });
     } catch (e) {
-      showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+      const msg = e?.message || "Ачаалахад алдаа гарлаа";
+      setLoadError(msg);
+      if (rows.length === 0) showAlert("Алдаа", msg);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [email]);
+  }, [email, userData?.customerId, userData?.customer_id, rows.length]);
 
   const handleDelete = useCallback(
     (item) => {
@@ -156,7 +206,7 @@ export default function MyListingsScreen({ navigation }) {
     );
   }
 
-  if (loading && !refreshing) {
+  if (loading && !refreshing && rows.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#ea580c" />
@@ -176,7 +226,15 @@ export default function MyListingsScreen({ navigation }) {
       }
       ListEmptyComponent={
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Миний зар байхгүй.</Text>
+          <Text style={styles.emptyText}>{loadError ? "Ачаалж чадсангүй." : "Миний зар байхгүй."}</Text>
+          {loadError ? (
+            <>
+              <Text style={styles.errorText}>{loadError}</Text>
+              <Pressable style={styles.retryBtn} onPress={() => load(false)}>
+                <Text style={styles.retryBtnText}>Дахин оролдох</Text>
+              </Pressable>
+            </>
+          ) : null}
           <Pressable
             style={styles.addBtn}
             onPress={() => navigateToCreateListing(navigation)}
@@ -237,6 +295,14 @@ export default function MyListingsScreen({ navigation }) {
         );
       }}
     />
+    {rows.length > 0 && loadError ? (
+      <View style={styles.inlineErrorWrap}>
+        <Text style={styles.inlineErrorText}>{loadError}</Text>
+        <Pressable onPress={() => load(true)} hitSlop={8}>
+          <Text style={styles.inlineRetryText}>Дахин</Text>
+        </Pressable>
+      </View>
+    ) : null}
     <Modal visible={!!menuItem} transparent animationType="fade" onRequestClose={closeActions}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closeActions} accessibilityRole="button" />
@@ -293,8 +359,28 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   empty: { padding: 32, alignItems: "center" },
   emptyText: { fontSize: 16, color: "#6b7280", marginBottom: 16 },
+  errorText: { fontSize: 13, color: "#ef4444", textAlign: "center", marginBottom: 10 },
+  retryBtn: { borderWidth: 1, borderColor: "#fdba74", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 12 },
+  retryBtnText: { color: "#c2410c", fontWeight: "700" },
   addBtn: { backgroundColor: "#ea580c", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   addBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  inlineErrorWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 10,
+    backgroundColor: "#fff7ed",
+    borderColor: "#fdba74",
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  inlineErrorText: { color: "#9a3412", fontSize: 12, flex: 1, marginRight: 8 },
+  inlineRetryText: { color: "#c2410c", fontSize: 13, fontWeight: "800" },
   row: {
     flexDirection: "row",
     alignItems: "center",

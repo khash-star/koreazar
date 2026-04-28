@@ -26,6 +26,9 @@
     "production": {
       "android": {
         "serviceAccountKeyPath": "./play-service-account.json"
+      },
+      "ios": {
+        "bundleIdentifier": "com.zarkorea.twa"
       }
     }
   }

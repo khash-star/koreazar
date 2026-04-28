@@ -101,24 +101,24 @@ export async function getLatestListings(limitCount = 50) {
   }
 }
 
-export async function getListingsByCreator(email, limitCount = 50) {
+export async function getListingsByCreator(email, limitCount = 50, options = {}) {
   if (!email) return [];
   const payload = await requestJson(
     buildApiUrl("listings", { created_by: email, limit: Math.min(limitCount, 100) }),
-    { retries: 1 }
+    { retries: 1, ...options }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
 
 /** MySQL users.id (customer_id) — шүүх: GET listings&customer_id= */
-export async function getListingsByCustomerId(customerId, limitCount = 50) {
+export async function getListingsByCustomerId(customerId, limitCount = 50, options = {}) {
   if (customerId == null || customerId === "") return [];
   const payload = await requestJson(
     buildApiUrl("listings", {
       customer_id: String(customerId),
       limit: Math.min(limitCount, 100),
     }),
-    { retries: 1 }
+    { retries: 1, ...options }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
