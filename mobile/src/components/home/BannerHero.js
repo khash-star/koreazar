@@ -4,8 +4,8 @@ import { Image } from "expo-image";
 import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const GAP = 8;
-/** Өргөн/өндрийн харьцаа — бага = илүү өндөр hero (2.35 нь нэлээд намхан байсан) */
-const BANNER_CELL_ASPECT = 1.82;
+/** RN: aspectRatio = өргөн/өндөр. Утга багасах = нүүрэн солигддог баннер илүү өндөр */
+const BANNER_CELL_ASPECT = 1.38;
 
 export default function BannerHero({ banners }) {
   const [idx, setIdx] = useState(0);
