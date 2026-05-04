@@ -148,7 +148,7 @@ export async function createListing(data, options = {}) {
   const payload = await requestJson(buildApiUrl("listings"), {
     method: "POST",
     headers,
-    timeoutMs: 20000,
+    timeoutMs: 10000,
     ...options,
     body: JSON.stringify({
       ...data,

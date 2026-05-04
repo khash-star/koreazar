@@ -1,7 +1,7 @@
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.zarkorea.com/index.php";
 
-const DEFAULT_TIMEOUT_MS = 12000;
+const DEFAULT_TIMEOUT_MS = 8000;
 
 export function buildApiUrl(action, params = {}) {
   const url = new URL(API_BASE_URL);
@@ -74,6 +74,15 @@ export async function requestJson(url, options = {}) {
       if (attempt >= maxRetries || !isTransientFailure(error, status)) {
         if (error?.name === "AbortError") {
           throw new Error("Холболтын хугацаа дууслаа. Дахин оролдоно уу.");
+        }
+        const msg = String(error?.message || "").toLowerCase();
+        if (
+          error?.name === "TypeError" ||
+          msg.includes("network request failed") ||
+          msg.includes("failed to fetch") ||
+          msg.includes("unable to connect")
+        ) {
+          throw new Error("Сервертэй холбогдож чадсангүй. Интернэт болон API серверээ шалгаад дахин оролдоно уу.");
         }
         throw error;
       }

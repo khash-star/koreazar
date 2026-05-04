@@ -114,7 +114,7 @@ export function subscribeAuth(callback) {
 
 export async function loginWithEmail(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-  await syncUserToMySql(cred.user, {});
+  syncUserToMySql(cred.user, {}).catch(() => {});
   await ensureTermsAcceptanceIfMissing(cred.user);
   return cred.user;
 }
@@ -156,12 +156,12 @@ export async function registerWithEmail(
   } catch (e) {
     console.warn("Firestore user doc:", e?.message);
   }
-  await syncUserToMySql(user, {
+  syncUserToMySql(user, {
     displayName: displayName?.trim() || user.email?.split("@")[0] || "",
     phone: phone?.trim() || "",
     city: city?.trim() || "",
     district: district?.trim() || "",
-  });
+  }).catch(() => {});
   return user;
 }
 
@@ -207,12 +207,12 @@ export async function updateUserData(uid, data) {
       /* ignore */
     }
   }
-  await syncUserToMySql(user, {
+  syncUserToMySql(user, {
     displayName: patch.displayName || user.displayName || user.email?.split("@")[0] || "",
     phone: patch.phone,
     city: patch.city,
     district: patch.district,
-  });
+  }).catch(() => {});
 }
 
 /** Apple 5.1.1(v) — бүртгэл бүрэн устгах */
