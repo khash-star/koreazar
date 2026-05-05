@@ -5,10 +5,14 @@ DirectoryIndex index.php index.html
 Options -Indexes
 
 # Pass Authorization: Bearer ... to PHP (many hosts strip it; CGI/FastCGI fix)
+# Non-file/non-dir requests → index.php (query string preserved via QSA)
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteCond %{HTTP:Authorization} .
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
 # Block direct web access to secrets
