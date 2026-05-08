@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.zarkorea.twa",
-      "versionCode": 27,
+      "versionCode": 29,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
