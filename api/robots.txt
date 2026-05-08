@@ -1,0 +1,3 @@
+# API host is not a public website; do not crawl JSON/PHP endpoints as pages.
+User-agent: *
+Disallow: /
