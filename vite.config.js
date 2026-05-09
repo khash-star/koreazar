@@ -26,11 +26,19 @@ export default defineConfig({
     nonBlockingCss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Some hosts block or mishandle *.webmanifest (403); .json works reliably.
+      manifestFilename: 'manifest.json',
       includeAssets: ['favicon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/sw\.js$/, /^\/workbox-.*\.js$/],
+        navigateFallbackDenylist: [
+          /^\/sw\.js$/,
+          /^\/registerSW\.js$/,
+          /^\/workbox-.*\.js$/,
+          /^\/manifest\.json$/,
+          /^\/manifest\.webmanifest$/,
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,

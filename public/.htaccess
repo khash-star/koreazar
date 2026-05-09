@@ -1,0 +1,11 @@
+# Apache: PWA manifest (some panels return 403 for .webmanifest; serve same file as manifest.json)
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType application/manifest+json .json
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^manifest\.webmanifest$ manifest.json [L]
+</IfModule>
