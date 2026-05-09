@@ -50,6 +50,13 @@ const getAuthHeaders = async () => {
   return { Authorization: `Bearer ${token}` };
 };
 
+/** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
+function isViewCountOnlyBump(data) {
+  if (!data || typeof data !== 'object') return false;
+  const keys = Object.keys(data);
+  return keys.length === 1 && keys[0] === 'views' && Number.isFinite(Number(data.views));
+}
+
 const normalizeListing = (item) => {
   if (!item || typeof item !== 'object') return null;
   const cid = item.customer_id;
@@ -163,7 +170,9 @@ export const updateListing = async (id, data) => {
   try {
     const mysqlId = parseMysqlListingId(id);
     if (!mysqlId) throw new Error('Зарын ID буруу байна.');
-    const headers = await getAuthHeaders();
+    const headers = isViewCountOnlyBump(data)
+      ? {}
+      : await getAuthHeaders();
     await requestJson(buildApiUrl('listing', { id: mysqlId }), {
       method: 'PATCH',
       headers,

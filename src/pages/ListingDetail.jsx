@@ -192,13 +192,14 @@ export default function ListingDetail() {
     });
   };
 
-  // Update view count
+  // Update view count (public: API allows views-only PATCH without auth; see listingService)
   useEffect(() => {
-    if (listing) {
-      entities.Listing.update(listing.id, {
-        views: (listing.views || 0) + 1
-      });
-    }
+    if (!listing) return;
+    entities.Listing
+      .update(listing.id, {
+        views: (listing.views || 0) + 1,
+      })
+      .catch(() => {});
   }, [listing?.id]);
 
   // Meta / SEO

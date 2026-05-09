@@ -21,6 +21,13 @@ async function getAuthHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
+/** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
+function isViewCountOnlyBump(data) {
+  if (!data || typeof data !== "object") return false;
+  const keys = Object.keys(data);
+  return keys.length === 1 && keys[0] === "views" && Number.isFinite(Number(data.views));
+}
+
 function normalizeImages(images) {
   if (Array.isArray(images)) return images;
   if (typeof images === "string") {
@@ -169,7 +176,7 @@ export async function createListing(data, options = {}) {
 
 export async function updateListing(id, data) {
   if (!id) throw new Error("ID шаардлагатай.");
-  const headers = await getAuthHeaders();
+  const headers = isViewCountOnlyBump(data) ? {} : await getAuthHeaders();
   await requestJson(buildApiUrl("listing", { id }), {
     method: "PATCH",
     headers,
