@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +11,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { fetchListingByIdResult, getLatestListings } from "../services/listingService";
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
@@ -29,10 +32,11 @@ import { openPhoneDialerSafe } from "../utils/safeLinking";
 import { showAlert } from "../utils/showAlert";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
 
 export default function ListingDetailScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { listingId } = route?.params ?? {};
   const { email, isAuthenticated, user, userData, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -47,6 +51,8 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [reportReason, setReportReason] = useState("Залилан/сэжигтэй");
   const [reportComment, setReportComment] = useState("");
   const [blockBusy, setBlockBusy] = useState(false);
+  const [imageLightboxOpen, setImageLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const refreshSaved = useCallback(async () => {
     if (!email || !listingId) {
@@ -162,6 +168,38 @@ export default function ListingDetailScreen({ route, navigation }) {
   const images = Array.isArray(listing.images) ? listing.images : [];
   const mainImg = images[imageIndex];
   const mainUri = mainImg ? getListingImageUrl(mainImg, "w800") : "";
+
+  const lightboxAreaH = Math.max(
+    220,
+    SCREEN_H - insets.top - insets.bottom - 56
+  );
+  const lightboxUri =
+    images.length > 0 && images[lightboxIndex]
+      ? getListingImageUrl(images[lightboxIndex], "w800")
+      : "";
+
+  function openImageLightbox() {
+    if (!mainImg || !mainUri) return;
+    blurActiveElementWeb();
+    setLightboxIndex(imageIndex);
+    setImageLightboxOpen(true);
+  }
+
+  function closeImageLightbox() {
+    blurActiveElementWeb();
+    setImageIndex(lightboxIndex);
+    setImageLightboxOpen(false);
+  }
+
+  function lightboxPrev() {
+    if (images.length < 2) return;
+    setLightboxIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  }
+
+  function lightboxNext() {
+    if (images.length < 2) return;
+    setLightboxIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+  }
 
   const formatPrice = () => {
     if (!listing.price) return "Үнэ тохирно";
@@ -287,13 +325,19 @@ export default function ListingDetailScreen({ route, navigation }) {
       <View style={styles.gallerySection}>
         {mainUri ? (
           <View style={styles.galleryWrap}>
-            <Image
-              source={{ uri: mainUri }}
-              style={[styles.hero, { height: GALLERY_H }]}
-              contentFit="cover"
-              transition={200}
-              cachePolicy="memory-disk"
-            />
+            <Pressable
+              onPress={openImageLightbox}
+              accessibilityRole="button"
+              accessibilityLabel="Зургийг томоор харах"
+            >
+              <Image
+                source={{ uri: mainUri }}
+                style={[styles.hero, { height: GALLERY_H }]}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
+              />
+            </Pressable>
             {images.length > 1 && (
               <ScrollView
                 horizontal
@@ -574,6 +618,86 @@ export default function ListingDetailScreen({ route, navigation }) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={imageLightboxOpen}
+        transparent
+        animationType="fade"
+        presentationStyle={Platform.OS === "ios" ? "fullScreen" : undefined}
+        statusBarTranslucent={Platform.OS === "android"}
+        onRequestClose={closeImageLightbox}
+      >
+        <View style={styles.imageLightboxRoot}>
+          <View
+            style={[
+              styles.imageLightboxTopBar,
+              {
+                paddingTop: Math.max(insets.top, 10),
+                paddingLeft: Math.max(insets.left, 8),
+                paddingRight: Math.max(insets.right, 8),
+              },
+            ]}
+          >
+            <View style={{ width: 44 }} />
+            <View style={styles.imageLightboxTopCenter}>
+              {images.length > 1 ? (
+                <Text style={styles.imageLightboxCounter}>
+                  {lightboxIndex + 1} / {images.length}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={closeImageLightbox}
+              accessibilityRole="button"
+              accessibilityLabel="Хаах"
+              hitSlop={12}
+              style={styles.imageLightboxClose}
+            >
+              <Ionicons name="close" size={34} color="#fff" />
+            </Pressable>
+          </View>
+
+          <View
+            style={[
+              styles.imageLightboxBody,
+              { paddingBottom: Math.max(insets.bottom, 12), minHeight: lightboxAreaH },
+            ]}
+          >
+            {!!lightboxUri && (
+              <Image
+                source={{ uri: lightboxUri }}
+                style={{ width: SCREEN_W, height: lightboxAreaH }}
+                contentFit="contain"
+                transition={150}
+                cachePolicy="memory-disk"
+              />
+            )}
+          </View>
+
+          {images.length > 1 ? (
+            <>
+              <Pressable
+                style={[styles.imageLightboxNav, styles.imageLightboxNavLeft]}
+                onPress={lightboxPrev}
+                accessibilityRole="button"
+                accessibilityLabel="Өмнөх зураг"
+                hitSlop={16}
+              >
+                <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
+              </Pressable>
+              <Pressable
+                style={[styles.imageLightboxNav, styles.imageLightboxNavRight]}
+                onPress={lightboxNext}
+                accessibilityRole="button"
+                accessibilityLabel="Дараагийн зураг"
+                hitSlop={16}
+              >
+                <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -770,4 +894,53 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   modalSubmitText: { color: "#fff", fontWeight: "700" },
+  imageLightboxRoot: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.94)",
+  },
+  imageLightboxTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingBottom: 8,
+    zIndex: 20,
+  },
+  imageLightboxTopCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageLightboxCounter: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  imageLightboxClose: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  imageLightboxBody: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageLightboxNav: {
+    position: "absolute",
+    top: "42%",
+    zIndex: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 28,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  imageLightboxNavLeft: { left: 4 },
+  imageLightboxNavRight: { right: 4 },
 });
