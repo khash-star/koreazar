@@ -203,16 +203,16 @@ export default function ListingDetail() {
   }, [listing?.id]);
 
   // Meta / SEO
-  const DEFAULT_TITLE = 'Koreazar - Солонгост буй Монголчуудын зарын сайт';
-  const DEFAULT_DESC = 'Солонгост амьдарч буй Монголчуудын хувьд зориулсан зарын сайт. Автомашин, орон сууц, ажлын байр, бараа, үйлчилгээний зарууд.';
+  const DEFAULT_TITLE = 'Zarkorea.com - Солонгос дахь Монголчуудын зарын сайт';
+  const DEFAULT_DESC = 'Zarkorea — Солонгос дахь Монголчуудын №1 зарын сайт. Автомашин, орон сууц, ажлын байр, хувцас, бараа, үйлчилгээний зарууд.';
   useEffect(() => {
     if (!listing) return;
-    document.title = `${listing.title || 'Зар'} - Koreazar`;
+    document.title = `${listing.title || 'Зар'} - Zarkorea`;
     const descMeta = document.querySelector('meta[name="description"]');
     if (descMeta) {
       const desc = listing.description
         ? (listing.description.slice(0, 155) + (listing.description.length > 155 ? '...' : ''))
-        : `${listing.title} - Солонгост буй Монголчуудын зарын сайт`;
+        : `${listing.title} - Zarkorea, Солонгос дахь Монголчуудын зарын сайт`;
       descMeta.setAttribute('content', desc);
     }
     return () => {
@@ -229,7 +229,7 @@ export default function ListingDetail() {
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
-    const shareTitle = listing?.title || 'Зар - Koreazar';
+    const shareTitle = listing?.title || 'Зар - Zarkorea';
     if (navigator.share) {
       try {
         await navigator.share({ title: shareTitle, url: shareUrl, text: shareTitle });

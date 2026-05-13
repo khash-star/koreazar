@@ -28,7 +28,7 @@ export default function Privacy() {
             <section>
               <h2 className="text-lg font-semibold text-gray-900 mt-6 mb-2">1. Танилцуулга</h2>
               <p>
-                Koreazar (заркореа.com) нь Солонгост амьдарч буй Монголчуудын зарын платформ юм. 
+                Zarkorea (zarkorea.com) нь Солонгос дахь Монголчуудын зарын платформ юм. 
                 Энэхүү нууцлалын бодлого нь бид хэрхэн таны өгөгдлийг цуглуулж, хадгалж, 
                 ашигладаг талаар тайлбарлана.
               </p>
@@ -116,7 +116,7 @@ export default function Privacy() {
                 Асуулт, санал хүсэлтээ илгээхийг хүсвэл:
               </p>
               <p className="mt-2">
-                <strong>Koreazar / KHASH Co Ltd</strong><br />
+                <strong>Zarkorea / KHASH Co Ltd</strong><br />
                 Вэбсайт: <a href={baseUrl} className="text-amber-600 hover:underline">{baseUrl}</a>
               </p>
             </section>

@@ -35,7 +35,7 @@ export const getAIResponse = async (userMessage, conversationHistory = [], userE
   }
 
   // System prompt - AI ботны үүрэг, зөвхөн зарын тухай хариулах
-  const systemPrompt = `Та Koreazar апп-н туслах AI бот. Таны үүрэг бол хэрэглэгчдэд ЗАРЫН ТУХАЙ туслах явдал юм.
+  const systemPrompt = `Та Zarkorea апп-н туслах AI бот. Таны үүрэг бол хэрэглэгчдэд ЗАРЫН ТУХАЙ туслах явдал юм.
 
 ЧУХАЛ ДҮРЭМ:
 1. Зөвхөн ЗАРЫН ТУХАЙ асуултуудад хариулах
@@ -169,7 +169,7 @@ export const checkListingWithAI = async (listing) => {
     imageCount: listing.images ? listing.images.length : 0
   };
 
-  const systemPrompt = `Та Koreazar зарын сайтын админ туслах AI. Таны үүрэг бол заруудыг шалгаад батлах эсэхийг санал болгох явдал юм.
+  const systemPrompt = `Та Zarkorea зарын сайтын админ туслах AI. Таны үүрэг бол заруудыг шалгаад батлах эсэхийг санал болгох явдал юм.
 
 ЧУХАЛ: Та ЗӨВХӨН JSON формат дахь хариулт өгөх ёстой. Бусад текст бичэхгүй байх.
 

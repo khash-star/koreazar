@@ -1,4 +1,43 @@
+# Zarkorea robots.txt
+# https://zarkorea.com
+
 User-agent: *
 Allow: /
 
+# Block private/admin/auth-only routes (no SEO value, avoid wasted crawl budget)
+Disallow: /Admin
+Disallow: /AdminPanel
+Disallow: /AdminBanners
+Disallow: /AdminBannerRequests
+Disallow: /AdminAllListings
+Disallow: /AdminNewListings
+Disallow: /AdminListingReports
+Disallow: /Profile
+Disallow: /Chat
+Disallow: /Messages
+Disallow: /MyListings
+Disallow: /SavedListings
+Disallow: /EditListing
+Disallow: /UpgradeListing
+
+# Block query-only duplicates (search/filter URLs are not unique pages)
+Disallow: /*?search=
+Disallow: /*?category=
+Disallow: /*?subcategory=
+
+# Allow main public pages explicitly
+Allow: /
+Allow: /CreateListing
+Allow: /ListingDetail
+Allow: /Privacy
+Allow: /RequestBannerAd
+Allow: /AIBot
+
+# Block AI crawlers (optional; remove if you want AI training)
+# User-agent: GPTBot
+# Disallow: /
+# User-agent: CCBot
+# Disallow: /
+
+# Sitemap
 Sitemap: https://zarkorea.com/sitemap.xml

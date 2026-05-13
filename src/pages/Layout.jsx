@@ -161,6 +161,12 @@ export default function Layout({ children, currentPageName }) {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 py-8 mt-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 space-y-6">
+          <div className="text-center">
+            <h2 className="text-white text-lg font-bold">Zarkorea — Солонгос дахь Монголчуудын зарын сайт</h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Zarkorea · Zarkorea app · Zarkorea Korea Mongolia · Солонгос зар · Заркореа
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
               <h3 className="text-white font-semibold">Тусламж</h3>
@@ -209,7 +215,7 @@ export default function Layout({ children, currentPageName }) {
             </div>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            © 2026 Copyright Reserved - <span className="text-amber-500 font-semibold">KHASH Co Ltd</span>
+            © 2026 <span className="text-amber-500 font-semibold">Zarkorea</span>. All rights reserved.
             {' · '}
             <Link to={createPageUrl('Privacy')} className="hover:text-amber-500 underline underline-offset-2">
               Нууцлалын бодлого

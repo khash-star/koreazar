@@ -223,7 +223,7 @@ export default function Messages() {
             {userData?.role === 'admin' && (
               <img 
                 src="/icon-180.png" 
-                alt="Koreazar" 
+                alt="Zarkorea" 
                 className="w-10 h-10 object-contain rounded-lg"
               />
             )}
