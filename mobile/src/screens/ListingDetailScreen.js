@@ -196,6 +196,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   }
 
   function openReportActions() {
+    blurActiveElementWeb();
     if (!isAuthenticated || !email) {
       showAlert("Нэвтрэх", "Санал/гомдол илгээхийн тулд нэвтэрнэ үү", [
         { text: "Цуцлах", style: "cancel" },
@@ -323,7 +324,10 @@ export default function ListingDetailScreen({ route, navigation }) {
           </View>
         )}
         {mysqlListingId ? (
-          <View style={styles.listingIdCorner} pointerEvents="none" accessibilityLabel={`Зарын дугаар ${mysqlListingId}`}>
+          <View
+            style={[styles.listingIdCorner, { pointerEvents: "none" }]}
+            accessibilityLabel={`Зарын дугаар ${mysqlListingId}`}
+          >
             <Text style={styles.listingIdCornerText}>Зар № {mysqlListingId}</Text>
           </View>
         ) : null}
@@ -505,9 +509,20 @@ export default function ListingDetailScreen({ route, navigation }) {
         visible={reportOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => !reportBusy && setReportOpen(false)}
+        onRequestClose={() => {
+          if (reportBusy) return;
+          blurActiveElementWeb();
+          setReportOpen(false);
+        }}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => !reportBusy && setReportOpen(false)}>
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => {
+            if (reportBusy) return;
+            blurActiveElementWeb();
+            setReportOpen(false);
+          }}
+        >
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Санал/гомдол</Text>
             <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
@@ -540,7 +555,10 @@ export default function ListingDetailScreen({ route, navigation }) {
             <View style={styles.modalActions}>
               <Pressable
                 style={styles.modalCancel}
-                onPress={() => setReportOpen(false)}
+                onPress={() => {
+                  blurActiveElementWeb();
+                  setReportOpen(false);
+                }}
                 disabled={reportBusy}
               >
                 <Text style={styles.modalCancelText}>Цуцлах</Text>

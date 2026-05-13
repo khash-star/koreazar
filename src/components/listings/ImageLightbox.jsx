@@ -36,6 +36,10 @@ export default function ImageLightbox({
   const closeDispatchedRef = useRef(false);
   /** True after history.back() until popstate — blocks double-tap X / backdrop before popstate runs. */
   const pendingHistoryPopRef = useRef(false);
+  /** A11y: refs for focus management. */
+  const containerRef = useRef(null);
+  const closeBtnRef = useRef(null);
+  const previouslyFocusedRef = useRef(null);
 
   const total = images?.length || 0;
 
@@ -54,6 +58,62 @@ export default function ImageLightbox({
       closeDispatchedRef.current = false;
       pendingHistoryPopRef.current = false;
     }
+  }, [open]);
+
+  /**
+   * Focus management — prevents "Blocked aria-hidden ... descendant retained focus":
+   *  - Remember the element that was focused before opening (e.g. the listing image button).
+   *  - Move focus into the dialog (close button) so it is no longer inside background content.
+   *  - Restore focus to that element on close if it still exists in the DOM.
+   * We do NOT add aria-hidden on app root — the role="dialog" + aria-modal + focused
+   * descendant inside the portal is sufficient and avoids the warning.
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    if (!open) return undefined;
+
+    const previouslyFocused = document.activeElement;
+    previouslyFocusedRef.current =
+      previouslyFocused && previouslyFocused !== document.body ? previouslyFocused : null;
+
+    if (previouslyFocused && typeof previouslyFocused.blur === 'function') {
+      try {
+        previouslyFocused.blur();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const id = requestAnimationFrame(() => {
+      const btn = closeBtnRef.current;
+      const container = containerRef.current;
+      if (btn && typeof btn.focus === 'function') {
+        try {
+          btn.focus({ preventScroll: true });
+        } catch {
+          btn.focus();
+        }
+      } else if (container && typeof container.focus === 'function') {
+        try {
+          container.focus({ preventScroll: true });
+        } catch {
+          container.focus();
+        }
+      }
+    });
+
+    return () => {
+      cancelAnimationFrame(id);
+      const target = previouslyFocusedRef.current;
+      previouslyFocusedRef.current = null;
+      if (target && document.contains(target) && typeof target.focus === 'function') {
+        try {
+          target.focus({ preventScroll: true });
+        } catch {
+          target.focus();
+        }
+      }
+    };
   }, [open]);
 
   useEffect(() => {
@@ -188,11 +248,13 @@ export default function ImageLightbox({
     <AnimatePresence>
       {open && hasImages && (
         <motion.div
+          ref={containerRef}
+          tabIndex={-1}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[9998] bg-black/90 flex flex-col select-none overscroll-none"
+          className="fixed inset-0 z-[9998] bg-black/90 flex flex-col select-none overscroll-none outline-none"
           onClick={(e) => {
             if (e.target === e.currentTarget) requestCloseViaHistory();
           }}
@@ -211,13 +273,14 @@ export default function ImageLightbox({
           }}
         >
           <button
+            ref={closeBtnRef}
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               requestCloseViaHistory();
             }}
             aria-label="Хаах"
-            className="absolute z-[9999] w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white flex items-center justify-center backdrop-blur-sm"
+            className="absolute z-[9999] w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white flex items-center justify-center backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
             style={{ top: safeTop, right: safeRight }}
           >
             <X className="w-6 h-6" aria-hidden />
