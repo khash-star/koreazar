@@ -83,7 +83,9 @@ export default defineConfig({
     minify: 'esbuild', // Minify JS (Lighthouse: Reduce unused JS / payload)
   },
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    // Listen on LAN so you can open http://<PC-IP>:5173 from phone (same Wi‑Fi) before build.
+    host: true,
   },
   resolve: {
     alias: {
