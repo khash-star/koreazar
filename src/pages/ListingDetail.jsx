@@ -39,6 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
+import ImageLightbox from '@/components/listings/ImageLightbox';
 import { subcategoryConfig, conditionLabels } from '@/constants/listings';
 import {
   Dialog,
@@ -66,6 +67,7 @@ export default function ListingDetail() {
   const navigate = useNavigate();
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -430,33 +432,58 @@ export default function ListingDetail() {
                   loading="lazy"
                   decoding="async"
                   sizes="(max-width: 768px) 100vw, 800px"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Зургийг бүтэн дэлгэцээр харах"
+                  onClick={() => setLightboxOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setLightboxOpen(true);
+                    }
+                  }}
                 />
               </AnimatePresence>
-              
+
               {listing.images.length > 1 && (
                 <>
                   <button
-                    onClick={() => setCurrentImageIndex(prev => prev === 0 ? listing.images.length - 1 : prev - 1)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex(prev => prev === 0 ? listing.images.length - 1 : prev - 1);
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg z-10"
+                    aria-label="Өмнөх зураг"
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </button>
                   <button
-                    onClick={() => setCurrentImageIndex(prev => prev === listing.images.length - 1 ? 0 : prev + 1)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCurrentImageIndex(prev => prev === listing.images.length - 1 ? 0 : prev + 1);
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg z-10"
+                    aria-label="Дараагийн зураг"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
                   
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                     {listing.images.map((_, index) => (
                       <button
                         key={index}
-                        onClick={() => setCurrentImageIndex(index)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(index);
+                        }}
                         className={`w-2 h-2 rounded-full transition-all ${
                           index === currentImageIndex ? 'bg-white w-6' : 'bg-white/50'
                         }`}
+                        aria-label={`Зураг ${index + 1}`}
                       />
                     ))}
                   </div>
@@ -470,11 +497,27 @@ export default function ListingDetail() {
           )}
           
           {listing.status === 'sold' && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
               <span className="text-white font-bold text-3xl">ЗАРАГДСАН</span>
             </div>
           )}
         </div>
+
+        {/* Full-screen Lightbox */}
+        {hasImages && (
+          <ImageLightbox
+            images={listing.images}
+            open={lightboxOpen}
+            initialIndex={currentImageIndex}
+            onClose={(finalIndex) => {
+              setLightboxOpen(false);
+              if (typeof finalIndex === 'number') {
+                setCurrentImageIndex(finalIndex);
+              }
+            }}
+            getSrc={(img) => getListingImageUrl(img, 'w800')}
+          />
+        )}
 
         {/* Thumbnails */}
         {hasImages && listing.images.length > 1 && (
