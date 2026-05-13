@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { getPendingListingsCount } from "../services/listingService";
 import { getUnreadMessagesCount } from "../services/conversationService";
 import { subscribeUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
+import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
 import LoginScreen from "../screens/LoginScreen.js";
@@ -465,9 +466,27 @@ function MainTabs() {
   );
 }
 
+/**
+ * RN Web: when a screen is pushed/popped, React Navigation flips the previous
+ * screen container to aria-hidden="true". If a Pressable / button on that
+ * screen still has DOM focus, Chrome logs:
+ *   "Blocked aria-hidden on an element because its descendant retained focus"
+ *
+ * Listen to global state changes and blur any active element on each
+ * navigation transition. Native platforms early-return inside the helper.
+ */
+function handleNavStateChange() {
+  blurActiveElementWeb();
+}
+
 export default function AppNavigator() {
   return (
-    <NavigationContainer ref={navigationRef} theme={navigationTheme} linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navigationTheme}
+      linking={linking}
+      onStateChange={handleNavStateChange}
+    >
       <RootStack.Navigator
         screenOptions={{
           contentStyle: { backgroundColor: "#f3f4f6" },
