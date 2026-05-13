@@ -15,6 +15,9 @@ const HISTORY_MARK = '__imageLightbox';
  * all w800 variants — safe for 10+ photos (network switches image on swipe).
  *
  * Z-index: above app chrome (nav z-40–50), toasts (z-100), and Radix dialogs (z-50).
+ *
+ * Close / history: parent onClose is invoked at most once per open (emitCloseOnce + guards
+ * for double-tap X / backdrop and pending history.back() before popstate).
  */
 export default function ImageLightbox({
   images = [],
@@ -29,12 +32,29 @@ export default function ImageLightbox({
   const indexRef = useRef(initialIndex);
   const pushedHistoryRef = useRef(false);
   const onCloseRef = useRef(onClose);
+  /** Parent onClose must run at most once per open session (avoids double setState / console noise). */
+  const closeDispatchedRef = useRef(false);
+  /** True after history.back() until popstate — blocks double-tap X / backdrop before popstate runs. */
+  const pendingHistoryPopRef = useRef(false);
 
   const total = images?.length || 0;
 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  const emitCloseOnce = useCallback((idx) => {
+    if (closeDispatchedRef.current) return;
+    closeDispatchedRef.current = true;
+    onCloseRef.current?.(idx);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      closeDispatchedRef.current = false;
+      pendingHistoryPopRef.current = false;
+    }
+  }, [open]);
 
   useEffect(() => {
     indexRef.current = index;
@@ -81,23 +101,28 @@ export default function ImageLightbox({
     pushedHistoryRef.current = true;
 
     const onPopState = () => {
+      pendingHistoryPopRef.current = false;
       pushedHistoryRef.current = false;
-      onCloseRef.current?.(indexRef.current);
+      emitCloseOnce(indexRef.current);
     };
 
     window.addEventListener('popstate', onPopState);
     return () => {
       window.removeEventListener('popstate', onPopState);
     };
-  }, [open]);
+  }, [open, emitCloseOnce]);
 
   const requestCloseViaHistory = useCallback(() => {
+    if (closeDispatchedRef.current) return;
+    if (pendingHistoryPopRef.current) return;
+
     if (pushedHistoryRef.current && window.history.state?.[HISTORY_MARK]) {
+      pendingHistoryPopRef.current = true;
       window.history.back();
       return;
     }
-    onCloseRef.current?.(indexRef.current);
-  }, []);
+    emitCloseOnce(indexRef.current);
+  }, [emitCloseOnce]);
 
   const prev = useCallback(() => {
     setIndex((i) => (i === 0 ? total - 1 : i - 1));
