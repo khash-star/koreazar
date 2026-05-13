@@ -190,7 +190,7 @@ export default function AdminAllListings() {
                       <img
                         src={getListingImageUrl(listing.images[0], 'w400')}
                         alt={listing.title}
-                        className="w-24 h-24 rounded-lg object-cover"
+                        className="w-24 h-24 rounded-lg object-contain object-top bg-gray-50"
                       />
                     ) : (
                       <div className="w-24 h-24 rounded-lg bg-gray-100 flex items-center justify-center text-3xl">

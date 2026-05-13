@@ -417,7 +417,7 @@ export default function Chat() {
             <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
               <div className="flex gap-3 items-center hover:bg-amber-100 rounded-lg p-2 -m-2 transition-colors">
                 {listing.images?.[0] && (
-                  <img src={getListingImageUrl(listing.images[0], 'w150')} alt="" className="w-12 h-12 rounded-lg object-cover" loading="lazy" decoding="async" />
+                  <img src={getListingImageUrl(listing.images[0], 'w150')} alt="" className="w-12 h-12 rounded-lg object-contain object-top bg-gray-50" loading="lazy" decoding="async" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{listing.title}</p>

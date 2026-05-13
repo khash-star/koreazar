@@ -36,7 +36,7 @@ export default function FeaturedListingCard({ listing }) {
         whileHover={{ y: -4 }}
         className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all w-[280px] flex-shrink-0"
       >
-        <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
+        <div className="relative aspect-[3/2] overflow-hidden bg-gray-50">
           {listing.images?.[0] ? (
             <img
               src={getListingImageUrl(listing.images[0], 'w400')}
@@ -47,7 +47,7 @@ export default function FeaturedListingCard({ listing }) {
               loading="lazy"
               decoding="async"
               sizes="(max-width: 768px) 280px, 350px"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain object-top"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">

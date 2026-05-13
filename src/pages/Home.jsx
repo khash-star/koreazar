@@ -589,7 +589,7 @@ export default function Home() {
                     to={createPageUrl(`ListingDetail?id=${item.id}`)}
                     className="w-[300px] flex-shrink-0"
                   >
-                    <div className="relative h-[160px] rounded-2xl overflow-hidden group">
+                    <div className="relative h-[160px] rounded-2xl overflow-hidden group bg-gray-50">
                       <img
                         src={getListingImageUrl(item.images?.[0], 'w400') || 'https://via.placeholder.com/400x200'}
                         srcSet={item.images?.[0] ? getListingImageSrcSet(item.images[0]) || undefined : undefined}
@@ -599,7 +599,7 @@ export default function Home() {
                         loading="lazy"
                         decoding="async"
                         sizes="300px"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain object-top group-hover:scale-105 transition-transform duration-300"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                       <div className="absolute top-3 right-3">

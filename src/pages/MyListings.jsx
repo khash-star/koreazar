@@ -204,7 +204,7 @@ export default function MyListings() {
                           alt={listing.title || 'Зар'}
                           loading="lazy"
                           decoding="async"
-                          className="w-24 h-24 object-cover rounded-lg"
+                          className="w-24 h-24 object-contain object-top rounded-lg bg-gray-50"
                         />
                       ) : (
                         <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-3xl">

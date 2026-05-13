@@ -88,16 +88,16 @@ export default function ListingCard({ listing, isAboveFold = false }) {
             : 'bg-white border-gray-100'
         }`}
       >
-<div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
+<div className="relative aspect-[3/2] overflow-hidden bg-gray-50">
             {listing.images && listing.images.length > 0 ? (
             <>
-              {/* Blur placeholder (w150) — удаан ачаалал багасгах, хурдан харагдана */}
+              {/* Blur placeholder (w150) — fills empty space when object-contain is used */}
               {typeof listing.images[0] === 'object' && listing.images[0].w150 && (
                 <img
                   src={listing.images[0].w150}
                   alt=""
                   aria-hidden
-                  className="absolute inset-0 w-full h-full object-cover blur-md scale-110"
+                  className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-60"
                   loading={isAboveFold ? 'eager' : 'lazy'}
                 />
               )}
@@ -111,7 +111,7 @@ export default function ListingCard({ listing, isAboveFold = false }) {
                 fetchPriority={isAboveFold ? 'high' : undefined}
                 decoding="async"
                 sizes="(max-width: 768px) 312px, 350px"
-                className="relative w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="relative w-full h-full object-contain object-top group-hover:scale-105 transition-transform duration-500"
               />
             </>
           ) : (
