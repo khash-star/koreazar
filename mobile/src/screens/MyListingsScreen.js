@@ -28,6 +28,7 @@ import {
   navigateToEditListing,
 } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
+import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 
 const IMG_H = 120;
 
@@ -118,6 +119,7 @@ export default function MyListingsScreen({ navigation }) {
             onPress: async () => {
               try {
                 await deleteListing(item.id);
+                notifyListingBadgeRefresh();
                 load(false);
               } catch (e) {
                 showAlert("Алдаа", e?.message || "Устгаж чадсангүй");

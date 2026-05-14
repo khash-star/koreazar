@@ -33,6 +33,7 @@ import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { getBottomTabNavigator, navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
+import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 
 const IMG_H = 100;
 const AUTO_APPROVE_KEY = "admin_auto_approve_listings";
@@ -100,6 +101,7 @@ export default function AdminScreen({ navigation }) {
             }
           }
           setRows([]);
+          notifyListingBadgeRefresh();
         }
       } catch (e) {
         showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
@@ -180,6 +182,7 @@ export default function AdminScreen({ navigation }) {
           }
         }
         setRows([]);
+        notifyListingBadgeRefresh();
       };
       approveAll();
     }
@@ -191,6 +194,7 @@ export default function AdminScreen({ navigation }) {
       try {
         await updateListing(item.id, { status: "active" });
         setRows((prev) => prev.filter((r) => r.id !== item.id));
+        notifyListingBadgeRefresh();
       } catch (e) {
         showAlert("Алдаа", e?.message || "Батлахад алдаа гарлаа");
       } finally {
@@ -215,6 +219,7 @@ export default function AdminScreen({ navigation }) {
               try {
                 await updateListing(item.id, { status: "rejected" });
                 setRows((prev) => prev.filter((r) => r.id !== item.id));
+                notifyListingBadgeRefresh();
               } catch (e) {
                 showAlert("Алдаа", e?.message || "Татгалзахад алдаа гарлаа");
               } finally {
@@ -243,6 +248,7 @@ export default function AdminScreen({ navigation }) {
               try {
                 await deleteListing(item.id);
                 setRows((prev) => prev.filter((r) => r.id !== item.id));
+                notifyListingBadgeRefresh();
               } catch (e) {
                 showAlert("Алдаа", e?.message || "Устгаж чадсангүй");
               } finally {

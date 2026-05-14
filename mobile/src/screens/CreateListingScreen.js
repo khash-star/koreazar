@@ -30,6 +30,7 @@ const conditionOptions = _conditionOptions ?? [
 import { navigateToLogin, navigateToHomeMain } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
 import { checkBannedListingFields } from "../utils/bannedContent";
+import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 
 function listingExpiresToIso(exp) {
   if (!exp) return undefined;
@@ -302,6 +303,7 @@ export default function CreateListingScreen({ navigation }) {
         status: autoApprove ? "active" : "pending",
       };
       await createListing(submitData, { timeoutMs: 20000 });
+      notifyListingBadgeRefresh();
       // Keep Create tab clean after successful submit.
       setImages([]);
       setForm(createInitialForm());

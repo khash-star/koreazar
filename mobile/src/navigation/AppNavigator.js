@@ -16,6 +16,7 @@ import {
   getPendingListingsCount,
 } from "../services/listingService";
 import { getUnreadMessagesCount } from "../services/conversationService";
+import { subscribeListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 import { subscribeUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
 import {
   clearAppIconBadge,
@@ -334,6 +335,7 @@ function MainTabs() {
     if (!isAdmin) return;
     const refresh = () => getPendingListingsCount().then(setPendingCount).catch(() => {});
     refresh();
+    const unsubListing = subscribeListingBadgeRefresh(refresh);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") refresh();
     });
@@ -345,6 +347,7 @@ function MainTabs() {
       20000
     );
     return () => {
+      unsubListing();
       clearInterval(interval);
       sub.remove();
     };
@@ -358,6 +361,7 @@ function MainTabs() {
     const refresh = () =>
       getCreatorPendingListingsCount(email, customerIdForListings).then(setCreatorPendingCount).catch(() => {});
     refresh();
+    const unsubListing = subscribeListingBadgeRefresh(refresh);
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") refresh();
     });
@@ -369,6 +373,7 @@ function MainTabs() {
       20000
     );
     return () => {
+      unsubListing();
       clearInterval(interval);
       sub.remove();
     };

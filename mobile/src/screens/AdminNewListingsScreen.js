@@ -6,6 +6,7 @@ import { deleteListing, getPendingListings, updateListing } from "../services/li
 import { getListingImageUrl } from "../utils/imageUrl";
 import { navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
+import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 
 export default function AdminNewListingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,7 @@ export default function AdminNewListingsScreen({ navigation }) {
     try {
       await updateListing(item.id, { status });
       setRows((prev) => prev.filter((r) => r.id !== item.id));
+      notifyListingBadgeRefresh();
     } catch (e) {
       showAlert("Алдаа", e?.message || "Төлөв шинэчилж чадсангүй");
     } finally {
@@ -50,6 +52,7 @@ export default function AdminNewListingsScreen({ navigation }) {
     try {
       await deleteListing(item.id);
       setRows((prev) => prev.filter((r) => r.id !== item.id));
+      notifyListingBadgeRefresh();
     } catch (e) {
       showAlert("Алдаа", e?.message || "Устгаж чадсангүй");
     } finally {
