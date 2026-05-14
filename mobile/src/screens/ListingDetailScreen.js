@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  Image as RNImage,
   Modal,
   Platform,
   Pressable,
@@ -119,6 +120,14 @@ export default function ListingDetailScreen({ route, navigation }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Clamp gallery indices when image count shrinks (avoids OOB in lightbox). */
+  useEffect(() => {
+    const n = Array.isArray(listing?.images) ? listing.images.length : 0;
+    if (n <= 0) return;
+    setImageIndex((i) => Math.min(Math.max(0, i), n - 1));
+    setLightboxIndex((i) => Math.min(Math.max(0, i), n - 1));
+  }, [listing?.id, listing?.images?.length]);
 
   useEffect(() => {
     let mounted = true;
@@ -321,6 +330,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         : null;
 
   return (
+    <>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
       <View style={styles.gallerySection}>
         {mainUri ? (
@@ -549,6 +559,8 @@ export default function ListingDetailScreen({ route, navigation }) {
           )}
         </View>
       </View>
+    </ScrollView>
+
       <Modal
         visible={reportOpen}
         transparent
@@ -623,8 +635,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         visible={imageLightboxOpen}
         transparent
         animationType="fade"
-        presentationStyle={Platform.OS === "ios" ? "fullScreen" : undefined}
-        statusBarTranslucent={Platform.OS === "android"}
+        {...(Platform.OS === "ios" ? { presentationStyle: "fullScreen" } : {})}
         onRequestClose={closeImageLightbox}
       >
         <View style={styles.imageLightboxRoot}>
@@ -650,7 +661,7 @@ export default function ListingDetailScreen({ route, navigation }) {
               onPress={closeImageLightbox}
               accessibilityRole="button"
               accessibilityLabel="Хаах"
-              hitSlop={12}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={styles.imageLightboxClose}
             >
               <Ionicons name="close" size={34} color="#fff" />
@@ -664,12 +675,10 @@ export default function ListingDetailScreen({ route, navigation }) {
             ]}
           >
             {!!lightboxUri && (
-              <Image
+              <RNImage
                 source={{ uri: lightboxUri }}
                 style={{ width: SCREEN_W, height: lightboxAreaH }}
-                contentFit="contain"
-                transition={150}
-                cachePolicy="memory-disk"
+                resizeMode="contain"
               />
             )}
           </View>
@@ -677,20 +686,28 @@ export default function ListingDetailScreen({ route, navigation }) {
           {images.length > 1 ? (
             <>
               <Pressable
-                style={[styles.imageLightboxNav, styles.imageLightboxNavLeft]}
+                style={[
+                  styles.imageLightboxNav,
+                  styles.imageLightboxNavLeft,
+                  { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+                ]}
                 onPress={lightboxPrev}
                 accessibilityRole="button"
                 accessibilityLabel="Өмнөх зураг"
-                hitSlop={16}
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
               >
                 <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
               </Pressable>
               <Pressable
-                style={[styles.imageLightboxNav, styles.imageLightboxNavRight]}
+                style={[
+                  styles.imageLightboxNav,
+                  styles.imageLightboxNavRight,
+                  { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+                ]}
                 onPress={lightboxNext}
                 accessibilityRole="button"
                 accessibilityLabel="Дараагийн зураг"
-                hitSlop={16}
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
               >
                 <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
               </Pressable>
@@ -698,7 +715,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           ) : null}
         </View>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
 
@@ -934,7 +951,6 @@ const styles = StyleSheet.create({
   },
   imageLightboxNav: {
     position: "absolute",
-    top: "42%",
     zIndex: 15,
     paddingVertical: 10,
     paddingHorizontal: 6,
