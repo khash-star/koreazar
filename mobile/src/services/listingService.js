@@ -201,6 +201,17 @@ export async function getPendingListingsCount() {
   return (payload?.data || []).length;
 }
 
+/** Энгийн хэрэглэгч: өөрийн илгээсэн, баталгаажаагүй (pending) зарын тоо — апп icon badge-д. */
+export async function getCreatorPendingListingsCount(email, customerId) {
+  const cid = customerId != null && customerId !== "" ? String(customerId).trim() : "";
+  const em = typeof email === "string" ? email.trim() : "";
+  if (!cid && !em) return 0;
+  const listings = cid
+    ? await getListingsByCustomerId(cid, 80)
+    : await getListingsByCreator(em, 80);
+  return listings.filter((l) => l.status === "pending").length;
+}
+
 export async function getPendingListings(limitCount = 100) {
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),

@@ -9,11 +9,19 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { AppState, Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getPendingListingsCount } from "../services/listingService";
+import {
+  getCreatorPendingListingsCount,
+  getPendingListingsCount,
+} from "../services/listingService";
 import { getUnreadMessagesCount } from "../services/conversationService";
 import { subscribeUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
+import {
+  clearAppIconBadge,
+  invalidateAppIconBadgeCache,
+  syncAppIconBadgeFromUnreadCount,
+} from "../utils/appIconBadge.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
@@ -314,9 +322,13 @@ function AdminStackNavigator() {
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const tabBarH = 56 + Math.max(insets.bottom, 8);
-  const { isAdmin, email } = useAuth();
+  const { isAdmin, email, userData } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
+  const [creatorPendingCount, setCreatorPendingCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const prevEmailForBadgeRef = useRef(null);
+
+  const customerIdForListings = userData?.customerId ?? userData?.customer_id;
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -337,6 +349,30 @@ function MainTabs() {
       sub.remove();
     };
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin || !email) {
+      setCreatorPendingCount(0);
+      return;
+    }
+    const refresh = () =>
+      getCreatorPendingListingsCount(email, customerIdForListings).then(setCreatorPendingCount).catch(() => {});
+    refresh();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
+    const interval = setInterval(
+      () => {
+        if (AppState.currentState !== "active") return;
+        refresh();
+      },
+      20000
+    );
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [isAdmin, email, customerIdForListings]);
 
   useEffect(() => {
     if (!email) {
@@ -362,6 +398,20 @@ function MainTabs() {
       sub.remove();
     };
   }, [email]);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (prevEmailForBadgeRef.current !== email) {
+      prevEmailForBadgeRef.current = email;
+      invalidateAppIconBadgeCache();
+    }
+    if (!email) {
+      clearAppIconBadge();
+      return;
+    }
+    const listingBadge = isAdmin ? pendingCount : creatorPendingCount;
+    syncAppIconBadgeFromUnreadCount(unreadCount + listingBadge);
+  }, [email, unreadCount, isAdmin, pendingCount, creatorPendingCount]);
 
   return (
     <Tab.Navigator

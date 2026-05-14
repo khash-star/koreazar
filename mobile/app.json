@@ -56,7 +56,8 @@
         {
           "photosPermission": "Zarkorea uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used. Зар нэмэх эсвэл баннер оруулах үед та сонгосон зургууд л хавсаргагдана (жишээ нь: зарагдах бараа, үйлчилгээний зураг)."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "extra": {
       "eas": {
