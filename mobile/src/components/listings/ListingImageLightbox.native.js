@@ -31,11 +31,15 @@ function ListingImageLightboxInner({
   const goDelta = useCallback(
     (delta, idx) => {
       if (len < 2 || !onImageIndexChange) return;
-      const next = (idx + delta + len) % len;
-      onImageIndexChange(next);
+      onImageIndexChange((idx + delta + len) % len);
     },
     [len, onImageIndexChange]
   );
+
+  const keyExtractor = useCallback((item, index) => {
+    if (item && typeof item.uri === "string") return item.uri;
+    return `img-${index}`;
+  }, []);
 
   const HeaderComponent = useCallback(
     ({ imageIndex: idx }) => (
@@ -119,10 +123,7 @@ function ListingImageLightboxInner({
       swipeToCloseEnabled
       doubleTapToZoomEnabled
       HeaderComponent={HeaderComponent}
-      keyExtractor={(item, index) => {
-        if (item && typeof item.uri === "string") return item.uri;
-        return `img-${index}`;
-      }}
+      keyExtractor={keyExtractor}
     />
   );
 }

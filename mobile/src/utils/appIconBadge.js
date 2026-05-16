@@ -38,24 +38,10 @@ export async function syncAppIconBadgeFromUnreadCount(count) {
   try {
     if (n > 0) {
       const okPerm = await ensureBadgePermissionIfNeeded();
-      if (!okPerm) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.warn(
-            "[Zarkorea appIconBadge] Permission missing or iOS badge disabled. Settings → Zarkorea → Notifications."
-          );
-        }
-        return;
-      }
+      if (!okPerm) return;
     }
     const applied = await Notifications.setBadgeCountAsync(n);
-    if (!applied) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.warn(
-            "[Zarkorea appIconBadge] setBadgeCountAsync returned false — Android launcher may not support numeric badges."
-          );
-        }
-      if (n > 0) return;
-    }
+    if (!applied && n > 0) return;
     lastSet = n;
   } catch {
     /* native */

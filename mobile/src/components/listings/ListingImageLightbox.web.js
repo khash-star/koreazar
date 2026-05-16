@@ -1,6 +1,4 @@
-/**
- * Вэб: react-native-image-viewing орохгүй (Metro bundle унадаг) — энгийн Modal + RN Image.
- */
+/** Вэб: image-viewing суухгүй — Modal + RN Image (Metro). */
 import React, { memo, useCallback, useMemo } from "react";
 import {
   Dimensions,
@@ -26,6 +24,7 @@ function ListingImageLightboxInner({
 }) {
   const list = Array.isArray(images) ? images : [];
   const len = list.length;
+  const safeIndex = len > 0 ? Math.min(Math.max(0, imageIndex), len - 1) : 0;
 
   const lightboxAreaH = useMemo(
     () => Math.max(220, SCREEN_H - insets.top - insets.bottom - 56),
@@ -33,19 +32,17 @@ function ListingImageLightboxInner({
   );
 
   const lightboxUri = useMemo(() => {
-    if (len === 0 || !list[imageIndex]) return "";
-    return getListingImageUrl(list[imageIndex], "w800");
-  }, [list, len, imageIndex]);
+    if (len === 0 || !list[safeIndex]) return "";
+    return getListingImageUrl(list[safeIndex], "w800");
+  }, [list, len, safeIndex]);
 
-  const goPrev = useCallback(() => {
-    if (len < 2 || !onImageIndexChange) return;
-    onImageIndexChange(imageIndex === 0 ? len - 1 : imageIndex - 1);
-  }, [len, imageIndex, onImageIndexChange]);
-
-  const goNext = useCallback(() => {
-    if (len < 2 || !onImageIndexChange) return;
-    onImageIndexChange(imageIndex === len - 1 ? 0 : imageIndex + 1);
-  }, [len, imageIndex, onImageIndexChange]);
+  const goDelta = useCallback(
+    (delta) => {
+      if (len < 2 || !onImageIndexChange) return;
+      onImageIndexChange((safeIndex + delta + len) % len);
+    },
+    [len, safeIndex, onImageIndexChange]
+  );
 
   if (len === 0) return null;
 
@@ -66,7 +63,7 @@ function ListingImageLightboxInner({
           <View style={styles.topCenter}>
             {len > 1 ? (
               <Text style={styles.counter}>
-                {imageIndex + 1} / {len}
+                {safeIndex + 1} / {len}
               </Text>
             ) : null}
           </View>
@@ -104,7 +101,7 @@ function ListingImageLightboxInner({
                 styles.navLeft,
                 { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
               ]}
-              onPress={goPrev}
+              onPress={() => goDelta(-1)}
               accessibilityRole="button"
               accessibilityLabel="Өмнөх зураг"
               hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
@@ -117,7 +114,7 @@ function ListingImageLightboxInner({
                 styles.navRight,
                 { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
               ]}
-              onPress={goNext}
+              onPress={() => goDelta(1)}
               accessibilityRole="button"
               accessibilityLabel="Дараагийн зураг"
               hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
