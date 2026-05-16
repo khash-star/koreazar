@@ -331,7 +331,7 @@ export default function ListingDetailScreen({ route, navigation }) {
               <Image
                 source={{ uri: mainUri }}
                 style={[styles.hero, { height: GALLERY_H }]}
-                contentFit="cover"
+                contentFit="contain"
                 transition={200}
                 cachePolicy="memory-disk"
               />
