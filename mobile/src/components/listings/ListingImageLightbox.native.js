@@ -6,10 +6,9 @@ import { getListingImageUrl } from "../../utils/imageUrl";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
-/** CDN-ийн том хувилбар (zoom); байхгүй бол getListingImageUrl fallback. */
 const LB_SIZE = "w1600";
 
-function ListingImageLightboxNativeInner({
+function ListingImageLightboxInner({
   visible,
   images,
   imageIndex,
@@ -38,7 +37,6 @@ function ListingImageLightboxNativeInner({
     [len, onImageIndexChange]
   );
 
-  /** Дээд мөр + голын сум (бүтэн дэлгэцийг бүрхэхгүй — зөвхөн сумны босоо зурвас). */
   const HeaderComponent = useCallback(
     ({ imageIndex: idx }) => (
       <View pointerEvents="box-none" style={{ width: SCREEN_W }}>
@@ -129,8 +127,7 @@ function ListingImageLightboxNativeInner({
   );
 }
 
-const ListingImageLightboxNative = memo(ListingImageLightboxNativeInner);
-export default ListingImageLightboxNative;
+export default memo(ListingImageLightboxInner);
 
 const styles = StyleSheet.create({
   headerBar: {
