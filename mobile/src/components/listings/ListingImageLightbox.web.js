@@ -1,4 +1,3 @@
-/** Вэб: image-viewing суухгүй — Modal + RN Image (Metro). */
 import React, { memo, useCallback, useMemo } from "react";
 import {
   Dimensions,
@@ -12,6 +11,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { getListingImageUrl } from "../../utils/imageUrl";
 
+/** Вэб: image-viewing суухгүй — Modal + RN Image (Metro). */
+/**
+ * Orientation: fullscreen viewer is portrait-oriented in practice; SCREEN_W/H are read
+ * once at module load. Native react-native-image-viewing is portrait-only with a static
+ * screen width for paging while open. For future landscape, subscribe to Dimensions and
+ * refresh layout for the open session (do not rely on these static values).
+ */
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 function ListingImageLightboxInner({

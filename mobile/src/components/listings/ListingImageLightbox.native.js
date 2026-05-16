@@ -4,6 +4,13 @@ import { Ionicons } from "@expo/vector-icons";
 import ImageViewing from "react-native-image-viewing";
 import { getListingImageUrl } from "../../utils/imageUrl";
 
+/**
+ * Orientation note (native fullscreen viewer):
+ * react-native-image-viewing uses portrait-only Modal + a module-level screen width
+ * for paging layout while the viewer is open. This file’s SCREEN_W/H are also read once
+ * at load. If we ever support landscape here, Dimensions (and the viewer’s width basis)
+ * must be updated dynamically for the open session — do not rely on these static values.
+ */
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 const LB_SIZE = "w1600";

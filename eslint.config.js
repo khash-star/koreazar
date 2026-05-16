@@ -47,4 +47,13 @@ export default [
       ],
     },
   },
+  /** Metro / Expo define __DEV__ at bundle time (not in eslint's browser/node presets). */
+  {
+    files: ['mobile/*.{js,jsx}', 'mobile/src/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        __DEV__: 'readonly',
+      },
+    },
+  },
 ]
