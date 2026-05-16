@@ -32,6 +32,7 @@ import { navigateToLogin, navigateToMessagesChat } from "../utils/navigationHelp
 import { openPhoneDialerSafe } from "../utils/safeLinking";
 import { showAlert } from "../utils/showAlert";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
+import ListingImageLightboxNative from "../components/listings/ListingImageLightboxNative.js";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
@@ -631,90 +632,100 @@ export default function ListingDetailScreen({ route, navigation }) {
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={imageLightboxOpen}
-        transparent
-        animationType="fade"
-        {...(Platform.OS === "ios" ? { presentationStyle: "fullScreen" } : {})}
-        onRequestClose={closeImageLightbox}
-      >
-        <View style={styles.imageLightboxRoot}>
-          <View
-            style={[
-              styles.imageLightboxTopBar,
-              {
-                paddingTop: Math.max(insets.top, 10),
-                paddingLeft: Math.max(insets.left, 8),
-                paddingRight: Math.max(insets.right, 8),
-              },
-            ]}
-          >
-            <View style={{ width: 44 }} />
-            <View style={styles.imageLightboxTopCenter}>
-              {images.length > 1 ? (
-                <Text style={styles.imageLightboxCounter}>
-                  {lightboxIndex + 1} / {images.length}
-                </Text>
-              ) : null}
-            </View>
-            <Pressable
-              onPress={closeImageLightbox}
-              accessibilityRole="button"
-              accessibilityLabel="Хаах"
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={styles.imageLightboxClose}
+      {Platform.OS === "web" ? (
+        <Modal
+          visible={imageLightboxOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={closeImageLightbox}
+        >
+          <View style={styles.imageLightboxRoot}>
+            <View
+              style={[
+                styles.imageLightboxTopBar,
+                {
+                  paddingTop: Math.max(insets.top, 10),
+                  paddingLeft: Math.max(insets.left, 8),
+                  paddingRight: Math.max(insets.right, 8),
+                },
+              ]}
             >
-              <Ionicons name="close" size={34} color="#fff" />
-            </Pressable>
-          </View>
-
-          <View
-            style={[
-              styles.imageLightboxBody,
-              { paddingBottom: Math.max(insets.bottom, 12), minHeight: lightboxAreaH },
-            ]}
-          >
-            {!!lightboxUri && (
-              <RNImage
-                source={{ uri: lightboxUri }}
-                style={{ width: SCREEN_W, height: lightboxAreaH }}
-                resizeMode="contain"
-              />
-            )}
-          </View>
-
-          {images.length > 1 ? (
-            <>
+              <View style={{ width: 44 }} />
+              <View style={styles.imageLightboxTopCenter}>
+                {images.length > 1 ? (
+                  <Text style={styles.imageLightboxCounter}>
+                    {lightboxIndex + 1} / {images.length}
+                  </Text>
+                ) : null}
+              </View>
               <Pressable
-                style={[
-                  styles.imageLightboxNav,
-                  styles.imageLightboxNavLeft,
-                  { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
-                ]}
-                onPress={lightboxPrev}
+                onPress={closeImageLightbox}
                 accessibilityRole="button"
-                accessibilityLabel="Өмнөх зураг"
-                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                accessibilityLabel="Хаах"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.imageLightboxClose}
               >
-                <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
+                <Ionicons name="close" size={34} color="#fff" />
               </Pressable>
-              <Pressable
-                style={[
-                  styles.imageLightboxNav,
-                  styles.imageLightboxNavRight,
-                  { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
-                ]}
-                onPress={lightboxNext}
-                accessibilityRole="button"
-                accessibilityLabel="Дараагийн зураг"
-                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-              >
-                <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      </Modal>
+            </View>
+
+            <View
+              style={[
+                styles.imageLightboxBody,
+                { paddingBottom: Math.max(insets.bottom, 12), minHeight: lightboxAreaH },
+              ]}
+            >
+              {!!lightboxUri && (
+                <RNImage
+                  source={{ uri: lightboxUri }}
+                  style={{ width: SCREEN_W, height: lightboxAreaH }}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+
+            {images.length > 1 ? (
+              <>
+                <Pressable
+                  style={[
+                    styles.imageLightboxNav,
+                    styles.imageLightboxNavLeft,
+                    { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+                  ]}
+                  onPress={lightboxPrev}
+                  accessibilityRole="button"
+                  accessibilityLabel="Өмнөх зураг"
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                >
+                  <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.imageLightboxNav,
+                    styles.imageLightboxNavRight,
+                    { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+                  ]}
+                  onPress={lightboxNext}
+                  accessibilityRole="button"
+                  accessibilityLabel="Дараагийн зураг"
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                >
+                  <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+        </Modal>
+      ) : (
+        <ListingImageLightboxNative
+          visible={imageLightboxOpen}
+          images={images}
+          imageIndex={lightboxIndex}
+          onClose={closeImageLightbox}
+          onImageIndexChange={setLightboxIndex}
+          insets={insets}
+        />
+      )}
     </>
   );
 }
