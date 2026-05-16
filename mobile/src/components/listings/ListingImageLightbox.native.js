@@ -1,18 +1,14 @@
 import React, { memo, useCallback, useMemo } from "react";
-import { Dimensions, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ImageViewing from "react-native-image-viewing";
 import { getListingImageUrl } from "../../utils/imageUrl";
 
 /**
- * Orientation note (native fullscreen viewer):
- * react-native-image-viewing uses portrait-only Modal + a module-level screen width
- * for paging layout while the viewer is open. This file’s SCREEN_W/H are also read once
- * at load. If we ever support landscape here, Dimensions (and the viewer’s width basis)
- * must be updated dynamically for the open session — do not rely on these static values.
+ * Orientation: patched react-native-image-viewing uses useWindowDimensions for paging
+ * (must match the Modal window, not static Dimensions.get("screen")). Header below
+ * uses the same hook so overlay width/arrow layout stays aligned with each page.
  */
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-
 const LB_SIZE = "w1600";
 
 function ListingImageLightboxInner({
@@ -23,6 +19,8 @@ function ListingImageLightboxInner({
   onImageIndexChange,
   insets,
 }) {
+  const { width: winW, height: winH } = useWindowDimensions();
+
   const imageSources = useMemo(() => {
     if (!Array.isArray(images) || images.length === 0) return [];
     return images
@@ -50,7 +48,7 @@ function ListingImageLightboxInner({
 
   const HeaderComponent = useCallback(
     ({ imageIndex: idx }) => (
-      <View pointerEvents="box-none" style={{ width: SCREEN_W }}>
+      <View pointerEvents="box-none" style={{ width: winW }}>
         <View
           style={[
             styles.headerBar,
@@ -85,7 +83,7 @@ function ListingImageLightboxInner({
             pointerEvents="box-none"
             style={[
               styles.arrowRow,
-              { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+              { top: Math.max(insets.top + 72, Math.round(winH * 0.36)) },
             ]}
           >
             <Pressable
@@ -110,7 +108,7 @@ function ListingImageLightboxInner({
         ) : null}
       </View>
     ),
-    [len, insets, onClose, goDelta]
+    [len, insets, onClose, goDelta, winW, winH]
   );
 
   if (len === 0) {

@@ -1,15 +1,30 @@
 diff --git a/node_modules/react-native-image-viewing/dist/ImageViewing.js b/node_modules/react-native-image-viewing/dist/ImageViewing.js
-index 3d7641a..dea82da 100644
+index 3d7641a..3592bf7 100644
 --- a/node_modules/react-native-image-viewing/dist/ImageViewing.js
 +++ b/node_modules/react-native-image-viewing/dist/ImageViewing.js
-@@ -20,14 +20,41 @@ const SCREEN = Dimensions.get("screen");
- const SCREEN_WIDTH = SCREEN.width;
+@@ -6,7 +6,7 @@
+  *
+  */
+ import React, { useCallback, useRef, useEffect } from "react";
+-import { Animated, Dimensions, StyleSheet, View, VirtualizedList, Modal, } from "react-native";
++import { Animated, StyleSheet, View, VirtualizedList, Modal, useWindowDimensions, } from "react-native";
+ import ImageItem from "./components/ImageItem/ImageItem";
+ import ImageDefaultHeader from "./components/ImageDefaultHeader";
+ import StatusBarManager from "./components/StatusBarManager";
+@@ -16,18 +16,45 @@ import useRequestClose from "./hooks/useRequestClose";
+ const DEFAULT_ANIMATION_TYPE = "fade";
+ const DEFAULT_BG_COLOR = "#000";
+ const DEFAULT_DELAY_LONG_PRESS = 800;
+-const SCREEN = Dimensions.get("screen");
+-const SCREEN_WIDTH = SCREEN.width;
  function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClose, onLongPress = () => { }, onImageIndexChange, animationType = DEFAULT_ANIMATION_TYPE, backgroundColor = DEFAULT_BG_COLOR, presentationStyle, swipeToCloseEnabled, doubleTapToZoomEnabled, delayLongPress = DEFAULT_DELAY_LONG_PRESS, HeaderComponent, FooterComponent, }) {
++    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
++    const screen = { width: windowWidth, height: windowHeight };
      const imageList = useRef(null);
 +    const prevImageIndexPropRef = useRef(null);
      const [opacity, onRequestCloseEnhanced] = useRequestClose(onRequestClose);
 -    const [currentImageIndex, onScroll] = useImageIndexChange(imageIndex, SCREEN);
-+    const [currentImageIndex, onScroll, setImageIndex] = useImageIndexChange(imageIndex, SCREEN);
++    const [currentImageIndex, onScroll, setImageIndex] = useImageIndexChange(imageIndex, screen);
      const [headerTransform, footerTransform, toggleBarsVisible] = useAnimatedComponents();
      useEffect(() => {
          if (onImageIndexChange) {
@@ -37,15 +52,15 @@ index 3d7641a..dea82da 100644
 +            }
 +            catch (_d) {
 +                var _e;
-+                (_e = imageList.current) === null || _e === void 0 ? void 0 : _e.scrollToOffset({ offset: imageIndex * SCREEN_WIDTH, animated: true });
++                (_e = imageList.current) === null || _e === void 0 ? void 0 : _e.scrollToOffset({ offset: imageIndex * windowWidth, animated: true });
 +            }
 +        });
 +        return () => cancelAnimationFrame(id);
-+    }, [imageIndex, visible]);
++    }, [imageIndex, visible, windowWidth, windowHeight, setImageIndex]);
      const onZoom = useCallback((isScaled) => {
          var _a, _b;
          // @ts-ignore
-@@ -40,7 +67,7 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
+@@ -40,14 +67,14 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
      return (<Modal transparent={presentationStyle === "overFullScreen"} visible={visible} presentationStyle={presentationStyle} animationType={animationType} onRequestClose={onRequestCloseEnhanced} supportedOrientations={["portrait"]} hardwareAccelerated>
        <StatusBarManager presentationStyle={presentationStyle}/>
        <View style={[styles.container, { opacity, backgroundColor }]}>
@@ -54,6 +69,16 @@ index 3d7641a..dea82da 100644
            {typeof HeaderComponent !== "undefined" ? (React.createElement(HeaderComponent, {
          imageIndex: currentImageIndex,
      })) : (<ImageDefaultHeader onRequestClose={onRequestCloseEnhanced}/>)}
+         </Animated.View>
+-        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={imageIndex} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
+-        length: SCREEN_WIDTH,
+-        offset: SCREEN_WIDTH * index,
++        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={imageIndex} extraData={`${windowWidth}x${windowHeight}`} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
++        length: windowWidth,
++        offset: windowWidth * index,
+         index,
+     })} renderItem={({ item: imageSrc }) => (<ImageItem onZoom={onZoom} imageSrc={imageSrc} onRequestClose={onRequestCloseEnhanced} onLongPress={onLongPress} delayLongPress={delayLongPress} swipeToCloseEnabled={swipeToCloseEnabled} doubleTapToZoomEnabled={doubleTapToZoomEnabled}/>)} onMomentumScrollEnd={onScroll} 
+     //@ts-ignore
 @@ -82,5 +109,5 @@ const styles = StyleSheet.create({
          bottom: 0,
      },
@@ -61,6 +86,117 @@ index 3d7641a..dea82da 100644
 -const EnhancedImageViewing = (props) => (<ImageViewing key={props.imageIndex} {...props}/>);
 +const EnhancedImageViewing = (props) => (<ImageViewing {...props}/>);
  export default EnhancedImageViewing;
+diff --git a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
+index 5fcaa9f..d4e8e50 100644
+--- a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
++++ b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
+@@ -6,17 +6,16 @@
+  *
+  */
+ import React, { useCallback, useRef, useState } from "react";
+-import { Animated, ScrollView, Dimensions, StyleSheet, } from "react-native";
++import { Animated, ScrollView, StyleSheet, useWindowDimensions, } from "react-native";
+ import useImageDimensions from "../../hooks/useImageDimensions";
+ import usePanResponder from "../../hooks/usePanResponder";
+ import { getImageStyles, getImageTransform } from "../../utils";
+ import { ImageLoading } from "./ImageLoading";
+ const SWIPE_CLOSE_OFFSET = 75;
+ const SWIPE_CLOSE_VELOCITY = 1.75;
+-const SCREEN = Dimensions.get("window");
+-const SCREEN_WIDTH = SCREEN.width;
+-const SCREEN_HEIGHT = SCREEN.height;
+ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPress, swipeToCloseEnabled = true, doubleTapToZoomEnabled = true, }) => {
++    const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
++    const SCREEN = { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+     const imageContainer = useRef(null);
+     const imageDimensions = useImageDimensions(imageSrc);
+     const [translate, scale] = getImageTransform(imageDimensions, SCREEN);
+@@ -64,7 +63,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+         const offsetY = (_c = (_b = (_a = nativeEvent) === null || _a === void 0 ? void 0 : _a.contentOffset) === null || _b === void 0 ? void 0 : _b.y, (_c !== null && _c !== void 0 ? _c : 0));
+         scrollValueY.setValue(offsetY);
+     };
+-    return (<ScrollView ref={imageContainer} style={styles.listItem} pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={styles.imageScrollContainer} scrollEnabled={swipeToCloseEnabled} {...(swipeToCloseEnabled && {
++    return (<ScrollView ref={imageContainer} style={[styles.listItem, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]} pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.imageScrollContainer, { height: SCREEN_HEIGHT * 2 }]} scrollEnabled={swipeToCloseEnabled} {...(swipeToCloseEnabled && {
+         onScroll,
+         onScrollEndDrag,
+     })}>
+@@ -73,12 +72,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+     </ScrollView>);
+ };
+ const styles = StyleSheet.create({
+-    listItem: {
+-        width: SCREEN_WIDTH,
+-        height: SCREEN_HEIGHT,
+-    },
+-    imageScrollContainer: {
+-        height: SCREEN_HEIGHT * 2,
+-    },
++    listItem: {},
++    imageScrollContainer: {},
+ });
+ export default React.memo(ImageItem);
+diff --git a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
+index 0708505..51c5af9 100644
+--- a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
++++ b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
+@@ -6,17 +6,16 @@
+  *
+  */
+ import React, { useCallback, useRef, useState } from "react";
+-import { Animated, Dimensions, ScrollView, StyleSheet, View, TouchableWithoutFeedback, } from "react-native";
++import { Animated, ScrollView, StyleSheet, View, TouchableWithoutFeedback, useWindowDimensions, } from "react-native";
+ import useDoubleTapToZoom from "../../hooks/useDoubleTapToZoom";
+ import useImageDimensions from "../../hooks/useImageDimensions";
+ import { getImageStyles, getImageTransform } from "../../utils";
+ import { ImageLoading } from "./ImageLoading";
+ const SWIPE_CLOSE_OFFSET = 75;
+ const SWIPE_CLOSE_VELOCITY = 1.55;
+-const SCREEN = Dimensions.get("screen");
+-const SCREEN_WIDTH = SCREEN.width;
+-const SCREEN_HEIGHT = SCREEN.height;
+ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPress, swipeToCloseEnabled = true, doubleTapToZoomEnabled = true, }) => {
++    const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
++    const SCREEN = { width: SCREEN_WIDTH, height: SCREEN_HEIGHT };
+     const scrollViewRef = useRef(null);
+     const [loaded, setLoaded] = useState(false);
+     const [scaled, setScaled] = useState(false);
+@@ -57,7 +56,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+         onLongPress(imageSrc);
+     }, [imageSrc, onLongPress]);
+     return (<View>
+-      <ScrollView ref={scrollViewRef} style={styles.listItem} pinchGestureEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} maximumZoomScale={maxScale} contentContainerStyle={styles.imageScrollContainer} scrollEnabled={swipeToCloseEnabled} onScrollEndDrag={onScrollEndDrag} scrollEventThrottle={1} {...(swipeToCloseEnabled && {
++      <ScrollView ref={scrollViewRef} style={[styles.listItem, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]} pinchGestureEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} maximumZoomScale={maxScale} contentContainerStyle={[styles.imageScrollContainer, { height: SCREEN_HEIGHT }]} scrollEnabled={swipeToCloseEnabled} onScrollEndDrag={onScrollEndDrag} scrollEventThrottle={1} {...(swipeToCloseEnabled && {
+         onScroll,
+     })}>
+         {(!loaded || !imageDimensions) && <ImageLoading />}
+@@ -68,12 +67,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+     </View>);
+ };
+ const styles = StyleSheet.create({
+-    listItem: {
+-        width: SCREEN_WIDTH,
+-        height: SCREEN_HEIGHT,
+-    },
+-    imageScrollContainer: {
+-        height: SCREEN_HEIGHT,
+-    },
++    listItem: {},
++    imageScrollContainer: {},
+ });
+ export default React.memo(ImageItem);
+diff --git a/node_modules/react-native-image-viewing/dist/hooks/useDoubleTapToZoom.js b/node_modules/react-native-image-viewing/dist/hooks/useDoubleTapToZoom.js
+index 112e0b2..dbb137c 100644
+--- a/node_modules/react-native-image-viewing/dist/hooks/useDoubleTapToZoom.js
++++ b/node_modules/react-native-image-viewing/dist/hooks/useDoubleTapToZoom.js
+@@ -43,7 +43,7 @@ function useDoubleTapToZoom(scrollViewRef, scaled, screen) {
+         else {
+             lastTapTS = nowTS;
+         }
+-    }, [scaled]);
++    }, [scaled, screen.width, screen.height]);
+     return handleDoubleTap;
+ }
+ export default useDoubleTapToZoom;
 diff --git a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js b/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
 index cb5f0f7..ac35837 100644
 --- a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
