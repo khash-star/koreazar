@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 import { Dimensions, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ImageViewing from "react-native-image-viewing";
@@ -6,14 +6,10 @@ import { getListingImageUrl } from "../../utils/imageUrl";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
-/** CDN дээр байгаа хамгийн томыг сонгоно (zoom-д илүү дээр); байхгүй бол w800 fallback. */
+/** CDN-ийн том хувилбар (zoom); байхгүй бол getListingImageUrl fallback. */
 const LB_SIZE = "w1600";
 
-/**
- * Fullscreen зургийн viewer: pinch, double-tap zoom, swipe, VirtualizedList (windowSize 2).
- * Header дээр 1/4 + хаах; хажуугийн сум — parent `imageIndex` синк (EnhancedImageViewing key).
- */
-export default function ListingImageLightboxNative({
+function ListingImageLightboxNativeInner({
   visible,
   images,
   imageIndex,
@@ -42,12 +38,13 @@ export default function ListingImageLightboxNative({
     [len, onImageIndexChange]
   );
 
+  /** Дээд мөр + голын сум (бүтэн дэлгэцийг бүрхэхгүй — зөвхөн сумны босоо зурвас). */
   const HeaderComponent = useCallback(
     ({ imageIndex: idx }) => (
-      <View pointerEvents="box-none" style={styles.headerRoot}>
+      <View pointerEvents="box-none" style={{ width: SCREEN_W }}>
         <View
           style={[
-            styles.topBar,
+            styles.headerBar,
             {
               paddingTop: Math.max(insets.top, 10),
               paddingLeft: Math.max(insets.left, 8),
@@ -75,13 +72,15 @@ export default function ListingImageLightboxNative({
         </View>
 
         {len > 1 ? (
-          <>
+          <View
+            pointerEvents="box-none"
+            style={[
+              styles.arrowRow,
+              { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
+            ]}
+          >
             <Pressable
-              style={[
-                styles.nav,
-                styles.navLeft,
-                { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
-              ]}
+              style={styles.navHit}
               onPress={() => goDelta(-1, idx)}
               accessibilityRole="button"
               accessibilityLabel="Өмнөх зураг"
@@ -90,11 +89,7 @@ export default function ListingImageLightboxNative({
               <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
             </Pressable>
             <Pressable
-              style={[
-                styles.nav,
-                styles.navRight,
-                { top: Math.max(insets.top + 72, Math.round(SCREEN_H * 0.36)) },
-              ]}
+              style={styles.navHit}
               onPress={() => goDelta(1, idx)}
               accessibilityRole="button"
               accessibilityLabel="Дараагийн зураг"
@@ -102,7 +97,7 @@ export default function ListingImageLightboxNative({
             >
               <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
             </Pressable>
-          </>
+          </View>
         ) : null}
       </View>
     ),
@@ -134,16 +129,24 @@ export default function ListingImageLightboxNative({
   );
 }
 
+const ListingImageLightboxNative = memo(ListingImageLightboxNativeInner);
+export default ListingImageLightboxNative;
+
 const styles = StyleSheet.create({
-  headerRoot: {
-    width: SCREEN_W,
-    minHeight: SCREEN_H,
-  },
-  topBar: {
+  headerBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
+  },
+  arrowRow: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
   },
   topCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   counter: {
@@ -158,12 +161,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  nav: {
-    position: "absolute",
-    zIndex: 2,
+  navHit: {
     paddingVertical: 20,
     paddingHorizontal: 8,
   },
-  navLeft: { left: 4 },
-  navRight: { right: 4 },
 });

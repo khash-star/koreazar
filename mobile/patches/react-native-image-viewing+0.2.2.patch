@@ -1,0 +1,75 @@
+diff --git a/node_modules/react-native-image-viewing/dist/ImageViewing.js b/node_modules/react-native-image-viewing/dist/ImageViewing.js
+index 3d7641a..dea82da 100644
+--- a/node_modules/react-native-image-viewing/dist/ImageViewing.js
++++ b/node_modules/react-native-image-viewing/dist/ImageViewing.js
+@@ -20,14 +20,41 @@ const SCREEN = Dimensions.get("screen");
+ const SCREEN_WIDTH = SCREEN.width;
+ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClose, onLongPress = () => { }, onImageIndexChange, animationType = DEFAULT_ANIMATION_TYPE, backgroundColor = DEFAULT_BG_COLOR, presentationStyle, swipeToCloseEnabled, doubleTapToZoomEnabled, delayLongPress = DEFAULT_DELAY_LONG_PRESS, HeaderComponent, FooterComponent, }) {
+     const imageList = useRef(null);
++    const prevImageIndexPropRef = useRef(null);
+     const [opacity, onRequestCloseEnhanced] = useRequestClose(onRequestClose);
+-    const [currentImageIndex, onScroll] = useImageIndexChange(imageIndex, SCREEN);
++    const [currentImageIndex, onScroll, setImageIndex] = useImageIndexChange(imageIndex, SCREEN);
+     const [headerTransform, footerTransform, toggleBarsVisible] = useAnimatedComponents();
+     useEffect(() => {
+         if (onImageIndexChange) {
+             onImageIndexChange(currentImageIndex);
+         }
+     }, [currentImageIndex]);
++    useEffect(() => {
++        if (!visible) {
++            prevImageIndexPropRef.current = null;
++            return;
++        }
++        if (prevImageIndexPropRef.current === null) {
++            prevImageIndexPropRef.current = imageIndex;
++            return;
++        }
++        if (prevImageIndexPropRef.current === imageIndex) {
++            return;
++        }
++        prevImageIndexPropRef.current = imageIndex;
++        setImageIndex(imageIndex);
++        const id = requestAnimationFrame(() => {
++            var _c;
++            try {
++                (_c = imageList.current) === null || _c === void 0 ? void 0 : _c.scrollToIndex({ index: imageIndex, animated: true });
++            }
++            catch (_d) {
++                var _e;
++                (_e = imageList.current) === null || _e === void 0 ? void 0 : _e.scrollToOffset({ offset: imageIndex * SCREEN_WIDTH, animated: true });
++            }
++        });
++        return () => cancelAnimationFrame(id);
++    }, [imageIndex, visible]);
+     const onZoom = useCallback((isScaled) => {
+         var _a, _b;
+         // @ts-ignore
+@@ -40,7 +67,7 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
+     return (<Modal transparent={presentationStyle === "overFullScreen"} visible={visible} presentationStyle={presentationStyle} animationType={animationType} onRequestClose={onRequestCloseEnhanced} supportedOrientations={["portrait"]} hardwareAccelerated>
+       <StatusBarManager presentationStyle={presentationStyle}/>
+       <View style={[styles.container, { opacity, backgroundColor }]}>
+-        <Animated.View style={[styles.header, { transform: headerTransform }]}>
++        <Animated.View pointerEvents="box-none" style={[styles.header, { transform: headerTransform }]}>
+           {typeof HeaderComponent !== "undefined" ? (React.createElement(HeaderComponent, {
+         imageIndex: currentImageIndex,
+     })) : (<ImageDefaultHeader onRequestClose={onRequestCloseEnhanced}/>)}
+@@ -82,5 +109,5 @@ const styles = StyleSheet.create({
+         bottom: 0,
+     },
+ });
+-const EnhancedImageViewing = (props) => (<ImageViewing key={props.imageIndex} {...props}/>);
++const EnhancedImageViewing = (props) => (<ImageViewing {...props}/>);
+ export default EnhancedImageViewing;
+diff --git a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js b/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
+index cb5f0f7..ac35837 100644
+--- a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
++++ b/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
+@@ -15,6 +15,6 @@ const useImageIndexChange = (imageIndex, screen) => {
+             setImageIndex(nextIndex < 0 ? 0 : nextIndex);
+         }
+     };
+-    return [currentImageIndex, onScroll];
++    return [currentImageIndex, onScroll, setImageIndex];
+ };
+ export default useImageIndexChange;

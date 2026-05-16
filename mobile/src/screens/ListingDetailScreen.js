@@ -56,6 +56,10 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [imageLightboxOpen, setImageLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  const onLightboxImageIndexChange = useCallback((idx) => {
+    setLightboxIndex(idx);
+  }, []);
+
   const refreshSaved = useCallback(async () => {
     if (!email || !listingId) {
       setSavedDocId(null);
@@ -332,7 +336,11 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   return (
     <>
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      scrollEnabled={!imageLightboxOpen}
+    >
       <View style={styles.gallerySection}>
         {mainUri ? (
           <View style={styles.galleryWrap}>
@@ -722,7 +730,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           images={images}
           imageIndex={lightboxIndex}
           onClose={closeImageLightbox}
-          onImageIndexChange={setLightboxIndex}
+          onImageIndexChange={onLightboxImageIndexChange}
           insets={insets}
         />
       )}
