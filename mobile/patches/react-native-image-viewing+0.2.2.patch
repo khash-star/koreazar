@@ -1,17 +1,19 @@
 diff --git a/node_modules/react-native-image-viewing/dist/ImageViewing.js b/node_modules/react-native-image-viewing/dist/ImageViewing.js
-index 3d7641a..3592bf7 100644
+index 3d7641a..e8e5a86 100644
 --- a/node_modules/react-native-image-viewing/dist/ImageViewing.js
 +++ b/node_modules/react-native-image-viewing/dist/ImageViewing.js
-@@ -6,7 +6,7 @@
+@@ -5,8 +5,8 @@
+  * LICENSE file in the root directory of this source tree.
   *
   */
- import React, { useCallback, useRef, useEffect } from "react";
+-import React, { useCallback, useRef, useEffect } from "react";
 -import { Animated, Dimensions, StyleSheet, View, VirtualizedList, Modal, } from "react-native";
++import React, { useCallback, useRef, useLayoutEffect, useEffect } from "react";
 +import { Animated, StyleSheet, View, VirtualizedList, Modal, useWindowDimensions, } from "react-native";
  import ImageItem from "./components/ImageItem/ImageItem";
  import ImageDefaultHeader from "./components/ImageDefaultHeader";
  import StatusBarManager from "./components/StatusBarManager";
-@@ -16,18 +16,45 @@ import useRequestClose from "./hooks/useRequestClose";
+@@ -16,18 +16,52 @@ import useRequestClose from "./hooks/useRequestClose";
  const DEFAULT_ANIMATION_TYPE = "fade";
  const DEFAULT_BG_COLOR = "#000";
  const DEFAULT_DELAY_LONG_PRESS = 800;
@@ -19,48 +21,55 @@ index 3d7641a..3592bf7 100644
 -const SCREEN_WIDTH = SCREEN.width;
  function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClose, onLongPress = () => { }, onImageIndexChange, animationType = DEFAULT_ANIMATION_TYPE, backgroundColor = DEFAULT_BG_COLOR, presentationStyle, swipeToCloseEnabled, doubleTapToZoomEnabled, delayLongPress = DEFAULT_DELAY_LONG_PRESS, HeaderComponent, FooterComponent, }) {
 +    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-+    const screen = { width: windowWidth, height: windowHeight };
++    const imageCount = Array.isArray(images) ? images.length : 0;
      const imageList = useRef(null);
-+    const prevImageIndexPropRef = useRef(null);
      const [opacity, onRequestCloseEnhanced] = useRequestClose(onRequestClose);
 -    const [currentImageIndex, onScroll] = useImageIndexChange(imageIndex, SCREEN);
-+    const [currentImageIndex, onScroll, setImageIndex] = useImageIndexChange(imageIndex, screen);
++    const [currentImageIndex, onScroll, setImageIndex] = useImageIndexChange(imageIndex, windowWidth, imageCount);
      const [headerTransform, footerTransform, toggleBarsVisible] = useAnimatedComponents();
      useEffect(() => {
          if (onImageIndexChange) {
              onImageIndexChange(currentImageIndex);
          }
      }, [currentImageIndex]);
-+    useEffect(() => {
-+        if (!visible) {
-+            prevImageIndexPropRef.current = null;
++    /** iOS: VirtualizedList + initialScrollIndex + getItemLayout often desyncs; scroll explicitly after layout. */
++    useLayoutEffect(() => {
++        if (!visible || windowWidth <= 0 || imageCount < 1) {
 +            return;
 +        }
-+        if (prevImageIndexPropRef.current === null) {
-+            prevImageIndexPropRef.current = imageIndex;
++        const list = imageList.current;
++        if (!list) {
 +            return;
 +        }
-+        if (prevImageIndexPropRef.current === imageIndex) {
-+            return;
-+        }
-+        prevImageIndexPropRef.current = imageIndex;
-+        setImageIndex(imageIndex);
-+        const id = requestAnimationFrame(() => {
-+            var _c;
++        const idx = Math.min(Math.max(0, imageIndex), imageCount - 1);
++        const offset = idx * windowWidth;
++        const applyScroll = () => {
++            const l = imageList.current;
++            if (!l) {
++                return;
++            }
 +            try {
-+                (_c = imageList.current) === null || _c === void 0 ? void 0 : _c.scrollToIndex({ index: imageIndex, animated: true });
++                l.scrollToIndex({ index: idx, animated: false });
 +            }
-+            catch (_d) {
-+                var _e;
-+                (_e = imageList.current) === null || _e === void 0 ? void 0 : _e.scrollToOffset({ offset: imageIndex * windowWidth, animated: true });
++            catch (_a) {
++                l.scrollToOffset({ offset, animated: false });
 +            }
++        };
++        applyScroll();
++        let innerRaf = 0;
++        const outerRaf = requestAnimationFrame(() => {
++            applyScroll();
++            innerRaf = requestAnimationFrame(applyScroll);
 +        });
-+        return () => cancelAnimationFrame(id);
-+    }, [imageIndex, visible, windowWidth, windowHeight, setImageIndex]);
++        return () => {
++            cancelAnimationFrame(outerRaf);
++            cancelAnimationFrame(innerRaf);
++        };
++    }, [visible, imageIndex, windowWidth, windowHeight, imageCount]);
      const onZoom = useCallback((isScaled) => {
          var _a, _b;
          // @ts-ignore
-@@ -40,14 +67,14 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
+@@ -40,14 +74,14 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
      return (<Modal transparent={presentationStyle === "overFullScreen"} visible={visible} presentationStyle={presentationStyle} animationType={animationType} onRequestClose={onRequestCloseEnhanced} supportedOrientations={["portrait"]} hardwareAccelerated>
        <StatusBarManager presentationStyle={presentationStyle}/>
        <View style={[styles.container, { opacity, backgroundColor }]}>
@@ -73,13 +82,13 @@ index 3d7641a..3592bf7 100644
 -        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={imageIndex} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
 -        length: SCREEN_WIDTH,
 -        offset: SCREEN_WIDTH * index,
-+        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={imageIndex} extraData={`${windowWidth}x${windowHeight}`} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
++        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={2} maxToRenderPerBatch={2} removeClippedSubviews={false} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} extraData={`${windowWidth}x${windowHeight}x${imageCount}`} getItem={(_, index) => images[index]} getItemCount={() => imageCount} getItemLayout={(_, index) => ({
 +        length: windowWidth,
 +        offset: windowWidth * index,
          index,
      })} renderItem={({ item: imageSrc }) => (<ImageItem onZoom={onZoom} imageSrc={imageSrc} onRequestClose={onRequestCloseEnhanced} onLongPress={onLongPress} delayLongPress={delayLongPress} swipeToCloseEnabled={swipeToCloseEnabled} doubleTapToZoomEnabled={doubleTapToZoomEnabled}/>)} onMomentumScrollEnd={onScroll} 
      //@ts-ignore
-@@ -82,5 +109,5 @@ const styles = StyleSheet.create({
+@@ -82,5 +116,5 @@ const styles = StyleSheet.create({
          bottom: 0,
      },
  });
@@ -87,7 +96,7 @@ index 3d7641a..3592bf7 100644
 +const EnhancedImageViewing = (props) => (<ImageViewing {...props}/>);
  export default EnhancedImageViewing;
 diff --git a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
-index 5fcaa9f..d4e8e50 100644
+index 5fcaa9f..18193a5 100644
 --- a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
 +++ b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.android.js
 @@ -6,17 +6,16 @@
@@ -95,7 +104,7 @@ index 5fcaa9f..d4e8e50 100644
   */
  import React, { useCallback, useRef, useState } from "react";
 -import { Animated, ScrollView, Dimensions, StyleSheet, } from "react-native";
-+import { Animated, ScrollView, StyleSheet, useWindowDimensions, } from "react-native";
++import { Animated, ScrollView, StyleSheet, View, useWindowDimensions, } from "react-native";
  import useImageDimensions from "../../hooks/useImageDimensions";
  import usePanResponder from "../../hooks/usePanResponder";
  import { getImageStyles, getImageTransform } from "../../utils";
@@ -111,17 +120,22 @@ index 5fcaa9f..d4e8e50 100644
      const imageContainer = useRef(null);
      const imageDimensions = useImageDimensions(imageSrc);
      const [translate, scale] = getImageTransform(imageDimensions, SCREEN);
-@@ -64,7 +63,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+@@ -64,21 +63,18 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
          const offsetY = (_c = (_b = (_a = nativeEvent) === null || _a === void 0 ? void 0 : _a.contentOffset) === null || _b === void 0 ? void 0 : _b.y, (_c !== null && _c !== void 0 ? _c : 0));
          scrollValueY.setValue(offsetY);
      };
 -    return (<ScrollView ref={imageContainer} style={styles.listItem} pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={styles.imageScrollContainer} scrollEnabled={swipeToCloseEnabled} {...(swipeToCloseEnabled && {
-+    return (<ScrollView ref={imageContainer} style={[styles.listItem, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]} pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.imageScrollContainer, { height: SCREEN_HEIGHT * 2 }]} scrollEnabled={swipeToCloseEnabled} {...(swipeToCloseEnabled && {
++    return (<View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#000" }}>
++    <ScrollView ref={imageContainer} style={[styles.listItem, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]} pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={[styles.imageScrollContainer, { height: SCREEN_HEIGHT * 2 }]} scrollEnabled={swipeToCloseEnabled} {...(swipeToCloseEnabled && {
          onScroll,
          onScrollEndDrag,
      })}>
-@@ -73,12 +72,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
-     </ScrollView>);
+-      <Animated.Image {...panHandlers} source={imageSrc} style={imageStylesWithOpacity} onLoad={onLoaded}/>
++      <Animated.Image {...panHandlers} source={imageSrc} style={imageStylesWithOpacity} resizeMode="contain" onLoad={onLoaded}/>
+       {(!isLoaded || !imageDimensions) && <ImageLoading />}
+-    </ScrollView>);
++    </ScrollView>
++    </View>);
  };
  const styles = StyleSheet.create({
 -    listItem: {
@@ -136,7 +150,7 @@ index 5fcaa9f..d4e8e50 100644
  });
  export default React.memo(ImageItem);
 diff --git a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
-index 0708505..51c5af9 100644
+index 0708505..735316a 100644
 --- a/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
 +++ b/node_modules/react-native-image-viewing/dist/components/ImageItem/ImageItem.ios.js
 @@ -6,17 +6,16 @@
@@ -160,16 +174,22 @@ index 0708505..51c5af9 100644
      const scrollViewRef = useRef(null);
      const [loaded, setLoaded] = useState(false);
      const [scaled, setScaled] = useState(false);
-@@ -57,7 +56,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+@@ -56,24 +55,19 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+     const onLongPressHandler = useCallback((event) => {
          onLongPress(imageSrc);
      }, [imageSrc, onLongPress]);
-     return (<View>
+-    return (<View>
 -      <ScrollView ref={scrollViewRef} style={styles.listItem} pinchGestureEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} maximumZoomScale={maxScale} contentContainerStyle={styles.imageScrollContainer} scrollEnabled={swipeToCloseEnabled} onScrollEndDrag={onScrollEndDrag} scrollEventThrottle={1} {...(swipeToCloseEnabled && {
++    return (<View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: "#000" }}>
 +      <ScrollView ref={scrollViewRef} style={[styles.listItem, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]} pinchGestureEnabled showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} maximumZoomScale={maxScale} contentContainerStyle={[styles.imageScrollContainer, { height: SCREEN_HEIGHT }]} scrollEnabled={swipeToCloseEnabled} onScrollEndDrag={onScrollEndDrag} scrollEventThrottle={1} {...(swipeToCloseEnabled && {
          onScroll,
      })}>
          {(!loaded || !imageDimensions) && <ImageLoading />}
-@@ -68,12 +67,7 @@ const ImageItem = ({ imageSrc, onZoom, onRequestClose, onLongPress, delayLongPre
+         <TouchableWithoutFeedback onPress={doubleTapToZoomEnabled ? handleDoubleTap : undefined} onLongPress={onLongPressHandler} delayLongPress={delayLongPress}>
+-          <Animated.Image source={imageSrc} style={imageStylesWithOpacity} onLoad={() => setLoaded(true)}/>
++          <Animated.Image source={imageSrc} style={imageStylesWithOpacity} resizeMode="contain" onLoad={() => setLoaded(true)}/>
+         </TouchableWithoutFeedback>
+       </ScrollView>
      </View>);
  };
  const styles = StyleSheet.create({
@@ -198,14 +218,38 @@ index 112e0b2..dbb137c 100644
  }
  export default useDoubleTapToZoom;
 diff --git a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js b/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
-index cb5f0f7..ac35837 100644
+index cb5f0f7..aaf4929 100644
 --- a/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
 +++ b/node_modules/react-native-image-viewing/dist/hooks/useImageIndexChange.js
-@@ -15,6 +15,6 @@ const useImageIndexChange = (imageIndex, screen) => {
-             setImageIndex(nextIndex < 0 ? 0 : nextIndex);
-         }
-     };
+@@ -5,16 +5,21 @@
+  * LICENSE file in the root directory of this source tree.
+  *
+  */
+-import { useState } from "react";
+-const useImageIndexChange = (imageIndex, screen) => {
++import { useCallback, useLayoutEffect, useState } from "react";
++const useImageIndexChange = (imageIndex, windowWidth, imageCount) => {
+     const [currentImageIndex, setImageIndex] = useState(imageIndex);
+-    const onScroll = (event) => {
+-        const { nativeEvent: { contentOffset: { x: scrollX }, }, } = event;
+-        if (screen.width) {
+-            const nextIndex = Math.round(scrollX / screen.width);
+-            setImageIndex(nextIndex < 0 ? 0 : nextIndex);
+-        }
+-    };
 -    return [currentImageIndex, onScroll];
++    useLayoutEffect(() => {
++        setImageIndex(imageIndex);
++    }, [imageIndex]);
++    const onScroll = useCallback((event) => {
++        var _a, _b, _c;
++        const scrollX = (_c = (_b = (_a = event === null || event === void 0 ? void 0 : event.nativeEvent) === null || _a === void 0 ? void 0 : _a.contentOffset) === null || _b === void 0 ? void 0 : _b.x, (_c !== null && _c !== void 0 ? _c : 0));
++        if (!windowWidth || windowWidth <= 0)
++            return;
++        const maxIdx = Math.max(0, (imageCount !== null && imageCount !== void 0 ? imageCount : 1) - 1);
++        const nextIndex = Math.min(maxIdx, Math.max(0, Math.round(scrollX / windowWidth)));
++        setImageIndex(nextIndex);
++    }, [windowWidth, imageCount]);
 +    return [currentImageIndex, onScroll, setImageIndex];
  };
  export default useImageIndexChange;
