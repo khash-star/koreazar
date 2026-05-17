@@ -70,3 +70,32 @@ export async function normalizeImageOrientation(uri) {
 export function invalidateNormalizeImageCache() {
   memCache.clear();
 }
+
+/** Run async work on indices with at most `limit` tasks in flight. */
+export async function normalizeIndicesWithConcurrency(indices, limit, normalizeOne) {
+  const queue = indices.filter((i) => Number.isInteger(i) && i >= 0);
+  if (queue.length === 0) return;
+  const workers = Math.max(1, Math.min(limit, queue.length));
+  let cursor = 0;
+  const runWorker = async () => {
+    while (cursor < queue.length) {
+      const i = queue[cursor];
+      cursor += 1;
+      await normalizeOne(i);
+    }
+  };
+  await Promise.all(Array.from({ length: workers }, () => runWorker()));
+}
+
+/** current, then current±1, then remaining (for lightbox preload). */
+export function lightboxNormalizeOrder(length, currentIndex) {
+  if (length <= 0) return [];
+  const cur = Math.min(Math.max(0, currentIndex), length - 1);
+  const order = [cur];
+  if (cur > 0) order.push(cur - 1);
+  if (cur < length - 1) order.push(cur + 1);
+  for (let i = 0; i < length; i += 1) {
+    if (!order.includes(i)) order.push(i);
+  }
+  return order;
+}

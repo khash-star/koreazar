@@ -110,17 +110,19 @@ export async function uploadImageFromUri(uri, options = {}) {
   const extFromUri = extractExtensionFromName(uri);
   const extFromMime = extensionForMimeType(options.mimeType);
   const ext = extFromName || extFromUri || extFromMime || "jpg";
-  const fileName = `${timestamp}_${random}.${ext}`;
-  const storageRef = ref(storage, `images/${fileName}`);
-  const fallbackType = options.mimeType || contentTypeForExtension(ext);
 
   const uploadUri = await normalizeImageOrientation(uri);
-  const uploadExt =
-    uploadUri !== uri || uploadUri.endsWith(".jpg") || uploadUri.endsWith(".jpeg")
-      ? "jpg"
-      : ext;
-  const uploadType =
-    uploadExt === ext ? fallbackType : contentTypeForExtension(uploadExt);
+  const normalizedToJpeg =
+    uploadUri !== uri ||
+    uploadUri.endsWith(".jpg") ||
+    uploadUri.endsWith(".jpeg");
+  const uploadExt = normalizedToJpeg ? "jpg" : ext;
+  const uploadType = normalizedToJpeg
+    ? contentTypeForExtension("jpg")
+    : options.mimeType || contentTypeForExtension(ext);
+
+  const fileName = `${timestamp}_${random}.${uploadExt}`;
+  const storageRef = ref(storage, `images/${fileName}`);
 
   await uploadNative(storageRef, uploadUri, uploadExt, timestamp, uploadType);
 

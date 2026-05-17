@@ -12,7 +12,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import ImageViewing from "react-native-image-viewing";
 import { getListingImageUrl } from "../../utils/imageUrl";
-import { normalizeImageOrientation } from "../../utils/normalizeImageOrientation";
+import {
+  lightboxNormalizeOrder,
+  normalizeImageOrientation,
+  normalizeIndicesWithConcurrency,
+} from "../../utils/normalizeImageOrientation";
 
 /**
  * Orientation: patched react-native-image-viewing uses useWindowDimensions for paging.
@@ -31,6 +35,7 @@ function ListingImageLightboxInner({
   const { width: winW, height: winH } = useWindowDimensions();
   const [imageSources, setImageSources] = useState([]);
   const [preparing, setPreparing] = useState(false);
+  const [currentReady, setCurrentReady] = useState(false);
 
   const remoteUris = useMemo(() => {
     if (!Array.isArray(images) || images.length === 0) return [];
@@ -46,42 +51,62 @@ function ListingImageLightboxInner({
     if (!visible || len === 0) {
       setImageSources([]);
       setPreparing(false);
+      setCurrentReady(false);
       return undefined;
     }
 
+    const safeIndex = Math.min(Math.max(0, imageIndex), len - 1);
+    const order = lightboxNormalizeOrder(len, safeIndex);
+    const uris = [...remoteUris];
+
     setPreparing(true);
+    setCurrentReady(false);
+    setImageSources(uris.map((uri) => ({ uri })));
+
+    const publish = () => {
+      if (!cancelled) {
+        setImageSources(uris.map((uri) => ({ uri })));
+      }
+    };
+
     (async () => {
       try {
-        const normalized = await Promise.all(
-          remoteUris.map((uri) => normalizeImageOrientation(uri))
-        );
+        uris[safeIndex] = await normalizeImageOrientation(remoteUris[safeIndex]);
         if (cancelled) return;
-        setImageSources(
-          normalized
-            .filter((uri) => typeof uri === "string" && uri.length > 0)
-            .map((uri) => ({ uri }))
-        );
+        publish();
+        setCurrentReady(true);
+        setPreparing(false);
+
+        const rest = order.filter((i) => i !== safeIndex);
+        await normalizeIndicesWithConcurrency(rest, 2, async (i) => {
+          uris[i] = await normalizeImageOrientation(remoteUris[i]);
+          publish();
+        });
       } catch {
         if (!cancelled) {
           setImageSources(remoteUris.map((uri) => ({ uri })));
+          setCurrentReady(true);
+          setPreparing(false);
         }
-      } finally {
-        if (!cancelled) setPreparing(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [visible, len, remoteUris]);
+  }, [visible, len, remoteUris, imageIndex]);
 
-  /** Warm disk/memory cache while browsing listing so first lightbox open is fast. */
+  /** Warm cache for current ±1 only (disk/memory cache unchanged). */
   useEffect(() => {
     if (len === 0) return;
-    remoteUris.forEach((uri) => {
-      normalizeImageOrientation(uri).catch(() => {});
+    const cur = Math.min(Math.max(0, imageIndex), len - 1);
+    const warm = [cur];
+    if (cur > 0) warm.push(cur - 1);
+    if (cur < len - 1) warm.push(cur + 1);
+    warm.forEach((i) => {
+      normalizeImageOrientation(remoteUris[i]).catch(() => {});
     });
-  }, [remoteUris, len]);
+  }, [remoteUris, len, imageIndex]);
 
   const goDelta = useCallback(
     (delta, idx) => {
@@ -165,13 +190,12 @@ function ListingImageLightboxInner({
     return null;
   }
 
-  const sourcesReady = imageSources.length === len;
-  const showViewer = visible && sourcesReady;
+  const showViewer = visible && currentReady && imageSources.length === len;
 
   return (
     <>
       <Modal
-        visible={visible && preparing && !sourcesReady}
+        visible={visible && preparing && !currentReady}
         transparent
         animationType="fade"
         onRequestClose={onClose}
