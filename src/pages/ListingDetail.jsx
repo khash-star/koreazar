@@ -87,14 +87,20 @@ export default function ListingDetail() {
       const results = await entities.Listing.filter({ id: listingId });
       return results[0];
     },
-    enabled: !!listingId
+    enabled: !!listingId,
+    staleTime: 120000,
   });
 
   const { data: similarListings = [], isLoading: isSimilarLoading } = useQuery({
     queryKey: ['similarListings', listingId, listing?.category, listing?.subcategory],
     queryFn: async () => {
       if (!listing?.category) return [];
-      const results = await entities.Listing.filter({ category: listing.category });
+      const { filterListings } = await import('@/services/listingService');
+      const results = await filterListings(
+        { category: listing.category, status: 'active' },
+        '-created_date',
+        24
+      );
       const normalized = (results || []).filter((l) => l?.id && l.id !== listingId);
 
       // Prefer same subcategory (when available), then fill with rest.
@@ -108,6 +114,7 @@ export default function ListingDetail() {
       return [...sameSub, ...others].slice(0, 8);
     },
     enabled: !!listingId && !!listing?.category,
+    staleTime: 120000,
   });
 
   const savedEmail = userData?.email || user?.email;
@@ -454,7 +461,7 @@ export default function ListingDetail() {
                       e.stopPropagation();
                       setCurrentImageIndex(prev => prev === 0 ? listing.images.length - 1 : prev - 1);
                     }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg z-10"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full hidden md:flex items-center justify-center shadow-lg z-10"
                     aria-label="Өмнөх зураг"
                   >
                     <ChevronLeft className="w-6 h-6" />
@@ -465,7 +472,7 @@ export default function ListingDetail() {
                       e.stopPropagation();
                       setCurrentImageIndex(prev => prev === listing.images.length - 1 ? 0 : prev + 1);
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg z-10"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full hidden md:flex items-center justify-center shadow-lg z-10"
                     aria-label="Дараагийн зураг"
                   >
                     <ChevronRight className="w-6 h-6" />
@@ -522,17 +529,25 @@ export default function ListingDetail() {
         {/* Thumbnails */}
         {hasImages && listing.images.length > 1 && (
           <div className="bg-white px-4 py-3 flex gap-2 overflow-x-auto">
-            {listing.images.map((url, index) => (
+            {listing.images.map((url, index) => {
+              const thumbSrc = getListingImageUrl(url, 'w150');
+              if (!thumbSrc) return null;
+              return (
               <button
                 key={index}
-                onClick={() => setCurrentImageIndex(index)}
+                type="button"
+                onClick={() => {
+                  setCurrentImageIndex(index);
+                  setLightboxOpen(true);
+                }}
                 className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 ring-2 transition-all ${
                   index === currentImageIndex ? 'ring-amber-500' : 'ring-transparent'
                 }`}
               >
-                <img src={getListingImageUrl(url, 'w150')} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                <img src={thumbSrc} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
               </button>
-            ))}
+            );
+            })}
           </div>
         )}
 

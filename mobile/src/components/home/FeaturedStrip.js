@@ -22,7 +22,7 @@ export default function FeaturedStrip({ listings, onPressListing }) {
             <Pressable
               key={item.id}
               style={styles.card}
-              onPress={() => onPressListing(item.id)}
+              onPress={() => onPressListing(item)}
             >
               <View style={styles.imgWrap}>
                 {uri ? (

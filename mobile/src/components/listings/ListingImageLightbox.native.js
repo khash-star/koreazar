@@ -1,7 +1,5 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,15 +12,14 @@ import ImageViewing from "react-native-image-viewing";
 import { getListingImageUrl } from "../../utils/imageUrl";
 import {
   lightboxNormalizeOrder,
-  normalizeImageOrientation,
   normalizeIndicesWithConcurrency,
+  resolveLightboxDisplayUri,
 } from "../../utils/normalizeImageOrientation";
 
 /**
- * Orientation: patched react-native-image-viewing uses useWindowDimensions for paging.
- * Image URIs are EXIF-normalized before display (see normalizeImageOrientation).
+ * Opens immediately with remote URIs; EXIF normalize runs lazy (current → neighbors → background).
  */
-const LB_SIZE = "w1600";
+const LB_SIZE = "w800";
 
 function ListingImageLightboxInner({
   visible,
@@ -32,88 +29,124 @@ function ListingImageLightboxInner({
   onImageIndexChange,
   insets,
 }) {
-  const { width: winW, height: winH } = useWindowDimensions();
+  const { width: winW } = useWindowDimensions();
   const [imageSources, setImageSources] = useState([]);
-  const [preparing, setPreparing] = useState(false);
-  const [currentReady, setCurrentReady] = useState(false);
+  const urisRef = useRef([]);
+  const normalizedRef = useRef(new Set());
+  const inFlightRef = useRef(new Set());
+  const backgroundStartedRef = useRef(false);
 
-  const remoteUris = useMemo(() => {
+  const slides = useMemo(() => {
     if (!Array.isArray(images) || images.length === 0) return [];
     return images
-      .map((img) => getListingImageUrl(img, LB_SIZE))
-      .filter((u) => typeof u === "string" && u.length > 0);
+      .map((img, originalIndex) => ({
+        originalIndex,
+        remoteUri: getListingImageUrl(img, LB_SIZE),
+      }))
+      .filter((s) => typeof s.remoteUri === "string" && s.remoteUri.length > 0);
   }, [images]);
 
-  const len = remoteUris.length;
+  const len = slides.length;
 
+  const slideIndex = useMemo(() => {
+    const pos = slides.findIndex((s) => s.originalIndex === imageIndex);
+    return pos >= 0 ? pos : 0;
+  }, [slides, imageIndex]);
+
+  const remoteUris = useMemo(() => slides.map((s) => s.remoteUri), [slides]);
+
+  const publish = useCallback(() => {
+    const uris = urisRef.current;
+    if (uris.length > 0) {
+      setImageSources(uris.map((uri) => ({ uri })));
+    }
+  }, []);
+
+  const normalizeAt = useCallback(
+    async (i, cancelledRef) => {
+      if (i < 0 || i >= urisRef.current.length) return;
+      if (normalizedRef.current.has(i) || inFlightRef.current.has(i)) return;
+      inFlightRef.current.add(i);
+      try {
+        const resolved = await resolveLightboxDisplayUri(remoteUris[i]);
+        if (cancelledRef?.current) return;
+        urisRef.current[i] = resolved;
+        normalizedRef.current.add(i);
+        publish();
+      } catch {
+        /* keep remote URI */
+      } finally {
+        inFlightRef.current.delete(i);
+      }
+    },
+    [remoteUris, publish]
+  );
+
+  const prioritizeIndices = useCallback(
+    (indices, cancelledRef) => {
+      const unique = [...new Set(indices)].filter((i) => i >= 0 && i < len);
+      return Promise.all(unique.map((i) => normalizeAt(i, cancelledRef)));
+    },
+    [len, normalizeAt]
+  );
+
+  /** Open instantly with HTTPS URIs when viewer opens or image set changes. */
   useEffect(() => {
-    let cancelled = false;
     if (!visible || len === 0) {
+      urisRef.current = [];
+      normalizedRef.current = new Set();
+      inFlightRef.current = new Set();
+      backgroundStartedRef.current = false;
       setImageSources([]);
-      setPreparing(false);
-      setCurrentReady(false);
       return undefined;
     }
 
-    const safeIndex = Math.min(Math.max(0, imageIndex), len - 1);
-    const order = lightboxNormalizeOrder(len, safeIndex);
-    const uris = [...remoteUris];
+    urisRef.current = [...remoteUris];
+    normalizedRef.current = new Set();
+    inFlightRef.current = new Set();
+    backgroundStartedRef.current = false;
+    setImageSources(remoteUris.map((uri) => ({ uri })));
 
-    setPreparing(true);
-    setCurrentReady(false);
-    setImageSources(uris.map((uri) => ({ uri })));
-
-    const publish = () => {
-      if (!cancelled) {
-        setImageSources(uris.map((uri) => ({ uri })));
-      }
-    };
+    const cancelled = { current: false };
+    const startIndex = Math.min(Math.max(0, slideIndex), len - 1);
 
     (async () => {
-      try {
-        uris[safeIndex] = await normalizeImageOrientation(remoteUris[safeIndex]);
-        if (cancelled) return;
-        publish();
-        setCurrentReady(true);
-        setPreparing(false);
-
-        const rest = order.filter((i) => i !== safeIndex);
-        await normalizeIndicesWithConcurrency(rest, 2, async (i) => {
-          uris[i] = await normalizeImageOrientation(remoteUris[i]);
-          publish();
-        });
-      } catch {
-        if (!cancelled) {
-          setImageSources(remoteUris.map((uri) => ({ uri })));
-          setCurrentReady(true);
-          setPreparing(false);
-        }
-      }
+      await prioritizeIndices([startIndex, startIndex - 1, startIndex + 1], cancelled);
+      if (cancelled.current || backgroundStartedRef.current) return;
+      backgroundStartedRef.current = true;
+      const rest = lightboxNormalizeOrder(len, startIndex).filter(
+        (i) => !normalizedRef.current.has(i) && !inFlightRef.current.has(i)
+      );
+      await normalizeIndicesWithConcurrency(rest, 2, async (i) => {
+        await normalizeAt(i, cancelled);
+      });
     })();
 
     return () => {
-      cancelled = true;
+      cancelled.current = true;
     };
-  }, [visible, len, remoteUris, imageIndex]);
+    // slideIndex intentionally excluded — swipe handled in separate effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, len, remoteUris, prioritizeIndices, normalizeAt]);
 
-  /** Warm cache for current ±1 only (disk/memory cache unchanged). */
+  /** Swipe: normalize new current ±1 only (no gallery reset). */
   useEffect(() => {
-    if (len === 0) return;
-    const cur = Math.min(Math.max(0, imageIndex), len - 1);
-    const warm = [cur];
-    if (cur > 0) warm.push(cur - 1);
-    if (cur < len - 1) warm.push(cur + 1);
-    warm.forEach((i) => {
-      normalizeImageOrientation(remoteUris[i]).catch(() => {});
-    });
-  }, [remoteUris, len, imageIndex]);
+    if (!visible || len === 0) return undefined;
+    const cancelled = { current: false };
+    const cur = Math.min(Math.max(0, slideIndex), len - 1);
+    prioritizeIndices([cur, cur - 1, cur + 1], cancelled);
+    return () => {
+      cancelled.current = true;
+    };
+  }, [visible, slideIndex, len, prioritizeIndices]);
 
-  const goDelta = useCallback(
-    (delta, idx) => {
-      if (len < 2 || !onImageIndexChange) return;
-      onImageIndexChange((idx + delta + len) % len);
+  const handleImageIndexChange = useCallback(
+    (idx) => {
+      if (!onImageIndexChange) return;
+      const slide = slides[idx];
+      if (slide) onImageIndexChange(slide.originalIndex);
     },
-    [len, onImageIndexChange]
+    [onImageIndexChange, slides]
   );
 
   const keyExtractor = useCallback((item, index) => {
@@ -152,101 +185,44 @@ function ListingImageLightboxInner({
             <Ionicons name="close" size={34} color="#fff" />
           </Pressable>
         </View>
-
-        {len > 1 ? (
-          <View
-            pointerEvents="box-none"
-            style={[
-              styles.arrowRow,
-              { top: Math.max(insets.top + 72, Math.round(winH * 0.36)) },
-            ]}
-          >
-            <Pressable
-              style={styles.navHit}
-              onPress={() => goDelta(-1, idx)}
-              accessibilityRole="button"
-              accessibilityLabel="Өмнөх зураг"
-              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            >
-              <Ionicons name="chevron-back" size={42} color="rgba(255,255,255,0.92)" />
-            </Pressable>
-            <Pressable
-              style={styles.navHit}
-              onPress={() => goDelta(1, idx)}
-              accessibilityRole="button"
-              accessibilityLabel="Дараагийн зураг"
-              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            >
-              <Ionicons name="chevron-forward" size={42} color="rgba(255,255,255,0.92)" />
-            </Pressable>
-          </View>
-        ) : null}
       </View>
     ),
-    [len, insets, onClose, goDelta, winW, winH]
+    [len, insets, onClose, winW]
   );
 
   if (len === 0) {
     return null;
   }
 
-  const showViewer = visible && currentReady && imageSources.length === len;
+  const viewerImages =
+    imageSources.length === len ? imageSources : remoteUris.map((uri) => ({ uri }));
 
   return (
-    <>
-      <Modal
-        visible={visible && preparing && !currentReady}
-        transparent
-        animationType="fade"
-        onRequestClose={onClose}
-        statusBarTranslucent
-      >
-        <Pressable style={styles.prepareOverlay} onPress={onClose}>
-          <ActivityIndicator size="large" color="#fff" />
-        </Pressable>
-      </Modal>
-      <ImageViewing
-        images={imageSources.length > 0 ? imageSources : remoteUris.map((uri) => ({ uri }))}
-        imageIndex={Math.min(Math.max(0, imageIndex), len - 1)}
-        visible={showViewer}
-        onRequestClose={onClose}
-        onImageIndexChange={onImageIndexChange}
-        presentationStyle={Platform.OS === "ios" ? "fullScreen" : "overFullScreen"}
-        animationType="fade"
-        backgroundColor="#000"
-        swipeToCloseEnabled
-        doubleTapToZoomEnabled
-        HeaderComponent={HeaderComponent}
-        keyExtractor={keyExtractor}
-      />
-    </>
+    <ImageViewing
+      images={viewerImages}
+      imageIndex={Math.min(Math.max(0, slideIndex), len - 1)}
+      visible={visible}
+      onRequestClose={onClose}
+      onImageIndexChange={handleImageIndexChange}
+      presentationStyle={Platform.OS === "ios" ? "fullScreen" : "overFullScreen"}
+      animationType="fade"
+      backgroundColor="#000"
+      swipeToCloseEnabled
+      doubleTapToZoomEnabled
+      HeaderComponent={HeaderComponent}
+      keyExtractor={keyExtractor}
+    />
   );
 }
 
 export default memo(ListingImageLightboxInner);
 
 const styles = StyleSheet.create({
-  prepareOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  },
   headerBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
-  },
-  arrowRow: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
   },
   topCenter: { flex: 1, alignItems: "center", justifyContent: "center" },
   counter: {
@@ -260,9 +236,5 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-  },
-  navHit: {
-    paddingVertical: 20,
-    paddingHorizontal: 8,
   },
 });

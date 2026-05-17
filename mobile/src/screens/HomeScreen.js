@@ -34,7 +34,7 @@ const ListingItem = React.memo(function ListingItem({ item, onPress, cardWidth }
   const uri = first ? getListingImageUrl(first, "w400") : "";
 
   return (
-    <Pressable style={[styles.card, { width: cardWidth }]} onPress={() => onPress(item.id)}>
+    <Pressable style={[styles.card, { width: cardWidth }]} onPress={() => onPress(item)}>
       <View style={styles.cardImageWrap}>
         {uri ? (
           <Image
@@ -151,8 +151,11 @@ export default function HomeScreen({ navigation }) {
   }, [navigation, isAuthenticated, authLoading]);
 
   const onPressListing = useCallback(
-    (id) => {
-      navigation.navigate("ListingDetail", { listingId: id });
+    (item) => {
+      navigation.navigate("ListingDetail", {
+        listingId: item.id,
+        listingPreview: item,
+      });
     },
     [navigation]
   );

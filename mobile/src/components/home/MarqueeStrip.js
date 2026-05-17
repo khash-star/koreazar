@@ -85,7 +85,7 @@ export default function MarqueeStrip({ banners, vipListings, onPressListing }) {
                   </View>
                 </Pressable>
               ) : (
-                <Pressable style={[styles.card, { height: ITEM_H }]} onPress={() => onPressListing(item.data.id)}>
+                <Pressable style={[styles.card, { height: ITEM_H }]} onPress={() => onPressListing(item.data)}>
                   {getListingImageUrl(item.data.images?.[0], "w400") ? (
                     <Image
                       source={{ uri: getListingImageUrl(item.data.images[0], "w400") }}

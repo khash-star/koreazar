@@ -322,7 +322,7 @@ export default function ImageLightbox({
                   prev();
                 }}
                 aria-label="Өмнөх зураг"
-                className="absolute z-[9999] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white flex items-center justify-center backdrop-blur-sm md:left-4"
+                className="absolute z-[9999] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white hidden md:flex items-center justify-center backdrop-blur-sm md:left-4"
                 style={{ left: safeLeft }}
               >
                 <ChevronLeft className="w-6 h-6" aria-hidden />
@@ -334,7 +334,7 @@ export default function ImageLightbox({
                   next();
                 }}
                 aria-label={index === total - 1 ? 'Эхний зураг руу (давтах)' : 'Дараагийн зураг'}
-                className="absolute z-[9999] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white flex items-center justify-center backdrop-blur-sm md:right-4"
+                className="absolute z-[9999] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 text-white hidden md:flex items-center justify-center backdrop-blur-sm md:right-4"
                 style={{ right: safeRight }}
               >
                 <ChevronRight className="w-6 h-6" aria-hidden />

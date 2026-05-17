@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
+  InteractionManager,
   Modal,
   Pressable,
   ScrollView,
@@ -14,7 +15,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { fetchListingByIdResult, getLatestListings } from "../services/listingService";
+import {
+  fetchListingByIdResult,
+  getLatestListings,
+  peekListingDetailCache,
+} from "../services/listingService";
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
 import { createListingReport } from "../services/listingReportService";
 import { getListingImageUrl } from "../utils/imageUrl";
@@ -32,20 +37,33 @@ import { showAlert } from "../utils/showAlert";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import ListingImageLightbox from "../components/listings/ListingImageLightbox";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const GALLERY_H = Math.round(SCREEN_W * (2 / 3));
+
+function initialListingForRoute(listingId, listingPreview) {
+  if (listingPreview && String(listingPreview.id) === String(listingId)) {
+    return listingPreview;
+  }
+  return peekListingDetailCache(listingId);
+}
 
 export default function ListingDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
-  const { listingId } = route?.params ?? {};
+  const { listingId, listingPreview } = route?.params ?? {};
   const { email, isAuthenticated, user, userData, refreshUserData } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialListingForRoute(listingId, listingPreview));
   const [error, setError] = useState("");
-  const [listing, setListing] = useState(null);
+  const [listing, setListing] = useState(() =>
+    initialListingForRoute(listingId, listingPreview)
+  );
   const [imageIndex, setImageIndex] = useState(0);
   const [savedDocId, setSavedDocId] = useState(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [relatedListings, setRelatedListings] = useState([]);
+  const [relatedRequested, setRelatedRequested] = useState(false);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const relatedSectionY = useRef(Number.POSITIVE_INFINITY);
+  const bodyTopY = useRef(0);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportReason, setReportReason] = useState("Залилан/сэжигтэй");
@@ -73,8 +91,11 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      refreshSaved();
+      const task = InteractionManager.runAfterInteractions(() => {
+        refreshSaved();
+      });
       return () => {
+        task.cancel();
         blurActiveElementWeb();
       };
     }, [refreshSaved])
@@ -86,17 +107,21 @@ export default function ListingDetailScreen({ route, navigation }) {
       setLoading(false);
       return;
     }
+    const hasInstant = Boolean(
+      peekListingDetailCache(listingId) ||
+      (listingPreview && String(listingPreview.id) === String(listingId))
+    );
     try {
-      setLoading(true);
-      // Route param солигдох үед өмнөх дэлгэрэнгүйг цэвэрлэж холилдохоос сэргийлнэ.
-      setListing(null);
-      setRelatedListings([]);
-      setImageIndex(0);
+      if (!hasInstant) setLoading(true);
       setError("");
-      const { listing: data, httpStatus } = await fetchListingByIdResult(listingId);
+      const { listing: data, httpStatus } = await fetchListingByIdResult(listingId, {
+        bypassCache: hasInstant,
+      });
       if (!data) {
-        setError("Зар олдсонгүй");
-        setListing(null);
+        if (!hasInstant) {
+          setError("Зар олдсонгүй");
+          setListing(null);
+        }
         if (httpStatus === 404 && email) {
           try {
             const sid = await findSavedDocId(email, listingId);
@@ -118,11 +143,21 @@ export default function ListingDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [listingId, navigation, email]);
+  }, [listingId, listingPreview, navigation, email]);
 
   useEffect(() => {
+    const seed = initialListingForRoute(listingId, listingPreview);
+    setListing(seed);
+    setLoading(!seed);
+    setRelatedListings([]);
+    setRelatedRequested(false);
+    setRelatedLoading(false);
+    relatedSectionY.current = Number.POSITIVE_INFINITY;
+    setImageIndex(0);
+    setLightboxIndex(0);
+    setError("");
     load();
-  }, [load]);
+  }, [listingId, listingPreview, load]);
 
   /** Clamp gallery indices when image count shrinks (avoids OOB in lightbox). */
   useEffect(() => {
@@ -132,41 +167,65 @@ export default function ListingDetailScreen({ route, navigation }) {
     setLightboxIndex((i) => Math.min(Math.max(0, i), n - 1));
   }, [listing?.id, listing?.images?.length]);
 
-  useEffect(() => {
-    let mounted = true;
-    async function loadRelated() {
-      if (!listing?.id || !listing?.category) {
-        if (mounted) setRelatedListings([]);
-        return;
-      }
-      try {
-        const latest = await getLatestListings(60);
-        const related = latest
-          .filter(
-            (row) =>
-              String(row.id) !== String(listing.id) && row.category === listing.category
-          )
-          .slice(0, 10);
-        if (mounted) setRelatedListings(related);
-      } catch {
-        if (mounted) setRelatedListings([]);
-      }
+  const loadRelatedListings = useCallback(async () => {
+    if (!listing?.id || !listing?.category) return;
+    setRelatedLoading(true);
+    try {
+      const latest = await getLatestListings(40);
+      const related = latest
+        .filter(
+          (row) => String(row.id) !== String(listing.id) && row.category === listing.category
+        )
+        .slice(0, 10);
+      setRelatedListings(related);
+    } catch {
+      setRelatedListings([]);
+    } finally {
+      setRelatedLoading(false);
     }
-    loadRelated();
-    return () => {
-      mounted = false;
-    };
   }, [listing?.id, listing?.category]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#ea580c" />
-      </View>
-    );
+  useEffect(() => {
+    if (!relatedRequested || !listing?.category) return undefined;
+    let mounted = true;
+    const task = InteractionManager.runAfterInteractions(() => {
+      loadRelatedListings().finally(() => {
+        if (!mounted) return;
+      });
+    });
+    return () => {
+      mounted = false;
+      task.cancel();
+    };
+  }, [relatedRequested, listing?.category, loadRelatedListings]);
+
+  const requestRelatedIfNear = useCallback(
+    (contentOffsetY, viewportHeight) => {
+      if (relatedRequested) return;
+      const viewportBottom = contentOffsetY + viewportHeight;
+      if (
+        viewportBottom >= relatedSectionY.current - 160 ||
+        contentOffsetY > 280
+      ) {
+        setRelatedRequested(true);
+      }
+    },
+    [relatedRequested]
+  );
+
+  const handleScroll = useCallback(
+    (e) => {
+      const { contentOffset, layoutMeasurement } = e.nativeEvent;
+      requestRelatedIfNear(contentOffset.y, layoutMeasurement.height);
+    },
+    [requestRelatedIfNear]
+  );
+
+  if (loading && !listing) {
+    return <ListingDetailSkeleton galleryH={GALLERY_H} />;
   }
 
-  if (error || !listing) {
+  if ((error || !listing) && !loading) {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error || "Зар олдсонгүй"}</Text>
@@ -318,13 +377,23 @@ export default function ListingDetailScreen({ route, navigation }) {
         ? String(listing.id)
         : null;
 
+  const isRefreshing = loading && Boolean(listing);
+
   return (
     <>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.scrollContent}
       scrollEnabled={!imageLightboxOpen}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
     >
+      {isRefreshing ? (
+        <View style={styles.refreshBanner}>
+          <ActivityIndicator size="small" color="#ea580c" />
+          <Text style={styles.refreshBannerText}>Шинэчилж байна…</Text>
+        </View>
+      ) : null}
       <View style={styles.gallerySection}>
         {mainUri ? (
           <View style={styles.galleryWrap}>
@@ -336,11 +405,14 @@ export default function ListingDetailScreen({ route, navigation }) {
               android_ripple={{ color: "rgba(0,0,0,0.08)" }}
             >
               <Image
+                key={mainUri}
+                recyclingKey={mainUri}
                 source={{ uri: mainUri }}
                 style={[styles.hero, { height: GALLERY_H }]}
                 contentFit="contain"
                 transition={200}
                 cachePolicy="memory-disk"
+                priority="high"
                 pointerEvents="none"
               />
             </Pressable>
@@ -359,7 +431,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                       key={i}
                       onPress={() => {
                         setImageIndex(i);
-                        openImageLightbox(i);
+                        setLightboxIndex(i);
                       }}
                     >
                       <Image
@@ -367,6 +439,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                         style={[styles.thumb, i === imageIndex && styles.thumbActive]}
                         contentFit="cover"
                         cachePolicy="memory-disk"
+                        priority="low"
                         pointerEvents="none"
                       />
                     </Pressable>
@@ -390,7 +463,12 @@ export default function ListingDetailScreen({ route, navigation }) {
         ) : null}
       </View>
 
-      <View style={styles.body}>
+      <View
+        style={styles.body}
+        onLayout={(e) => {
+          bodyTopY.current = e.nativeEvent.layout.y;
+        }}
+      >
         <View style={styles.badgeRow}>
           {listing.listing_type === "vip" && (
             <View style={[styles.badge, styles.badgeVip]}>
@@ -424,6 +502,12 @@ export default function ListingDetailScreen({ route, navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Тайлбар</Text>
             <Text style={styles.description}>{listing.description}</Text>
+          </View>
+        ) : isRefreshing ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Тайлбар</Text>
+            <View style={styles.skeletonLine} />
+            <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
           </View>
         ) : null}
 
@@ -515,9 +599,23 @@ export default function ListingDetailScreen({ route, navigation }) {
           ) : null}
         </View>
 
-        <View style={styles.section}>
+        <View
+          style={styles.section}
+          onLayout={(e) => {
+            relatedSectionY.current = bodyTopY.current + e.nativeEvent.layout.y;
+            if (!relatedRequested && relatedSectionY.current < SCREEN_H * 1.1) {
+              setRelatedRequested(true);
+            }
+          }}
+        >
           <Text style={styles.sectionTitle}>Ижил төстэй зарууд</Text>
-          {relatedListings.length === 0 ? (
+          {!relatedRequested ? (
+            <Text style={styles.muted}>Доош гүйлгэхэд ачаална…</Text>
+          ) : relatedLoading ? (
+            <View style={styles.relatedLoadingRow}>
+              <ActivityIndicator size="small" color="#ea580c" />
+            </View>
+          ) : relatedListings.length === 0 ? (
             <Text style={styles.muted}>Одоогоор ижил төрлийн өөр зар алга байна.</Text>
           ) : (
             <ScrollView
@@ -535,7 +633,12 @@ export default function ListingDetailScreen({ route, navigation }) {
                   <Pressable
                     key={item.id}
                     style={styles.relatedCard}
-                    onPress={() => navigation.push("ListingDetail", { listingId: item.id })}
+                    onPress={() =>
+                      navigation.push("ListingDetail", {
+                        listingId: item.id,
+                        listingPreview: item,
+                      })
+                    }
                   >
                     {uri ? (
                       <Image
@@ -646,9 +749,37 @@ export default function ListingDetailScreen({ route, navigation }) {
   );
 }
 
+function ListingDetailSkeleton({ galleryH }) {
+  return (
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <View style={[styles.skeletonHero, { height: galleryH }]} />
+      <View style={styles.body}>
+        <View style={[styles.skeletonLine, { width: "40%", height: 14 }]} />
+        <View style={[styles.skeletonLine, { width: "85%", height: 24, marginTop: 12 }]} />
+        <View style={[styles.skeletonLine, { width: "35%", height: 20, marginTop: 10 }]} />
+        <View style={[styles.skeletonLine, { width: "100%", height: 14, marginTop: 20 }]} />
+        <View style={[styles.skeletonLine, { width: "92%", height: 14, marginTop: 8 }]} />
+      </View>
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: "#f8fafc" },
   scrollContent: { paddingBottom: 32 },
+  refreshBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+    backgroundColor: "#fff7ed",
+  },
+  refreshBannerText: { fontSize: 13, color: "#9a3412", fontWeight: "600" },
+  skeletonHero: { width: "100%", backgroundColor: "#e5e7eb" },
+  skeletonLine: { borderRadius: 6, backgroundColor: "#e5e7eb" },
+  skeletonLineShort: { width: "60%", marginTop: 8 },
+  relatedLoadingRow: { paddingVertical: 16, alignItems: "center" },
   center: {
     flex: 1,
     alignItems: "center",

@@ -12,7 +12,26 @@ export function parseMysqlListingId(raw) {
   return String(n);
 }
 const LATEST_CACHE_TTL_MS = 15000;
+const DETAIL_CACHE_TTL_MS = 120000;
 let latestListingsCache = { at: 0, key: "", data: null, pending: null };
+/** @type {Map<string, { at: number, data: object }>} */
+const listingDetailCache = new Map();
+
+export function peekListingDetailCache(id) {
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) return null;
+  const row = listingDetailCache.get(mysqlId);
+  if (!row || Date.now() - row.at > DETAIL_CACHE_TTL_MS) {
+    if (row) listingDetailCache.delete(mysqlId);
+    return null;
+  }
+  return row.data;
+}
+
+function storeListingDetailCache(mysqlId, listing) {
+  if (!mysqlId || !listing) return;
+  listingDetailCache.set(mysqlId, { at: Date.now(), data: listing });
+}
 
 async function getAuthHeaders() {
   const user = auth.currentUser;
@@ -133,12 +152,19 @@ export async function getListingsByCustomerId(customerId, limitCount = 50, optio
 /**
  * @returns {{ listing: object|null, httpStatus?: number }} — 404-ийг saved_listings цэвэрлэхэд ашиглана
  */
-export async function fetchListingByIdResult(id) {
+export async function fetchListingByIdResult(id, options = {}) {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return { listing: null };
+  const bypassCache = Boolean(options.bypassCache);
+  if (!bypassCache) {
+    const cached = peekListingDetailCache(id);
+    if (cached) return { listing: cached };
+  }
   try {
     const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
-    return { listing: normalizeListing(payload?.data) };
+    const listing = normalizeListing(payload?.data);
+    if (listing) storeListingDetailCache(mysqlId, listing);
+    return { listing };
   } catch (e) {
     const st = typeof e?.status === "number" ? e.status : undefined;
     return { listing: null, httpStatus: st };

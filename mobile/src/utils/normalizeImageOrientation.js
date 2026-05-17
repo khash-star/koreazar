@@ -9,6 +9,27 @@ import { Platform } from "react-native";
 /** @type {Map<string, string>} remote/local source URI → normalized file:// URI */
 const memCache = new Map();
 
+const MIN_CACHED_IMAGE_BYTES = 256;
+
+async function isReadableImageFile(uri) {
+  if (!uri || typeof uri !== "string") return false;
+  try {
+    const info = await FileSystem.getInfoAsync(uri, { size: true });
+    return Boolean(info.exists && typeof info.size === "number" && info.size >= MIN_CACHED_IMAGE_BYTES);
+  } catch {
+    return false;
+  }
+}
+
+async function dropBadNormalizedFile(remoteUri, filePath) {
+  memCache.delete(remoteUri);
+  try {
+    await FileSystem.deleteAsync(filePath, { idempotent: true });
+  } catch {
+    /* ignore */
+  }
+}
+
 function cacheKeyForUri(uri) {
   let h = 0;
   for (let i = 0; i < uri.length; i += 1) {
@@ -28,16 +49,19 @@ export async function normalizeImageOrientation(uri) {
   }
 
   const hit = memCache.get(uri);
-  if (hit) return hit;
+  if (hit) {
+    if (await isReadableImageFile(hit)) return hit;
+    await dropBadNormalizedFile(uri, hit);
+  }
 
   const key = cacheKeyForUri(uri);
   const outPath = `${FileSystem.cacheDirectory}ori_norm_${key}.jpg`;
   try {
-    const existing = await FileSystem.getInfoAsync(outPath);
-    if (existing.exists) {
+    if (await isReadableImageFile(outPath)) {
       memCache.set(uri, outPath);
       return outPath;
     }
+    await FileSystem.deleteAsync(outPath, { idempotent: true });
   } catch {
     /* continue */
   }
@@ -59,11 +83,30 @@ export async function normalizeImageOrientation(uri) {
       format: ImageManipulator.SaveFormat.JPEG,
     });
     await FileSystem.copyAsync({ from: manipulated, to: outPath });
-    memCache.set(uri, outPath);
-    return outPath;
+    if (await isReadableImageFile(outPath)) {
+      memCache.set(uri, outPath);
+      return outPath;
+    }
+    await dropBadNormalizedFile(uri, outPath);
+    return uri;
   } catch {
     return uri;
   }
+}
+
+/** Normalize for lightbox; fall back to remote HTTPS if cache/file is unusable. */
+export async function resolveLightboxDisplayUri(remoteUri) {
+  const normalized = await normalizeImageOrientation(remoteUri);
+  if (normalized === remoteUri) return remoteUri;
+  if (await isReadableImageFile(normalized)) return normalized;
+  const cacheRoot = FileSystem.cacheDirectory || "";
+  if (
+    normalized.startsWith("file://") ||
+    (cacheRoot && normalized.startsWith(cacheRoot))
+  ) {
+    await dropBadNormalizedFile(remoteUri, normalized);
+  }
+  return remoteUri;
 }
 
 /** Clear in-memory map only (disk cache kept for faster reopen). */
