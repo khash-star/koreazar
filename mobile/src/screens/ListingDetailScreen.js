@@ -181,10 +181,15 @@ export default function ListingDetailScreen({ route, navigation }) {
   const mainImg = images[imageIndex];
   const mainUri = mainImg ? getListingImageUrl(mainImg, "w800") : "";
 
-  function openImageLightbox() {
-    if (!mainImg || !mainUri) return;
+  function openImageLightbox(atIndex) {
+    const idx =
+      typeof atIndex === "number" && Number.isFinite(atIndex) ? atIndex : imageIndex;
+    const img = images[idx];
+    const uri = img ? getListingImageUrl(img, "w800") : "";
+    if (!img || !uri) return;
     blurActiveElementWeb();
-    setLightboxIndex(imageIndex);
+    setImageIndex(idx);
+    setLightboxIndex(idx);
     setImageLightboxOpen(true);
   }
 
@@ -324,9 +329,11 @@ export default function ListingDetailScreen({ route, navigation }) {
         {mainUri ? (
           <View style={styles.galleryWrap}>
             <Pressable
-              onPress={openImageLightbox}
+              onPress={() => openImageLightbox(imageIndex)}
+              style={[styles.heroPressable, { height: GALLERY_H }]}
               accessibilityRole="button"
               accessibilityLabel="Зургийг томоор харах"
+              android_ripple={{ color: "rgba(0,0,0,0.08)" }}
             >
               <Image
                 source={{ uri: mainUri }}
@@ -334,6 +341,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                 contentFit="contain"
                 transition={200}
                 cachePolicy="memory-disk"
+                pointerEvents="none"
               />
             </Pressable>
             {images.length > 1 && (
@@ -347,12 +355,19 @@ export default function ListingDetailScreen({ route, navigation }) {
                   const uri = getListingImageUrl(img, "w150");
                   if (!uri) return null;
                   return (
-                    <Pressable key={i} onPress={() => setImageIndex(i)}>
+                    <Pressable
+                      key={i}
+                      onPress={() => {
+                        setImageIndex(i);
+                        openImageLightbox(i);
+                      }}
+                    >
                       <Image
                         source={{ uri }}
                         style={[styles.thumb, i === imageIndex && styles.thumbActive]}
                         contentFit="cover"
                         cachePolicy="memory-disk"
+                        pointerEvents="none"
                       />
                     </Pressable>
                   );
@@ -662,6 +677,7 @@ const styles = StyleSheet.create({
   },
   listingIdCornerText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   galleryWrap: { backgroundColor: "#e5e7eb" },
+  heroPressable: { width: "100%", backgroundColor: "#e5e7eb" },
   hero: { width: "100%", backgroundColor: "#e5e7eb" },
   thumbRow: { maxHeight: 76, marginTop: 8, marginBottom: 8 },
   thumbRowInner: { paddingHorizontal: 12, gap: 8, flexDirection: "row" },

@@ -1,13 +1,22 @@
-import React, { memo, useCallback, useMemo } from "react";
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ImageViewing from "react-native-image-viewing";
 import { getListingImageUrl } from "../../utils/imageUrl";
+import { normalizeImageOrientation } from "../../utils/normalizeImageOrientation";
 
 /**
- * Orientation: patched react-native-image-viewing uses useWindowDimensions for paging
- * (must match the Modal window, not static Dimensions.get("screen")). Header below
- * uses the same hook so overlay width/arrow layout stays aligned with each page.
+ * Orientation: patched react-native-image-viewing uses useWindowDimensions for paging.
+ * Image URIs are EXIF-normalized before display (see normalizeImageOrientation).
  */
 const LB_SIZE = "w1600";
 
@@ -20,18 +29,59 @@ function ListingImageLightboxInner({
   insets,
 }) {
   const { width: winW, height: winH } = useWindowDimensions();
+  const [imageSources, setImageSources] = useState([]);
+  const [preparing, setPreparing] = useState(false);
 
-  const imageSources = useMemo(() => {
+  const remoteUris = useMemo(() => {
     if (!Array.isArray(images) || images.length === 0) return [];
     return images
-      .map((img) => {
-        const uri = getListingImageUrl(img, LB_SIZE);
-        return uri ? { uri } : null;
-      })
-      .filter(Boolean);
+      .map((img) => getListingImageUrl(img, LB_SIZE))
+      .filter((u) => typeof u === "string" && u.length > 0);
   }, [images]);
 
-  const len = imageSources.length;
+  const len = remoteUris.length;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!visible || len === 0) {
+      setImageSources([]);
+      setPreparing(false);
+      return undefined;
+    }
+
+    setPreparing(true);
+    (async () => {
+      try {
+        const normalized = await Promise.all(
+          remoteUris.map((uri) => normalizeImageOrientation(uri))
+        );
+        if (cancelled) return;
+        setImageSources(
+          normalized
+            .filter((uri) => typeof uri === "string" && uri.length > 0)
+            .map((uri) => ({ uri }))
+        );
+      } catch {
+        if (!cancelled) {
+          setImageSources(remoteUris.map((uri) => ({ uri })));
+        }
+      } finally {
+        if (!cancelled) setPreparing(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, len, remoteUris]);
+
+  /** Warm disk/memory cache while browsing listing so first lightbox open is fast. */
+  useEffect(() => {
+    if (len === 0) return;
+    remoteUris.forEach((uri) => {
+      normalizeImageOrientation(uri).catch(() => {});
+    });
+  }, [remoteUris, len]);
 
   const goDelta = useCallback(
     (delta, idx) => {
@@ -115,27 +165,50 @@ function ListingImageLightboxInner({
     return null;
   }
 
+  const sourcesReady = imageSources.length === len;
+  const showViewer = visible && sourcesReady;
+
   return (
-    <ImageViewing
-      images={imageSources}
-      imageIndex={Math.min(Math.max(0, imageIndex), len - 1)}
-      visible={visible}
-      onRequestClose={onClose}
-      onImageIndexChange={onImageIndexChange}
-      presentationStyle={Platform.OS === "ios" ? "fullScreen" : "overFullScreen"}
-      animationType="fade"
-      backgroundColor="#000"
-      swipeToCloseEnabled
-      doubleTapToZoomEnabled
-      HeaderComponent={HeaderComponent}
-      keyExtractor={keyExtractor}
-    />
+    <>
+      <Modal
+        visible={visible && preparing && !sourcesReady}
+        transparent
+        animationType="fade"
+        onRequestClose={onClose}
+        statusBarTranslucent
+      >
+        <Pressable style={styles.prepareOverlay} onPress={onClose}>
+          <ActivityIndicator size="large" color="#fff" />
+        </Pressable>
+      </Modal>
+      <ImageViewing
+        images={imageSources.length > 0 ? imageSources : remoteUris.map((uri) => ({ uri }))}
+        imageIndex={Math.min(Math.max(0, imageIndex), len - 1)}
+        visible={showViewer}
+        onRequestClose={onClose}
+        onImageIndexChange={onImageIndexChange}
+        presentationStyle={Platform.OS === "ios" ? "fullScreen" : "overFullScreen"}
+        animationType="fade"
+        backgroundColor="#000"
+        swipeToCloseEnabled
+        doubleTapToZoomEnabled
+        HeaderComponent={HeaderComponent}
+        keyExtractor={keyExtractor}
+      />
+    </>
   );
 }
 
 export default memo(ListingImageLightboxInner);
 
 const styles = StyleSheet.create({
+  prepareOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  },
   headerBar: {
     flexDirection: "row",
     alignItems: "center",

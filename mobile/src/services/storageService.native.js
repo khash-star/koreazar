@@ -3,6 +3,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { ref, getDownloadURL } from "firebase/storage";
+import { normalizeImageOrientation } from "../utils/normalizeImageOrientation";
 import { SDK_VERSION } from "firebase/app";
 import { storage, auth, getStorageBucketId } from "../config/firebase";
 
@@ -113,7 +114,15 @@ export async function uploadImageFromUri(uri, options = {}) {
   const storageRef = ref(storage, `images/${fileName}`);
   const fallbackType = options.mimeType || contentTypeForExtension(ext);
 
-  await uploadNative(storageRef, uri, ext, timestamp, fallbackType);
+  const uploadUri = await normalizeImageOrientation(uri);
+  const uploadExt =
+    uploadUri !== uri || uploadUri.endsWith(".jpg") || uploadUri.endsWith(".jpeg")
+      ? "jpg"
+      : ext;
+  const uploadType =
+    uploadExt === ext ? fallbackType : contentTypeForExtension(uploadExt);
+
+  await uploadNative(storageRef, uploadUri, uploadExt, timestamp, uploadType);
 
   const downloadURL = await getDownloadURL(storageRef);
   return { file_url: downloadURL };
