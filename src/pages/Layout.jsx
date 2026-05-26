@@ -197,6 +197,14 @@ export default function Layout({ children, currentPageName }) {
                 <p>И-мэйл: support@zarkorea.com</p>
                 <p>Утас: +82 10-0000-0000</p>
                 <p>Ажлын цаг: 09:00 - 18:00</p>
+                <a
+                  href="https://www.facebook.com/ZARKOREA"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-gray-300 hover:text-amber-400"
+                >
+                  Facebook: ZARKOREA
+                </a>
               </div>
             </div>
 
