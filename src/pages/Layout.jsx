@@ -25,6 +25,7 @@ export default function Layout({ children, currentPageName }) {
     message: '',
   });
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   const handleHomeClick = (e) => {
     e.preventDefault();
@@ -167,7 +168,7 @@ export default function Layout({ children, currentPageName }) {
               Zarkorea · Zarkorea app · Zarkorea Korea Mongolia · Солонгос зар · Заркореа
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
               <h3 className="text-white font-semibold">Тусламж</h3>
               <div className="mt-2 space-y-1 text-sm">
@@ -197,6 +198,25 @@ export default function Layout({ children, currentPageName }) {
                 <p>Утас: +82 10-0000-0000</p>
                 <p>Ажлын цаг: 09:00 - 18:00</p>
               </div>
+            </div>
+
+            <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
+              <h3 className="text-white font-semibold">Апп татах</h3>
+              <button
+                type="button"
+                onClick={() => setIsQrOpen(true)}
+                className="mt-3 inline-flex items-center gap-3 rounded-xl border border-gray-700 bg-gray-900/60 p-2 text-left transition hover:border-amber-500 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                aria-label="Апп татах QR код харах"
+              >
+                <img
+                  src="/download_app.png"
+                  alt="Апп татах"
+                  className="h-12 w-12 rounded-lg object-contain"
+                />
+                <span className="text-sm text-gray-300">
+                  QR код уншуулж апп татах
+                </span>
+              </button>
             </div>
 
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
@@ -252,6 +272,24 @@ export default function Layout({ children, currentPageName }) {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+        <DialogContent className="max-w-sm bg-white text-gray-900">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">Апп татах QR код</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src="/QR_app.jpg"
+              alt="Апп татах QR код"
+              className="w-full max-w-64 rounded-2xl border border-gray-200 object-contain"
+            />
+            <p className="text-center text-sm text-gray-600">
+              Утасныхаа камераар QR кодыг уншуулж апп татна уу.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
 
