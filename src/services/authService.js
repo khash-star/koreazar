@@ -3,6 +3,7 @@
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPhoneNumber,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -132,6 +133,62 @@ export const login = async (email, password) => {
   await syncUserToMySql(userCredential.user, {});
   await ensureTermsAcceptanceIfMissing(userCredential.user);
   return userCredential.user;
+};
+
+/**
+ * Web Phone OTP эхлүүлэх (Firebase SMS илгээнэ)
+ * @param {string} phoneNumberE164 - +821012345678 гэх мэт E.164 формат
+ * @param {RecaptchaVerifier} appVerifier - Firebase reCAPTCHA verifier
+ * @returns {Promise<ConfirmationResult>}
+ */
+export const startPhoneLogin = async (phoneNumberE164, appVerifier) => {
+  if (!phoneNumberE164) {
+    throw new Error('Утасны дугаар хоосон байна');
+  }
+  if (!appVerifier) {
+    throw new Error('reCAPTCHA verifier олдсонгүй');
+  }
+  return signInWithPhoneNumber(auth, phoneNumberE164, appVerifier);
+};
+
+/**
+ * Web Phone OTP баталгаажуулах
+ * @param {ConfirmationResult} confirmationResult
+ * @param {string} code - 6 оронтой OTP
+ * @param {string} phoneNumberE164 - +821012345678
+ * @returns {Promise<User>} Firebase User object
+ */
+export const confirmPhoneLogin = async (confirmationResult, code, phoneNumberE164 = '') => {
+  if (!confirmationResult) {
+    throw new Error('Баталгаажуулалтын сесс олдсонгүй. Дахин код илгээнэ үү.');
+  }
+  if (!code) {
+    throw new Error('OTP код оруулна уу');
+  }
+
+  const userCredential = await confirmationResult.confirm(code);
+  const user = userCredential.user;
+
+  // Phone login хэрэглэгчийн суурь профайл Firestore дээр байх ёстой.
+  const fallbackDisplayName = user.displayName || (phoneNumberE164 ? `User ${phoneNumberE164}` : 'User');
+  await setDoc(
+    doc(db, 'users', user.uid),
+    {
+      phone: phoneNumberE164 || user.phoneNumber || '',
+      phoneNumber: phoneNumberE164 || user.phoneNumber || '',
+      displayName: fallbackDisplayName,
+      role: 'user',
+      createdAt: new Date(),
+    },
+    { merge: true }
+  );
+
+  await syncUserToMySql(user, {
+    displayName: fallbackDisplayName,
+    phone: phoneNumberE164 || user.phoneNumber || '',
+  });
+  await ensureTermsAcceptanceIfMissing(user);
+  return user;
 };
 
 /**

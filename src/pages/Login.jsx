@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { login, resetPassword } from '@/services/authService';
+import { login, resetPassword, startPhoneLogin, confirmPhoneLogin } from '@/services/authService';
 import { loginWithFacebook } from '@/services/facebookAuthService';
+import { auth } from '@/firebase/config';
+import { RecaptchaVerifier } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +41,32 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
+  const [loginMethod, setLoginMethod] = useState('email');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [phoneLoading, setPhoneLoading] = useState(false);
+
+  const ensureRecaptcha = async () => {
+    if (window.recaptchaVerifier) return window.recaptchaVerifier;
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        // Invisible recaptcha автоматаар гүйцэтгэгдэнэ.
+      },
+    });
+    await verifier.render();
+    window.recaptchaVerifier = verifier;
+    return verifier;
+  };
+
+  const normalizePhoneE164 = (raw) => {
+    const v = String(raw || '').trim().replace(/\s+/g, '');
+    if (!v) return '';
+    if (!v.startsWith('+')) return v;
+    return `+${v.slice(1).replace(/[^\d]/g, '')}`;
+  };
 
   const handleFacebookLogin = async () => {
     setError('');
@@ -94,6 +122,63 @@ export default function Login() {
     }
   };
 
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setTermsError('');
+    if (!acceptedTerms) {
+      setTermsError('Эхлээд үйлчилгээний нөхцөлийг зөвшөөрснөө тэмдэглэнэ үү.');
+      return;
+    }
+    const normalized = normalizePhoneE164(phoneNumber);
+    if (!/^\+\d{8,15}$/.test(normalized)) {
+      setError('Утасны дугаараа +821012345678 хэлбэрээр оруулна уу.');
+      return;
+    }
+
+    setPhoneLoading(true);
+    try {
+      const verifier = await ensureRecaptcha();
+      const result = await startPhoneLogin(normalized, verifier);
+      setConfirmationResult(result);
+      setOtpSent(true);
+      toast({ title: 'OTP илгээгдлээ', description: 'Утасандаа ирсэн 6 оронтой кодоо оруулна уу.' });
+    } catch (err) {
+      console.error('Phone OTP send error:', err);
+      const code = err?.code || err?.message || 'unknown';
+      setError(getErrorMessage(code));
+      try {
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = null;
+        }
+      } catch {
+        // noop
+      }
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setPhoneLoading(true);
+    try {
+      const normalized = normalizePhoneE164(phoneNumber);
+      await confirmPhoneLogin(confirmationResult, otpCode, normalized);
+      setTimeout(() => {
+        navigate(redirectUrl);
+      }, 100);
+    } catch (err) {
+      console.error('Phone OTP verify error:', err);
+      const code = err?.code || err?.message || 'unknown';
+      setError(getErrorMessage(code));
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
@@ -137,6 +222,27 @@ export default function Login() {
     }
     if (codeStr.includes('auth/invalid-api-key')) {
       return 'Firebase API key буруу байна. .env файл шалгана уу.';
+    }
+    if (codeStr.includes('auth/invalid-phone-number')) {
+      return 'Утасны дугаар буруу байна. +821012345678 хэлбэрээр оруулна уу.';
+    }
+    if (codeStr.includes('auth/missing-phone-number')) {
+      return 'Утасны дугаар оруулна уу.';
+    }
+    if (codeStr.includes('auth/invalid-verification-code')) {
+      return 'OTP код буруу байна. Дахин шалгаад оруулна уу.';
+    }
+    if (codeStr.includes('auth/code-expired')) {
+      return 'OTP кодын хугацаа дууссан байна. Дахин код илгээнэ үү.';
+    }
+    if (codeStr.includes('auth/captcha-check-failed')) {
+      return 'reCAPTCHA баталгаажуулалт амжилтгүй боллоо. Дахин оролдоно уу.';
+    }
+    if (codeStr.includes('auth/quota-exceeded')) {
+      return 'SMS лимит дууссан байна. Түр хүлээгээд дахин оролдоно уу.';
+    }
+    if (codeStr.includes('auth/operation-not-allowed')) {
+      return 'Phone Auth идэвхжээгүй байна. Firebase Console дээр асаана уу.';
     }
     
     // Show actual error for debugging
@@ -204,10 +310,34 @@ export default function Login() {
         <CardHeader>
           <CardTitle>Нэвтрэх</CardTitle>
           <CardDescription>
-            Бүртгэлтэй имэйл, нууц үгээрээ нэвтрэнэ үү
+            Имэйл эсвэл утсаар OTP код ашиглан нэвтрэнэ үү
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 flex rounded-md border p-1">
+            <button
+              type="button"
+              className={`flex-1 rounded px-3 py-2 text-sm font-medium ${loginMethod === 'email' ? 'bg-amber-500 text-white' : 'text-gray-600'}`}
+              onClick={() => {
+                setLoginMethod('email');
+                setError('');
+              }}
+            >
+              Имэйл
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded px-3 py-2 text-sm font-medium ${loginMethod === 'phone' ? 'bg-amber-500 text-white' : 'text-gray-600'}`}
+              onClick={() => {
+                setLoginMethod('phone');
+                setError('');
+              }}
+            >
+              Утас + OTP
+            </button>
+          </div>
+
+          {loginMethod === 'email' ? (
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -303,6 +433,100 @@ export default function Login() {
               )}
             </Button>
           </form>
+          ) : (
+          <form onSubmit={otpSent ? handleVerifyOtp : handleSendOtp} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Утасны дугаар</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+821012345678"
+                required
+                autoComplete="tel"
+                disabled={otpSent}
+              />
+              <p className="text-xs text-gray-500">Олон улсын формат ашиглана уу. Ж: +821012345678, +97699112233</p>
+            </div>
+
+            {otpSent ? (
+              <div className="space-y-2">
+                <Label htmlFor="otpCode">OTP код</Label>
+                <Input
+                  id="otpCode"
+                  type="text"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="6 оронтой код"
+                  required
+                  inputMode="numeric"
+                  maxLength={6}
+                />
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <label className="flex gap-3 items-start cursor-pointer select-none">
+                <Checkbox
+                  checked={acceptedTerms}
+                  onCheckedChange={(v) => {
+                    setAcceptedTerms(!!v);
+                    setTermsError('');
+                  }}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-600 leading-relaxed">
+                  Би ZARKOREA.COM сайтын{' '}
+                  <Link
+                    to={createPageUrl('Privacy')}
+                    className="text-red-600 hover:underline font-medium"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    үйлчилгээний нөхцөл
+                  </Link>{' '}
+                  хүлээн зөвшөөрч, мөн өөрийгөө 18 нас хүрсэн болохыг баталж байна.
+                </span>
+              </label>
+              {termsError ? <p className="text-sm text-red-600 pl-7">{termsError}</p> : null}
+            </div>
+
+            <Button type="submit" className="w-full" disabled={phoneLoading}>
+              {phoneLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {otpSent ? 'Баталгаажуулж байна...' : 'Код илгээж байна...'}
+                </>
+              ) : otpSent ? (
+                'OTP-ээр нэвтрэх'
+              ) : (
+                'OTP код илгээх'
+              )}
+            </Button>
+
+            {otpSent ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtpCode('');
+                  setConfirmationResult(null);
+                  setError('');
+                }}
+              >
+                Дугаар солих / дахин код авах
+              </Button>
+            ) : null}
+          </form>
+          )}
+          <div id="recaptcha-container" />
 
           {/* eslint-disable-next-line no-constant-binary-expression -- Facebook login disabled for now */}
           {false && (
