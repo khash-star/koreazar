@@ -29,7 +29,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
 
 /** Нөхцөл өөрчлөгдөхөд дугаарлаж шинэчлэх (Firestore users.{termsVersion}) */
 export const TERMS_POLICY_VERSION = '2025-03-28';
@@ -151,12 +151,19 @@ export const startPhoneLogin = async (phoneNumberE164, appVerifier) => {
   return signInWithPhoneNumber(auth, phoneNumberE164, appVerifier);
 };
 
+const isAutoPhoneDisplayName = (name, phoneE164 = '') => {
+  const trimmed = String(name || '').trim();
+  if (!trimmed || trimmed === 'User') return true;
+  if (phoneE164 && trimmed === `User ${phoneE164}`) return true;
+  return /^User \+\d+$/.test(trimmed);
+};
+
 /**
  * Web Phone OTP баталгаажуулах
  * @param {ConfirmationResult} confirmationResult
  * @param {string} code - 6 оронтой OTP
  * @param {string} phoneNumberE164 - +821012345678
- * @returns {Promise<User>} Firebase User object
+ * @returns {Promise<{ user: User, needsNameSetup: boolean }>}
  */
 export const confirmPhoneLogin = async (confirmationResult, code, phoneNumberE164 = '') => {
   if (!confirmationResult) {
@@ -168,26 +175,86 @@ export const confirmPhoneLogin = async (confirmationResult, code, phoneNumberE16
 
   const userCredential = await confirmationResult.confirm(code);
   const user = userCredential.user;
+  const phone = phoneNumberE164 || user.phoneNumber || '';
+  const authEmail = normalizeEmail(phoneToAuthEmail(phone));
 
-  // Phone login хэрэглэгчийн суурь профайл Firestore дээр байх ёстой.
-  const fallbackDisplayName = user.displayName || (phoneNumberE164 ? `User ${phoneNumberE164}` : 'User');
+  const userRef = doc(db, 'users', user.uid);
+  const existingSnap = await getDoc(userRef);
+  const existing = existingSnap.exists() ? existingSnap.data() : null;
+  const existingName = existing?.displayName || user.displayName || '';
+  const profileCompleted = existing?.profileCompleted === true;
+  const needsNameSetup =
+    !profileCompleted && isAutoPhoneDisplayName(existingName, phone);
+
+  const payload = {
+    phone,
+    phoneNumber: phone,
+    email: authEmail || existing?.email || '',
+    role: existing?.role || 'user',
+    authProvider: 'phone',
+  };
+
+  if (!existingSnap.exists()) {
+    payload.createdAt = serverTimestamp();
+    payload.profileCompleted = false;
+  }
+
+  if (!needsNameSetup && existingName && !isAutoPhoneDisplayName(existingName, phone)) {
+    payload.displayName = existingName;
+  }
+
+  await setDoc(userRef, payload, { merge: true });
+
+  if (!needsNameSetup) {
+    await syncUserToMySql(user, {
+      displayName: existingName,
+      phone,
+    });
+  }
+  await ensureTermsAcceptanceIfMissing(user);
+  await ensureUserDocEmailForFirestoreRules(user, authEmail);
+  return { user, needsNameSetup };
+};
+
+/**
+ * Утасны нэвтрэлтийн дараа нэр бөглүүлэх (анхны бүртгэл)
+ * @param {string} displayName
+ * @returns {Promise<User>}
+ */
+export const completePhoneUserProfile = async (displayName) => {
+  const user = auth.currentUser;
+  if (!user?.uid) {
+    throw new Error('Нэвтэрсэн хэрэглэгч олдсонгүй');
+  }
+  const name = String(displayName || '').trim();
+  if (name.length < 2) {
+    throw new Error('Нэр хамгийн багадаа 2 тэмдэгт байх ёстой');
+  }
+
+  const userRef = doc(db, 'users', user.uid);
+  const snap = await getDoc(userRef);
+  const phone = snap.data()?.phone || snap.data()?.phoneNumber || user.phoneNumber || '';
+
   await setDoc(
-    doc(db, 'users', user.uid),
+    userRef,
     {
-      phone: phoneNumberE164 || user.phoneNumber || '',
-      phoneNumber: phoneNumberE164 || user.phoneNumber || '',
-      displayName: fallbackDisplayName,
-      role: 'user',
-      createdAt: new Date(),
+      displayName: name,
+      profileCompleted: true,
+      phone,
+      phoneNumber: phone,
+      updatedAt: serverTimestamp(),
     },
     { merge: true }
   );
 
-  await syncUserToMySql(user, {
-    displayName: fallbackDisplayName,
-    phone: phoneNumberE164 || user.phoneNumber || '',
-  });
-  await ensureTermsAcceptanceIfMissing(user);
+  try {
+    await updateProfile(user, { displayName: name });
+  } catch (e) {
+    console.warn('Failed to update Firebase Auth profile:', e?.message || e);
+  }
+
+  await syncUserToMySql(user, { displayName: name, phone });
+  await ensureUserDocEmailForFirestoreRules(user, snap.data()?.email);
   return user;
 };
 
@@ -535,10 +602,11 @@ export const updateUserData = async (uid, data) => {
     const userRef = doc(db, 'users', uid);
     
     // Update Firestore
-    await updateDoc(userRef, {
-      ...data,
-      updatedAt: new Date()
-    });
+    const patch = { ...data, updatedAt: new Date() };
+    if (patch.phone && !patch.phoneNumber) {
+      patch.phoneNumber = patch.phone;
+    }
+    await updateDoc(userRef, patch);
     
     // Update Firebase Auth displayName if provided
     if (data.displayName) {

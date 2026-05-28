@@ -4,6 +4,8 @@ import { updateUserData, redirectToLogin, deleteAccountWithPassword } from '@/se
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { normalizeProfilePhone } from '@/utils/phoneNormalize';
+import { isSyntheticPhoneAuthEmail } from '@/utils/emailNormalize';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,7 +109,7 @@ export default function Profile() {
     if (userData) {
       setFormData({
         displayName: userData.displayName || '',
-        phone: userData.phone || '',
+        phone: userData.phone || userData.phoneNumber || '',
         kakao_id: userData.kakao_id || '',
         wechat_id: userData.wechat_id || '',
         whatsapp: userData.whatsapp || '',
@@ -152,22 +154,22 @@ export default function Profile() {
     setError('');
     setSuccess('');
 
-    // Validate phone if provided
-    if (formData.phone && formData.phone.trim()) {
-      const phoneDigits = formData.phone.replace(/[\s\-()+]/g, '');
-      if (!/^\d+$/.test(phoneDigits)) {
-        setError('Утасны дугаар зөвхөн тоо байх ёстой.');
-        return;
-      }
-      if (phoneDigits.length < 8 || phoneDigits.length > 11) {
-        setError('Утасны дугаар 8-11 оронтой байх ёстой.');
-        return;
-      }
+    const displayName = formData.displayName.trim();
+    if (!displayName || displayName.length < 2) {
+      setError('Нэр хамгийн багадаа 2 тэмдэгт байх ёстой.');
+      return;
+    }
+
+    const phoneResult = normalizeProfilePhone(formData.phone);
+    if (!phoneResult.valid) {
+      setError(phoneResult.message);
+      return;
     }
 
     updateMutation.mutate({
-      displayName: formData.displayName.trim() || null,
-      phone: formData.phone.trim() || '',
+      displayName,
+      phone: phoneResult.value,
+      phoneNumber: phoneResult.value,
       kakao_id: formData.kakao_id.trim() || '',
       wechat_id: formData.wechat_id.trim() || '',
       whatsapp: formData.whatsapp.trim() || '',
@@ -192,6 +194,9 @@ export default function Profile() {
       setAccountDeleteBusy(false);
     }
   };
+
+  const profileEmail = userData?.email || user?.email || '';
+  const showProfileEmail = profileEmail && !isSyntheticPhoneAuthEmail(profileEmail);
 
   if (!isAuthenticated || !user) {
     return (
@@ -257,17 +262,19 @@ export default function Profile() {
                     </Alert>
                   )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Имэйл</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={userData?.email || user?.email || ''}
-                      disabled
-                      className="bg-gray-50"
-                    />
-                    <p className="text-xs text-gray-500">Имэйл хаягийг засах боломжгүй</p>
-                  </div>
+                  {showProfileEmail ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Имэйл</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profileEmail}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                      <p className="text-xs text-gray-500">Имэйл хаягийг засах боломжгүй</p>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Нэр</Label>
@@ -290,10 +297,10 @@ export default function Profile() {
                       type="tel"
                       value={formData.phone}
                       onChange={handleChange}
-                      placeholder="01012345678 (8-11 орон)"
+                      placeholder="+821094970939 эсвэл 010-9497-0939"
                       autoComplete="tel"
                     />
-                    <p className="text-xs text-gray-500">8-11 оронтой тоо</p>
+                    <p className="text-xs text-gray-500">+82, +976 эсвэл 010-9497-0939 формат</p>
                   </div>
 
                   <div className="space-y-2">
