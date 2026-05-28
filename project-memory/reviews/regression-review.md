@@ -1,0 +1,96 @@
+# Regression Review
+
+Checklist after code changes. Use with `self-review-workflow.md`.
+
+---
+
+## Routing
+
+- [ ] `/` (Home) loads without console errors  
+- [ ] `/Login`, `/Register` redirect behavior correct when authenticated / guest  
+- [ ] `/ListingDetail?id=` opens correct listing  
+- [ ] Admin routes (`Admin*`) unreachable without `role: admin`  
+- [ ] Browser back/forward works on SPA routes  
+- [ ] Mobile: tab/stack navigation reaches same logical screens  
+- [ ] Deep links `zarkorea://` (mobile) if navigation code changed  
+
+---
+
+## Firestore queries & indexes
+
+- [ ] Home: active listings query (`status` + `created_date`) succeeds  
+- [ ] My listings: `created_by` + `created_date` succeeds  
+- [ ] Category filter: composite index query succeeds  
+- [ ] No `failed-precondition` / index errors in console  
+- [ ] `firestore.indexes.json` updated if query shape changed  
+- [ ] Banner ads query (`banner_ads`, `is_active`) works  
+
+---
+
+## Image uploads
+
+- [ ] Create/edit listing upload succeeds  
+- [ ] Images appear in Storage and on detail view  
+- [ ] Format validation (JPG, PNG, WEBP) still enforced  
+- [ ] Size limit (~5MB) respected  
+- [ ] No 403 from unpublished storage rules (production)  
+- [ ] Mobile native vs web storage shims still used correctly  
+
+---
+
+## Push notifications (FCM)
+
+- [ ] **If not implementing push:** no new FCM permission prompts or store claims  
+- [ ] **If FCM touched:** token registration, foreground/background behavior documented  
+- [ ] No broken auth flow from notification handlers  
+
+_Note: `mobile/README.md` — push not implemented; do not regress store listing accuracy._
+
+---
+
+## Auth & session logic
+
+- [ ] Register creates Auth user + Firestore `users` doc  
+- [ ] Login persists session (web refresh; mobile AsyncStorage on native)  
+- [ ] Logout clears state and protected routes  
+- [ ] Password reset email flow (if touched)  
+- [ ] OAuth flows (Kakao/Facebook) unchanged unless task scope  
+- [ ] No auth bypass on API or Firestore writes  
+
+---
+
+## Admin guards
+
+- [ ] `users.role === 'admin'` required for admin UI/actions  
+- [ ] Non-admin cannot mutate `banner_ads` or admin-only collections  
+- [ ] Admin approve listing → visible in expected queries  
+- [ ] Admin messaging / broadcast (if touched) still restricted  
+
+---
+
+## Mobile app compatibility
+
+- [ ] `npx expo start` / platform target builds  
+- [ ] Same Firebase project as web (env not committed)  
+- [ ] Listing constants match web after sync if constants changed  
+- [ ] Reanimated only on native bundles  
+- [ ] Account deletion flow (if touched) per store requirements  
+
+---
+
+## PWA / TWA behavior
+
+- [ ] `manifest.webmanifest` served on production (if PWA enabled)  
+- [ ] Service worker registers; offline fallback acceptable for scope  
+- [ ] `start_url` `/` loads app shell  
+- [ ] `public/.well-known/assetlinks.json` valid for TWA (real SHA-256)  
+- [ ] No broken navigate fallback for SPA routes  
+
+---
+
+## Quick smoke (minimum)
+
+```text
+Web:  npm run dev → Home → Login → one listing → logout
+Mobile (if touched): cd mobile && npx expo start → Home → Login → one listing
+```
