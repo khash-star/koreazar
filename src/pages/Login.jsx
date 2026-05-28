@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from '@/components/ui/use-toast';
+import { toast, dismissAllToasts } from '@/components/ui/use-toast';
 import {
   Select,
   SelectContent,
@@ -188,6 +188,7 @@ export default function Login() {
   };
 
   const resetPhoneOtpFlow = () => {
+    dismissAllToasts();
     setOtpSent(false);
     setOtpCode('');
     setPhoneLocal('');
@@ -222,6 +223,7 @@ export default function Login() {
       setConfirmationResult(result);
       setOtpSent(true);
       startResendCountdown();
+      dismissAllToasts();
       toast({ title: 'OTP илгээгдлээ', description: 'Утасандаа ирсэн 6 оронтой кодоо оруулна уу.' });
     } catch (err) {
       console.error('Phone OTP send error:', err);
@@ -307,14 +309,12 @@ export default function Login() {
       const normalized = buildFullPhoneE164();
       const { needsNameSetup } = await confirmPhoneLogin(confirmationResult, otpCode, normalized);
       if (needsNameSetup) {
+        dismissAllToasts();
         setPhoneNameSetup(true);
         setProfileDisplayName('');
-        toast({
-          title: 'Код баталгаажлаа',
-          description: 'Таны нэрийг оруулаад бүртгэлээ дуусгана уу.',
-        });
         return;
       }
+      dismissAllToasts();
       setTimeout(() => {
         navigate(redirectUrl);
       }, 100);
@@ -611,8 +611,13 @@ export default function Login() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+            <Alert className="bg-green-50 border-green-200">
+              <AlertDescription className="text-green-800">
+                Код баталгаажлаа. Таны нэрийг оруулаад бүртгэлээ дуусгана уу.
+              </AlertDescription>
+            </Alert>
             <p className="text-sm text-gray-600">
-              Утасны дугаар баталгаажлаа: <span className="font-medium">{buildFullPhoneE164()}</span>
+              Утасны дугаар: <span className="font-medium">{buildFullPhoneE164()}</span>
             </p>
             <div className="space-y-2">
               <Label htmlFor="profileDisplayName">Таны нэр</Label>

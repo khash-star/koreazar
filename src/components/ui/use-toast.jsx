@@ -161,4 +161,11 @@ function useToast() {
   };
 }
 
-export { useToast, toast }; 
+/** Бүх toast-ыг шууд хаах (шинэ мэдэгдэл өмнө) */
+function dismissAllToasts() {
+  toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+  toastTimeouts.clear();
+  dispatch({ type: actionTypes.REMOVE_TOAST });
+}
+
+export { useToast, toast, dismissAllToasts }; 
