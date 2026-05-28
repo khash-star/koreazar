@@ -22,6 +22,7 @@ import {
   navigateToRegister,
 } from "../utils/navigationHelpers.js";
 import { openExternalUrlSafe } from "../utils/safeLinking";
+import { isPhoneAuthSpikeEnabled } from "../spike/phoneAuthSpike";
 
 const emptyProfileForm = () => ({
   displayName: "",
@@ -207,6 +208,15 @@ export default function ProfileTabScreen({ navigation }) {
           </Pressable>
         </>
       )}
+
+      {isPhoneAuthSpikeEnabled() ? (
+        <Pressable
+          style={styles.spikeDevLink}
+          onPress={() => navigation.navigate("PhoneAuthSpike")}
+        >
+          <Text style={styles.spikeDevLinkText}>Phone OTP spike (dev)</Text>
+        </Pressable>
+      ) : null}
 
       <Modal
         visible={editOpen}
@@ -506,6 +516,16 @@ const styles = StyleSheet.create({
     borderTopColor: "#f3f4f6",
   },
   helpItemText: { color: "#374151", fontSize: 15, fontWeight: "500" },
+  spikeDevLink: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#fcd34d",
+    borderRadius: 10,
+    backgroundColor: "#fffbeb",
+  },
+  spikeDevLinkText: { color: "#b45309", fontSize: 14, fontWeight: "600" },
   linkBtn: {
     backgroundColor: "#fff",
     paddingVertical: 14,

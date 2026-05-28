@@ -1,0 +1,31 @@
+{
+  "_comment": "Copy to google-services.json (gitignored). Firebase Console → Project settings → Your apps → Android app (com.zarkorea.twa) → Download.",
+  "project_info": {
+    "project_number": "REPLACE_PROJECT_NUMBER",
+    "firebase_url": "https://REPLACE_PROJECT_ID.firebaseio.com",
+    "project_id": "REPLACE_PROJECT_ID",
+    "storage_bucket": "REPLACE_PROJECT_ID.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:REPLACE:android:REPLACE",
+        "android_client_info": {
+          "package_name": "com.zarkorea.twa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "REPLACE_ANDROID_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

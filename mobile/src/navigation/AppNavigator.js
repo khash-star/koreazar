@@ -43,6 +43,7 @@ import AdminBannerRequestsScreen from "../screens/AdminBannerRequestsScreen.js";
 import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
+import PhoneAuthSpikeScreen from "../screens/PhoneAuthSpikeScreen.js";
 
 const RootStack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -267,6 +268,11 @@ function ProfileStackNavigator() {
     >
       <ProfileStack.Screen name="ProfileMain" component={ProfileTabScreen} options={{ title: "Профайл" }} />
       <ProfileStack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "Миний зарууд" }} />
+      <ProfileStack.Screen
+        name="PhoneAuthSpike"
+        component={PhoneAuthSpikeScreen}
+        options={{ title: "Phone OTP spike" }}
+      />
     </ProfileStack.Navigator>
   );
 }

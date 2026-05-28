@@ -17,12 +17,14 @@
       "icon": "./assets/icon-ios-1024.png",
       "buildNumber": "36",
       "bundleIdentifier": "com.zarkorea.twa",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.zarkorea.twa",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 35,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -48,6 +50,10 @@
             "targetSdkVersion": 35,
             "minSdkVersion": 24,
             "kotlinVersion": "2.1.20"
+          },
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": ["RNFBApp", "RNFBAuth"]
           }
         }
       ],
@@ -58,7 +64,9 @@
           "photosPermission": "Zarkorea uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used. Зар нэмэх эсвэл баннер оруулах үед та сонгосон зургууд л хавсаргагдана (жишээ нь: зарагдах бараа, үйлчилгээний зураг)."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "extra": {
       "eas": {

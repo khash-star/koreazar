@@ -71,7 +71,15 @@ npm run generate-app-store-screenshots
 
 Эх сурвалж: `mobile/screenshots-source/*.png`. Эхний удаа скрипт энэ хавтсыг үүсгэнэ — screenshot-уудаа тэнд тавиад дахин ажиллуулна. Гаралт: `mobile/app-store-screenshots/`.
 
-## 6) Next steps
+## 6) Phone OTP spike (native, dev only)
+
+Architecture validation for `@react-native-firebase/auth` before full mobile OTP UI:
+
+- Setup: [docs/PHONE_OTP_NATIVE_SETUP.md](docs/PHONE_OTP_NATIVE_SETUP.md)
+- Dev screen: **Профайл → Phone OTP spike (dev)** (`__DEV__` or `EXPO_PUBLIC_PHONE_AUTH_SPIKE=true`)
+- Requires **EAS development build** (not Expo Go) + `google-services.json` / `GoogleService-Info.plist`
+
+## 7) Next steps
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)
