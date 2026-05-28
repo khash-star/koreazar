@@ -48,6 +48,6 @@ export const loginWithFacebook = async () => {
 export const logoutFromFacebook = async () => {
   // Firebase handles logout globally, so no specific Facebook logout needed
   // This is kept for consistency with the previous Kakao implementation
-  console.log('Facebook logout - handled by Firebase Auth');
+  // Firebase Auth handles session teardown globally.
 };
 

@@ -7,7 +7,6 @@ import {
   confirmPhoneLogin,
   completePhoneUserProfile,
 } from '@/services/authService';
-import { loginWithFacebook } from '@/services/facebookAuthService';
 import { auth } from '@/firebase/config';
 import { RecaptchaVerifier } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -56,7 +55,6 @@ export default function Login() {
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [facebookLoading, setFacebookLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
@@ -237,27 +235,6 @@ export default function Login() {
     }
   };
 
-  const handleFacebookLogin = async () => {
-    setError('');
-    if (!acceptedTerms) {
-      setTermsError('Эхлээд үйлчилгээний нөхцөлийг зөвшөөрснөө тэмдэглэнэ үү.');
-      return;
-    }
-    setFacebookLoading(true);
-    try {
-      await loginWithFacebook();
-      setTimeout(() => {
-        navigate(redirectUrl);
-      }, 100);
-    } catch (err) {
-      console.error('Facebook login error:', err);
-      const errorMessage = err?.message || 'Facebook-р нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.';
-      setError(errorMessage);
-    } finally {
-      setFacebookLoading(false);
-    }
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -388,7 +365,7 @@ export default function Login() {
       return 'Хүсэлт буруу байна. Firebase тохиргоог шалгана уу.';
     }
     if (codeStr.includes('auth/operation-not-allowed')) {
-      return 'Email/Password нэвтрэх арга идэвхжээгүй байна. Firebase Console дээр идэвхжүүлнэ үү.';
+      return 'Нэвтрэх арга идэвхжээгүй байна. Firebase Console → Authentication шалгана уу.';
     }
     if (codeStr.includes('auth/invalid-api-key')) {
       return 'Firebase API key буруу байна. .env файл шалгана уу.';
@@ -411,10 +388,7 @@ export default function Login() {
     if (codeStr.includes('auth/quota-exceeded')) {
       return 'SMS лимит дууссан байна. Түр хүлээгээд дахин оролдоно уу.';
     }
-    if (codeStr.includes('auth/operation-not-allowed')) {
-      return 'Phone Auth идэвхжээгүй байна. Firebase Console дээр асаана уу.';
-    }
-    
+
     // Show actual error for debugging
     return `Нэвтрэхэд алдаа гарлаа: ${code || 'Тодорхойгүй алдаа'}. Browser console (F12) шалгана уу.`;
   };
@@ -794,42 +768,6 @@ export default function Login() {
               className="mt-3 flex min-h-[1px] justify-center overflow-visible"
             />
           ) : null}
-
-          {/* eslint-disable-next-line no-constant-binary-expression -- Facebook login disabled for now */}
-          {false && (
-            <div className="mt-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">Эсвэл</span>
-                </div>
-              </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-4 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white border-[#1877F2]"
-                onClick={handleFacebookLogin}
-                disabled={facebookLoading || loading}
-              >
-                {facebookLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Нэвтэрч байна...
-                  </>
-                ) : (
-                  <>
-                    <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
-                    Facebook-р нэвтрэх
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
 
           <div className="mt-4 text-center text-sm">
             <span className="text-gray-600">Бүртгэлгүй юу? </span>
