@@ -554,12 +554,15 @@ function toSafePath(url) {
 export const redirectToLogin = (redirectUrl = null) => {
   const currentPath = window.location.pathname + window.location.search;
   const safePath = redirectUrl ? toSafePath(redirectUrl) : (currentPath && currentPath !== '/' && !currentPath.startsWith('/Login') ? currentPath : null);
-  
+
   if (safePath) {
-    window.location.href = `/Login?redirect=${encodeURIComponent(safePath)}`;
-  } else {
-    window.location.href = '/Login';
+    try {
+      sessionStorage.setItem('loginRedirect', safePath);
+    } catch {
+      /* private mode / quota */
+    }
   }
+  window.location.href = '/Login';
 };
 
 /**

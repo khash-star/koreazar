@@ -155,6 +155,10 @@ button:focus-visible {
   body {
     @apply bg-background text-foreground;
   }
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
 }
 
 /* Listing list perf: skip layout/paint for off-screen cards */

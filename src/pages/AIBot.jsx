@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { redirectToLogin } from '@/services/authService';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAIResponse, getRemainingRequests } from '@/services/aiService';
 import { getDailyUsage } from '@/services/aiUsageService';
@@ -32,10 +32,20 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
+const FAQ_SUGGESTIONS = [
+  'Зар хэрхэн оруулах вэ?',
+  'VIP зар гэж юу вэ?',
+  'Мессеж хэрхэн илгээх вэ?',
+  'Категориуд юу байна?',
+];
+
 export default function AIBot() {
+  const navigate = useNavigate();
+  const routerLocation = useLocation();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
   const { user, userData } = useAuth();
+  const isLoggedIn = Boolean(user?.uid);
   const [message, setMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -107,11 +117,21 @@ export default function AIBot() {
 - Зар оруулахдаа категори сонгох шаардлагатай`
   };
 
-  useEffect(() => {
-    if (!user && !userData) {
-      redirectToLogin(window.location.href);
-    }
-  }, [user, userData]);
+  const goToLogin = useCallback(() => {
+    const from = routerLocation.pathname + routerLocation.search;
+    navigate('/Login', { state: { from } });
+  }, [navigate, routerLocation.pathname, routerLocation.search]);
+
+  const appendLocalFaqExchange = useCallback((question) => {
+    const answer = quickAnswers[question];
+    if (!answer) return;
+    const now = new Date();
+    setMessages((prev) => [
+      ...prev,
+      { id: `local-u-${now.getTime()}`, sender: 'user', message: question, created_date: now },
+      { id: `local-a-${now.getTime()}`, sender: 'assistant', message: answer, created_date: now },
+    ]);
+  }, [quickAnswers]);
 
   // Get or create conversation
   const { data: conversation, isLoading: isLoadingConversation } = useQuery({
@@ -305,6 +325,17 @@ export default function AIBot() {
     e.preventDefault();
     if (!message.trim() || isSending) return;
 
+    const trimmed = message.trim();
+    if (!isLoggedIn) {
+      if (quickAnswers[trimmed]) {
+        appendLocalFaqExchange(trimmed);
+        setMessage('');
+        return;
+      }
+      goToLogin();
+      return;
+    }
+
     setIsSending(true);
     try {
       await sendMessageMutation.mutateAsync(message.trim());
@@ -359,16 +390,15 @@ export default function AIBot() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                {[
-                  'Зар хэрхэн оруулах вэ?',
-                  'VIP зар гэж юу вэ?',
-                  'Мессеж хэрхэн илгээх вэ?',
-                  'Категориуд юу байна?'
-                ].map((suggestion) => (
+                {FAQ_SUGGESTIONS.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => {
-                      setMessage(suggestion);
+                      if (!isLoggedIn) {
+                        appendLocalFaqExchange(suggestion);
+                      } else {
+                        setMessage(suggestion);
+                      }
                       setShowSuggestions(false);
                     }}
                     className="w-full px-4 py-2.5 text-sm bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-left"
@@ -422,9 +452,36 @@ export default function AIBot() {
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
                 Сайн байна уу! 👋
               </h2>
-              <p className="text-gray-600">
-                Би танд Zarkorea апп-н талаар туслах бэлэн байна.
+              <p className="text-gray-600 mb-6">
+                {isLoggedIn
+                  ? 'Би танд Zarkorea апп-н талаар туслах бэлэн байна.'
+                  : 'Түгээмэл асуултын хариултыг нэвтрэхгүйгээр доорх сонголтоос үзнэ үү.'}
               </p>
+              <div className="flex flex-col gap-2 max-w-md mx-auto text-left">
+                {FAQ_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => appendLocalFaqExchange(suggestion)}
+                    className="w-full px-4 py-2.5 text-sm bg-white border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors text-left"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              {!isLoggedIn ? (
+                <p className="mt-6 text-sm text-gray-600">
+                  Өөр асуулт асуухын тулд{' '}
+                  <button
+                    type="button"
+                    onClick={goToLogin}
+                    className="font-medium text-amber-700 underline"
+                  >
+                    нэвтэрнэ үү
+                  </button>
+                  .
+                </p>
+              ) : null}
             </div>
           ) : (
             messages.map((msg, index) => {
@@ -473,11 +530,26 @@ export default function AIBot() {
 
       {/* Input */}
       <div className="max-w-4xl mx-auto px-4 pb-6 sticky bottom-0 bg-gradient-to-br from-amber-50 to-orange-50 pt-4">
+        {!isLoggedIn ? (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-white/80 px-4 py-3 text-sm text-gray-700 text-center">
+            Түгээмэл асуултын хариулт нэвтрэхгүйгээр харагдана. AI-тай чатлахын тулд{' '}
+            <button type="button" onClick={goToLogin} className="font-medium text-amber-700 underline">
+              нэвтэрнэ үү
+            </button>
+            .
+          </div>
+        ) : null}
         <form onSubmit={handleSend} className="flex gap-2">
           <Textarea
             value={message}
             onChange={(e) => !limitExceeded && setMessage(e.target.value)}
-            placeholder={limitExceeded ? "Өдрийн лимит дууссан" : "Асуулт асуух..."}
+            placeholder={
+              limitExceeded
+                ? 'Өдрийн лимит дууссан'
+                : isLoggedIn
+                  ? 'Асуулт асуух...'
+                  : 'Нэвтэрсний дараа өөрийн асуулт бичнэ үү...'
+            }
             className="min-h-[60px] max-h-[120px] resize-none bg-white border-amber-200 focus:border-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey && !limitExceeded) {
@@ -485,11 +557,18 @@ export default function AIBot() {
                 handleSend(e);
               }
             }}
-            disabled={isSending || !conversationId || limitExceeded}
+            disabled={isSending || limitExceeded || (!isLoggedIn ? false : !conversationId)}
+            readOnly={!isLoggedIn}
+            onFocus={!isLoggedIn ? goToLogin : undefined}
           />
           <Button
             type="submit"
-            disabled={!message.trim() || isSending || !conversationId || limitExceeded}
+            disabled={
+              !message.trim() ||
+              isSending ||
+              limitExceeded ||
+              (isLoggedIn && !conversationId)
+            }
             className="bg-amber-600 hover:bg-amber-700 text-white px-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (

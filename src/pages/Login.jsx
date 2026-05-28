@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams, Link, useLocation } from 'react-router-dom';
 import {
   login,
   resetPassword,
@@ -36,6 +36,15 @@ function safeRedirectPath(url) {
   return path === '/' || path.startsWith('/Login') ? null : path;
 }
 
+function peekStoredLoginRedirect() {
+  try {
+    const stored = sessionStorage.getItem('loginRedirect');
+    return stored ? safeRedirectPath(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
 const OTP_RESEND_COOLDOWN_SEC = 60;
 const PHONE_COUNTRIES = [
   { value: '+82', name: 'Солонгос' },
@@ -44,9 +53,40 @@ const PHONE_COUNTRIES = [
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const rawRedirect = searchParams.get('redirect') || '';
-  const redirectUrl = safeRedirectPath(rawRedirect) || createPageUrl('Home');
+
+  const redirectUrl = useMemo(() => {
+    return (
+      safeRedirectPath(location.state?.from)
+      || safeRedirectPath(searchParams.get('redirect'))
+      || peekStoredLoginRedirect()
+      || createPageUrl('Home')
+    );
+  }, [location.state, searchParams]);
+
+  useEffect(() => {
+    let path = safeRedirectPath(searchParams.get('redirect'));
+    if (!path) {
+      try {
+        const stored = sessionStorage.getItem('loginRedirect');
+        if (stored) {
+          path = safeRedirectPath(stored);
+          sessionStorage.removeItem('loginRedirect');
+        }
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        sessionStorage.removeItem('loginRedirect');
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!path || location.state?.from === path) return;
+    navigate('/Login', { replace: true, state: { from: path } });
+  }, [navigate, searchParams, location.state?.from]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -395,8 +435,8 @@ export default function Login() {
 
   if (showResetPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 px-4 py-12">
+        <Card className="mx-auto w-full max-w-md shrink-0">
           <CardHeader>
             <CardTitle>Нууц үг сэргээх</CardTitle>
             <CardDescription>
@@ -449,8 +489,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <Card className="w-full max-w-md">
+    <div className="relative min-h-screen w-full flex items-center justify-center bg-gray-50 px-4 py-12">
+      <Card className="mx-auto w-full max-w-md shrink-0">
         <CardHeader>
           <CardTitle>Нэвтрэх</CardTitle>
           <CardDescription>
@@ -762,13 +802,6 @@ export default function Login() {
             ) : null}
           </form>
           )}
-          {loginMethod === 'phone' ? (
-            <div
-              id="recaptcha-container"
-              className="mt-3 flex min-h-[1px] justify-center overflow-visible"
-            />
-          ) : null}
-
           <div className="mt-4 text-center text-sm">
             <span className="text-gray-600">Бүртгэлгүй юу? </span>
             <button
@@ -785,6 +818,11 @@ export default function Login() {
           </p>
         </CardContent>
       </Card>
+      <div
+        id="recaptcha-container"
+        className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0"
+        aria-hidden="true"
+      />
     </div>
   );
 }
