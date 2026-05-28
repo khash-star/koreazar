@@ -41,11 +41,17 @@ service cloud.firestore {
       );
     }
     
-    // Users collection
+    // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
       allow read: if true; // Anyone can read user profiles
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
-      allow create: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+        && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+      allow update: if isAdmin() || (
+        request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin'])
+        && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isAdmin();
     }
     
     // Listings collection
@@ -101,12 +107,15 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
     
-    // Saved listings
+    // Saved listings — use authEmailLower() (phone OTP: users/{uid}.email / synthetic)
     match /saved_listings/{savedId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow delete: if request.auth != null && 
-        resource.data.created_by == request.auth.token.email;
+      allow create: if request.auth != null
+        && authEmailLower().size() > 0
+        && request.resource.data.created_by.lower() == authEmailLower();
+      allow delete: if request.auth != null
+        && authEmailLower().size() > 0
+        && resource.data.created_by.lower() == authEmailLower();
     }
     
     // Conversations

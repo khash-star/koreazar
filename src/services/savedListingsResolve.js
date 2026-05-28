@@ -11,7 +11,9 @@ export function sameListingSaveId(a, b) {
  * Зар устсан (404) бол Firestore хадгалалтыг устгана.
  * @returns {Promise<Array<object>>} saved баримтын хувьд + нэмэлт `listing` талбар
  */
-export async function fetchSavedListingsResolved(email) {
+export async function fetchSavedListingsResolved() {
+  const { getResolvedAuthEmail } = await import('@/services/authService');
+  const email = await getResolvedAuthEmail();
   if (!email) return [];
   const saved = await entities.SavedListing.filter({ created_by: email }, '-created_date');
   const out = [];

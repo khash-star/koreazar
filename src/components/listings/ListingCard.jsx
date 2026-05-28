@@ -25,12 +25,12 @@ export default function ListingCard({ listing, isAboveFold = false }) {
 
   const { user: authUser, userData } = useAuth();
   const user = userData || authUser;
-  const savedEmail = userData?.email || authUser?.email;
+  const savedQueryKey = userData?.uid || authUser?.uid;
 
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', savedEmail],
-    queryFn: () => fetchSavedListingsResolved(savedEmail),
-    enabled: !!savedEmail,
+    queryKey: ['savedListings', savedQueryKey],
+    queryFn: () => fetchSavedListingsResolved(),
+    enabled: !!savedQueryKey,
   });
 
   const isSaved = savedListings.some((s) => sameListingSaveId(s.listing_id, listing.id));

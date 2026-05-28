@@ -45,13 +45,9 @@ export default function Layout({ children, currentPageName }) {
 
   // Get saved listings count using useQuery (same as other components)
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', userData?.email || user?.email],
-    queryFn: () => {
-      const email = userData?.email || user?.email;
-      if (!email) return [];
-      return fetchSavedListingsResolved(email);
-    },
-    enabled: !!(userData?.email || user?.email),
+    queryKey: ['savedListings', userData?.uid || user?.uid],
+    queryFn: () => fetchSavedListingsResolved(),
+    enabled: !!(userData?.uid || user?.uid),
     retry: false
   });
 

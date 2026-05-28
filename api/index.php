@@ -187,7 +187,13 @@ try {
                 $body = read_json_body();
                 $payload = extract_listing_payload($body);
                 $payload['firebase_uid'] = $authUser['uid'];
-                $payload['created_by'] = $authUser['email'] ?? ($payload['created_by'] ?? null);
+                $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+                if ($resolvedEmail === null || $resolvedEmail === '') {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Could not resolve owner email for listing'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $payload['created_by'] = $resolvedEmail;
                 if ($payload['title'] === '' || $payload['category'] === '') {
                     http_response_code(400);
                     echo json_encode([
@@ -411,7 +417,7 @@ function read_json_body(): array
 function extract_listing_payload(array $body, bool $partial = false): array
 {
     $whitelist = [
-        'firebase_uid', 'created_by', 'category', 'subcategory', 'title', 'description',
+        'category', 'subcategory', 'title', 'description',
         'price', 'is_negotiable', 'condition', 'status', 'listing_type', 'listing_type_expires',
         'location', 'phone', 'kakao_id', 'wechat_id', 'whatsapp', 'facebook', 'views', 'images',
     ];
@@ -590,7 +596,65 @@ function require_firebase_user(): array
 
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
-    return ['uid' => $uid, 'email' => $email];
+    $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
+    return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
+}
+
+/**
+ * Phone OTP synthetic email (must match web phoneToAuthEmail / Firestore users.email).
+ */
+function phone_to_auth_email(?string $phoneE164): ?string
+{
+    $digits = preg_replace('/\D+/', '', (string) $phoneE164);
+    if ($digits === '') {
+        return null;
+    }
+    return 'phone_' . $digits . '@phone.zarkorea.com';
+}
+
+/**
+ * Listing created_by — server only; never trust client body (phone users often have empty token email).
+ *
+ * @param array{uid:string,email:?string,phoneNumber:?string} $authUser
+ */
+function resolve_auth_email_for_listing(PDO $pdo, array $authUser): ?string
+{
+    $email = isset($authUser['email']) ? trim((string) $authUser['email']) : '';
+    if ($email !== '') {
+        return strtolower($email);
+    }
+
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid !== '' && table_has($pdo, 'users', 'firebase_uid') && table_has($pdo, 'users', 'email')) {
+        try {
+            $stmt = $pdo->prepare('SELECT email, phone FROM users WHERE firebase_uid = :uid LIMIT 1');
+            $stmt->execute([':uid' => $uid]);
+            $row = $stmt->fetch();
+            if ($row) {
+                $dbEmail = isset($row['email']) ? trim((string) $row['email']) : '';
+                if ($dbEmail !== '') {
+                    return strtolower($dbEmail);
+                }
+                $dbPhone = isset($row['phone']) ? trim((string) $row['phone']) : '';
+                if ($dbPhone !== '') {
+                    $synthetic = phone_to_auth_email($dbPhone);
+                    if ($synthetic !== null) {
+                        return strtolower($synthetic);
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // fall through to token phone
+        }
+    }
+
+    $phone = isset($authUser['phoneNumber']) ? trim((string) $authUser['phoneNumber']) : '';
+    if ($phone !== '') {
+        $synthetic = phone_to_auth_email($phone);
+        return $synthetic !== null ? strtolower($synthetic) : null;
+    }
+
+    return null;
 }
 
 /**

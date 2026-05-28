@@ -31,6 +31,24 @@ import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
 import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
 
+/** Client profile updates must never set these (admin / identity fields). */
+const PROTECTED_USER_DOC_FIELDS = new Set([
+  'role',
+  'isAdmin',
+  'customerId',
+  'emailVerified',
+  'uid',
+]);
+
+const stripProtectedUserFields = (data) => {
+  if (!data || typeof data !== 'object') return {};
+  const out = { ...data };
+  PROTECTED_USER_DOC_FIELDS.forEach((key) => {
+    delete out[key];
+  });
+  return out;
+};
+
 /** Нөхцөл өөрчлөгдөхөд дугаарлаж шинэчлэх (Firestore users.{termsVersion}) */
 export const TERMS_POLICY_VERSION = '2025-03-28';
 
@@ -120,6 +138,39 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
   } catch (e) {
     console.warn('ensureUserDocEmailForFirestoreRules:', e?.message || e);
   }
+}
+
+/**
+ * Firestore rules / saved_listings created_by — token.email хоосон үед users doc + phone synthetic.
+ * @param {import('firebase/auth').User | null} [user]
+ * @returns {Promise<string>}
+ */
+export async function getResolvedAuthEmail(user = auth.currentUser) {
+  if (!user?.uid) return '';
+  const pick = (raw) => {
+    if (raw == null || raw === '') return '';
+    const s = typeof raw === 'string' ? raw.trim() : String(raw).trim();
+    return normalizeEmail(s) || '';
+  };
+
+  let em = pick(user.email);
+  let phone = user.phoneNumber || '';
+
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (snap.exists()) {
+      const d = snap.data();
+      em = em || pick(d?.email);
+      phone = phone || d?.phone || d?.phoneNumber || '';
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (!em && phone) {
+    em = normalizeEmail(phoneToAuthEmail(phone)) || '';
+  }
+  return em;
 }
 
 /**
@@ -600,24 +651,24 @@ export const updateUserData = async (uid, data) => {
     }
     
     const userRef = doc(db, 'users', uid);
-    
-    // Update Firestore
-    const patch = { ...data, updatedAt: new Date() };
+
+    const safe = stripProtectedUserFields(data);
+    const patch = { ...safe, updatedAt: new Date() };
     if (patch.phone && !patch.phoneNumber) {
       patch.phoneNumber = patch.phone;
     }
     await updateDoc(userRef, patch);
-    
+
     // Update Firebase Auth displayName if provided
-    if (data.displayName) {
+    if (safe.displayName) {
       try {
-        await updateProfile(user, { displayName: data.displayName });
+        await updateProfile(user, { displayName: safe.displayName });
       } catch (error) {
         console.warn('Failed to update Firebase Auth profile:', error);
         // Continue even if Auth update fails
       }
     }
-    await syncUserToMySql(user, data);
+    await syncUserToMySql(user, safe);
   } catch (error) {
     console.error('Error updating user data:', error);
     throw error;

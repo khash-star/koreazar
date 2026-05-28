@@ -248,11 +248,11 @@ export default function Home() {
     queryFn: () => entities.Listing.filter({ status: 'active' }),
   });
 
-  const savedEmail = userData?.email || user?.email;
+  const savedQueryKey = userData?.uid || user?.uid;
   const { data: savedListingsResolved = [], isLoading: savedLoading } = useQuery({
-    queryKey: ['savedListings', savedEmail],
-    queryFn: () => fetchSavedListingsResolved(savedEmail),
-    enabled: !!savedEmail,
+    queryKey: ['savedListings', savedQueryKey],
+    queryFn: () => fetchSavedListingsResolved(),
+    enabled: !!savedQueryKey,
   });
 
   const savedListingsFull = useMemo(

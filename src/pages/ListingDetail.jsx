@@ -117,11 +117,11 @@ export default function ListingDetail() {
     staleTime: 120000,
   });
 
-  const savedEmail = userData?.email || user?.email;
+  const savedQueryKey = userData?.uid || user?.uid;
   const { data: savedListings = [] } = useQuery({
-    queryKey: ['savedListings', savedEmail],
-    queryFn: () => fetchSavedListingsResolved(savedEmail),
-    enabled: !!savedEmail,
+    queryKey: ['savedListings', savedQueryKey],
+    queryFn: () => fetchSavedListingsResolved(),
+    enabled: !!savedQueryKey,
   });
 
   const isSaved = savedListings.some((s) => sameListingSaveId(s.listing_id, listingId));

@@ -15,11 +15,11 @@ export default function SavedListings() {
   const { user, userData } = useAuth();
   const [isAuthChecking, setIsAuthChecking] = useState(false);
 
-  const savedEmail = userData?.email || user?.email;
+  const savedQueryKey = userData?.uid || user?.uid;
   const { data: savedListings = [], isLoading: savedLoading } = useQuery({
-    queryKey: ['savedListings', savedEmail],
-    queryFn: () => fetchSavedListingsResolved(savedEmail),
-    enabled: !!savedEmail,
+    queryKey: ['savedListings', savedQueryKey],
+    queryFn: () => fetchSavedListingsResolved(),
+    enabled: !!savedQueryKey,
   });
 
   const listingsWithKeys = savedListings.map((saved) => ({
