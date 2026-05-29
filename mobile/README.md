@@ -42,12 +42,10 @@ npx expo start --web -c
 
 ## 3) Features (so far)
 
-- **Home:** Banners (`banner_ads`, `is_active`), **Ангилал** grid (шүүлт + haptics + spring даралт + сонгогдсон нүд pulse), hero 2-up + **Баннер · VIP** strip + **Онцлох зарууд** + main list.
-- **Pull to refresh** on the list.
-- **Listing detail:** Gallery (w800 + thumbnails), title, price, description, contact, **Хадгалах** (same `saved_listings` as web).
-- **Auth:** Email/password **Нэвтрэх**, **Бүртгүүлэх**, нууц үг сэргээх имэйл, **Гарах**. Native persistence via `AsyncStorage` (web uses default).
-- **Хадгалсан:** List + pull-to-refresh + хасах.
-- **Images:** `expo-image` + same URL helpers as web.
+- **Home:** Banners, categories, featured listings, pull-to-refresh.
+- **Listing detail:** Gallery, contact, **Хадгалах** (`saved_listings`).
+- **Auth:** Email/password **Нэвтрэх**, **Утас + OTP** (EAS dev/production build, not Expo Go), **Бүртгүүлэх**, нууц үг сэргээх, **Гарах**. OTP нэг удаа → дараагийн нээлтэд session хадгалагдана (Firebase JS Auth + `AsyncStorage`).
+- **Хадгалсан:** List + pull-to-refresh.
 
 ## 4) Категори / locations (вэбтэй синк)
 
@@ -71,16 +69,15 @@ npm run generate-app-store-screenshots
 
 Эх сурвалж: `mobile/screenshots-source/*.png`. Эхний удаа скрипт энэ хавтсыг үүсгэнэ — screenshot-уудаа тэнд тавиад дахин ажиллуулна. Гаралт: `mobile/app-store-screenshots/`.
 
-## 6) Phone OTP spike (native, dev only)
-
-Architecture validation for `@react-native-firebase/auth` before full mobile OTP UI:
+## 6) Phone OTP (native)
 
 - Setup: [docs/PHONE_OTP_NATIVE_SETUP.md](docs/PHONE_OTP_NATIVE_SETUP.md)
-- Dev screen: **Профайл → Phone OTP spike (dev)** (`__DEV__` or `EXPO_PUBLIC_PHONE_AUTH_SPIKE=true`)
-- Requires **EAS development build** (not Expo Go) + `google-services.json` / `GoogleService-Info.plist`
+- Login: **Нэвтрэх → Утас** tab (default)
+- Dev spike screen: **Профайл → Phone OTP spike (dev)** (`__DEV__` only)
+- Requires **EAS development/production build** + `google-services.json` / `GoogleService-Info.plist`
 
 ## 7) Next steps
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)
-- Push notifications (**одоогоор хэрэгжээгүй**; store listing дээр push feature claim бүү бичээрэй)
+- **Chat push** (EAS build + Cloud Function deploy): [docs/CHAT_PUSH_SETUP.md](docs/CHAT_PUSH_SETUP.md). Listing/status push — одоогоор байхгүй.

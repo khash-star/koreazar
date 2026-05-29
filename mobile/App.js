@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { LogBox, Platform, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "./src/context/AuthContext.js";
+import PushNotificationBootstrap from "./src/components/PushNotificationBootstrap.js";
 import AppNavigator from "./src/navigation/AppNavigator";
 
 /** RN Web + react-navigation дотоод — бидний код биш, консолыг цэвэрхэн байлгана */
@@ -17,6 +18,7 @@ export default function App() {
   return (
     <View style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
       <AuthProvider>
+        <PushNotificationBootstrap />
         <SafeAreaProvider style={{ flex: 1, backgroundColor: "#f3f4f6" }}>
           <AppNavigator />
           <StatusBar style="dark" />

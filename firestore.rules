@@ -170,6 +170,14 @@ service cloud.firestore {
         resource.data.user_email == request.auth.token.email;
     }
     
+    // Expo push tokens — one doc per device under uid (chat push)
+    match /user_push_tokens/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /devices/{deviceId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
     // App config (e.g. listingAutoApprove) - read by any auth, write by admin only
     match /config/{docId} {
       allow read: if request.auth != null;
