@@ -16,8 +16,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext.js";
 import {
   deleteListing,
-  getListingsByCreator,
-  getListingsByCustomerId,
+  getMyListings,
   updateListing,
 } from "../services/listingService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
@@ -71,29 +70,11 @@ export default function MyListingsScreen({ navigation }) {
         setLoading(false);
       }
       let data = [];
-
-      // MySQL primary key-аар шүүх нь ихэвчлэн хурдан, тогтвортой.
-      if (Number.isFinite(customerId) && customerId > 0) {
-        try {
-          data = await getListingsByCustomerId(customerId, 20, {
-            timeoutMs: 12000,
-            retries: 1,
-            retryDelayMs: 300,
-          });
-        } catch {
-          data = await getListingsByCreator(email, 20, {
-            timeoutMs: 12000,
-            retries: 1,
-            retryDelayMs: 300,
-          });
-        }
-      } else {
-        data = await getListingsByCreator(email, 20, {
-          timeoutMs: 12000,
-          retries: 1,
-          retryDelayMs: 300,
-        });
-      }
+      data = await getMyListings(email, customerId, 20, {
+        timeoutMs: 12000,
+        retries: 1,
+        retryDelayMs: 300,
+      });
       setRows(data);
       myListingsCache.set(cacheKey, { at: Date.now(), data });
     } catch (e) {

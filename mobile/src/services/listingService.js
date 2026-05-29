@@ -130,7 +130,11 @@ export async function getLatestListings(limitCount = 50) {
 export async function getListingsByCreator(email, limitCount = 50, options = {}) {
   if (!email) return [];
   const payload = await requestJson(
-    buildApiUrl("listings", { created_by: email, limit: Math.min(limitCount, 100) }),
+    buildApiUrl("listings", {
+      created_by: email,
+      limit: Math.min(limitCount, 100),
+      ...(options.includeAllStatuses ? { status: "all" } : {}),
+    }),
     { retries: 1, ...options }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
@@ -143,10 +147,50 @@ export async function getListingsByCustomerId(customerId, limitCount = 50, optio
     buildApiUrl("listings", {
       customer_id: String(customerId),
       limit: Math.min(limitCount, 100),
+      ...(options.includeAllStatuses ? { status: "all" } : {}),
     }),
     { retries: 1, ...options }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
+}
+
+/** Миний зарууд — pending + active (phone/email owner). */
+export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
+  const opts = { includeAllStatuses: true, ...options };
+  const seen = new Set();
+  const rows = [];
+
+  const merge = (list) => {
+    for (const item of list) {
+      if (!item?.id || seen.has(item.id)) continue;
+      seen.add(item.id);
+      rows.push(item);
+    }
+  };
+
+  const cid = customerId != null && customerId !== "" ? Number(customerId) : NaN;
+  if (Number.isFinite(cid) && cid > 0) {
+    try {
+      merge(await getListingsByCustomerId(cid, limitCount, opts));
+    } catch {
+      /* fallback to email below */
+    }
+  }
+
+  if (email) {
+    try {
+      merge(await getListingsByCreator(email, limitCount, opts));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  rows.sort((a, b) => {
+    const ta = new Date(a.created_date || a.created_at || 0).getTime();
+    const tb = new Date(b.created_date || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+  return rows.slice(0, limitCount);
 }
 
 /**

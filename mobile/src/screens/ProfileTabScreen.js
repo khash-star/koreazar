@@ -395,39 +395,54 @@ export default function ProfileTabScreen({ navigation }) {
         animationType="fade"
         onRequestClose={() => !feedbackBusy && setFeedbackOpen(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => !feedbackBusy && setFeedbackOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Санал хүсэлт</Text>
-            <Text style={styles.modalHint}>Таны саналыг бид сайжруулалтад ашиглана.</Text>
-            {feedbackErr ? <Text style={styles.modalErr}>{feedbackErr}</Text> : null}
-            <TextInput
-              style={[styles.input, { minHeight: 110, textAlignVertical: "top" }]}
-              value={feedbackText}
-              onChangeText={setFeedbackText}
-              placeholder="Санал хүсэлтээ энд бичнэ үү"
-              multiline
-              numberOfLines={4}
-              editable={!feedbackBusy}
-              maxLength={1000}
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                style={styles.modalCancel}
-                onPress={() => setFeedbackOpen(false)}
-                disabled={feedbackBusy}
-              >
-                <Text style={styles.modalCancelText}>Цуцлах</Text>
+        <KeyboardAvoidingView
+          style={styles.modalKeyboardRoot}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => !feedbackBusy && setFeedbackOpen(false)}>
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+            >
+              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+                <Text style={styles.modalTitle}>Санал хүсэлт</Text>
+                <Text style={styles.modalHint}>Таны саналыг бид сайжруулалтад ашиглана.</Text>
+                {feedbackErr ? <Text style={styles.modalErr}>{feedbackErr}</Text> : null}
+                <TextInput
+                  style={[styles.input, { minHeight: 110, textAlignVertical: "top" }]}
+                  value={feedbackText}
+                  onChangeText={setFeedbackText}
+                  placeholder="Санал хүсэлтээ энд бичнэ үү"
+                  multiline
+                  numberOfLines={4}
+                  editable={!feedbackBusy}
+                  maxLength={1000}
+                />
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={styles.modalCancel}
+                    onPress={() => setFeedbackOpen(false)}
+                    disabled={feedbackBusy}
+                  >
+                    <Text style={styles.modalCancelText}>Цуцлах</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalDelete, (!feedbackText.trim() || feedbackBusy) && styles.modalDeleteDisabled]}
+                    onPress={submitFeedback}
+                    disabled={!feedbackText.trim() || feedbackBusy}
+                  >
+                    {feedbackBusy ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.modalDeleteText}>Илгээх</Text>
+                    )}
+                  </Pressable>
+                </View>
               </Pressable>
-              <Pressable
-                style={[styles.modalDelete, (!feedbackText.trim() || feedbackBusy) && styles.modalDeleteDisabled]}
-                onPress={submitFeedback}
-                disabled={!feedbackText.trim() || feedbackBusy}
-              >
-                {feedbackBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalDeleteText}>Илгээх</Text>}
-              </Pressable>
-            </View>
+            </ScrollView>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
@@ -538,11 +553,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   linkBtnText: { color: "#111827", fontWeight: "600", fontSize: 16 },
+  modalKeyboardRoot: { flex: 1 },
+  modalScrollContent: { flexGrow: 1, justifyContent: "center", padding: 24 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    padding: 24,
   },
   modalCard: {
     backgroundColor: "#fff",

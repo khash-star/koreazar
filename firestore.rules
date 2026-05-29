@@ -91,22 +91,25 @@ service cloud.firestore {
 
     // Listing reports (санал/гомдол)
     match /listing_reports/{reportId} {
-      // Admin can read all reports, reporter can read own reports
       allow read: if request.auth != null && (
         isAdmin() ||
-        resource.data.reporter_email == request.auth.token.email
+        (authEmailLower().size() > 0 &&
+          resource.data.reporter_email is string &&
+          resource.data.reporter_email.lower() == authEmailLower())
       );
-      // Any authenticated user can create only for self
       allow create: if request.auth != null &&
-        request.resource.data.reporter_email == request.auth.token.email;
-      // Only admin can update/delete report status
+        authEmailLower().size() > 0 &&
+        request.resource.data.reporter_email is string &&
+        request.resource.data.reporter_email.lower() == authEmailLower();
       allow update, delete: if isAdmin();
     }
 
     // Footer feedback messages
     match /feedback_messages/{feedbackId} {
       allow create: if request.auth != null &&
-        request.resource.data.email == request.auth.token.email;
+        authEmailLower().size() > 0 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.lower() == authEmailLower();
       allow read, update, delete: if isAdmin();
     }
     

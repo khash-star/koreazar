@@ -1,6 +1,6 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { getResolvedAuthEmail } from "./authService";
+import { requireResolvedAuthEmail } from "./authService";
 import { fetchListingByIdResult } from "./listingService";
 import { toDate } from "../utils/firestoreDates";
 
@@ -23,8 +23,7 @@ export async function getSavedForUser(email) {
 }
 
 export async function saveListing(listingId) {
-  const userEmail = await getResolvedAuthEmail();
-  if (!userEmail) throw new Error("Нэвтэрнэ үү");
+  const { email: userEmail } = await requireResolvedAuthEmail();
   const ref = collection(db, "saved_listings");
   const docRef = await addDoc(ref, {
     listing_id: listingId,
@@ -35,6 +34,8 @@ export async function saveListing(listingId) {
 }
 
 export async function removeSaved(savedDocId) {
+  if (!savedDocId) return;
+  await requireResolvedAuthEmail();
   await deleteDoc(doc(db, "saved_listings", savedDocId));
 }
 

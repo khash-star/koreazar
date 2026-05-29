@@ -286,6 +286,20 @@ export async function getResolvedAuthEmail(user = auth.currentUser) {
   return em;
 }
 
+/** Firestore бичилт / reporter_email — phone OTP-д auth.currentUser.email байхгүй. */
+export async function requireResolvedAuthEmail() {
+  const user = auth.currentUser;
+  if (!user?.uid) {
+    throw new Error("Нэвтэрнэ үү");
+  }
+  await ensureUserDocEmailForFirestoreRules(user);
+  const email = await getResolvedAuthEmail(user);
+  if (!email) {
+    throw new Error("Нэвтэрсний дараа дахин оролдоно уу");
+  }
+  return { user, email };
+}
+
 export async function registerWithEmail(
   email,
   password,

@@ -173,6 +173,20 @@ export async function getResolvedAuthEmail(user = auth.currentUser) {
   return em;
 }
 
+/** Firestore бичилт — phone OTP-д token.email хоосон; users/{uid}.email заавал тааруулна. */
+export async function requireResolvedAuthEmail() {
+  const user = auth.currentUser;
+  if (!user?.uid) {
+    throw new Error('Нэвтэрнэ үү');
+  }
+  await ensureUserDocEmailForFirestoreRules(user);
+  const email = await getResolvedAuthEmail(user);
+  if (!email) {
+    throw new Error('Нэвтэрсний дараа дахин оролдоно уу');
+  }
+  return { user, email };
+}
+
 /**
  * Нэвтрэх (Email/Password)
  * @param {string} email - Имэйл хаяг

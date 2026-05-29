@@ -62,13 +62,9 @@ export const SavedListing = {
   create: async (data) => {
     const { collection, addDoc, Timestamp } = await import('firebase/firestore');
     const { db } = await import('@/firebase/config');
-    const { getResolvedAuthEmail } = await import('@/services/authService');
+    const { requireResolvedAuthEmail } = await import('@/services/authService');
 
-    const userEmail = await getResolvedAuthEmail();
-
-    if (!userEmail) {
-      throw new Error('Хэрэглэгч нэвтэрээгүй байна');
-    }
+    const { email: userEmail } = await requireResolvedAuthEmail();
     
     const savedRef = collection(db, 'saved_listings');
     const savedData = {

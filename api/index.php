@@ -144,7 +144,7 @@ try {
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
-                if ($status !== '') {
+                if ($status !== '' && strtolower($status) !== 'all') {
                     $sql .= ' AND status = :status';
                     $params[':status'] = $status;
                 }

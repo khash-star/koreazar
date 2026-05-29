@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Dimensions,
   InteractionManager,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -677,64 +679,75 @@ export default function ListingDetailScreen({ route, navigation }) {
           setReportOpen(false);
         }}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => {
-            if (reportBusy) return;
-            blurActiveElementWeb();
-            setReportOpen(false);
-          }}
+        <KeyboardAvoidingView
+          style={styles.modalKeyboardRoot}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Санал/гомдол</Text>
-            <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
-            <View style={styles.reasonList}>
-              {["Залилан/сэжигтэй", "Зохисгүй контент", "Буруу мэдээлэл", "Бусад"].map((r) => (
-                <Pressable
-                  key={r}
-                  style={[styles.reasonChip, reportReason === r && styles.reasonChipActive]}
-                  onPress={() => setReportReason(r)}
-                  disabled={reportBusy}
-                >
-                  <Text style={[styles.reasonChipText, reportReason === r && styles.reasonChipTextActive]}>
-                    {r}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={styles.commentLabel}>Тайлбар (заавал биш)</Text>
-            <TextInput
-              style={styles.commentInput}
-              value={reportComment}
-              onChangeText={setReportComment}
-              placeholder="Нэмэлт тайлбар бичнэ үү..."
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              editable={!reportBusy}
-              maxLength={500}
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                style={styles.modalCancel}
-                onPress={() => {
-                  blurActiveElementWeb();
-                  setReportOpen(false);
-                }}
-                disabled={reportBusy}
-              >
-                <Text style={styles.modalCancelText}>Цуцлах</Text>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => {
+              if (reportBusy) return;
+              blurActiveElementWeb();
+              setReportOpen(false);
+            }}
+          >
+            <ScrollView
+              contentContainerStyle={styles.modalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+            >
+              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+                <Text style={styles.modalTitle}>Санал/гомдол</Text>
+                <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
+                <View style={styles.reasonList}>
+                  {["Залилан/сэжигтэй", "Зохисгүй контент", "Буруу мэдээлэл", "Бусад"].map((r) => (
+                    <Pressable
+                      key={r}
+                      style={[styles.reasonChip, reportReason === r && styles.reasonChipActive]}
+                      onPress={() => setReportReason(r)}
+                      disabled={reportBusy}
+                    >
+                      <Text style={[styles.reasonChipText, reportReason === r && styles.reasonChipTextActive]}>
+                        {r}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={styles.commentLabel}>Тайлбар (заавал биш)</Text>
+                <TextInput
+                  style={styles.commentInput}
+                  value={reportComment}
+                  onChangeText={setReportComment}
+                  placeholder="Нэмэлт тайлбар бичнэ үү..."
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  editable={!reportBusy}
+                  maxLength={500}
+                />
+                <View style={styles.modalActions}>
+                  <Pressable
+                    style={styles.modalCancel}
+                    onPress={() => {
+                      blurActiveElementWeb();
+                      setReportOpen(false);
+                    }}
+                    disabled={reportBusy}
+                  >
+                    <Text style={styles.modalCancelText}>Цуцлах</Text>
+                  </Pressable>
+                  <Pressable style={styles.modalSubmit} onPress={submitReport} disabled={reportBusy}>
+                    {reportBusy ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.modalSubmitText}>Илгээх</Text>
+                    )}
+                  </Pressable>
+                </View>
               </Pressable>
-              <Pressable style={styles.modalSubmit} onPress={submitReport} disabled={reportBusy}>
-                {reportBusy ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.modalSubmitText}>Илгээх</Text>
-                )}
-              </Pressable>
-            </View>
+            </ScrollView>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ListingImageLightbox
@@ -916,11 +929,11 @@ const styles = StyleSheet.create({
   relatedBody: { padding: 8 },
   relatedTitle: { fontSize: 13, fontWeight: "600", color: "#111827", minHeight: 32 },
   relatedPrice: { marginTop: 4, fontSize: 13, fontWeight: "700", color: "#ea580c" },
+  modalKeyboardRoot: { flex: 1 },
+  modalScrollContent: { flexGrow: 1, justifyContent: "center", padding: 20 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "center",
-    padding: 20,
   },
   modalCard: {
     backgroundColor: "#fff",

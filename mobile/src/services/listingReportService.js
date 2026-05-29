@@ -1,9 +1,9 @@
 import { addDoc, collection, doc, getDocs, orderBy, query, Timestamp, updateDoc } from "firebase/firestore";
-import { auth, db } from "../config/firebase";
+import { db } from "../config/firebase";
+import { requireResolvedAuthEmail } from "./authService";
 
 export async function createListingReport({ listingId, listingTitle, reason, details }) {
-  const user = auth.currentUser;
-  if (!user?.email) throw new Error("Нэвтэрнэ үү");
+  const { email } = await requireResolvedAuthEmail();
   if (!listingId) throw new Error("Зарын ID олдсонгүй");
 
   const ref = collection(db, "listing_reports");
@@ -13,7 +13,7 @@ export async function createListingReport({ listingId, listingTitle, reason, det
     reason: reason || "Бусад",
     details: details?.trim() || null,
     status: "pending",
-    reporter_email: user.email,
+    reporter_email: email,
     created_date: Timestamp.now(),
   };
 
@@ -22,8 +22,7 @@ export async function createListingReport({ listingId, listingTitle, reason, det
 }
 
 export async function listListingReports() {
-  const user = auth.currentUser;
-  if (!user?.email) throw new Error("Нэвтэрнэ үү");
+  await requireResolvedAuthEmail();
   const ref = collection(db, "listing_reports");
   const q = query(ref, orderBy("created_date", "desc"));
   const snap = await getDocs(q);
@@ -31,8 +30,7 @@ export async function listListingReports() {
 }
 
 export async function updateListingReport(id, data) {
-  const user = auth.currentUser;
-  if (!user?.email) throw new Error("Нэвтэрнэ үү");
+  await requireResolvedAuthEmail();
   if (!id) throw new Error("Гомдлын ID олдсонгүй");
   const ref = doc(db, "listing_reports", String(id));
   await updateDoc(ref, data);
