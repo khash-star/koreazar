@@ -43,6 +43,59 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
     }
+
+    function ownsSavedListingData(data) {
+      return request.auth != null && (
+        (data.user_uid == request.auth.uid) ||
+        (authEmailLower().size() > 0 &&
+          data.created_by is string &&
+          data.created_by.lower() == authEmailLower())
+      );
+    }
+
+    function isConversationParticipantById(conversationId) {
+      let em = authEmailLower();
+      return request.auth != null &&
+        conversationId is string &&
+        exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+        (
+          (get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_uids is list &&
+            get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_uids.hasAny([request.auth.uid])) ||
+          (em.size() > 0 && (
+            (get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_1 is string &&
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_1.size() > 0 &&
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_1.lower() == em) ||
+            (get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_2 is string &&
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_2.size() > 0 &&
+              get(/databases/$(database)/documents/conversations/$(conversationId)).data.participant_2.lower() == em)
+          ))
+        );
+    }
+
+    function messageEmailsMatchConversation(data) {
+      return data.conversation_id is string &&
+        exists(/databases/$(database)/documents/conversations/$(data.conversation_id)) &&
+        data.sender_email is string &&
+        data.receiver_email is string &&
+        get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_1 is string &&
+        get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_2 is string &&
+        (
+          (
+            data.sender_email.lower() == get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_1.lower() &&
+            data.receiver_email.lower() == get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_2.lower()
+          ) ||
+          (
+            data.sender_email.lower() == get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_2.lower() &&
+            data.receiver_email.lower() == get(/databases/$(database)/documents/conversations/$(data.conversation_id)).data.participant_1.lower()
+          )
+        );
+    }
+
+    function isMessageSenderForData(data) {
+      return authEmailLower().size() > 0 &&
+        data.sender_email is string &&
+        data.sender_email.lower() == authEmailLower();
+    }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
@@ -54,7 +107,7 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin'])
         && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || request.auth.uid == userId;
     }
     
     // Listings collection
@@ -120,7 +173,7 @@ service cloud.firestore {
     
     // Saved listings — created_by/email эсвэл user_uid (phone OTP)
     match /saved_listings/{savedId} {
-      allow read: if request.auth != null;
+      allow read: if isAdmin() || ownsSavedListingData(resource.data);
       allow create: if request.auth != null && (
         (request.resource.data.user_uid == request.auth.uid) ||
         (authEmailLower().size() > 0 &&
@@ -148,12 +201,26 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if isAdmin() || isConversationParticipantById(resource.data.conversation_id);
+      allow create: if isAdmin() || (
+        isConversationParticipantById(request.resource.data.conversation_id) &&
+        isMessageSenderForData(request.resource.data) &&
+        messageEmailsMatchConversation(request.resource.data)
+      );
       allow update: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+        (isAdmin() || (
+          isConversationParticipantById(resource.data.conversation_id) &&
+          isMessageSenderOrReceiver() &&
+          request.resource.data.conversation_id == resource.data.conversation_id &&
+          request.resource.data.sender_email == resource.data.sender_email &&
+          request.resource.data.receiver_email == resource.data.receiver_email &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read'])
+        ));
       allow delete: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+        (isAdmin() || (
+          isConversationParticipantById(resource.data.conversation_id) &&
+          isMessageSenderOrReceiver()
+        ));
     }
     
     // AI Conversations

@@ -386,27 +386,19 @@ export const deleteConversationAndMessages = async (conversationId) => {
 
   const convRef = doc(db, 'conversations', cid);
 
-  // 1) Яриаг эхэлж устгаад жагсаалтаас шууд алга болгоно.
-  // 2) Мессежүүдийг best-effort хэлбэрээр араас нь устгана.
+  const messagesRef = collection(db, 'messages');
+  const q = query(messagesRef, where('conversation_id', '==', cid));
+  const snap = await getDocs(q);
+  const docs = [...snap.docs];
+
+  for (let i = 0; i < docs.length; i += 500) {
+    const chunk = docs.slice(i, i + 500);
+    const batch = writeBatch(db);
+    chunk.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
   await deleteDoc(convRef);
-
-  void (async () => {
-    try {
-      const messagesRef = collection(db, 'messages');
-      const q = query(messagesRef, where('conversation_id', '==', cid));
-      const snap = await getDocs(q);
-      const docs = [...snap.docs];
-
-      for (let i = 0; i < docs.length; i += 500) {
-        const chunk = docs.slice(i, i + 500);
-        const batch = writeBatch(db);
-        chunk.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-      }
-    } catch {
-      // best-effort only
-    }
-  })();
 };
 
 /** Устгасны дараа ярианы урьдчилгааг үлдсэн мессежүүдээс тохируулна */
