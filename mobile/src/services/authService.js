@@ -64,33 +64,29 @@ async function ensureTermsAcceptanceIfMissing(user) {
   }
 }
 
-/** Firestore conversations дүрэм authEmailLower() — token.email хоосон үед users/{uid}.email ашиглана */
+/**
+ * Firestore conversations/saved_listings дүрэм authEmailLower() — users/{uid}.email-тэй таарах ёстой.
+ * @returns {Promise<boolean>} users/{uid}.email амжилттай бичигдсэн эсэх
+ */
 export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = null) {
-  if (!user?.uid) return;
+  if (!user?.uid) return false;
   const pick = (raw) => {
     if (raw == null || raw === "") return "";
     const s = typeof raw === "string" ? raw.trim() : String(raw).trim();
     if (!s) return "";
     return normalizeEmail(s) || "";
   };
-  let em = pick(user.email) || pick(profileEmail);
+  let em = pick(profileEmail);
   if (!em) {
-    const phone = user.phoneNumber || "";
-    if (phone) em = normalizeEmail(phoneToAuthEmail(phone)) || "";
+    em = await getResolvedAuthEmail(user);
   }
-  if (!em) {
-    try {
-      const snap = await getDoc(doc(db, "users", user.uid));
-      em = pick(snap.data()?.email);
-    } catch {
-      /* ignore */
-    }
-  }
-  if (!em) return;
+  if (!em) return false;
   try {
     await setDoc(doc(db, "users", user.uid), { email: em }, { merge: true });
+    return true;
   } catch (e) {
     console.warn("ensureUserDocEmailForFirestoreRules:", e?.message || e);
+    return false;
   }
 }
 

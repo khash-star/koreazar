@@ -27,6 +27,7 @@ import {
   findConversation,
   getConversation,
   listMessages,
+  resolveChatParticipantEmail,
   syncConversationLastMessageFromMessages,
   updateConversation,
   updateMessage,
@@ -95,58 +96,62 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const resolveConversation = useCallback(async () => {
-    if (!email) return;
-    if (auth.currentUser) {
-      await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
-    }
-    if (paramConvId) {
-      setConvId(paramConvId);
-      return;
-    }
-    if (!normalizedOtherEmail) {
-      setLoading(false);
-      return;
-    }
-    if (!isValidEmail(normalizedOtherEmail)) {
-      showAlert("Чат", "Хэрэглэгчийн имэйл буруу байна.");
-      setLoading(false);
-      navigation.goBack();
-      return;
-    }
-    if (normalizedOtherEmail === normalizeEmail(email)) {
-      showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
-      setLoading(false);
-      navigation.goBack();
-      return;
-    }
-    const adminForBlock = await getAdminEmail();
-    if (
-      !(adminForBlock && normalizeEmail(adminForBlock) === normalizeEmail(normalizedOtherEmail))
-    ) {
-      const myProfile = await getUserByEmail(normalizeEmail(email));
-      if (myProfile && isSellerBlockedByViewer(myProfile, normalizedOtherEmail)) {
-        showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
-        setLoading(false);
+    if (!email || !auth.currentUser) return;
+    try {
+      const chatEmail = await resolveChatParticipantEmail();
+      if (!chatEmail) {
+        showAlert("Чат", "Профайл имэйл тохируулагдаагүй байна. Дахин нэвтэрнэ үү.");
         return;
       }
+      if (paramConvId) {
+        setConvId(paramConvId);
+        return;
+      }
+      if (!normalizedOtherEmail) {
+        return;
+      }
+      if (!isValidEmail(normalizedOtherEmail)) {
+        showAlert("Чат", "Хэрэглэгчийн имэйл буруу байна.");
+        navigation.goBack();
+        return;
+      }
+      if (normalizedOtherEmail === normalizeEmail(chatEmail)) {
+        showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
+        navigation.goBack();
+        return;
+      }
+      const adminForBlock = await getAdminEmail();
+      if (
+        !(adminForBlock && normalizeEmail(adminForBlock) === normalizeEmail(normalizedOtherEmail))
+      ) {
+        const myProfile = await getUserByEmail(normalizeEmail(chatEmail));
+        if (myProfile && isSellerBlockedByViewer(myProfile, normalizedOtherEmail)) {
+          showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
+            { text: "OK", onPress: () => navigation.goBack() },
+          ]);
+          return;
+        }
+      }
+      let existing = await findConversation(normalizeEmail(chatEmail), normalizedOtherEmail);
+      if (!existing) {
+        const iso = new Date().toISOString();
+        existing = await createConversation({
+          participant_1: normalizeEmail(chatEmail),
+          participant_2: normalizedOtherEmail,
+          last_message: "",
+          last_message_time: iso,
+          last_message_sender: normalizeEmail(chatEmail),
+          unread_count_p1: 0,
+          unread_count_p2: 0,
+        });
+      }
+      setConvId(existing.id);
+    } catch (e) {
+      console.warn("resolveConversation:", e?.message);
+      showAlert("Чат", e?.message || "Яриа эхлүүлж чадсангүй. Дахин оролдоно уу.");
+      navigation.goBack();
     }
-    let existing = await findConversation(normalizeEmail(email), normalizedOtherEmail);
-    if (!existing) {
-      const iso = new Date().toISOString();
-      existing = await createConversation({
-        participant_1: normalizeEmail(email),
-        participant_2: normalizedOtherEmail,
-        last_message: "",
-        last_message_time: iso,
-        last_message_sender: normalizeEmail(email),
-        unread_count_p1: 0,
-        unread_count_p2: 0,
-      });
-    }
-    setConvId(existing.id);
-  }, [email, paramConvId, normalizedOtherEmail, listingId, navigation]);
+  }, [email, paramConvId, normalizedOtherEmail, navigation]);
 
   const fetchMessages = useCallback(async () => {
     if (!convId || !email) return;
@@ -302,11 +307,13 @@ export default function ChatScreen({ route, navigation }) {
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text || !email || !convId || !otherUser?.email || sending) return;
+    if (!text || !convId || !otherUser?.email || sending) return;
     setSending(true);
     try {
-      if (auth.currentUser) {
-        await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+      const chatEmail = await resolveChatParticipantEmail();
+      if (!chatEmail) {
+        showAlert("Алдаа", "Нэвтрэлтийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.");
+        return;
       }
       let conv = conversation;
       if (!conv) {
@@ -322,19 +329,19 @@ export default function ChatScreen({ route, navigation }) {
       }
       await createMessage({
         conversation_id: convId,
-        sender_email: normalizeEmail(email),
+        sender_email: normalizeEmail(chatEmail),
         receiver_email: normalizeEmail(otherUser.email),
         message: text,
         is_read: false,
       });
-      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(email);
+      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(chatEmail);
       const otherKey = isP1 ? "unread_count_p2" : "unread_count_p1";
       const prevOther = isP1 ? conv.unread_count_p2 : conv.unread_count_p1;
       await updateConversation(convId, {
         last_message: text,
         last_message_date: Timestamp.now(),
         last_message_time: new Date().toISOString(),
-        last_message_sender: normalizeEmail(email),
+        last_message_sender: normalizeEmail(chatEmail),
         [otherKey]: (prevOther || 0) + 1,
       });
       setDraft("");
@@ -344,7 +351,7 @@ export default function ChatScreen({ route, navigation }) {
         return {
           ...base,
           last_message: text,
-          last_message_sender: normalizeEmail(email),
+          last_message_sender: normalizeEmail(chatEmail),
           [otherKey]: (prevOther || 0) + 1,
         };
       });
@@ -357,6 +364,12 @@ export default function ChatScreen({ route, navigation }) {
       setSending(false);
     }
   }
+
+  useEffect(() => {
+    if (loading || convId || paramConvId || normalizedOtherEmail) return;
+    if (!email) return;
+    navigation.replace("MsgMain");
+  }, [loading, convId, paramConvId, normalizedOtherEmail, email, navigation]);
 
   if (!email) {
     return (

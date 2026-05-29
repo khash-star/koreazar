@@ -220,6 +220,7 @@ function SavedStackNavigator() {
 function MessagesStackNavigator() {
   return (
     <MessagesStack.Navigator
+      initialRouteName="MsgMain"
       screenOptions={{
         headerStyle: { backgroundColor: "#fff" },
         headerTintColor: "#111827",

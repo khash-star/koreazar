@@ -21,6 +21,8 @@ import {
   deleteConversationAndMessages,
   emailQueryVariants,
   filterConversations,
+  isFirestorePermissionDenied,
+  resolveChatParticipantEmail,
 } from "../services/conversationService.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
@@ -65,23 +67,19 @@ export default function MessagesScreen({ navigation }) {
 
   const load = useCallback(async () => {
     const seq = ++loadSeqRef.current;
-    if (!email) {
-      setRows([]);
-      setLoading(false);
-      return;
-    }
     if (!auth.currentUser) {
       setRows([]);
       setLoading(false);
       setRefreshing(false);
       return;
     }
-    try {
-      await auth.currentUser.getIdToken(true);
-    } catch {
-      /* ignore */
+    const chatEmail = await resolveChatParticipantEmail();
+    if (!chatEmail) {
+      setRows([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
-    await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
     let retriedAfterPermission = false;
     try {
       while (true) {
@@ -89,9 +87,9 @@ export default function MessagesScreen({ navigation }) {
           const admin = await getAdminEmail();
           setAdminEmail(admin);
 
-          const me = normalizeEmail(email);
+          const me = normalizeEmail(chatEmail);
           const convLists = await Promise.all(
-            emailQueryVariants(email).map(async (em) => {
+            emailQueryVariants(chatEmail).map(async (em) => {
               const [asP1, asP2] = await Promise.all([
                 filterConversations({ participant_1: em }),
                 filterConversations({ participant_2: em }),
@@ -160,15 +158,13 @@ export default function MessagesScreen({ navigation }) {
           }
           break;
         } catch (e) {
-          const code = e?.code || "";
           if (
-            code === "permission-denied" &&
+            isFirestorePermissionDenied(e) &&
             auth.currentUser &&
-            email &&
             !retriedAfterPermission
           ) {
             retriedAfterPermission = true;
-            await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+            await ensureUserDocEmailForFirestoreRules(auth.currentUser, chatEmail);
             if (seq !== loadSeqRef.current) return;
             continue;
           }
@@ -197,7 +193,7 @@ export default function MessagesScreen({ navigation }) {
         setRefreshing(false);
       }
     }
-  }, [email, user?.uid]);
+  }, [user?.uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -349,7 +345,7 @@ export default function MessagesScreen({ navigation }) {
     [email, navigation, openDeleteConversationModal]
   );
 
-  if (!isAuthenticated || !email) {
+  if (!isAuthenticated) {
     return (
       <View style={styles.center}>
         <Text style={styles.title}>Мессеж</Text>

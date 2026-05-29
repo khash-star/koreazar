@@ -17,8 +17,29 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
-import { getAllUsers } from "./authService";
+import { ensureUserDocEmailForFirestoreRules, getAllUsers, getResolvedAuthEmail } from "./authService";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+
+export function isFirestorePermissionDenied(err) {
+  if (err == null) return false;
+  const code = err?.code;
+  if (code === "permission-denied" || code === "firestore/permission-denied") return true;
+  const msg = String(err?.message ?? "").toLowerCase();
+  return msg.includes("missing or insufficient permissions") || msg.includes("permission-denied");
+}
+
+/** Firestore rules authEmailLower()-тай ижил имэйл — чат query-ийн өмнө заавал. */
+export async function resolveChatParticipantEmail() {
+  const u = auth.currentUser;
+  if (!u?.uid) return "";
+  try {
+    await u.getIdToken(true);
+  } catch {
+    /* ignore */
+  }
+  await ensureUserDocEmailForFirestoreRules(u);
+  return getResolvedAuthEmail(u);
+}
 import { checkBannedContent } from "../utils/bannedContent.js";
 
 function convertTimestamp(value) {
@@ -235,7 +256,11 @@ export function emailQueryVariants(email) {
 }
 
 /** Хэрэглэгчийн уншаагүй мессежийн нийт тоо */
-export async function getUnreadMessagesCount(email) {
+export async function getUnreadMessagesCount(emailHint = "") {
+  let email = normalizeEmail(emailHint);
+  if (!email) {
+    email = await resolveChatParticipantEmail();
+  }
   if (!email) return 0;
   try {
     const variants = emailQueryVariants(email);

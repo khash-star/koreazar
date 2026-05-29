@@ -102,15 +102,25 @@ export async function registerPushTokenForUid(uid) {
   const tokenId = pushTokenDocId(expoPushToken);
   const deviceRef = doc(db, "user_push_tokens", String(uid), "devices", tokenId);
 
-  await setDoc(
-    deviceRef,
-    {
-      expo_push_token: expoPushToken,
-      platform: Platform.OS,
-      updated_at: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      deviceRef,
+      {
+        expo_push_token: expoPushToken,
+        platform: Platform.OS,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    const denied =
+      e?.code === "permission-denied" ||
+      String(e?.message || "")
+        .toLowerCase()
+        .includes("insufficient permissions");
+    console.warn("registerPushTokenForUid setDoc:", e?.message);
+    return { ok: false, reason: denied ? "permission_denied" : "firestore_error" };
+  }
 
   lastRegisteredToken = expoPushToken;
   return { ok: true, tokenId, expoPushToken };
