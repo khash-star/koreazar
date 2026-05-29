@@ -64,11 +64,12 @@ export const SavedListing = {
     const { db } = await import('@/firebase/config');
     const { requireResolvedAuthEmail } = await import('@/services/authService');
 
-    const { email: userEmail } = await requireResolvedAuthEmail();
+    const { email: userEmail, user } = await requireResolvedAuthEmail();
     
     const savedRef = collection(db, 'saved_listings');
     const savedData = {
       listing_id: data.listing_id,
+      user_uid: user.uid,
       created_by: userEmail,
       created_date: Timestamp.now()
     };

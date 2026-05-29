@@ -252,7 +252,9 @@ export async function completePhoneUserProfile(displayName) {
   }
 
   await syncUserToMySql(user, { displayName: name, phone });
-  await ensureUserDocEmailForFirestoreRules(user, snap.data()?.email);
+  const authEmail =
+    normalizeEmail(phoneToAuthEmail(phone)) || normalizeEmail(snap.data()?.email || "") || "";
+  await ensureUserDocEmailForFirestoreRules(user, authEmail || undefined);
   return user;
 }
 

@@ -3,7 +3,7 @@ import { db } from "../config/firebase";
 import { requireResolvedAuthEmail } from "./authService";
 
 export async function createListingReport({ listingId, listingTitle, reason, details }) {
-  const { email } = await requireResolvedAuthEmail();
+  const { email, user } = await requireResolvedAuthEmail();
   if (!listingId) throw new Error("Зарын ID олдсонгүй");
 
   const ref = collection(db, "listing_reports");
@@ -13,6 +13,7 @@ export async function createListingReport({ listingId, listingTitle, reason, det
     reason: reason || "Бусад",
     details: details?.trim() || null,
     status: "pending",
+    reporter_uid: user.uid,
     reporter_email: email,
     created_date: Timestamp.now(),
   };

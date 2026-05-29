@@ -23,14 +23,15 @@ export async function getSavedForUser(email) {
 }
 
 export async function saveListing(listingId) {
-  const { email: userEmail } = await requireResolvedAuthEmail();
+  const { email: userEmail, user } = await requireResolvedAuthEmail();
   const ref = collection(db, "saved_listings");
   const docRef = await addDoc(ref, {
     listing_id: listingId,
+    user_uid: user.uid,
     created_by: userEmail,
     created_date: Timestamp.now(),
   });
-  return { id: docRef.id, listing_id: listingId, created_by: userEmail };
+  return { id: docRef.id, listing_id: listingId, created_by: userEmail, user_uid: user.uid };
 }
 
 export async function removeSaved(savedDocId) {

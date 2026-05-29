@@ -19,6 +19,7 @@ export async function createFeedback(message) {
 
   const ref = collection(db, "feedback_messages");
   const payload = {
+    user_uid: user.uid,
     name: user.displayName || email.split("@")[0] || "",
     phone: phone || "",
     email,
