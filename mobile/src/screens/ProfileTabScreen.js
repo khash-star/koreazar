@@ -22,6 +22,7 @@ import {
   navigateToRegister,
 } from "../utils/navigationHelpers.js";
 import { openExternalUrlSafe } from "../utils/safeLinking";
+import { isSyntheticPhoneAuthEmail } from "../utils/emailNormalize.js";
 import { isPhoneAuthSpikeEnabled } from "../spike/phoneAuthSpike";
 
 const emptyProfileForm = () => ({
@@ -37,6 +38,7 @@ const emptyProfileForm = () => ({
 
 export default function ProfileTabScreen({ navigation }) {
   const { user, userData, email, isAuthenticated, loading, refreshUserData } = useAuth();
+  const displayEmail = email && !isSyntheticPhoneAuthEmail(email) ? email : null;
   const [editOpen, setEditOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(emptyProfileForm);
   const [editBusy, setEditBusy] = useState(false);
@@ -136,14 +138,14 @@ export default function ProfileTabScreen({ navigation }) {
         <>
           <View style={styles.card}>
             <Text style={styles.label}>Нэвтэрсэн</Text>
-            <Text style={styles.email}>{email || user?.email}</Text>
+            <Text style={styles.email}>{displayEmail || ""}</Text>
             {(userData?.displayName || user?.displayName) ? (
               <Text style={styles.displayName}>
                 {userData?.displayName || user?.displayName}
               </Text>
             ) : null}
-            {userData?.phone ? (
-              <Text style={styles.phoneLine}>{userData.phone}</Text>
+            {(userData?.phone || user?.phoneNumber) ? (
+              <Text style={styles.phoneLine}>{userData?.phone || user?.phoneNumber}</Text>
             ) : null}
             <Pressable
               style={styles.editProfileBtn}

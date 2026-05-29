@@ -85,6 +85,8 @@ npx expo run:ios
 
 Record results in your spike notes before building full Login UI.
 
+**Production login:** `LoginScreen` → **Утас** tab uses the same native SMS + JS Auth bridge (session persists across app restarts until logout).
+
 ## Env (optional spike defaults)
 
 ```env

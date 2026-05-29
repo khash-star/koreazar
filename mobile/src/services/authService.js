@@ -6,6 +6,8 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   EmailAuthProvider,
+  PhoneAuthProvider,
+  signInWithCredential,
   reauthenticateWithCredential,
   deleteUser,
 } from "firebase/auth";
@@ -13,7 +15,31 @@ import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } 
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
+import {
+  clearPendingPhoneOtp,
+  getPendingPhoneVerificationId,
+  nativeSendPhoneOtp,
+  signOutNativeAuthIfAny,
+} from "./phoneAuth";
+
+/** Client profile updates must never set these (web authService parity). */
+const PROTECTED_USER_DOC_FIELDS = new Set([
+  "role",
+  "isAdmin",
+  "customerId",
+  "emailVerified",
+  "uid",
+]);
+
+function stripProtectedUserFields(data) {
+  if (!data || typeof data !== "object") return {};
+  const out = { ...data };
+  PROTECTED_USER_DOC_FIELDS.forEach((key) => {
+    delete out[key];
+  });
+  return out;
+}
 
 /** Вэбийн authService.TERMS_POLICY_VERSION-тай ижил байлгана уу */
 const TERMS_POLICY_VERSION = "2025-03-28";
@@ -48,6 +74,10 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     return normalizeEmail(s) || "";
   };
   let em = pick(user.email) || pick(profileEmail);
+  if (!em) {
+    const phone = user.phoneNumber || "";
+    if (phone) em = normalizeEmail(phoneToAuthEmail(phone)) || "";
+  }
   if (!em) {
     try {
       const snap = await getDoc(doc(db, "users", user.uid));
@@ -119,6 +149,146 @@ export async function loginWithEmail(email, password) {
   return cred.user;
 }
 
+function isAutoPhoneDisplayName(name, phoneE164 = "") {
+  const trimmed = String(name || "").trim();
+  if (!trimmed || trimmed === "User") return true;
+  if (phoneE164 && trimmed === `User ${phoneE164}`) return true;
+  return /^User \+\d+$/.test(trimmed);
+}
+
+/** Native SMS илгээх (session: confirmPhoneLogin → JS Auth + AsyncStorage persistence). */
+export async function startPhoneLogin(phoneNumberE164) {
+  if (!phoneNumberE164) {
+    throw new Error("Утасны дугаар хоосон байна");
+  }
+  await nativeSendPhoneOtp(phoneNumberE164);
+}
+
+/**
+ * OTP баталгаажуулах — JS Auth credential (апп дахин нээхэд session хадгалагдана).
+ * @returns {Promise<{ user: import('firebase/auth').User, needsNameSetup: boolean }>}
+ */
+export async function confirmPhoneLogin(code, phoneNumberE164 = "") {
+  const verificationId = getPendingPhoneVerificationId();
+  if (!verificationId) {
+    throw new Error("Баталгаажуулалтын сесс олдсонгүй. Дахин код илгээнэ үү.");
+  }
+  const trimmed = String(code || "").trim();
+  if (!trimmed) {
+    throw new Error("OTP код оруулна уу");
+  }
+
+  const credential = PhoneAuthProvider.credential(verificationId, trimmed);
+  const userCredential = await signInWithCredential(auth, credential);
+  clearPendingPhoneOtp();
+
+  const user = userCredential.user;
+  const phone = phoneNumberE164 || user.phoneNumber || "";
+  const authEmail = normalizeEmail(phoneToAuthEmail(phone));
+
+  const userRef = doc(db, "users", user.uid);
+  const existingSnap = await getDoc(userRef);
+  const existing = existingSnap.exists() ? existingSnap.data() : null;
+  const existingName = existing?.displayName || user.displayName || "";
+  const profileCompleted = existing?.profileCompleted === true;
+  const needsNameSetup =
+    !profileCompleted && isAutoPhoneDisplayName(existingName, phone);
+
+  const payload = {
+    phone,
+    phoneNumber: phone,
+    email: authEmail || existing?.email || "",
+    role: existing?.role || "user",
+    authProvider: "phone",
+  };
+
+  if (!existingSnap.exists()) {
+    payload.createdAt = serverTimestamp();
+    payload.profileCompleted = false;
+  }
+
+  if (!needsNameSetup && existingName && !isAutoPhoneDisplayName(existingName, phone)) {
+    payload.displayName = existingName;
+  }
+
+  await setDoc(userRef, payload, { merge: true });
+
+  if (!needsNameSetup) {
+    await syncUserToMySql(user, { displayName: existingName, phone });
+  }
+  await ensureTermsAcceptanceIfMissing(user);
+  await ensureUserDocEmailForFirestoreRules(user, authEmail);
+
+  return { user, needsNameSetup };
+}
+
+export async function completePhoneUserProfile(displayName) {
+  const user = auth.currentUser;
+  if (!user?.uid) {
+    throw new Error("Нэвтэрсэн хэрэглэгч олдсонгүй");
+  }
+  const name = String(displayName || "").trim();
+  if (name.length < 2) {
+    throw new Error("Нэр хамгийн багадаа 2 тэмдэгт байх ёстой");
+  }
+
+  const userRef = doc(db, "users", user.uid);
+  const snap = await getDoc(userRef);
+  const phone = snap.data()?.phone || snap.data()?.phoneNumber || user.phoneNumber || "";
+
+  await setDoc(
+    userRef,
+    {
+      displayName: name,
+      profileCompleted: true,
+      phone,
+      phoneNumber: phone,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  try {
+    await updateProfile(user, { displayName: name });
+  } catch (e) {
+    console.warn("updateProfile:", e?.message || e);
+  }
+
+  await syncUserToMySql(user, { displayName: name, phone });
+  await ensureUserDocEmailForFirestoreRules(user, snap.data()?.email);
+  return user;
+}
+
+/**
+ * Firestore rules / saved_listings — token.email хоосон үед users doc + synthetic phone email.
+ */
+export async function getResolvedAuthEmail(user = auth.currentUser) {
+  if (!user?.uid) return "";
+  const pick = (raw) => {
+    if (raw == null || raw === "") return "";
+    return normalizeEmail(String(raw).trim()) || "";
+  };
+
+  let em = pick(user.email);
+  let phone = user.phoneNumber || "";
+
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      const d = snap.data();
+      em = em || pick(d?.email);
+      phone = phone || d?.phone || d?.phoneNumber || "";
+    }
+  } catch {
+    /* ignore */
+  }
+
+  if (!em && phone) {
+    em = normalizeEmail(phoneToAuthEmail(phone)) || "";
+  }
+  return em;
+}
+
 export async function registerWithEmail(
   email,
   password,
@@ -166,6 +336,17 @@ export async function registerWithEmail(
 }
 
 export async function logout() {
+  const uid = auth.currentUser?.uid;
+  if (uid) {
+    try {
+      const { unregisterCurrentPushToken } = await import("./pushTokenService.js");
+      await unregisterCurrentPushToken(uid);
+    } catch {
+      /* best-effort */
+    }
+  }
+  clearPendingPhoneOtp();
+  await signOutNativeAuthIfAny();
   await signOut(auth);
 }
 
@@ -180,22 +361,24 @@ export async function updateUserData(uid, data) {
   if (!user || user.uid !== uid) {
     throw new Error("Зөвхөн өөрийн мэдээллийг засах боломжтой");
   }
+  const safe = stripProtectedUserFields(data);
   const patch = {
-    displayName: trimStr(data?.displayName),
-    phone: trimStr(data?.phone),
-    city: trimStr(data?.city),
-    district: trimStr(data?.district),
-    kakao_id: trimStr(data?.kakao_id),
-    wechat_id: trimStr(data?.wechat_id),
-    whatsapp: trimStr(data?.whatsapp),
-    facebook: trimStr(data?.facebook),
+    displayName: trimStr(safe?.displayName),
+    phone: trimStr(safe?.phone),
+    city: trimStr(safe?.city),
+    district: trimStr(safe?.district),
+    kakao_id: trimStr(safe?.kakao_id),
+    wechat_id: trimStr(safe?.wechat_id),
+    whatsapp: trimStr(safe?.whatsapp),
+    facebook: trimStr(safe?.facebook),
     updatedAt: new Date(),
   };
+  const resolvedEmail = (await getResolvedAuthEmail(user)) || user.email || "";
   const userRef = doc(db, "users", uid);
   await setDoc(
     userRef,
     {
-      email: user.email || "",
+      email: resolvedEmail,
       ...patch,
     },
     { merge: true }
@@ -270,6 +453,14 @@ export function authErrorMessage(code) {
     "auth/too-many-requests": "Хэт олон оролдлого. Түр хүлээгээд дахин оролдоно уу",
     "auth/network-request-failed": "Сүлжээний алдаа. Интернэтээ шалгана уу",
     "auth/requires-recent-login": "Дахин нэвтэрч дахин оролдоно уу",
+    "auth/invalid-phone-number": "Утасны дугаар буруу байна",
+    "auth/invalid-verification-code": "OTP код буруу байна",
+    "auth/code-expired": "OTP код хугацаа дууссан. Дахин илгээнэ үү",
+    "auth/session-expired": "Сесс дууссан. Дахин код илгээнэ үү",
+    "auth/missing-verification-code": "OTP код оруулна уу",
+    "auth/quota-exceeded": "SMS лимит дууссан. Түр хүлээгээд дахин оролдоно уу",
+    "auth/captcha-check-failed": "Баталгаажуулалт амжилтгүй. Дахин оролдоно уу",
+    "auth/missing-client-identifier": "Android SHA тохиргоо шалгана уу (Firebase Console)",
   };
   return map[code] || "Алдаа гарлаа. Дахин оролдоно уу";
 }

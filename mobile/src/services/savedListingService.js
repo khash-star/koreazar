@@ -1,6 +1,6 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { auth } from "../config/firebase";
+import { getResolvedAuthEmail } from "./authService";
 import { fetchListingByIdResult } from "./listingService";
 import { toDate } from "../utils/firestoreDates";
 
@@ -23,8 +23,7 @@ export async function getSavedForUser(email) {
 }
 
 export async function saveListing(listingId) {
-  const user = auth.currentUser;
-  const userEmail = user?.email;
+  const userEmail = await getResolvedAuthEmail();
   if (!userEmail) throw new Error("Нэвтэрнэ үү");
   const ref = collection(db, "saved_listings");
   const docRef = await addDoc(ref, {
