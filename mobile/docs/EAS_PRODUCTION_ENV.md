@@ -36,7 +36,22 @@ npx eas env:push production --path .env --force
 
 4. **Visibility:** `Plain text` (EXPO_PUBLIC нь bundle-д орно — "Secret" нь зарим тохиолдолд build-д орохгүй байж болно; Expo-ийн заавар дагана)
 
-5. Дахин build:
+6. **Native Firebase (Phone OTP on EAS cloud build):** `google-services.json` is gitignored — upload once as EAS file env:
+
+   ```bash
+   cd mobile
+   eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production
+   ```
+
+   iOS TestFlight:
+
+   ```bash
+   eas env:create --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --environment production
+   ```
+
+   `app.config.js` reads these paths on the EAS builder. Without them, `eas build --profile production --platform android` succeeds but **phone OTP may not work**.
+
+7. Дахин build:
 
    ```bash
    npx eas build --platform android --profile production
