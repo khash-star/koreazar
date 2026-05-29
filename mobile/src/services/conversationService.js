@@ -18,7 +18,9 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 import { ensureUserDocEmailForFirestoreRules, getAllUsers, getResolvedAuthEmail } from "./authService";
+import { getUserByEmail } from "./userProfileService";
 import { normalizeEmail } from "../utils/emailNormalize.js";
+import { checkBannedContent } from "../utils/bannedContent.js";
 
 export function isFirestorePermissionDenied(err) {
   if (err == null) return false;
@@ -40,7 +42,6 @@ export async function resolveChatParticipantEmail() {
   await ensureUserDocEmailForFirestoreRules(u);
   return getResolvedAuthEmail(u);
 }
-import { checkBannedContent } from "../utils/bannedContent.js";
 
 function convertTimestamp(value) {
   if (!value) return value;
@@ -50,6 +51,40 @@ function convertTimestamp(value) {
     return new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1e6);
   }
   return value;
+}
+
+function mapConversationDoc(d) {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    created_date: convertTimestamp(data.created_date),
+    last_message_date: convertTimestamp(data.last_message_date),
+  };
+}
+
+async function resolveUidForChatEmail(email) {
+  const em = normalizeEmail(email);
+  if (!em) return null;
+  const u = auth.currentUser;
+  if (u?.uid) {
+    const myEmail = await getResolvedAuthEmail(u);
+    if (normalizeEmail(myEmail) === em) return u.uid;
+  }
+  const profile = await getUserByEmail(em);
+  return profile?.id || null;
+}
+
+async function buildParticipantUids(email1, email2) {
+  const uidSet = new Set();
+  if (auth.currentUser?.uid) uidSet.add(auth.currentUser.uid);
+  const [u1, u2] = await Promise.all([
+    resolveUidForChatEmail(email1),
+    resolveUidForChatEmail(email2),
+  ]);
+  if (u1) uidSet.add(u1);
+  if (u2) uidSet.add(u2);
+  return [...uidSet];
 }
 
 export async function filterConversations(filters = {}) {
@@ -67,23 +102,72 @@ export async function filterConversations(filters = {}) {
   }
   const q = query(convsRef, ...conditions, orderBy("last_message_date", "desc"));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      ...data,
-      created_date: convertTimestamp(data.created_date),
-      last_message_date: convertTimestamp(data.last_message_date),
-    };
+  return querySnapshot.docs.map(mapConversationDoc);
+}
+
+/** Phone OTP + email — uid query (rules participant_uids) + legacy email queries. */
+export async function listConversationsForCurrentUser() {
+  const u = auth.currentUser;
+  if (!u?.uid) return [];
+
+  await resolveChatParticipantEmail();
+
+  const convsRef = collection(db, "conversations");
+  const rows = [];
+  const seen = new Set();
+
+  const pushRows = (items) => {
+    for (const c of items) {
+      if (!c?.id || seen.has(c.id)) continue;
+      seen.add(c.id);
+      rows.push(c);
+    }
+  };
+
+  try {
+    const qUid = query(
+      convsRef,
+      where("participant_uids", "array-contains", u.uid),
+      orderBy("last_message_date", "desc")
+    );
+    pushRows((await getDocs(qUid)).docs.map(mapConversationDoc));
+  } catch (e) {
+    if (!isFirestorePermissionDenied(e)) throw e;
+  }
+
+  const email = await getResolvedAuthEmail(u);
+  if (email) {
+    for (const em of emailQueryVariants(email)) {
+      try {
+        const [conv1, conv2] = await Promise.all([
+          filterConversations({ participant_1: em }),
+          filterConversations({ participant_2: em }),
+        ]);
+        pushRows([...conv1, ...conv2]);
+      } catch (e) {
+        if (!isFirestorePermissionDenied(e)) throw e;
+      }
+    }
+  }
+
+  rows.sort((a, b) => {
+    const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
+    const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
+    return tb - ta;
   });
+  return rows;
 }
 
 export async function createConversation(data) {
   const convsRef = collection(db, "conversations");
+  const p1 = normalizeEmail(data.participant_1);
+  const p2 = normalizeEmail(data.participant_2);
+  const participant_uids = await buildParticipantUids(p1, p2);
   const convData = {
     ...data,
-    participant_1: normalizeEmail(data.participant_1),
-    participant_2: normalizeEmail(data.participant_2),
+    participant_1: p1,
+    participant_2: p2,
+    participant_uids,
     last_message_sender: data.last_message_sender != null ? normalizeEmail(data.last_message_sender) : "",
     created_date: Timestamp.now(),
     last_message_date: Timestamp.now(),
@@ -103,29 +187,44 @@ export async function getConversation(id) {
   const convRef = doc(db, "conversations", id);
   const convSnap = await getDoc(convRef);
   if (!convSnap.exists()) return null;
-  const data = convSnap.data();
-  return {
-    id: convSnap.id,
-    ...data,
-    created_date: convertTimestamp(data.created_date),
-    last_message_date: convertTimestamp(data.last_message_date),
-  };
+  return mapConversationDoc(convSnap);
 }
 
 export async function findConversation(email1, email2) {
   const a = normalizeEmail(email1);
   const b = normalizeEmail(email2);
-  const convsRef = collection(db, "conversations");
-  const q1 = query(convsRef, where("participant_1", "==", a), where("participant_2", "==", b));
-  const q2 = query(convsRef, where("participant_1", "==", b), where("participant_2", "==", a));
-  const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-  if (!snap1.empty) {
-    const d = snap1.docs[0];
-    return { id: d.id, ...d.data() };
+  const uid = auth.currentUser?.uid;
+
+  if (uid) {
+    try {
+      const q = query(
+        collection(db, "conversations"),
+        where("participant_uids", "array-contains", uid)
+      );
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const row = mapConversationDoc(d);
+        const p1 = normalizeEmail(row.participant_1);
+        const p2 = normalizeEmail(row.participant_2);
+        if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+          return row;
+        }
+      }
+    } catch (e) {
+      if (!isFirestorePermissionDenied(e)) throw e;
+    }
   }
-  if (!snap2.empty) {
-    const d = snap2.docs[0];
-    return { id: d.id, ...d.data() };
+
+  const convsRef = collection(db, "conversations");
+  try {
+    const q1 = query(convsRef, where("participant_1", "==", a), where("participant_2", "==", b));
+    const q2 = query(convsRef, where("participant_1", "==", b), where("participant_2", "==", a));
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    if (!snap1.empty) return mapConversationDoc(snap1.docs[0]);
+    if (!snap2.empty) return mapConversationDoc(snap2.docs[0]);
+  } catch (e) {
+    if (isFirestorePermissionDenied(e)) return null;
+    throw e;
   }
   return null;
 }
@@ -200,9 +299,6 @@ export async function deleteConversationAndMessages(conversationId) {
 
   const convRef = doc(db, "conversations", cid);
 
-  // 1) Яриаг устгаад жагсаалтаас шууд алга болгоно.
-  // 2) Мессежүүдийг best-effort хэлбэрээр араас нь устгана (permission асуудалтай үед
-  //    UI удаан хүлээлгэхгүй байхын тулд).
   await deleteDoc(convRef);
 
   void (async () => {
@@ -248,8 +344,6 @@ export async function syncConversationLastMessageFromMessages(conversationId) {
   });
 }
 
-/** Query-д илгээх имэйлийн хувилбарууд (хуучин өгөгдөл өөр регистртэй байж болно) */
-/** filterConversations аль хэдийн participant имэйлийг normalize хийдэг тул зөвхөн нэг хувилбараар асуулгана. */
 export function emailQueryVariants(email) {
   const em = normalizeEmail(email);
   return em ? [em] : [];
@@ -263,26 +357,12 @@ export async function getUnreadMessagesCount(emailHint = "") {
   }
   if (!email) return 0;
   try {
-    const variants = emailQueryVariants(email);
-    const batches = await Promise.all(
-      variants.map(async (em) => {
-        const [conv1, conv2] = await Promise.all([
-          filterConversations({ participant_1: em }),
-          filterConversations({ participant_2: em }),
-        ]);
-        return { conv1, conv2 };
-      })
-    );
-    const seen = new Set();
+    const convs = await listConversationsForCurrentUser();
+    const me = normalizeEmail(email);
     let total = 0;
-    for (const { conv1, conv2 } of batches) {
-      for (const c of [...conv1, ...conv2]) {
-        if (!c?.id || seen.has(c.id)) continue;
-        seen.add(c.id);
-        const me = normalizeEmail(email);
-        const p1 = normalizeEmail(c.participant_1);
-        total += p1 === me ? c.unread_count_p1 || 0 : c.unread_count_p2 || 0;
-      }
+    for (const c of convs) {
+      const p1 = normalizeEmail(c.participant_1);
+      total += p1 === me ? c.unread_count_p1 || 0 : c.unread_count_p2 || 0;
     }
     return total;
   } catch (_e) {

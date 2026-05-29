@@ -19,10 +19,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
 import {
   deleteConversationAndMessages,
-  emailQueryVariants,
-  filterConversations,
-  isFirestorePermissionDenied,
+  listConversationsForCurrentUser,
   resolveChatParticipantEmail,
+  isFirestorePermissionDenied,
 } from "../services/conversationService.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
@@ -88,16 +87,7 @@ export default function MessagesScreen({ navigation }) {
           setAdminEmail(admin);
 
           const me = normalizeEmail(chatEmail);
-          const convLists = await Promise.all(
-            emailQueryVariants(chatEmail).map(async (em) => {
-              const [asP1, asP2] = await Promise.all([
-                filterConversations({ participant_1: em }),
-                filterConversations({ participant_2: em }),
-              ]);
-              return [...asP1, ...asP2];
-            })
-          );
-          const all = convLists.flat();
+          const all = await listConversationsForCurrentUser();
           const otherEmails = [
             ...new Set(
               all.map((c) => {

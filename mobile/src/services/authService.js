@@ -140,6 +140,7 @@ export function subscribeAuth(callback) {
 
 export async function loginWithEmail(email, password) {
   const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+  await ensureUserDocEmailForFirestoreRules(cred.user, normalizeEmail(email));
   syncUserToMySql(cred.user, {}).catch(() => {});
   await ensureTermsAcceptanceIfMissing(cred.user);
   return cred.user;

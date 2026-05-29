@@ -17,7 +17,43 @@ import {
 import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
+import { getUserByEmail } from '@/services/authService';
+
+async function resolveUidForChatEmail(email) {
+  const em = normalizeEmail(email);
+  if (!em) return null;
+  const u = auth.currentUser;
+  if (u?.uid) {
+    let myEmail = normalizeEmail(u.email);
+    if (!myEmail) {
+      try {
+        const snap = await getDoc(doc(db, 'users', u.uid));
+        if (snap.exists()) myEmail = normalizeEmail(snap.data()?.email);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!myEmail && u.phoneNumber) {
+      myEmail = normalizeEmail(phoneToAuthEmail(u.phoneNumber));
+    }
+    if (myEmail === em) return u.uid;
+  }
+  const profile = await getUserByEmail(em);
+  return profile?.id || null;
+}
+
+async function buildParticipantUids(email1, email2) {
+  const uidSet = new Set();
+  if (auth.currentUser?.uid) uidSet.add(auth.currentUser.uid);
+  const [u1, u2] = await Promise.all([
+    resolveUidForChatEmail(email1),
+    resolveUidForChatEmail(email2),
+  ]);
+  if (u1) uidSet.add(u1);
+  if (u2) uidSet.add(u2);
+  return [...uidSet];
+}
 
 export function isFirestorePermissionDenied(err) {
   if (err == null) return false;
@@ -151,10 +187,14 @@ export const filterConversations = async (filters = {}) => {
 export const createConversation = async (data) => {
   try {
     const convsRef = collection(db, 'conversations');
+    const p1 = normalizeEmail(data.participant_1);
+    const p2 = normalizeEmail(data.participant_2);
+    const participant_uids = await buildParticipantUids(p1, p2);
     const convData = {
       ...data,
-      participant_1: normalizeEmail(data.participant_1),
-      participant_2: normalizeEmail(data.participant_2),
+      participant_1: p1,
+      participant_2: p2,
+      participant_uids,
       last_message_sender:
         data.last_message_sender != null ? normalizeEmail(data.last_message_sender) : '',
       created_date: Timestamp.now(),
@@ -212,6 +252,28 @@ export const findConversation = async (email1, email2) => {
     const a = normalizeEmail(email1);
     const b = normalizeEmail(email2);
     if (!a || !b) return null;
+    const uid = auth.currentUser?.uid;
+
+    if (uid) {
+      try {
+        const q = query(
+          collection(db, 'conversations'),
+          where('participant_uids', 'array-contains', uid)
+        );
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          const data = d.data();
+          const p1 = normalizeEmail(data.participant_1);
+          const p2 = normalizeEmail(data.participant_2);
+          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+            return { id: d.id, ...data };
+          }
+        }
+      } catch (e) {
+        if (!isFirestorePermissionDenied(e)) throw e;
+      }
+    }
+
     const convsRef = collection(db, 'conversations');
 
     const q1 = query(convsRef, where('participant_1', '==', a), where('participant_2', '==', b));
@@ -220,16 +282,17 @@ export const findConversation = async (email1, email2) => {
     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     
     if (!snap1.empty) {
-      const doc = snap1.docs[0];
-      return { id: doc.id, ...doc.data() };
+      const docSnap = snap1.docs[0];
+      return { id: docSnap.id, ...docSnap.data() };
     }
     if (!snap2.empty) {
-      const doc = snap2.docs[0];
-      return { id: doc.id, ...doc.data() };
+      const docSnap = snap2.docs[0];
+      return { id: docSnap.id, ...docSnap.data() };
     }
     
     return null;
   } catch (error) {
+    if (isFirestorePermissionDenied(error)) return null;
     console.error('Error finding conversation:', error);
     throw error;
   }

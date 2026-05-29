@@ -27,9 +27,12 @@ service cloud.firestore {
     // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
     function isConversationParticipant() {
       let em = authEmailLower();
-      return request.auth != null && em.size() > 0 && (
-        (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
-        (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
+      return request.auth != null && (
+        (resource.data.participant_uids is list && resource.data.participant_uids.hasAny([request.auth.uid])) ||
+        (em.size() > 0 && (
+          (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
+          (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
+        ))
       );
     }
 
