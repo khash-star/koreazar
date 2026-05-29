@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { requireResolvedAuthEmail } from "./authService";
 
@@ -17,7 +17,6 @@ export async function createFeedback(message) {
     /* ignore */
   }
 
-  const ref = collection(db, "feedback_messages");
   const payload = {
     user_uid: user.uid,
     name: user.displayName || email.split("@")[0] || "",
@@ -27,6 +26,22 @@ export async function createFeedback(message) {
     status: "new",
     created_date: Timestamp.now(),
   };
-  const created = await addDoc(ref, payload);
-  return { id: created.id, ...payload };
+
+  const colRef = collection(db, "feedback_messages");
+  const writeNew = async () => {
+    const docRef = doc(colRef);
+    await setDoc(docRef, payload);
+    return { id: docRef.id, ...payload };
+  };
+
+  try {
+    return await writeNew();
+  } catch (e) {
+    const code = String(e?.code || "");
+    const msg = String(e?.message || "");
+    if (code === "already-exists" || /already exists/i.test(msg)) {
+      return writeNew();
+    }
+    throw e;
+  }
 }

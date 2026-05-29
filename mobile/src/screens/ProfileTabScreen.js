@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -37,6 +37,21 @@ const emptyProfileForm = () => ({
   facebook: "",
 });
 
+function toUserFacingError(e) {
+  const code = String(e?.code || "");
+  const msg = String(e?.message || "");
+  if (code === "already-exists" || /already exists/i.test(msg)) {
+    return "Санал аль хэдийн илгээгдсэн. Хэсэг хүлээж дахин оролдоно уу.";
+  }
+  if (code === "permission-denied" || /insufficient permissions/i.test(msg)) {
+    return "Эрх хүрэхгүй байна. Дахин нэвтэрнэ үү.";
+  }
+  if (/projects\//.test(msg) || /documents\//.test(msg)) {
+    return "Серверийн алдаа. Дахин оролдоно уу.";
+  }
+  return msg || "Алдаа гарлаа";
+}
+
 export default function ProfileTabScreen({ navigation }) {
   const { user, userData, email, isAuthenticated, loading, refreshUserData } = useAuth();
   const displayEmail = email && !isSyntheticPhoneAuthEmail(email) ? email : null;
@@ -53,6 +68,9 @@ export default function ProfileTabScreen({ navigation }) {
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [feedbackErr, setFeedbackErr] = useState("");
+  const [feedbackKeyboardInset, setFeedbackKeyboardInset] = useState(0);
+  const feedbackSubmittingRef = useRef(false);
+  const feedbackScrollRef = useRef(null);
 
   const closeDeleteModal = () => {
     if (delBusy) return;
@@ -120,22 +138,47 @@ export default function ProfileTabScreen({ navigation }) {
     Keyboard.dismiss();
     setFeedbackOpen(false);
     setFeedbackErr("");
+    setFeedbackKeyboardInset(0);
   };
+
+  useEffect(() => {
+    if (!feedbackOpen) {
+      setFeedbackKeyboardInset(0);
+      return;
+    }
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = (e) => {
+      const h = e?.endCoordinates?.height ?? 0;
+      setFeedbackKeyboardInset(h);
+      setTimeout(() => feedbackScrollRef.current?.scrollToEnd({ animated: true }), 50);
+    };
+    const onHide = () => setFeedbackKeyboardInset(0);
+    const subShow = Keyboard.addListener(showEvt, onShow);
+    const subHide = Keyboard.addListener(hideEvt, onHide);
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, [feedbackOpen]);
 
   const submitFeedback = async () => {
     const text = feedbackText.trim();
-    if (!text || feedbackBusy) return;
+    if (!text || feedbackBusy || feedbackSubmittingRef.current) return;
     Keyboard.dismiss();
+    feedbackSubmittingRef.current = true;
     setFeedbackBusy(true);
     setFeedbackErr("");
     try {
       await createFeedback(text);
       setFeedbackText("");
       setFeedbackOpen(false);
+      setFeedbackKeyboardInset(0);
       showAlert("Амжилттай", "Санал хүсэлт хүлээн авлаа. Баярлалаа!");
     } catch (e) {
-      setFeedbackErr(e?.message || "Санал илгээж чадсангүй.");
+      setFeedbackErr(toUserFacingError(e));
     } finally {
+      feedbackSubmittingRef.current = false;
       setFeedbackBusy(false);
     }
   };
@@ -416,8 +459,12 @@ export default function ProfileTabScreen({ navigation }) {
         >
           <Pressable style={styles.modalBackdrop} onPress={closeFeedbackModal}>
             <ScrollView
+              ref={feedbackScrollRef}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.feedbackScroll}
+              contentContainerStyle={[
+                styles.feedbackScroll,
+                { paddingBottom: Math.max(36, feedbackKeyboardInset + 24) },
+              ]}
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
@@ -434,6 +481,9 @@ export default function ProfileTabScreen({ navigation }) {
                   textAlignVertical="top"
                   editable={!feedbackBusy}
                   maxLength={1000}
+                  onFocus={() => {
+                    setTimeout(() => feedbackScrollRef.current?.scrollToEnd({ animated: true }), 80);
+                  }}
                 />
                 <View style={styles.modalActions}>
                   <Pressable
@@ -570,7 +620,7 @@ const styles = StyleSheet.create({
   },
   linkBtnText: { color: "#111827", fontWeight: "600", fontSize: 16 },
   modalKeyboardRoot: { flex: 1 },
-  feedbackScroll: { flexGrow: 1, justifyContent: "center", padding: 24, paddingBottom: 36 },
+  feedbackScroll: { flexGrow: 1, justifyContent: "flex-start", padding: 24, paddingTop: 56 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
