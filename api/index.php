@@ -141,6 +141,35 @@ try {
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
+                $normalizedStatus = normalize_listing_type_value($status);
+                $requiresListAuth = $createdBy !== '' || $status === '' || $normalizedStatus !== 'active';
+                if ($requiresListAuth) {
+                    $authUser = maybe_firebase_user();
+                    if ($authUser === null) {
+                        http_response_code(403);
+                        echo json_encode(['error' => 'Forbidden'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                    if (!is_app_admin($pdo, $authUser)) {
+                        $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+                        $ownCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
+                        $createdByMatches = $createdBy !== '' &&
+                            $resolvedEmail !== null &&
+                            strtolower($createdBy) === strtolower($resolvedEmail);
+                        $customerMatches = $customerIdFilter > 0 &&
+                            $ownCustomerId !== null &&
+                            $customerIdFilter === (int) $ownCustomerId;
+                        if (
+                            !$createdByMatches &&
+                            !$customerMatches
+                        ) {
+                            http_response_code(403);
+                            echo json_encode(['error' => 'Forbidden'], JSON_UNESCAPED_UNICODE);
+                            break;
+                        }
+                    }
+                }
+
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
@@ -207,6 +236,7 @@ try {
                     break;
                 }
 
+                enforce_listing_status_privileges($pdo, $authUser, $payload, null, true);
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
@@ -261,6 +291,15 @@ try {
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
+                $rowStatus = normalize_listing_type_value($row['status'] ?? '');
+                if ($rowStatus !== 'active') {
+                    $authUser = maybe_firebase_user();
+                    if ($authUser === null || !can_access_listing($pdo, $row, $authUser)) {
+                        http_response_code(404);
+                        echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
             }
@@ -284,6 +323,7 @@ try {
                 if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
+                    enforce_listing_status_privileges($pdo, $authUser, $payload, $existing, false);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
                     if (api_find_banned_in_listing_payload($payload) !== null) {
                         api_respond_prohibited_listing();
@@ -600,6 +640,15 @@ function require_firebase_user(): array
     return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
 }
 
+function maybe_firebase_user(): ?array
+{
+    $authHeader = get_authorization_header();
+    if (!is_string($authHeader) || stripos($authHeader, 'Bearer ') !== 0) {
+        return null;
+    }
+    return require_firebase_user();
+}
+
 /**
  * Phone OTP synthetic email (must match web phoneToAuthEmail / Firestore users.email).
  */
@@ -734,18 +783,23 @@ function openai_chat_completion(array $payload): array
  */
 function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): void
 {
-    $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
-    $uid = $authUser['uid'];
-    if ($ownerUid === $uid) {
-        return;
-    }
-    if (is_app_admin($pdo, $authUser)) {
+    if (can_access_listing($pdo, $existing, $authUser)) {
         return;
     }
 
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function can_access_listing(PDO $pdo, array $existing, array $authUser): bool
+{
+    $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
+    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    if ($ownerUid !== '' && $ownerUid === $uid) {
+        return true;
+    }
+    return is_app_admin($pdo, $authUser);
 }
 
 /**
@@ -791,6 +845,47 @@ function is_app_admin(PDO $pdo, array $authUser): bool
     }
 
     return false;
+}
+
+/**
+ * Non-admins cannot publish pending/rejected listings by sending status directly.
+ * Owners may still manage already-public listings as active/sold/expired.
+ *
+ * @param array<string,mixed> $payload
+ * @param array<string,mixed>|null $existing
+ */
+function enforce_listing_status_privileges(PDO $pdo, array $authUser, array &$payload, ?array $existing, bool $isCreate): void
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    if ($isCreate) {
+        $payload['status'] = 'pending';
+        return;
+    }
+
+    if (!array_key_exists('status', $payload)) {
+        return;
+    }
+
+    $requested = normalize_listing_type_value($payload['status']);
+    $current = normalize_listing_type_value($existing['status'] ?? '');
+    if ($requested !== '' && $requested === $current) {
+        return;
+    }
+
+    $ownerManagedStatuses = ['active', 'sold', 'expired'];
+    if (
+        in_array($current, $ownerManagedStatuses, true) &&
+        in_array($requested, $ownerManagedStatuses, true)
+    ) {
+        return;
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'Зарын төлөвийг зөвхөн админ нийтлэх эсвэл татгалзуулах боломжтой'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 /**

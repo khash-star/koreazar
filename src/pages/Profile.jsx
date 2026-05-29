@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateUserData, redirectToLogin, deleteAccountWithPassword } from '@/services/authService';
+import { getResolvedAuthEmail, updateUserData, redirectToLogin, deleteAccountWithPassword } from '@/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -67,9 +67,13 @@ export default function Profile() {
   
   // Fetch user's listings
   const { data: listings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['myListings', user?.email],
-    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
-    enabled: !!(userData?.email || user?.email)
+    queryKey: ['myListings', user?.uid],
+    queryFn: async () => {
+      const email = await getResolvedAuthEmail();
+      if (!email) return [];
+      return entities.Listing.filter({ created_by: email }, '-created_date');
+    },
+    enabled: !!user?.uid
   });
 
   const deleteMutation = useMutation({

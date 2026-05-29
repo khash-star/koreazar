@@ -40,6 +40,40 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
     }
+
+    function conversationHasMessageParticipants(cid, sender, receiver) {
+      let conv = get(/databases/$(database)/documents/conversations/$(cid)).data;
+      return (
+        conv.participant_1 is string &&
+        conv.participant_2 is string &&
+        conv.participant_1.lower() == sender.lower() &&
+        conv.participant_2.lower() == receiver.lower()
+      ) || (
+        conv.participant_1 is string &&
+        conv.participant_2 is string &&
+        conv.participant_1.lower() == receiver.lower() &&
+        conv.participant_2.lower() == sender.lower()
+      );
+    }
+
+    function messageCreateMatchesConversation() {
+      let em = authEmailLower();
+      let cid = request.resource.data.conversation_id;
+      let sender = request.resource.data.sender_email;
+      let receiver = request.resource.data.receiver_email;
+      return request.auth != null &&
+        em.size() > 0 &&
+        cid is string &&
+        cid.size() > 0 &&
+        sender is string &&
+        sender.size() > 0 &&
+        sender.lower() == em &&
+        receiver is string &&
+        receiver.size() > 0 &&
+        receiver.lower() != em &&
+        exists(/databases/$(database)/documents/conversations/$(cid)) &&
+        conversationHasMessageParticipants(cid, sender, receiver);
+    }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
@@ -109,12 +143,17 @@ service cloud.firestore {
     
     // Saved listings — use authEmailLower() (phone OTP: users/{uid}.email / synthetic)
     match /saved_listings/{savedId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+        && authEmailLower().size() > 0
+        && resource.data.created_by is string
+        && resource.data.created_by.lower() == authEmailLower();
       allow create: if request.auth != null
         && authEmailLower().size() > 0
+        && request.resource.data.created_by is string
         && request.resource.data.created_by.lower() == authEmailLower();
       allow delete: if request.auth != null
         && authEmailLower().size() > 0
+        && resource.data.created_by is string
         && resource.data.created_by.lower() == authEmailLower();
     }
     
@@ -131,8 +170,8 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null && (isMessageSenderOrReceiver() || isAdmin());
+      allow create: if messageCreateMatchesConversation() || isAdmin();
       allow update: if request.auth != null && 
         (isMessageSenderOrReceiver() || isAdmin());
       allow delete: if request.auth != null && 
