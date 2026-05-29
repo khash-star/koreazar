@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { redirectToLogin } from '@/services/authService';
+import { getResolvedAuthEmail, redirectToLogin } from '@/services/authService';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -61,9 +61,13 @@ export default function MyListings() {
   }, []);
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['myListings', user?.email],
-    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
-    enabled: !!user?.email
+    queryKey: ['myListings', user?.uid],
+    queryFn: async () => {
+      const email = await getResolvedAuthEmail();
+      if (!email) return [];
+      return entities.Listing.filter({ created_by: email }, '-created_date');
+    },
+    enabled: !!user?.uid
   });
 
   const deleteMutation = useMutation({

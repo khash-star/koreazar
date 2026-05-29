@@ -15,7 +15,7 @@ import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } 
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
-import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
+import { isSyntheticPhoneAuthEmail, normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
 import {
   clearPendingPhoneOtp,
   getPendingPhoneVerificationId,
@@ -193,11 +193,16 @@ export async function confirmPhoneLogin(code, phoneNumberE164 = "") {
   const profileCompleted = existing?.profileCompleted === true;
   const needsNameSetup =
     !profileCompleted && isAutoPhoneDisplayName(existingName, phone);
+  const existingEmail = normalizeEmail(existing?.email);
+  const emailForProfile =
+    existingEmail && !isSyntheticPhoneAuthEmail(existingEmail)
+      ? existingEmail
+      : authEmail;
 
   const payload = {
     phone,
     phoneNumber: phone,
-    email: authEmail || existing?.email || "",
+    email: emailForProfile || "",
     role: existing?.role || "user",
     authProvider: "phone",
   };
@@ -217,7 +222,7 @@ export async function confirmPhoneLogin(code, phoneNumberE164 = "") {
     await syncUserToMySql(user, { displayName: existingName, phone });
   }
   await ensureTermsAcceptanceIfMissing(user);
-  await ensureUserDocEmailForFirestoreRules(user, authEmail);
+  await ensureUserDocEmailForFirestoreRules(user, emailForProfile);
 
   return { user, needsNameSetup };
 }
@@ -297,6 +302,9 @@ export async function registerWithEmail(
   city = "",
   district = ""
 ) {
+  if (isSyntheticPhoneAuthEmail(email)) {
+    throw new Error("Энэ имэйл хаягийг утасны нэвтрэлтэд дотооддоо ашигладаг.");
+  }
   const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
   const user = cred.user;
   if (displayName?.trim()) {

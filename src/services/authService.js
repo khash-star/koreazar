@@ -29,7 +29,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
-import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
+import { isSyntheticPhoneAuthEmail, normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
 
 /** Client profile updates must never set these (admin / identity fields). */
 const PROTECTED_USER_DOC_FIELDS = new Set([
@@ -236,11 +236,16 @@ export const confirmPhoneLogin = async (confirmationResult, code, phoneNumberE16
   const profileCompleted = existing?.profileCompleted === true;
   const needsNameSetup =
     !profileCompleted && isAutoPhoneDisplayName(existingName, phone);
+  const existingEmail = normalizeEmail(existing?.email);
+  const emailForProfile =
+    existingEmail && !isSyntheticPhoneAuthEmail(existingEmail)
+      ? existingEmail
+      : authEmail;
 
   const payload = {
     phone,
     phoneNumber: phone,
-    email: authEmail || existing?.email || '',
+    email: emailForProfile || '',
     role: existing?.role || 'user',
     authProvider: 'phone',
   };
@@ -263,7 +268,7 @@ export const confirmPhoneLogin = async (confirmationResult, code, phoneNumberE16
     });
   }
   await ensureTermsAcceptanceIfMissing(user);
-  await ensureUserDocEmailForFirestoreRules(user, authEmail);
+  await ensureUserDocEmailForFirestoreRules(user, emailForProfile);
   return { user, needsNameSetup };
 };
 
@@ -319,6 +324,9 @@ export const completePhoneUserProfile = async (displayName) => {
  */
 export const register = async (email, password, displayName = null, phone = null) => {
   try {
+    if (isSyntheticPhoneAuthEmail(email)) {
+      throw new Error('Энэ имэйл хаягийг утасны нэвтрэлтэд дотооддоо ашигладаг.');
+    }
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 

@@ -50,6 +50,17 @@ const getAuthHeaders = async () => {
   return { Authorization: `Bearer ${token}` };
 };
 
+const getOptionalAuthHeaders = async () => {
+  const user = auth.currentUser;
+  if (!user) return {};
+  try {
+    const token = await user.getIdToken(true);
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return {};
+  }
+};
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== 'object') return false;
@@ -115,7 +126,8 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       params.status = 'active';
     }
 
-    const payload = await requestJson(buildApiUrl('listings', params));
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl('listings', params), { headers });
     let result = (payload?.data || []).map(normalizeListing);
 
     // Server-side currently supports category/subcategory/status. Apply the rest client-side.
@@ -212,7 +224,8 @@ export const fetchListingByIdResult = async (id) => {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return { listing: null };
   try {
-    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }), { headers });
     return { listing: normalizeListing(payload?.data) };
   } catch (e) {
     const st = typeof e?.status === 'number' ? e.status : undefined;

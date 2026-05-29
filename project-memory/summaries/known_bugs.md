@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Recent critical fixes
+
+| Date | Area | Notes |
+|------|------|-------|
+| 2026-05-29 | Auth/listings/chat privacy | Tightened saved/chat Firestore access, blocked phone synthetic-email signup collisions, enforced listing moderation status server-side, and validated chat push participants before delivery. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides

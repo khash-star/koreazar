@@ -46,6 +46,27 @@ async function loadExpoTokensForUid(uid) {
   return rows;
 }
 
+async function loadConversationParticipants(conversationId) {
+  const cid = String(conversationId || "").trim();
+  if (!cid) return null;
+  const snap = await db.collection("conversations").doc(cid).get();
+  if (!snap.exists) return null;
+  const data = snap.data() || {};
+  const participant1 = normalizeEmail(data.participant_1);
+  const participant2 = normalizeEmail(data.participant_2);
+  if (!participant1 || !participant2) return null;
+  return { participant1, participant2 };
+}
+
+function messageMatchesConversation(senderEmail, receiverEmail, participants) {
+  if (!senderEmail || !receiverEmail || !participants) return false;
+  const { participant1, participant2 } = participants;
+  return (
+    (participant1 === senderEmail && participant2 === receiverEmail) ||
+    (participant1 === receiverEmail && participant2 === senderEmail)
+  );
+}
+
 async function sendExpoPushBatch(messages) {
   if (!messages.length) return [];
   const res = await fetch(EXPO_PUSH_URL, {
@@ -85,42 +106,57 @@ exports.onChatMessageCreatedPush = onDocumentCreated(
     region: "asia-northeast3",
   },
   async (event) => {
-    const data = event.data?.data();
-    if (!data) return;
+    try {
+      const data = event.data?.data();
+      if (!data) return;
 
-    const receiverEmail = normalizeEmail(data.receiver_email);
-    const senderEmail = normalizeEmail(data.sender_email);
-    if (!receiverEmail) return;
-    if (receiverEmail === senderEmail) return;
+      const receiverEmail = normalizeEmail(data.receiver_email);
+      const senderEmail = normalizeEmail(data.sender_email);
+      const conversationId = String(data.conversation_id || "").trim();
+      if (!receiverEmail || !senderEmail || !conversationId) return;
+      if (receiverEmail === senderEmail) return;
 
-    const receiverUid = await findUidByEmail(receiverEmail);
-    if (!receiverUid) {
-      console.log("chat push: no uid for receiver", receiverEmail);
-      return;
+      const participants = await loadConversationParticipants(conversationId);
+      if (!messageMatchesConversation(senderEmail, receiverEmail, participants)) {
+        console.warn("chat push: message participants do not match conversation", {
+          conversationId,
+          senderEmail,
+          receiverEmail,
+        });
+        return;
+      }
+
+      const receiverUid = await findUidByEmail(receiverEmail);
+      if (!receiverUid) {
+        console.log("chat push: no uid for receiver", receiverEmail);
+        return;
+      }
+
+      const tokenRows = await loadExpoTokensForUid(receiverUid);
+      if (!tokenRows.length) return;
+
+      const body = previewMessage(data.message);
+      const title = "Шинэ мессеж";
+
+      const expoMessages = tokenRows.map((row) => ({
+        to: row.token,
+        sound: "default",
+        title,
+        body,
+        channelId: "chat",
+        priority: "high",
+        data: {
+          type: "chat",
+          conversation_id: conversationId,
+          other_user_email: senderEmail,
+        },
+      }));
+
+      const tickets = await sendExpoPushBatch(expoMessages);
+      await pruneInvalidTokens(tokenRows, tickets);
+    } catch (err) {
+      // Push is a best-effort side effect; throwing here can duplicate notifications on retries.
+      console.error("chat push failed:", err?.message || err);
     }
-
-    const tokenRows = await loadExpoTokensForUid(receiverUid);
-    if (!tokenRows.length) return;
-
-    const conversationId = String(data.conversation_id || "").trim();
-    const body = previewMessage(data.message);
-    const title = "Шинэ мессеж";
-
-    const expoMessages = tokenRows.map((row) => ({
-      to: row.token,
-      sound: "default",
-      title,
-      body,
-      channelId: "chat",
-      priority: "high",
-      data: {
-        type: "chat",
-        conversation_id: conversationId,
-        other_user_email: senderEmail,
-      },
-    }));
-
-    const tickets = await sendExpoPushBatch(expoMessages);
-    await pruneInvalidTokens(tokenRows, tickets);
   }
 );

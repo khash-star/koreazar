@@ -30,12 +30,9 @@ export function AuthProvider({ children }) {
     }
     let cancelled = false;
     (async () => {
-      let data = null;
-      if (user.email) {
-        data = await getUserByEmail(normalizeEmail(user.email));
-      }
+      let data = await getUserProfileByUid(user.uid);
       if (!data) {
-        data = await getUserProfileByUid(user.uid);
+        data = user.email ? await getUserByEmail(normalizeEmail(user.email)) : null;
       }
       if (!cancelled) setUserData(data);
     })();
@@ -68,12 +65,9 @@ export function AuthProvider({ children }) {
 
   const refreshUserData = useCallback(async () => {
     if (!user?.uid) return;
-    let data = null;
-    if (user.email) {
-      data = await getUserByEmail(normalizeEmail(user.email));
-    }
+    let data = await getUserProfileByUid(user.uid);
     if (!data) {
-      data = await getUserProfileByUid(user.uid);
+      data = user.email ? await getUserByEmail(normalizeEmail(user.email)) : null;
     }
     if (data) setUserData(data);
     const em = await getResolvedAuthEmail(user);
