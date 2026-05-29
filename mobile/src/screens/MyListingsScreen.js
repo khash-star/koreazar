@@ -37,7 +37,7 @@ const myListingsCache = new Map();
 
 export default function MyListingsScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
-  const { email, isAuthenticated, isAdmin, userData } = useAuth();
+  const { user, email, isAuthenticated, isAdmin, userData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -45,7 +45,7 @@ export default function MyListingsScreen({ navigation }) {
   const [menuItem, setMenuItem] = useState(null);
 
   const load = useCallback(async (isRefresh) => {
-    if (!email) {
+    if (!user?.uid && !email) {
       setRows([]);
       setLoading(false);
       return;
@@ -57,7 +57,11 @@ export default function MyListingsScreen({ navigation }) {
       const customerIdRaw = userData?.customerId ?? userData?.customer_id;
       const customerId =
         customerIdRaw != null && customerIdRaw !== "" ? Number(customerIdRaw) : null;
-      const cacheKey = Number.isFinite(customerId) && customerId > 0 ? `cid:${customerId}` : `email:${email}`;
+      const cacheKey = user?.uid
+        ? `uid:${user.uid}`
+        : Number.isFinite(customerId) && customerId > 0
+          ? `cid:${customerId}`
+          : `email:${email}`;
       const cached = myListingsCache.get(cacheKey);
       if (
         !isRefresh &&
@@ -71,12 +75,17 @@ export default function MyListingsScreen({ navigation }) {
       }
       let data = [];
       data = await getMyListings(email, customerId, 20, {
+        firebaseUid: user?.uid,
         timeoutMs: 12000,
         retries: 1,
         retryDelayMs: 300,
       });
       setRows(data);
-      myListingsCache.set(cacheKey, { at: Date.now(), data });
+      if (data.length > 0) {
+        myListingsCache.set(cacheKey, { at: Date.now(), data });
+      } else {
+        myListingsCache.delete(cacheKey);
+      }
     } catch (e) {
       const msg = e?.message || "Ачаалахад алдаа гарлаа";
       setLoadError(msg);
@@ -85,7 +94,7 @@ export default function MyListingsScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [email, userData?.customerId, userData?.customer_id, rows.length]);
+  }, [user?.uid, email, userData?.customerId, userData?.customer_id, rows.length]);
 
   const handleDelete = useCallback(
     (item) => {

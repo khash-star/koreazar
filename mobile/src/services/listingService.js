@@ -127,38 +127,84 @@ export async function getLatestListings(limitCount = 50) {
   }
 }
 
+/** Миний зарууд — pending/active/sold (хуучин API status=all буруу шүүдэг тул тус бүрээр татна). */
+const MY_LISTING_STATUSES = ["active", "pending", "sold"];
+
+async function requestListingsQuery(params, options = {}) {
+  const { includeAllStatuses, ...fetchOpts } = options;
+  const limit = Math.min(Number(params.limit) || 50, 100);
+
+  if (!includeAllStatuses) {
+    const payload = await requestJson(buildApiUrl("listings", { ...params, limit }), {
+      retries: 1,
+      ...fetchOpts,
+    });
+    return (payload?.data || []).map(normalizeListing).filter(Boolean);
+  }
+
+  const seen = new Set();
+  const merged = [];
+  const add = (list) => {
+    for (const item of list) {
+      if (!item?.id || seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+    }
+  };
+
+  // Шинэ API: status=all → бүх төлөв
+  try {
+    const all = await requestJson(
+      buildApiUrl("listings", { ...params, limit, status: "all" }),
+      { retries: 1, ...fetchOpts }
+    );
+    const rows = (all?.data || []).map(normalizeListing).filter(Boolean);
+    if (rows.length > 0) return rows;
+  } catch {
+    /* хуучин API: status=all гэж бичихээр 0 мөр буцаадаг */
+  }
+
+  for (const status of MY_LISTING_STATUSES) {
+    try {
+      const payload = await requestJson(
+        buildApiUrl("listings", { ...params, limit, status }),
+        { retries: 1, ...fetchOpts }
+      );
+      add((payload?.data || []).map(normalizeListing).filter(Boolean));
+    } catch {
+      /* ignore */
+    }
+  }
+  return merged;
+}
+
 export async function getListingsByCreator(email, limitCount = 50, options = {}) {
   if (!email) return [];
-  const payload = await requestJson(
-    buildApiUrl("listings", {
-      created_by: email,
-      limit: Math.min(limitCount, 100),
-      ...(options.includeAllStatuses ? { status: "all" } : {}),
-    }),
-    { retries: 1, ...options }
-  );
-  return (payload?.data || []).map(normalizeListing).filter(Boolean);
+  return requestListingsQuery({ created_by: email, limit: limitCount }, options);
 }
 
 /** MySQL users.id (customer_id) — шүүх: GET listings&customer_id= */
 export async function getListingsByCustomerId(customerId, limitCount = 50, options = {}) {
   if (customerId == null || customerId === "") return [];
-  const payload = await requestJson(
-    buildApiUrl("listings", {
-      customer_id: String(customerId),
-      limit: Math.min(limitCount, 100),
-      ...(options.includeAllStatuses ? { status: "all" } : {}),
-    }),
-    { retries: 1, ...options }
+  return requestListingsQuery(
+    { customer_id: String(customerId), limit: limitCount },
+    options
   );
-  return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
 
-/** Миний зарууд — pending + active (phone/email owner). */
+/** Firebase UID — утасны нэвтрэлтэд created_by/email зөрөхөөс илүү найдвартай */
+export async function getListingsByFirebaseUid(firebaseUid, limitCount = 50, options = {}) {
+  if (!firebaseUid) return [];
+  return requestListingsQuery({ firebase_uid: String(firebaseUid), limit: limitCount }, options);
+}
+
+/** Миний зарууд — uid + customerId + email (pending зарууд орно). */
 export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
   const opts = { includeAllStatuses: true, ...options };
+  const firebaseUid = options.firebaseUid || auth.currentUser?.uid || "";
   const seen = new Set();
   const rows = [];
+  let lastError = null;
 
   const merge = (list) => {
     for (const item of list) {
@@ -168,21 +214,32 @@ export async function getMyListings(email, customerId, limitCount = 50, options 
     }
   };
 
+  const tryMerge = async (label, fn) => {
+    try {
+      merge(await fn());
+    } catch (e) {
+      lastError = e;
+      if (__DEV__) {
+        console.warn(`getMyListings:${label}`, e?.message || e);
+      }
+    }
+  };
+
+  if (firebaseUid) {
+    await tryMerge("firebase_uid", () => getListingsByFirebaseUid(firebaseUid, limitCount, opts));
+  }
+
   const cid = customerId != null && customerId !== "" ? Number(customerId) : NaN;
   if (Number.isFinite(cid) && cid > 0) {
-    try {
-      merge(await getListingsByCustomerId(cid, limitCount, opts));
-    } catch {
-      /* fallback to email below */
-    }
+    await tryMerge("customer_id", () => getListingsByCustomerId(cid, limitCount, opts));
   }
 
   if (email) {
-    try {
-      merge(await getListingsByCreator(email, limitCount, opts));
-    } catch {
-      /* ignore */
-    }
+    await tryMerge("created_by", () => getListingsByCreator(email, limitCount, opts));
+  }
+
+  if (rows.length === 0 && lastError) {
+    throw lastError;
   }
 
   rows.sort((a, b) => {

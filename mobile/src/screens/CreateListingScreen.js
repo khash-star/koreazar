@@ -59,7 +59,7 @@ export default function CreateListingScreen({ navigation }) {
       : null;
   const prevEditIdRef = useRef(null);
 
-  const { email, isAuthenticated, userData, user } = useAuth();
+  const { email, isAuthenticated, userData, user, refreshUserData } = useAuth();
   const submittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const lockedName = (
@@ -303,6 +303,7 @@ export default function CreateListingScreen({ navigation }) {
         status: autoApprove ? "active" : "pending",
       };
       await createListing(submitData, { timeoutMs: 20000 });
+      refreshUserData().catch(() => {});
       notifyListingBadgeRefresh();
       // Keep Create tab clean after successful submit.
       setImages([]);
