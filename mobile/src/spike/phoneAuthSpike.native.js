@@ -9,7 +9,7 @@ import { auth as jsAuth } from "../config/firebase";
 let pendingConfirmation = null;
 
 export function isPhoneAuthSpikeEnabled() {
-  return __DEV__ || process.env.EXPO_PUBLIC_PHONE_AUTH_SPIKE === "true";
+  return typeof __DEV__ !== "undefined" && __DEV__;
 }
 
 export const SPIKE_NATIVE_ONLY = false;

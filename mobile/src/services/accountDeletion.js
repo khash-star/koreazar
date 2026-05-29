@@ -20,16 +20,22 @@ async function deleteSnapshotDocs(snap, collectionName) {
 export async function deleteAllFirestoreDataForUser(uid, email) {
   if (!uid || !email) throw new Error("UID эсвэл имэйл байхгүй");
 
-  const savedQ = query(
-    collection(db, "saved_listings"),
-    where("created_by", "==", email),
-    limit(200)
+  const purgeQuery = async (collectionName, q) => {
+    for (;;) {
+      const snap = await getDocs(q);
+      if (snap.empty) break;
+      await deleteSnapshotDocs(snap, collectionName);
+    }
+  };
+
+  await purgeQuery(
+    "saved_listings",
+    query(collection(db, "saved_listings"), where("created_by", "==", email), limit(200))
   );
-  for (;;) {
-    const snap = await getDocs(savedQ);
-    if (snap.empty) break;
-    await deleteSnapshotDocs(snap, "saved_listings");
-  }
+  await purgeQuery(
+    "saved_listings",
+    query(collection(db, "saved_listings"), where("user_uid", "==", uid), limit(200))
+  );
 
   const listingsQ = query(
     collection(db, "listings"),
@@ -109,4 +115,13 @@ export async function deleteAllFirestoreDataForUser(uid, email) {
   }
 
   await deleteDoc(doc(db, "users", uid));
+
+  try {
+    const tokenSnap = await getDocs(collection(db, "user_push_tokens", uid, "devices"));
+    if (!tokenSnap.empty) {
+      await Promise.all(tokenSnap.docs.map((d) => deleteDoc(d.ref)));
+    }
+  } catch {
+    /* best-effort */
+  }
 }

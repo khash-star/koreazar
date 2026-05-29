@@ -411,30 +411,45 @@ export async function updateUserData(uid, data) {
   }).catch(() => {});
 }
 
-/** Apple 5.1.1(v) — бүртгэл бүрэн устгах */
-export async function deleteAccountWithPassword(password) {
+/** Apple 5.1.1(v) — бүртгэл бүрэн устгах (имэйл/нууц үг эсвэл утасны OTP). */
+export async function deleteAccountForCurrentUser(password = "") {
   const user = auth.currentUser;
-  if (!user?.email) throw new Error("Нэвтэрсэн хэрэглэгч олдсонгүй");
-  const pwd = typeof password === "string" ? password.trim() : "";
-  if (!pwd) throw new Error("Нууц үгээ оруулна уу");
+  if (!user?.uid) throw new Error("Нэвтэрсэн хэрэглэгч олдсонгүй");
 
-  const credential = EmailAuthProvider.credential(user.email, pwd);
-  try {
-    await reauthenticateWithCredential(user, credential);
-  } catch (e) {
-    const code = e?.code || "";
-    if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
-      throw new Error("Нууц үг буруу байна");
+  await ensureUserDocEmailForFirestoreRules(user);
+  const resolvedEmail = await getResolvedAuthEmail(user);
+  if (!resolvedEmail) throw new Error("Нэвтэрсний дараа дахин оролдоно уу");
+
+  const hasPasswordProvider =
+    !!user.email && user.providerData?.some((p) => p.providerId === "password");
+
+  if (hasPasswordProvider) {
+    const pwd = typeof password === "string" ? password.trim() : "";
+    if (!pwd) throw new Error("Нууц үгээ оруулна уу");
+    const credential = EmailAuthProvider.credential(user.email, pwd);
+    try {
+      await reauthenticateWithCredential(user, credential);
+    } catch (e) {
+      const code = e?.code || "";
+      if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        throw new Error("Нууц үг буруу байна");
+      }
+      if (code === "auth/requires-recent-login" || code === "auth/user-mismatch") {
+        throw new Error("Аюулгүй байдлын шалтгаанаар дахин нэвтэрч, дахин оролдоно уу");
+      }
+      throw e;
     }
-    if (code === "auth/requires-recent-login" || code === "auth/user-mismatch") {
-      throw new Error("Аюулгүй байдлын шалтгаанаар дахин нэвтэрч, дахин оролдоно уу");
-    }
-    throw e;
   }
 
   const uid = user.uid;
-  const email = user.email;
-  await deleteAllFirestoreDataForUser(uid, email);
+  try {
+    const { unregisterCurrentPushToken } = await import("./pushTokenService.js");
+    await unregisterCurrentPushToken(uid);
+  } catch {
+    /* best-effort */
+  }
+
+  await deleteAllFirestoreDataForUser(uid, resolvedEmail);
 
   try {
     await deleteUser(user);
@@ -442,11 +457,21 @@ export async function deleteAccountWithPassword(password) {
     const code = e?.code || "";
     if (code === "auth/requires-recent-login") {
       throw new Error(
-        "Өгөгдөл устгагдсан боловч бүртгэлийг бүрэн хаахын тулд дахин нэвтэрч оролдоно уу"
+        hasPasswordProvider
+          ? "Өгөгдөл устгагдсан боловч бүртгэлийг бүрэн хаахын тулд дахин нэвтэрч оролдоно уу"
+          : "Сүүлийн нэвтрэлт хэт хуучин байна. Дахин утсаар нэвтэрч, дахин оролдоно уу"
       );
     }
     throw e;
   }
+
+  clearPendingPhoneOtp();
+  await signOutNativeAuthIfAny();
+}
+
+/** @deprecated Use deleteAccountForCurrentUser — имэйл/нууц үгтэй бүртгэл */
+export async function deleteAccountWithPassword(password) {
+  return deleteAccountForCurrentUser(password);
 }
 
 export async function sendResetEmail(email) {

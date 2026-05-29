@@ -3,7 +3,7 @@
  */
 
 export function isPhoneAuthSpikeEnabled() {
-  return process.env.EXPO_PUBLIC_PHONE_AUTH_SPIKE === "true";
+  return typeof __DEV__ !== "undefined" && __DEV__;
 }
 
 export const SPIKE_NATIVE_ONLY = true;

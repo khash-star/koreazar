@@ -269,11 +269,13 @@ function ProfileStackNavigator() {
     >
       <ProfileStack.Screen name="ProfileMain" component={ProfileTabScreen} options={{ title: "Профайл" }} />
       <ProfileStack.Screen name="MyListings" component={MyListingsScreen} options={{ title: "Миний зарууд" }} />
-      <ProfileStack.Screen
-        name="PhoneAuthSpike"
-        component={PhoneAuthSpikeScreen}
-        options={{ title: "Phone OTP spike" }}
-      />
+      {typeof __DEV__ !== "undefined" && __DEV__ ? (
+        <ProfileStack.Screen
+          name="PhoneAuthSpike"
+          component={PhoneAuthSpikeScreen}
+          options={{ title: "Phone OTP spike" }}
+        />
+      ) : null}
     </ProfileStack.Navigator>
   );
 }

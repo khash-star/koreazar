@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext.js";
-import { deleteAccountWithPassword, logout, updateUserData } from "../services/authService";
+import { deleteAccountForCurrentUser, logout, updateUserData } from "../services/authService";
 import { showAlert } from "../utils/showAlert";
 import { createFeedback } from "../services/feedbackService";
 import {
@@ -24,7 +24,7 @@ import {
 } from "../utils/navigationHelpers.js";
 import { openExternalUrlSafe } from "../utils/safeLinking";
 import { isSyntheticPhoneAuthEmail } from "../utils/emailNormalize.js";
-import { isPhoneAuthSpikeEnabled } from "../spike/phoneAuthSpike";
+import { isPhoneAuthSpikeEnabled } from "../spike/phoneAuthSpikeEnabled";
 
 const emptyProfileForm = () => ({
   displayName: "",
@@ -55,6 +55,10 @@ function toUserFacingError(e) {
 export default function ProfileTabScreen({ navigation }) {
   const { user, userData, email, isAuthenticated, loading, refreshUserData } = useAuth();
   const displayEmail = email && !isSyntheticPhoneAuthEmail(email) ? email : null;
+  const isPhoneOnlyAccount =
+    !!user?.uid &&
+    !user?.email &&
+    (!!user?.phoneNumber || !!userData?.phone || !!userData?.phoneNumber);
   const [editOpen, setEditOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(emptyProfileForm);
   const [editBusy, setEditBusy] = useState(false);
@@ -88,7 +92,7 @@ export default function ProfileTabScreen({ navigation }) {
     setDelBusy(true);
     setDelErr("");
     try {
-      await deleteAccountWithPassword(delPwd);
+      await deleteAccountForCurrentUser(delPwd);
       closeDeleteModal();
     } catch (e) {
       setDelErr(e?.message || "Бүртгэл устгахад алдаа гарлаа.");
@@ -400,20 +404,26 @@ export default function ProfileTabScreen({ navigation }) {
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Бүртгэл устгах</Text>
             <Text style={styles.modalHint}>
-              Профайл, зар, хадгалсан зар, чатны түүх устгагдана. Нууц үгээ оруулж, доор{" "}
+              {isPhoneOnlyAccount
+                ? "Профайл, зар, хадгалсан зар, чатны түүх устгагдана. Доор "
+                : "Профайл, зар, хадгалсан зар, чатны түүх устгагдана. Нууц үгээ оруулж, доор "}
               <Text style={styles.modalHintBold}>УСТГАХ</Text> гэж бичнэ үү.
             </Text>
             {delErr ? <Text style={styles.modalErr}>{delErr}</Text> : null}
-            <Text style={styles.inputLabel}>Нууц үг</Text>
-            <TextInput
-              style={styles.input}
-              secureTextEntry
-              value={delPwd}
-              onChangeText={setDelPwd}
-              placeholder="Одоогийн нууц үг"
-              editable={!delBusy}
-              autoCapitalize="none"
-            />
+            {!isPhoneOnlyAccount ? (
+              <>
+                <Text style={styles.inputLabel}>Нууц үг</Text>
+                <TextInput
+                  style={styles.input}
+                  secureTextEntry
+                  value={delPwd}
+                  onChangeText={setDelPwd}
+                  placeholder="Одоогийн нууц үг"
+                  editable={!delBusy}
+                  autoCapitalize="none"
+                />
+              </>
+            ) : null}
             <Text style={styles.inputLabel}>Баталгаажуулах</Text>
             <TextInput
               style={styles.input}
@@ -430,10 +440,17 @@ export default function ProfileTabScreen({ navigation }) {
               <Pressable
                 style={[
                   styles.modalDelete,
-                  (delBusy || !delPwd.trim() || delConfirm !== "УСТГАХ") && styles.modalDeleteDisabled,
+                  (delBusy ||
+                    delConfirm !== "УСТГАХ" ||
+                    (!isPhoneOnlyAccount && !delPwd.trim())) &&
+                    styles.modalDeleteDisabled,
                 ]}
                 onPress={runDeleteAccount}
-                disabled={delBusy || !delPwd.trim() || delConfirm !== "УСТГАХ"}
+                disabled={
+                  delBusy ||
+                  delConfirm !== "УСТГАХ" ||
+                  (!isPhoneOnlyAccount && !delPwd.trim())
+                }
               >
                 {delBusy ? (
                   <ActivityIndicator color="#fff" />
