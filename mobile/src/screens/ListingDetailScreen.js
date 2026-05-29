@@ -681,7 +681,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       >
         <KeyboardAvoidingView
           style={styles.modalKeyboardRoot}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <Pressable
             style={styles.modalBackdrop}
@@ -695,8 +695,9 @@ export default function ListingDetailScreen({ route, navigation }) {
               contentContainerStyle={styles.modalScrollContent}
               keyboardShouldPersistTaps="handled"
               bounces={false}
+              showsVerticalScrollIndicator={false}
             >
-              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalCard}>
                 <Text style={styles.modalTitle}>Санал/гомдол</Text>
                 <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
                 <View style={styles.reasonList}>
@@ -744,7 +745,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                     )}
                   </Pressable>
                 </View>
-              </Pressable>
+              </View>
             </ScrollView>
           </Pressable>
         </KeyboardAvoidingView>

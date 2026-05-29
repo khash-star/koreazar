@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -114,13 +115,24 @@ export default function ProfileTabScreen({ navigation }) {
     }
   };
 
+  const closeFeedbackModal = () => {
+    if (feedbackBusy) return;
+    Keyboard.dismiss();
+    setFeedbackOpen(false);
+    setFeedbackErr("");
+  };
+
   const submitFeedback = async () => {
+    const text = feedbackText.trim();
+    if (!text || feedbackBusy) return;
+    Keyboard.dismiss();
     setFeedbackBusy(true);
     setFeedbackErr("");
     try {
-      await createFeedback(feedbackText);
-      setFeedbackOpen(false);
+      await createFeedback(text);
       setFeedbackText("");
+      setFeedbackOpen(false);
+      showAlert("Амжилттай", "Санал хүсэлт хүлээн авлаа. Баярлалаа!");
     } catch (e) {
       setFeedbackErr(e?.message || "Санал илгээж чадсангүй.");
     } finally {
@@ -129,6 +141,7 @@ export default function ProfileTabScreen({ navigation }) {
   };
 
   return (
+    <>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.inner}>
       <Text style={styles.title}>Профайл</Text>
 
@@ -219,6 +232,7 @@ export default function ProfileTabScreen({ navigation }) {
           <Text style={styles.spikeDevLinkText}>Phone OTP spike (dev)</Text>
         </Pressable>
       ) : null}
+    </ScrollView>
 
       <Modal
         visible={editOpen}
@@ -393,36 +407,38 @@ export default function ProfileTabScreen({ navigation }) {
         visible={feedbackOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => !feedbackBusy && setFeedbackOpen(false)}
+        onRequestClose={closeFeedbackModal}
+        statusBarTranslucent
       >
         <KeyboardAvoidingView
           style={styles.modalKeyboardRoot}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Pressable style={styles.modalBackdrop} onPress={() => !feedbackBusy && setFeedbackOpen(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={closeFeedbackModal}>
             <ScrollView
-              contentContainerStyle={styles.modalScrollContent}
               keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.feedbackScroll}
+              showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalCard}>
                 <Text style={styles.modalTitle}>Санал хүсэлт</Text>
                 <Text style={styles.modalHint}>Таны саналыг бид сайжруулалтад ашиглана.</Text>
                 {feedbackErr ? <Text style={styles.modalErr}>{feedbackErr}</Text> : null}
                 <TextInput
-                  style={[styles.input, { minHeight: 110, textAlignVertical: "top" }]}
+                  style={[styles.input, styles.feedbackInput]}
                   value={feedbackText}
                   onChangeText={setFeedbackText}
                   placeholder="Санал хүсэлтээ энд бичнэ үү"
                   multiline
-                  numberOfLines={4}
+                  textAlignVertical="top"
                   editable={!feedbackBusy}
                   maxLength={1000}
                 />
                 <View style={styles.modalActions}>
                   <Pressable
                     style={styles.modalCancel}
-                    onPress={() => setFeedbackOpen(false)}
+                    onPress={closeFeedbackModal}
                     disabled={feedbackBusy}
                   >
                     <Text style={styles.modalCancelText}>Цуцлах</Text>
@@ -439,12 +455,12 @@ export default function ProfileTabScreen({ navigation }) {
                     )}
                   </Pressable>
                 </View>
-              </Pressable>
+              </View>
             </ScrollView>
           </Pressable>
         </KeyboardAvoidingView>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
 
@@ -554,7 +570,7 @@ const styles = StyleSheet.create({
   },
   linkBtnText: { color: "#111827", fontWeight: "600", fontSize: 16 },
   modalKeyboardRoot: { flex: 1 },
-  modalScrollContent: { flexGrow: 1, justifyContent: "center", padding: 24 },
+  feedbackScroll: { flexGrow: 1, justifyContent: "center", padding: 24, paddingBottom: 36 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
@@ -563,7 +579,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
+    maxWidth: 420,
+    width: "100%",
+    alignSelf: "center",
   },
+  feedbackInput: { minHeight: 110, marginBottom: 12 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 8 },
   modalHint: { fontSize: 14, color: "#4b5563", lineHeight: 20, marginBottom: 12 },
   modalHintBold: { fontWeight: "700", color: "#111827" },
