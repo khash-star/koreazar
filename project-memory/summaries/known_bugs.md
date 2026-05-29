@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Resolved critical regressions
+
+| Date | Symptom / impact | Root cause | Fix / verification |
+|------|------------------|------------|--------------------|
+| 2026-05-29 | Any authenticated user could read `saved_listings`; any authenticated user could read/create arbitrary chat `messages`; mobile phone-account deletion could purge data before stale Auth sessions were rejected. | `firestore.rules` allowed broad message/saved reads/writes, `users/{uid}` self-delete was admin-only during deletion cleanup, and phone delete had no recent-login preflight. | Tightened saved/message rules to owner/conversation participants, allowed self profile delete for account cleanup, deleted chat messages before conversations, and preflighted phone delete auth recency. Verified with `npm run build`, changed-file ESLint, JS syntax checks, and Firestore emulator rules parse. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides
