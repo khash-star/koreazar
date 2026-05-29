@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon-ios-1024.png",
-      "buildNumber": "37",
+      "buildNumber": "38",
       "bundleIdentifier": "com.zarkorea.twa",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
