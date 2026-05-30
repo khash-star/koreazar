@@ -18,6 +18,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import {
+  clearListingDetailCache,
   fetchListingByIdResult,
   getLatestListings,
   peekListingDetailCache,
@@ -120,7 +121,12 @@ export default function ListingDetailScreen({ route, navigation }) {
         bypassCache: hasInstant,
       });
       if (!data) {
-        if (!hasInstant) {
+        const deniedOrGone = httpStatus === 401 || httpStatus === 403 || httpStatus === 404;
+        if (deniedOrGone) {
+          clearListingDetailCache(listingId);
+          setListing(null);
+          setError(httpStatus === 403 ? "Энэ зарыг харах эрхгүй байна" : "Зар олдсонгүй");
+        } else if (!hasInstant) {
           setError("Зар олдсонгүй");
           setListing(null);
         }

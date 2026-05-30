@@ -28,6 +28,12 @@ export function peekListingDetailCache(id) {
   return row.data;
 }
 
+export function clearListingDetailCache(id) {
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) return;
+  listingDetailCache.delete(mysqlId);
+}
+
 function storeListingDetailCache(mysqlId, listing) {
   if (!mysqlId || !listing) return;
   listingDetailCache.set(mysqlId, { at: Date.now(), data: listing });
