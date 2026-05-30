@@ -634,7 +634,29 @@ function require_firebase_user(): array
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
-    return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
+    $projectId = firebase_project_id_from_token($idToken);
+    return [
+        'uid' => $uid,
+        'email' => $email,
+        'phoneNumber' => $phoneNumber,
+        'idToken' => $idToken,
+        'projectId' => $projectId,
+    ];
+}
+
+function firebase_project_id_from_token(string $idToken): string
+{
+    $parts = explode('.', $idToken);
+    if (count($parts) < 2) {
+        return '';
+    }
+    $payload = $parts[1];
+    $payload .= str_repeat('=', (4 - strlen($payload) % 4) % 4);
+    $json = json_decode((string) base64_decode(strtr($payload, '-_', '+/')), true);
+    if (!is_array($json) || !isset($json['aud'])) {
+        return '';
+    }
+    return trim((string) $json['aud']);
 }
 
 /**
@@ -854,7 +876,7 @@ function normalize_listing_type_value($v): string
 /**
  * App admin: APP_ADMIN_UIDS env and/or MySQL users.role = admin (when schema supports it).
  *
- * @param array{uid:string,email:?string} $authUser
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
  */
 function is_app_admin(PDO $pdo, array $authUser): bool
 {
@@ -866,6 +888,10 @@ function is_app_admin(PDO $pdo, array $authUser): bool
     $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
     $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
     if (in_array($uid, $adminUids, true)) {
+        return true;
+    }
+
+    if (firestore_user_role_is_admin($authUser)) {
         return true;
     }
 
@@ -882,6 +908,54 @@ function is_app_admin(PDO $pdo, array $authUser): bool
     }
 
     return false;
+}
+
+/**
+ * Preserve the app's canonical Firestore users.role RBAC for API-only admin checks.
+ *
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
+ */
+function firestore_user_role_is_admin(array $authUser): bool
+{
+    static $cache = [];
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid === '') {
+        return false;
+    }
+    if (array_key_exists($uid, $cache)) {
+        return $cache[$uid];
+    }
+
+    $projectId = trim((string) (getenv('FIREBASE_PROJECT_ID') ?: getenv('VITE_FIREBASE_PROJECT_ID') ?: ($authUser['projectId'] ?? '')));
+    $idToken = trim((string) ($authUser['idToken'] ?? ''));
+    if ($projectId === '' || $idToken === '') {
+        $cache[$uid] = false;
+        return false;
+    }
+
+    $url = 'https://firestore.googleapis.com/v1/projects/' . rawurlencode($projectId)
+        . '/databases/(default)/documents/users/' . rawurlencode($uid);
+    $opts = [
+        'http' => [
+            'method' => 'GET',
+            'header' => "Authorization: Bearer {$idToken}\r\n",
+            'timeout' => 8,
+            'ignore_errors' => true,
+        ],
+    ];
+
+    $resp = @file_get_contents($url, false, stream_context_create($opts));
+    if (!is_string($resp) || $resp === '') {
+        $cache[$uid] = false;
+        return false;
+    }
+    $json = json_decode($resp, true);
+    $role = '';
+    if (is_array($json) && isset($json['fields']['role']['stringValue'])) {
+        $role = strtolower(trim((string) $json['fields']['role']['stringValue']));
+    }
+    $cache[$uid] = $role === 'admin';
+    return $cache[$uid];
 }
 
 /**
@@ -1178,44 +1252,68 @@ function delete_mysql_account_data_for_user(PDO $pdo, array $authUser): array
     $deletedListings = 0;
     $deletedUsers = 0;
 
-    if (table_has($pdo, 'listings', 'id')) {
-        $where = [];
-        $params = [];
-        if (table_has($pdo, 'listings', 'firebase_uid')) {
-            $where[] = 'firebase_uid = :uid';
-            $params[':uid'] = $uid;
+    $startedTransaction = false;
+    try {
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTransaction = true;
         }
-        if ($customerId !== null && table_has($pdo, 'listings', 'customer_id')) {
-            $where[] = 'customer_id = :customer_id';
-            $params[':customer_id'] = $customerId;
-        }
-        if ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'listings', 'created_by')) {
-            $where[] = 'LOWER(created_by) = LOWER(:created_by)';
-            $params[':created_by'] = $resolvedEmail;
-        }
-        if ($where) {
-            $stmt = $pdo->prepare('DELETE FROM listings WHERE ' . implode(' OR ', $where));
-            $stmt->execute($params);
-            $deletedListings = max(0, $stmt->rowCount());
-        }
-    }
 
-    if (table_has($pdo, 'users', 'id')) {
-        $where = [];
-        $params = [];
-        if (table_has($pdo, 'users', 'firebase_uid')) {
-            $where[] = 'firebase_uid = :user_uid';
-            $params[':user_uid'] = $uid;
+        if (table_has($pdo, 'listings', 'id')) {
+            $where = [];
+            $params = [];
+            $hasListingUid = table_has($pdo, 'listings', 'firebase_uid');
+            if ($hasListingUid) {
+                $where[] = 'firebase_uid = :uid';
+                $params[':uid'] = $uid;
+            }
+            $legacyUidScope = $hasListingUid ? "(firebase_uid IS NULL OR firebase_uid = '') AND " : '';
+            if ($customerId !== null && table_has($pdo, 'listings', 'customer_id')) {
+                $where[] = $legacyUidScope . 'customer_id = :customer_id';
+                $params[':customer_id'] = $customerId;
+            }
+            if ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'listings', 'created_by')) {
+                $where[] = $legacyUidScope . 'LOWER(created_by) = LOWER(:created_by)';
+                $params[':created_by'] = $resolvedEmail;
+            }
+            if ($where) {
+                $wrappedWhere = array_map(function ($clause) {
+                    return '(' . $clause . ')';
+                }, $where);
+                $stmt = $pdo->prepare('DELETE FROM listings WHERE ' . implode(' OR ', $wrappedWhere));
+                $stmt->execute($params);
+                $deletedListings = max(0, $stmt->rowCount());
+            }
         }
-        if ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'users', 'email')) {
-            $where[] = 'LOWER(email) = LOWER(:user_email)';
-            $params[':user_email'] = $resolvedEmail;
+
+        if (table_has($pdo, 'users', 'id')) {
+            $where = [];
+            $params = [];
+            if (table_has($pdo, 'users', 'firebase_uid')) {
+                $where[] = 'firebase_uid = :user_uid';
+                $params[':user_uid'] = $uid;
+            } elseif ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'users', 'email')) {
+                $where[] = 'LOWER(email) = LOWER(:user_email)';
+                $params[':user_email'] = $resolvedEmail;
+            }
+            if ($where) {
+                $wrappedWhere = array_map(function ($clause) {
+                    return '(' . $clause . ')';
+                }, $where);
+                $stmt = $pdo->prepare('DELETE FROM users WHERE ' . implode(' OR ', $wrappedWhere));
+                $stmt->execute($params);
+                $deletedUsers = max(0, $stmt->rowCount());
+            }
         }
-        if ($where) {
-            $stmt = $pdo->prepare('DELETE FROM users WHERE ' . implode(' OR ', $where));
-            $stmt->execute($params);
-            $deletedUsers = max(0, $stmt->rowCount());
+
+        if ($startedTransaction) {
+            $pdo->commit();
         }
+    } catch (Throwable $e) {
+        if ($startedTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
     }
 
     return ['listings' => $deletedListings, 'users' => $deletedUsers];
