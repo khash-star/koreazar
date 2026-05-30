@@ -200,8 +200,13 @@ export async function getListingsByFirebaseUid(firebaseUid, limitCount = 50, opt
 
 /** Миний зарууд — uid + customerId + email (pending зарууд орно). */
 export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
-  const opts = { includeAllStatuses: true, ...options };
   const firebaseUid = options.firebaseUid || auth.currentUser?.uid || "";
+  const authHeaders = firebaseUid ? await getAuthHeaders() : {};
+  const opts = {
+    includeAllStatuses: true,
+    ...options,
+    headers: { ...(options.headers || {}), ...authHeaders },
+  };
   const seen = new Set();
   const rows = [];
   let lastError = null;
@@ -322,27 +327,37 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
+    headers,
     retries: 1,
   });
   return (payload?.data || []).length;
 }
 
 /** Энгийн хэрэглэгч: өөрийн илгээсэн, баталгаажаагүй (pending) зарын тоо — апп icon badge-д. */
-export async function getCreatorPendingListingsCount(email, customerId) {
+export async function getCreatorPendingListingsCount(email, customerId, firebaseUid = auth.currentUser?.uid) {
   const cid = customerId != null && customerId !== "" ? String(customerId).trim() : "";
   const em = typeof email === "string" ? email.trim() : "";
-  if (!cid && !em) return 0;
-  const listings = cid
-    ? await getListingsByCustomerId(cid, 80)
-    : await getListingsByCreator(em, 80);
+  const uid = typeof firebaseUid === "string" ? firebaseUid.trim() : "";
+  if (!cid && !em && !uid) return 0;
+  const headers = await getAuthHeaders();
+  const listings = await requestListingsQuery(
+    {
+      ...(uid ? { firebase_uid: uid } : cid ? { customer_id: cid } : { created_by: em }),
+      status: "pending",
+      limit: 80,
+    },
+    { headers }
+  );
   return listings.filter((l) => l.status === "pending").length;
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { headers, retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
