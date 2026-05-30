@@ -40,6 +40,17 @@ async function getAuthHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
+async function getOptionalAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) return {};
+  try {
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return {};
+  }
+}
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== "object") return false;
@@ -267,7 +278,11 @@ export async function fetchListingByIdResult(id, options = {}) {
     if (cached) return { listing: cached };
   }
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), {
+      headers,
+      retries: 1,
+    });
     const listing = normalizeListing(payload?.data);
     if (listing) storeListingDetailCache(mysqlId, listing);
     return { listing };

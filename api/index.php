@@ -286,6 +286,18 @@ try {
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
+                $rowStatus = isset($row['status']) ? strtolower(trim((string) $row['status'])) : 'active';
+                if ($rowStatus === '') {
+                    $rowStatus = 'active';
+                }
+                if ($rowStatus !== 'active') {
+                    $authUser = require_firebase_user();
+                    if (!can_read_listing_detail($pdo, $row, $authUser)) {
+                        http_response_code(403);
+                        echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
             }
@@ -859,6 +871,24 @@ function can_read_owner_filtered_listings(PDO $pdo, array $authUser, string $cre
     }
 
     return $firebaseUidFilter !== '' || $createdBy !== '' || $customerIdFilter > 0;
+}
+
+/**
+ * @param array<string,mixed> $listing
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
+ */
+function can_read_listing_detail(PDO $pdo, array $listing, array $authUser): bool
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return true;
+    }
+
+    $ownerUid = isset($listing['firebase_uid']) ? trim((string) $listing['firebase_uid']) : '';
+    if ($ownerUid !== '') {
+        return $ownerUid === $authUser['uid'];
+    }
+
+    return listing_matches_legacy_owner($pdo, $listing, $authUser);
 }
 
 /**
