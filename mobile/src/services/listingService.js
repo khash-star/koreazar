@@ -28,6 +28,12 @@ export function peekListingDetailCache(id) {
   return row.data;
 }
 
+export function clearListingDetailCache(id) {
+  const mysqlId = parseMysqlListingId(id);
+  if (!mysqlId) return;
+  listingDetailCache.delete(mysqlId);
+}
+
 function storeListingDetailCache(mysqlId, listing) {
   if (!mysqlId || !listing) return;
   listingDetailCache.set(mysqlId, { at: Date.now(), data: listing });
@@ -38,6 +44,17 @@ async function getAuthHeaders() {
   if (!user) throw new Error("Хэрэглэгч нэвтрээгүй байна");
   const token = await user.getIdToken();
   return { Authorization: `Bearer ${token}` };
+}
+
+async function getOptionalAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) return {};
+  try {
+    const token = await user.getIdToken();
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return {};
+  }
 }
 
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
@@ -200,8 +217,13 @@ export async function getListingsByFirebaseUid(firebaseUid, limitCount = 50, opt
 
 /** Миний зарууд — uid + customerId + email (pending зарууд орно). */
 export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
-  const opts = { includeAllStatuses: true, ...options };
   const firebaseUid = options.firebaseUid || auth.currentUser?.uid || "";
+  const authHeaders = firebaseUid ? await getAuthHeaders() : {};
+  const opts = {
+    includeAllStatuses: true,
+    ...options,
+    headers: { ...(options.headers || {}), ...authHeaders },
+  };
   const seen = new Set();
   const rows = [];
   let lastError = null;
@@ -262,7 +284,11 @@ export async function fetchListingByIdResult(id, options = {}) {
     if (cached) return { listing: cached };
   }
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), {
+      headers,
+      retries: 1,
+    });
     const listing = normalizeListing(payload?.data);
     if (listing) storeListingDetailCache(mysqlId, listing);
     return { listing };
@@ -322,27 +348,37 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
+    headers,
     retries: 1,
   });
   return (payload?.data || []).length;
 }
 
 /** Энгийн хэрэглэгч: өөрийн илгээсэн, баталгаажаагүй (pending) зарын тоо — апп icon badge-д. */
-export async function getCreatorPendingListingsCount(email, customerId) {
+export async function getCreatorPendingListingsCount(email, customerId, firebaseUid = auth.currentUser?.uid) {
   const cid = customerId != null && customerId !== "" ? String(customerId).trim() : "";
   const em = typeof email === "string" ? email.trim() : "";
-  if (!cid && !em) return 0;
-  const listings = cid
-    ? await getListingsByCustomerId(cid, 80)
-    : await getListingsByCreator(em, 80);
+  const uid = typeof firebaseUid === "string" ? firebaseUid.trim() : "";
+  if (!cid && !em && !uid) return 0;
+  const headers = await getAuthHeaders();
+  const listings = await requestListingsQuery(
+    {
+      ...(uid ? { firebase_uid: uid } : cid ? { customer_id: cid } : { created_by: em }),
+      status: "pending",
+      limit: 80,
+    },
+    { headers }
+  );
   return listings.filter((l) => l.status === "pending").length;
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { headers, retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }

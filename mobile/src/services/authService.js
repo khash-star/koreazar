@@ -128,6 +128,24 @@ async function syncUserToMySql(user, profile = {}) {
   }
 }
 
+async function deleteMySqlAccountData(user) {
+  if (!user?.uid) return;
+  const token = await user.getIdToken();
+  await requestJson(buildApiUrl("account_delete"), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    timeoutMs: 15000,
+  });
+}
+
+function hasRecentSignIn(user, maxAgeMs = 2 * 60 * 1000) {
+  const raw = user?.metadata?.lastSignInTime || user?.metadata?.lastLoginAt || "";
+  const ts = Date.parse(raw);
+  return Number.isFinite(ts) && Date.now() - ts >= 0 && Date.now() - ts <= maxAgeMs;
+}
+
 export function subscribeAuth(callback) {
   return onAuthStateChanged(auth, (user) => {
     if (!user) {
@@ -439,6 +457,8 @@ export async function deleteAccountForCurrentUser(password = "") {
       }
       throw e;
     }
+  } else if (!hasRecentSignIn(user)) {
+    throw new Error("Аюулгүй байдлын шалтгаанаар гараад, утсаар дахин нэвтэрсний дараа устгана уу");
   }
 
   const uid = user.uid;
@@ -449,6 +469,7 @@ export async function deleteAccountForCurrentUser(password = "") {
     /* best-effort */
   }
 
+  await deleteMySqlAccountData(user);
   await deleteAllFirestoreDataForUser(uid, resolvedEmail);
 
   try {
@@ -458,7 +479,7 @@ export async function deleteAccountForCurrentUser(password = "") {
     if (code === "auth/requires-recent-login") {
       throw new Error(
         hasPasswordProvider
-          ? "Өгөгдөл устгагдсан боловч бүртгэлийг бүрэн хаахын тулд дахин нэвтэрч оролдоно уу"
+          ? "Аюулгүй байдлын шалтгаанаар дахин нэвтэрч, дахин оролдоно уу"
           : "Сүүлийн нэвтрэлт хэт хуучин байна. Дахин утсаар нэвтэрч, дахин оролдоно уу"
       );
     }

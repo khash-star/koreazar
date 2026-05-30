@@ -140,12 +140,32 @@ try {
                 $customerIdFilter = isset($_GET['customer_id']) ? (int) $_GET['customer_id'] : 0;
                 $firebaseUidFilter = isset($_GET['firebase_uid']) ? trim((string) $_GET['firebase_uid']) : '';
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
+                if ($status === '') {
+                    $status = 'active';
+                }
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+                $statusLower = strtolower($status);
+                $hasOwnerFilter = $createdBy !== '' || $customerIdFilter > 0 || $firebaseUidFilter !== '';
+                if ($statusLower !== 'active') {
+                    $authUser = require_firebase_user();
+                    $isAdmin = is_app_admin($pdo, $authUser);
+                    if ($hasOwnerFilter) {
+                        if (!$isAdmin && !can_read_owner_filtered_listings($pdo, $authUser, $createdBy, $customerIdFilter, $firebaseUidFilter)) {
+                            http_response_code(403);
+                            echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
+                            break;
+                        }
+                    } elseif (!$isAdmin) {
+                        http_response_code(403);
+                        echo json_encode(['error' => 'Forbidden: admin only'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                }
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
-                if ($status !== '' && strtolower($status) !== 'all') {
+                if ($statusLower !== 'all') {
                     $sql .= ' AND status = :status';
                     $params[':status'] = $status;
                 }
@@ -215,7 +235,7 @@ try {
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
-                upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
+                upsert_user_best_effort($pdo, $authUser['uid'], $resolvedEmail);
                 $listingCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
                 ensure_category_best_effort($pdo, (string) $payload['category']);
                 if (!empty($payload['location']) && is_string($payload['location'])) {
@@ -265,6 +285,18 @@ try {
                     http_response_code(404);
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
+                }
+                $rowStatus = isset($row['status']) ? strtolower(trim((string) $row['status'])) : 'active';
+                if ($rowStatus === '') {
+                    $rowStatus = 'active';
+                }
+                if ($rowStatus !== 'active') {
+                    $authUser = require_firebase_user();
+                    if (!can_read_listing_detail($pdo, $row, $authUser)) {
+                        http_response_code(403);
+                        echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
                 }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
@@ -359,6 +391,17 @@ try {
                 'email' => $resolvedEmail ?? $authUser['email'],
                 'customer_id' => $customerId,
             ], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'account_delete':
+            if ($method !== 'POST' && $method !== 'DELETE') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=account_delete'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $authUser = require_firebase_user();
+            $deleted = delete_mysql_account_data_for_user($pdo, $authUser);
+            echo json_encode(['ok' => true, 'deleted' => $deleted], JSON_UNESCAPED_UNICODE);
             break;
 
         default:
@@ -603,7 +646,29 @@ function require_firebase_user(): array
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
-    return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
+    $projectId = firebase_project_id_from_token($idToken);
+    return [
+        'uid' => $uid,
+        'email' => $email,
+        'phoneNumber' => $phoneNumber,
+        'idToken' => $idToken,
+        'projectId' => $projectId,
+    ];
+}
+
+function firebase_project_id_from_token(string $idToken): string
+{
+    $parts = explode('.', $idToken);
+    if (count($parts) < 2) {
+        return '';
+    }
+    $payload = $parts[1];
+    $payload .= str_repeat('=', (4 - strlen($payload) % 4) % 4);
+    $json = json_decode((string) base64_decode(strtr($payload, '-_', '+/')), true);
+    if (!is_array($json) || !isset($json['aud'])) {
+        return '';
+    }
+    return trim((string) $json['aud']);
 }
 
 /**
@@ -740,18 +805,90 @@ function openai_chat_completion(array $payload): array
  */
 function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): void
 {
-    $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
+    $ownerUid = isset($existing['firebase_uid']) ? trim((string) $existing['firebase_uid']) : '';
     $uid = $authUser['uid'];
-    if ($ownerUid === $uid) {
+    if ($ownerUid !== '' && $ownerUid === $uid) {
         return;
     }
     if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+    if ($ownerUid === '' && listing_matches_legacy_owner($pdo, $existing, $authUser)) {
         return;
     }
 
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * @param array<string,mixed> $existing
+ * @param array{uid:string,email:?string,phoneNumber:?string} $authUser
+ */
+function listing_matches_legacy_owner(PDO $pdo, array $existing, array $authUser): bool
+{
+    $ownerEmail = isset($existing['created_by']) ? strtolower(trim((string) $existing['created_by'])) : '';
+    if ($ownerEmail !== '') {
+        $authEmail = resolve_auth_email_for_listing($pdo, $authUser);
+        if ($authEmail !== null && strtolower(trim($authEmail)) === $ownerEmail) {
+            return true;
+        }
+    }
+
+    $ownerCustomerId = isset($existing['customer_id']) ? (int) $existing['customer_id'] : 0;
+    if ($ownerCustomerId > 0) {
+        $authCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
+        if ($authCustomerId !== null && (int) $authCustomerId === $ownerCustomerId) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @param array{uid:string,email:?string,phoneNumber:?string} $authUser
+ */
+function can_read_owner_filtered_listings(PDO $pdo, array $authUser, string $createdBy, int $customerIdFilter, string $firebaseUidFilter): bool
+{
+    if ($firebaseUidFilter !== '' && $firebaseUidFilter !== $authUser['uid']) {
+        return false;
+    }
+
+    if ($createdBy !== '') {
+        $authEmail = resolve_auth_email_for_listing($pdo, $authUser);
+        if ($authEmail === null || strtolower(trim($authEmail)) !== strtolower(trim($createdBy))) {
+            return false;
+        }
+    }
+
+    if ($customerIdFilter > 0) {
+        $authCustomerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
+        if ($authCustomerId === null || (int) $authCustomerId !== $customerIdFilter) {
+            return false;
+        }
+    }
+
+    return $firebaseUidFilter !== '' || $createdBy !== '' || $customerIdFilter > 0;
+}
+
+/**
+ * @param array<string,mixed> $listing
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
+ */
+function can_read_listing_detail(PDO $pdo, array $listing, array $authUser): bool
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return true;
+    }
+
+    $ownerUid = isset($listing['firebase_uid']) ? trim((string) $listing['firebase_uid']) : '';
+    if ($ownerUid !== '') {
+        return $ownerUid === $authUser['uid'];
+    }
+
+    return listing_matches_legacy_owner($pdo, $listing, $authUser);
 }
 
 /**
@@ -769,7 +906,7 @@ function normalize_listing_type_value($v): string
 /**
  * App admin: APP_ADMIN_UIDS env and/or MySQL users.role = admin (when schema supports it).
  *
- * @param array{uid:string,email:?string} $authUser
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
  */
 function is_app_admin(PDO $pdo, array $authUser): bool
 {
@@ -781,6 +918,10 @@ function is_app_admin(PDO $pdo, array $authUser): bool
     $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
     $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
     if (in_array($uid, $adminUids, true)) {
+        return true;
+    }
+
+    if (firestore_user_role_is_admin($authUser)) {
         return true;
     }
 
@@ -797,6 +938,54 @@ function is_app_admin(PDO $pdo, array $authUser): bool
     }
 
     return false;
+}
+
+/**
+ * Preserve the app's canonical Firestore users.role RBAC for API-only admin checks.
+ *
+ * @param array{uid:string,email:?string,phoneNumber:?string,idToken?:string,projectId?:string} $authUser
+ */
+function firestore_user_role_is_admin(array $authUser): bool
+{
+    static $cache = [];
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid === '') {
+        return false;
+    }
+    if (array_key_exists($uid, $cache)) {
+        return $cache[$uid];
+    }
+
+    $projectId = trim((string) (getenv('FIREBASE_PROJECT_ID') ?: getenv('VITE_FIREBASE_PROJECT_ID') ?: ($authUser['projectId'] ?? '')));
+    $idToken = trim((string) ($authUser['idToken'] ?? ''));
+    if ($projectId === '' || $idToken === '') {
+        $cache[$uid] = false;
+        return false;
+    }
+
+    $url = 'https://firestore.googleapis.com/v1/projects/' . rawurlencode($projectId)
+        . '/databases/(default)/documents/users/' . rawurlencode($uid);
+    $opts = [
+        'http' => [
+            'method' => 'GET',
+            'header' => "Authorization: Bearer {$idToken}\r\n",
+            'timeout' => 8,
+            'ignore_errors' => true,
+        ],
+    ];
+
+    $resp = @file_get_contents($url, false, stream_context_create($opts));
+    if (!is_string($resp) || $resp === '') {
+        $cache[$uid] = false;
+        return false;
+    }
+    $json = json_decode($resp, true);
+    $role = '';
+    if (is_array($json) && isset($json['fields']['role']['stringValue'])) {
+        $role = strtolower(trim((string) $json['fields']['role']['stringValue']));
+    }
+    $cache[$uid] = $role === 'admin';
+    return $cache[$uid];
 }
 
 /**
@@ -1006,6 +1195,10 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
 {
     if ($firebaseUid === '') return;
     try {
+        $emailForDb = $email !== null ? strtolower(trim($email)) : '';
+        if ($emailForDb === '' && isset($body['email'])) {
+            $emailForDb = strtolower(trim((string) $body['email']));
+        }
         $displayName = isset($body['display_name']) ? trim((string) $body['display_name']) : null;
         if ($displayName === '') $displayName = null;
         if ($displayName === null && isset($body['displayName'])) {
@@ -1014,10 +1207,17 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
         }
         $phone = isset($body['phone']) ? trim((string) $body['phone']) : null;
         if ($phone === '') $phone = null;
+        if ($emailForDb === '' && $phone !== null) {
+            $syntheticEmail = phone_to_auth_email($phone);
+            if ($syntheticEmail !== null) {
+                $emailForDb = strtolower($syntheticEmail);
+            }
+        }
         $city = isset($body['city']) ? trim((string) $body['city']) : null;
         if ($city === '') $city = null;
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
         if ($district === '') $district = null;
+        $emailForDb = $emailForDb !== '' ? $emailForDb : null;
 
         upsert_user_best_effort($pdo, $firebaseUid, $emailForDb);
 
@@ -1062,6 +1262,91 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
     } catch (Throwable $e) {
         // best effort only
     }
+}
+
+/**
+ * Delete MySQL-backed account data while the Firebase ID token is still valid.
+ *
+ * @param array{uid:string,email:?string,phoneNumber:?string} $authUser
+ * @return array<string,int>
+ */
+function delete_mysql_account_data_for_user(PDO $pdo, array $authUser): array
+{
+    $uid = trim((string) ($authUser['uid'] ?? ''));
+    if ($uid === '') {
+        return ['listings' => 0, 'users' => 0];
+    }
+
+    $customerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+    $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+    $deletedListings = 0;
+    $deletedUsers = 0;
+
+    $startedTransaction = false;
+    try {
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $startedTransaction = true;
+        }
+
+        if (table_has($pdo, 'listings', 'id')) {
+            $where = [];
+            $params = [];
+            $hasListingUid = table_has($pdo, 'listings', 'firebase_uid');
+            if ($hasListingUid) {
+                $where[] = 'firebase_uid = :uid';
+                $params[':uid'] = $uid;
+            }
+            $legacyUidScope = $hasListingUid ? "(firebase_uid IS NULL OR firebase_uid = '') AND " : '';
+            if ($customerId !== null && table_has($pdo, 'listings', 'customer_id')) {
+                $where[] = $legacyUidScope . 'customer_id = :customer_id';
+                $params[':customer_id'] = $customerId;
+            }
+            if ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'listings', 'created_by')) {
+                $where[] = $legacyUidScope . 'LOWER(created_by) = LOWER(:created_by)';
+                $params[':created_by'] = $resolvedEmail;
+            }
+            if ($where) {
+                $wrappedWhere = array_map(function ($clause) {
+                    return '(' . $clause . ')';
+                }, $where);
+                $stmt = $pdo->prepare('DELETE FROM listings WHERE ' . implode(' OR ', $wrappedWhere));
+                $stmt->execute($params);
+                $deletedListings = max(0, $stmt->rowCount());
+            }
+        }
+
+        if (table_has($pdo, 'users', 'id')) {
+            $where = [];
+            $params = [];
+            if (table_has($pdo, 'users', 'firebase_uid')) {
+                $where[] = 'firebase_uid = :user_uid';
+                $params[':user_uid'] = $uid;
+            } elseif ($resolvedEmail !== null && $resolvedEmail !== '' && table_has($pdo, 'users', 'email')) {
+                $where[] = 'LOWER(email) = LOWER(:user_email)';
+                $params[':user_email'] = $resolvedEmail;
+            }
+            if ($where) {
+                $wrappedWhere = array_map(function ($clause) {
+                    return '(' . $clause . ')';
+                }, $where);
+                $stmt = $pdo->prepare('DELETE FROM users WHERE ' . implode(' OR ', $wrappedWhere));
+                $stmt->execute($params);
+                $deletedUsers = max(0, $stmt->rowCount());
+            }
+        }
+
+        if ($startedTransaction) {
+            $pdo->commit();
+        }
+    } catch (Throwable $e) {
+        if ($startedTransaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return ['listings' => $deletedListings, 'users' => $deletedUsers];
 }
 
 function ensure_category_best_effort(PDO $pdo, string $category): void
