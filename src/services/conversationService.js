@@ -70,6 +70,19 @@ function pickCanonicalParticipantEmail(stored, canonical) {
   return storedNorm;
 }
 
+function participantEmailMatches(left, right) {
+  const a = normalizeEmail(left);
+  const b = normalizeEmail(right);
+  return !!a && !!b && (a === b || areEmailVariants(a, b));
+}
+
+function conversationParticipantsMatch(p1, p2, a, b) {
+  return (
+    (participantEmailMatches(p1, a) && participantEmailMatches(p2, b)) ||
+    (participantEmailMatches(p1, b) && participantEmailMatches(p2, a))
+  );
+}
+
 export function isFirestorePermissionDenied(err) {
   if (err == null) return false;
   const code = err.code;
@@ -286,7 +299,7 @@ export const findConversation = async (email1, email2) => {
           const data = d.data();
           const p1 = normalizeEmail(data.participant_1);
           const p2 = normalizeEmail(data.participant_2);
-          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+          if (conversationParticipantsMatch(p1, p2, a, b)) {
             return { id: d.id, ...data };
           }
         }
@@ -296,19 +309,25 @@ export const findConversation = async (email1, email2) => {
     }
 
     const convsRef = collection(db, 'conversations');
+    const seenPairs = new Set();
+    const queryPair = async (p1, p2) => {
+      const key = `${p1}\n${p2}`;
+      if (seenPairs.has(key)) return null;
+      seenPairs.add(key);
+      const q = query(convsRef, where('participant_1', '==', p1), where('participant_2', '==', p2));
+      const snap = await getDocs(q);
+      if (snap.empty) return null;
+      const docSnap = snap.docs[0];
+      return { id: docSnap.id, ...docSnap.data() };
+    };
 
-    const q1 = query(convsRef, where('participant_1', '==', a), where('participant_2', '==', b));
-    const q2 = query(convsRef, where('participant_1', '==', b), where('participant_2', '==', a));
-    
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    
-    if (!snap1.empty) {
-      const docSnap = snap1.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    if (!snap2.empty) {
-      const docSnap = snap2.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
+    for (const av of emailQueryVariants(a)) {
+      for (const bv of emailQueryVariants(b)) {
+        const direct = await queryPair(av, bv);
+        if (direct) return direct;
+        const reverse = await queryPair(bv, av);
+        if (reverse) return reverse;
+      }
     }
     
     return null;
