@@ -18,9 +18,13 @@ import {
   isSellerBlockedByViewer,
 } from '@/services/authService';
 import { normalizeEmail } from '@/utils/emailNormalize';
-import { deleteMessage, syncConversationLastMessageFromMessages } from '@/services/conversationService';
+import {
+  deleteMessage,
+  syncConversationLastMessageFromMessages,
+  repairConversationParticipants,
+  updateConversationAfterMessage,
+} from '@/services/conversationService';
 import { toast } from '@/components/ui/use-toast';
-import { Timestamp } from 'firebase/firestore';
 export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
   const conversationId = urlParams.get('conversationId');
@@ -178,6 +182,14 @@ export default function Chat() {
     enabled: !!actualConversationId
   });
 
+  useEffect(() => {
+    const email = userData?.email || user?.email;
+    if (!conversation?.id || !email) return;
+    repairConversationParticipants(conversation, { meEmail: email }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    });
+  }, [conversation?.id, userData?.email, user?.email, queryClient]);
+
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['messages', actualConversationId],
     queryFn: () => entities.Message.filter(
@@ -285,17 +297,12 @@ export default function Chat() {
         is_read: false
       });
       
-      // Update conversation (participant-ийг бага үсгээр харьцуулна — unread зөв талд нэмэгдэнэ)
-      const isParticipant1 =
-        normalizeEmail(conversation.participant_1) === senderNorm;
-      const otherUnreadCount = isParticipant1 ? conversation.unread_count_p2 : conversation.unread_count_p1;
-      
-      await entities.Conversation.update(actualConversationId, {
-        last_message: messageText,
-        last_message_time: new Date().toISOString(),
-        last_message_date: Timestamp.now(),
-        last_message_sender: senderNorm,
-        [isParticipant1 ? 'unread_count_p2' : 'unread_count_p1']: otherUnreadCount + 1
+      await updateConversationAfterMessage({
+        conversationId: actualConversationId,
+        conversation,
+        senderEmail: senderNorm,
+        receiverEmail: receiverNorm,
+        messageText,
       });
       
       return newMessage;

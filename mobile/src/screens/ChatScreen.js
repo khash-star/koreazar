@@ -27,9 +27,11 @@ import {
   findConversation,
   getConversation,
   listMessages,
+  repairConversationParticipants,
   resolveChatParticipantEmail,
   syncConversationLastMessageFromMessages,
   updateConversation,
+  updateConversationAfterMessage,
   updateMessage,
 } from "../services/conversationService.js";
 import { getListingById } from "../services/listingService.js";
@@ -41,9 +43,8 @@ import {
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
 import { normalizeEmail } from "../utils/emailNormalize.js";
-import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
+import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
-import { Timestamp } from "firebase/firestore";
 
 export default function ChatScreen({ route, navigation }) {
   const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route?.params ?? {};
@@ -218,14 +219,18 @@ export default function ChatScreen({ route, navigation }) {
       }
       const conv = await getConversation(convId);
       if (!mountedRef.current) return;
-      setConversation(conv);
       if (!conv) return;
+      const repaired = await repairConversationParticipants(conv, { meEmail: me });
+      setConversation(repaired || conv);
+      const activeConv = repaired || conv;
+      notifyMessagesListRefresh();
 
       const meNorm = normalizeEmail(me);
       const other =
-        normalizeEmail(conv.participant_1) === meNorm
-          ? conv.participant_2
-          : conv.participant_1;
+        normalizeEmail(activeConv.participant_1) === meNorm ||
+        areEmailVariants(activeConv.participant_1, meNorm)
+          ? activeConv.participant_2
+          : activeConv.participant_1;
       const admin = await getAdminEmail();
       let displayName;
       if (admin && normalizeEmail(other) === normalizeEmail(admin)) displayName = "АДМИН";
@@ -292,12 +297,16 @@ export default function ChatScreen({ route, navigation }) {
         if (AppState.currentState !== "active") return;
         fetchMessages();
       }, 10000);
+      const unsubNav = navigation.addListener("blur", () => {
+        notifyMessagesListRefresh();
+      });
       return () => {
         cleanupBlur();
         clearInterval(t);
         sub.remove();
+        unsubNav();
       };
-    }, [convId, fetchMessages])
+    }, [convId, fetchMessages, navigation])
   );
 
   useEffect(() => {
@@ -358,27 +367,15 @@ export default function ChatScreen({ route, navigation }) {
         message: text,
         is_read: false,
       });
-      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(chatEmail);
-      const otherKey = isP1 ? "unread_count_p2" : "unread_count_p1";
-      const prevOther = isP1 ? conv.unread_count_p2 : conv.unread_count_p1;
-      await updateConversation(convId, {
-        last_message: text,
-        last_message_date: Timestamp.now(),
-        last_message_time: new Date().toISOString(),
-        last_message_sender: normalizeEmail(chatEmail),
-        [otherKey]: (prevOther || 0) + 1,
+      const updated = await updateConversationAfterMessage({
+        conversationId: convId,
+        conversation: conv,
+        senderEmail: chatEmail,
+        receiverEmail: otherUser.email,
+        messageText: text,
       });
       setDraft("");
-      setConversation((c) => {
-        const base = c ?? conv;
-        if (!base) return c;
-        return {
-          ...base,
-          last_message: text,
-          last_message_sender: normalizeEmail(chatEmail),
-          [otherKey]: (prevOther || 0) + 1,
-        };
-      });
+      setConversation(updated);
       await fetchMessages();
       notifyUnreadTabBadge();
     } catch (e) {

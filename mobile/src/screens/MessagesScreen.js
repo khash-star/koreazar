@@ -23,8 +23,8 @@ import {
   resolveChatParticipantEmail,
   isFirestorePermissionDenied,
 } from "../services/conversationService.js";
-import { normalizeEmail, isSyntheticPhoneAuthEmail } from "../utils/emailNormalize.js";
-import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
+import { normalizeEmail, isSyntheticPhoneAuthEmail, areEmailVariants } from "../utils/emailNormalize.js";
+import { notifyUnreadTabBadge, subscribeMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { showAlert } from "../utils/showAlert";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
@@ -109,7 +109,7 @@ export default function MessagesScreen({ navigation }) {
             ...new Set(
               all.map((c) => {
                 const p1 = normalizeEmail(c.participant_1);
-                const imP1 = me && p1 === me;
+                const imP1 = me && (p1 === me || areEmailVariants(p1, me));
                 return imP1 ? c.participant_2 : c.participant_1;
               })
             ),
@@ -130,7 +130,7 @@ export default function MessagesScreen({ navigation }) {
           const enriched = all.map((conv) => {
             const p1 = normalizeEmail(conv.participant_1);
             const p2 = normalizeEmail(conv.participant_2);
-            let imP1 = !!(me && p1 === me);
+            let imP1 = !!(me && (p1 === me || areEmailVariants(p1, me)));
             if (!me && user?.uid && Array.isArray(conv.participant_uids) && conv.participant_uids.includes(user.uid)) {
               if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
               else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
@@ -220,6 +220,15 @@ export default function MessagesScreen({ navigation }) {
         sub.remove();
         blurActiveElementWeb();
       };
+    }, [load])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const unsub = subscribeMessagesListRefresh(() => {
+        load();
+      });
+      return unsub;
     }, [load])
   );
 

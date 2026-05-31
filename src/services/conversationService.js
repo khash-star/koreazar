@@ -17,10 +17,11 @@ import {
 import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
-import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants } from '@/utils/emailNormalize';
 import { getUserByEmail } from '@/services/authService';
 
-async function resolveUidForChatEmail(email) {
+async function resolveUidForChatEmail(email, hintUid = null) {
+  if (hintUid) return hintUid;
   const em = normalizeEmail(email);
   if (!em) return null;
   const u = auth.currentUser;
@@ -37,14 +38,17 @@ async function resolveUidForChatEmail(email) {
     if (!myEmail && u.phoneNumber) {
       myEmail = normalizeEmail(phoneToAuthEmail(u.phoneNumber));
     }
-    if (myEmail === em) return u.uid;
+    if (myEmail === em || areEmailVariants(myEmail, em)) return u.uid;
   }
-  const profile = await getUserByEmail(em);
-  return profile?.id || null;
+  for (const variant of emailQueryVariants(em)) {
+    const profile = await getUserByEmail(variant);
+    if (profile?.id) return profile.id;
+  }
+  return null;
 }
 
-async function buildParticipantUids(email1, email2) {
-  const uidSet = new Set();
+async function buildParticipantUids(email1, email2, knownUids = []) {
+  const uidSet = new Set(knownUids.filter(Boolean));
   if (auth.currentUser?.uid) uidSet.add(auth.currentUser.uid);
   const [u1, u2] = await Promise.all([
     resolveUidForChatEmail(email1),
@@ -53,6 +57,17 @@ async function buildParticipantUids(email1, email2) {
   if (u1) uidSet.add(u1);
   if (u2) uidSet.add(u2);
   return [...uidSet];
+}
+
+function pickCanonicalParticipantEmail(stored, canonical) {
+  const storedNorm = normalizeEmail(stored);
+  const canonicalNorm = normalizeEmail(canonical);
+  if (!canonicalNorm) return storedNorm;
+  if (!storedNorm) return canonicalNorm;
+  if (storedNorm === canonicalNorm || areEmailVariants(storedNorm, canonicalNorm)) {
+    return canonicalNorm;
+  }
+  return storedNorm;
 }
 
 export function isFirestorePermissionDenied(err) {
@@ -524,50 +539,59 @@ export const sendMessageToAllUsers = async (adminEmail, message) => {
   try {
     const { getAllUsers } = await import('@/services/authService');
     const users = await getAllUsers();
+    const adminN = normalizeEmail(adminEmail);
+    const adminUid = auth.currentUser?.uid || null;
     
     let successCount = 0;
     let errorCount = 0;
     
     for (const user of users) {
-      // Админд мессеж явуулахгүй
-      if (user.email === adminEmail) continue;
+      if (normalizeEmail(user.email) === adminN) continue;
       
       try {
-        // Conversation олох эсвэл үүсгэх
-        let conversation = await findConversation(adminEmail, user.email);
+        const receiver = normalizeEmail(user.email);
+        const receiverUid = user.id || null;
+        let conversation = await findConversation(adminN, receiver);
         
         if (!conversation) {
-          // Шинэ conversation үүсгэх
           conversation = await createConversation({
-            participant_1: adminEmail,
-            participant_2: user.email,
-            last_message: message,
-            last_message_date: Timestamp.now(),
-            last_message_sender: adminEmail,
+            participant_1: adminN,
+            participant_2: receiver,
+            last_message: '',
+            last_message_time: new Date().toISOString(),
+            last_message_sender: adminN,
             unread_count_p1: 0,
-            unread_count_p2: 1 // Хүлээн авагч unread count
-          });
-        } else {
-          // Conversation update хийх
-          await updateConversation(conversation.id, {
-            last_message: message,
-            last_message_date: Timestamp.now(),
-            last_message_sender: adminEmail,
-            unread_count_p2: (conversation.unread_count_p2 || 0) + 1
+            unread_count_p2: 0,
           });
         }
+
+        conversation = await repairConversationParticipants(conversation, {
+          meEmail: adminN,
+          meUid: adminUid,
+          participantUid1: adminUid,
+          participantUid2: receiverUid,
+        });
         
-        // Мессеж үүсгэх
         await createMessage(
           {
             conversation_id: conversation.id,
-            sender_email: adminEmail,
-            receiver_email: user.email,
+            sender_email: adminN,
+            receiver_email: receiver,
             message: message,
             is_read: false,
           },
           { skipBannedCheck: true }
         );
+
+        await updateConversationAfterMessage({
+          conversationId: conversation.id,
+          conversation,
+          senderEmail: adminN,
+          receiverEmail: receiver,
+          messageText: message,
+          senderUid: adminUid,
+          receiverUid,
+        });
         
         successCount++;
       } catch (error) {
@@ -579,11 +603,105 @@ export const sendMessageToAllUsers = async (adminEmail, message) => {
     return {
       successCount,
       errorCount,
-      totalUsers: users.length - 1 // Админийг тооцохгүй
+      totalUsers: users.length - 1
     };
   } catch (error) {
     console.error('Error sending messages to all users:', error);
     throw error;
   }
 };
+
+export async function repairConversationParticipants(conversation, options = {}) {
+  const uid = options.meUid || auth.currentUser?.uid;
+  if (!conversation?.id || !uid) return conversation;
+
+  let meEmail = normalizeEmail(options.meEmail || '');
+  if (!meEmail && auth.currentUser) {
+    meEmail = normalizeEmail(await resolveChatParticipantEmail());
+  }
+
+  const p1 = normalizeEmail(conversation.participant_1);
+  const p2 = normalizeEmail(conversation.participant_2);
+  let newP1 = p1;
+  let newP2 = p2;
+  if (meEmail) {
+    if (areEmailVariants(p1, meEmail)) newP1 = meEmail;
+    if (areEmailVariants(p2, meEmail)) newP2 = meEmail;
+  }
+
+  const knownUids = [options.participantUid1, options.participantUid2, uid].filter(Boolean);
+  const participant_uids = await buildParticipantUids(newP1, newP2, knownUids);
+
+  const patch = {
+    participant_uids: [...new Set(participant_uids)],
+  };
+  if (newP1 && newP1 !== p1) patch.participant_1 = newP1;
+  if (newP2 && newP2 !== p2) patch.participant_2 = newP2;
+
+  const prevUids = Array.isArray(conversation.participant_uids) ? conversation.participant_uids : [];
+  const uidsChanged =
+    patch.participant_uids.length !== prevUids.length ||
+    patch.participant_uids.some((id) => !prevUids.includes(id));
+  const emailsChanged = patch.participant_1 != null || patch.participant_2 != null;
+  if (!uidsChanged && !emailsChanged) return conversation;
+
+  try {
+    await updateDoc(doc(db, 'conversations', conversation.id), patch);
+    return { ...conversation, ...patch };
+  } catch {
+    return conversation;
+  }
+}
+
+export async function updateConversationAfterMessage({
+  conversationId,
+  conversation = null,
+  senderEmail,
+  receiverEmail,
+  messageText,
+  receiverUid = null,
+  senderUid = null,
+  incrementReceiverUnread = true,
+}) {
+  const conv = conversation || (await getConversation(conversationId));
+  if (!conv?.id) throw new Error('Яриа олдсонгүй');
+
+  const sender = normalizeEmail(senderEmail);
+  const receiver = normalizeEmail(receiverEmail);
+  const p1 = normalizeEmail(conv.participant_1);
+  const p2 = normalizeEmail(conv.participant_2);
+
+  const resolvedSenderUid = senderUid || auth.currentUser?.uid || null;
+  const resolvedReceiverUid = receiverUid || (await resolveUidForChatEmail(receiver));
+  const knownUids = [resolvedSenderUid, resolvedReceiverUid].filter(Boolean);
+  const participant_uids = await buildParticipantUids(p1, p2, knownUids);
+
+  const senderIsP1 = areEmailVariants(p1, sender) || p1 === sender;
+  const unreadKey = senderIsP1 ? 'unread_count_p2' : 'unread_count_p1';
+  const prevUnread = senderIsP1 ? conv.unread_count_p2 || 0 : conv.unread_count_p1 || 0;
+  const now = Timestamp.now();
+  const iso = new Date().toISOString();
+
+  const patch = {
+    participant_1: pickCanonicalParticipantEmail(
+      p1,
+      senderIsP1 ? sender : areEmailVariants(p1, receiver) ? receiver : ''
+    ),
+    participant_2: pickCanonicalParticipantEmail(
+      p2,
+      !senderIsP1 ? sender : areEmailVariants(p2, receiver) ? receiver : ''
+    ),
+    participant_uids: [...new Set(participant_uids)],
+    last_message: String(messageText ?? ''),
+    last_message_date: now,
+    last_message_time: iso,
+    last_message_sender: sender,
+  };
+  if (incrementReceiverUnread) {
+    patch[unreadKey] = prevUnread + 1;
+  }
+
+  await updateConversation(conv.id, patch);
+  return { ...conv, ...patch };
+}
 

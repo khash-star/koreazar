@@ -209,12 +209,12 @@ export async function confirmPhoneLogin(code, phoneNumberE164 = "") {
   }
 
   await setDoc(userRef, payload, { merge: true });
+  await ensureUserDocEmailForFirestoreRules(user, authEmail);
 
   if (!needsNameSetup) {
     await syncUserToMySql(user, { displayName: existingName, phone });
   }
   await ensureTermsAcceptanceIfMissing(user);
-  await ensureUserDocEmailForFirestoreRules(user, authEmail);
 
   return { user, needsNameSetup };
 }
