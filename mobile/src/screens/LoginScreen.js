@@ -49,6 +49,7 @@ export default function LoginScreen({ navigation }) {
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const [phoneNameSetup, setPhoneNameSetup] = useState(false);
+  const [phoneAuthFlowActive, setPhoneAuthFlowActive] = useState(false);
   const [profileDisplayName, setProfileDisplayName] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
@@ -63,11 +64,11 @@ export default function LoginScreen({ navigation }) {
   }, [resendCountdown]);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated && !phoneNameSetup) {
+    if (!authLoading && isAuthenticated && !phoneNameSetup && !phoneAuthFlowActive) {
       if (navigation.canGoBack()) navigation.goBack();
       else navigation.replace("Main");
     }
-  }, [isAuthenticated, authLoading, navigation, phoneNameSetup]);
+  }, [isAuthenticated, authLoading, navigation, phoneNameSetup, phoneAuthFlowActive]);
 
   function requireTerms() {
     if (!termsAccepted) {
@@ -116,13 +117,17 @@ export default function LoginScreen({ navigation }) {
     const normalized = buildPhoneE164(phoneCountryPrefix, phoneLocal);
     setPhoneLoading(true);
     setPhoneError("");
+    setPhoneAuthFlowActive(true);
     try {
       const { needsNameSetup } = await confirmPhoneLogin(otpCode, normalized);
       if (needsNameSetup) {
         setPhoneNameSetup(true);
         setProfileDisplayName("");
+      } else {
+        setPhoneAuthFlowActive(false);
       }
     } catch (e) {
+      setPhoneAuthFlowActive(false);
       setPhoneError(authErrorMessage(e?.code) || e?.message || "Баталгаажуулалт амжилтгүй");
     } finally {
       setPhoneLoading(false);
@@ -140,6 +145,7 @@ export default function LoginScreen({ navigation }) {
     try {
       await completePhoneUserProfile(name);
       setPhoneNameSetup(false);
+      setPhoneAuthFlowActive(false);
     } catch (e) {
       setPhoneError(e?.message || "Профайл хадгалахад алдаа гарлаа");
     } finally {

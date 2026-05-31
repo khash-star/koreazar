@@ -332,7 +332,7 @@ function AdminStackNavigator() {
 function MainTabs() {
   const insets = useSafeAreaInsets();
   const tabBarH = 56 + Math.max(insets.bottom, 8);
-  const { isAdmin, email, userData } = useAuth();
+  const { isAdmin, email, user, userData } = useAuth();
   const [pendingCount, setPendingCount] = useState(0);
   const [creatorPendingCount, setCreatorPendingCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -389,11 +389,11 @@ function MainTabs() {
   }, [isAdmin, email, customerIdForListings]);
 
   useEffect(() => {
-    if (!email) {
+    if (!user?.uid) {
       setUnreadCount(0);
       return;
     }
-    const refresh = () => getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+    const refresh = () => getUnreadMessagesCount().then(setUnreadCount).catch(() => {});
     refresh();
     const unsubBadge = subscribeUnreadTabBadge(refresh);
     const sub = AppState.addEventListener("change", (state) => {
@@ -411,21 +411,21 @@ function MainTabs() {
       clearInterval(interval);
       sub.remove();
     };
-  }, [email]);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
-    if (prevEmailForBadgeRef.current !== email) {
-      prevEmailForBadgeRef.current = email;
+    if (prevEmailForBadgeRef.current !== user?.uid) {
+      prevEmailForBadgeRef.current = user?.uid;
       invalidateAppIconBadgeCache();
     }
-    if (!email) {
+    if (!user?.uid) {
       clearAppIconBadge();
       return;
     }
     const listingBadge = isAdmin ? pendingCount : creatorPendingCount;
     syncAppIconBadgeFromUnreadCount(unreadCount + listingBadge);
-  }, [email, unreadCount, isAdmin, pendingCount, creatorPendingCount]);
+  }, [user?.uid, unreadCount, isAdmin, pendingCount, creatorPendingCount]);
 
   return (
     <Tab.Navigator
@@ -482,8 +482,8 @@ function MainTabs() {
         listeners={({ navigation }) => ({
           tabPress: () => {
             navigation.navigate("MessagesTab", { screen: "MsgMain", params: {} });
-            if (email) {
-              getUnreadMessagesCount(email).then(setUnreadCount).catch(() => {});
+            if (user?.uid) {
+              getUnreadMessagesCount().then(setUnreadCount).catch(() => {});
             }
           },
         })}

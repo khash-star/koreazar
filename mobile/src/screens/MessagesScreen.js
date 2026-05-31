@@ -23,7 +23,7 @@ import {
   resolveChatParticipantEmail,
   isFirestorePermissionDenied,
 } from "../services/conversationService.js";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, isSyntheticPhoneAuthEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
 import { showAlert } from "../utils/showAlert";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
@@ -54,10 +54,11 @@ function formatTimeAgo(d) {
 }
 
 export default function MessagesScreen({ navigation }) {
-  const { email, isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [meEmail, setMeEmail] = useState("");
   const [adminEmail, setAdminEmail] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -72,9 +73,18 @@ export default function MessagesScreen({ navigation }) {
       setRefreshing(false);
       return;
     }
-    const chatEmail = await resolveChatParticipantEmail();
-    if (!chatEmail) {
+    let chatEmail = await resolveChatParticipantEmail();
+    if (!chatEmail && auth.currentUser?.uid) {
+      await refreshUserData?.().catch(() => {});
+      await ensureUserDocEmailForFirestoreRules(auth.currentUser);
+      chatEmail = await resolveChatParticipantEmail();
+    }
+    if (seq === loadSeqRef.current && chatEmail) {
+      setMeEmail(chatEmail);
+    }
+    if (!auth.currentUser?.uid) {
       setRows([]);
+      setMeEmail("");
       setLoading(false);
       setRefreshing(false);
       return;
@@ -86,8 +96,15 @@ export default function MessagesScreen({ navigation }) {
           const admin = await getAdminEmail();
           setAdminEmail(admin);
 
-          const me = normalizeEmail(chatEmail);
-          const all = await listConversationsForCurrentUser();
+          const me = normalizeEmail(chatEmail || meEmail);
+          let all = await listConversationsForCurrentUser();
+          if (all.length === 0 && auth.currentUser?.uid) {
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            if (chatEmail) {
+              await ensureUserDocEmailForFirestoreRules(auth.currentUser, chatEmail);
+            }
+            all = await listConversationsForCurrentUser();
+          }
           const otherEmails = [
             ...new Set(
               all.map((c) => {
@@ -112,7 +129,12 @@ export default function MessagesScreen({ navigation }) {
 
           const enriched = all.map((conv) => {
             const p1 = normalizeEmail(conv.participant_1);
-            const imP1 = me && p1 === me;
+            const p2 = normalizeEmail(conv.participant_2);
+            let imP1 = !!(me && p1 === me);
+            if (!me && user?.uid && Array.isArray(conv.participant_uids) && conv.participant_uids.includes(user.uid)) {
+              if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
+              else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
+            }
             const other = imP1 ? conv.participant_2 : conv.participant_1;
             const unread = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
             return {
@@ -171,9 +193,6 @@ export default function MessagesScreen({ navigation }) {
             e?.code ? `code=${e.code}` : "",
             pid ? `Firestore project=${pid}` : ""
           );
-          if (seq === loadSeqRef.current) {
-            setRows([]);
-          }
           break;
         }
       }
@@ -183,7 +202,7 @@ export default function MessagesScreen({ navigation }) {
         setRefreshing(false);
       }
     }
-  }, [user?.uid]);
+  }, [user?.uid, meEmail, refreshUserData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -282,7 +301,7 @@ export default function MessagesScreen({ navigation }) {
   const renderRow = useCallback(
     ({ item }) => {
       const messageText = String(item.last_message ?? "").trim() || "Мессеж илгээх...";
-      const mine = normalizeEmail(item.last_message_sender) === normalizeEmail(email);
+      const mine = normalizeEmail(item.last_message_sender) === normalizeEmail(meEmail);
       return (
         <View style={[styles.row, styles.rowPointerBoxNone]}>
           <TouchableOpacity
@@ -332,7 +351,7 @@ export default function MessagesScreen({ navigation }) {
         </View>
       );
     },
-    [email, navigation, openDeleteConversationModal]
+    [meEmail, navigation, openDeleteConversationModal]
   );
 
   if (!isAuthenticated) {

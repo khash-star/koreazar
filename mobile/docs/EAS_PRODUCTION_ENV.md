@@ -51,13 +51,24 @@ npx eas env:push production --path .env --force
 
    `app.config.js` reads these paths on the EAS builder. Without them, `eas build --profile production --platform android` succeeds but **phone OTP may not work**.
 
-7. Дахин build:
+7. **Android push (FCM V1 on Expo — not the same as `google-services.json`):** iOS push ажиллаж Android ажиллахгүй бол ихэвчлэн энэ алхам дутуу.
+
+   ```bash
+   cd mobile
+   npx eas credentials
+   ```
+
+   Android → production → **Google Service Account** → **FCM V1** → Firebase Service Account JSON upload.
+
+   Дэлгэрэнгүй: [docs/CHAT_PUSH_SETUP.md](./CHAT_PUSH_SETUP.md)
+
+8. Дахин build:
 
    ```bash
    npx eas build --platform android --profile production
    ```
 
-6. Шинэ AAB-ыг Play Console руу upload хийнэ.
+9. Шинэ AAB-ыг Play Console руу upload хийнэ.
 
 ## Шалгах
 

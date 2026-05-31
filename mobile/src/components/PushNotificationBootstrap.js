@@ -1,8 +1,27 @@
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { useAuth } from "../context/AuthContext.js";
 import { registerPushTokenForUid } from "../services/pushTokenService.js";
 import { setupChatPushNotificationHandlers } from "../utils/chatPushNotifications.js";
+
+const ANDROID_REGISTER_DELAY_MS = 1200;
+const REGISTER_RETRY_DELAYS_MS = Platform.OS === "android" ? [0, 2000, 5000] : [0, 1500];
+
+async function registerPushTokenWithRetry(uid) {
+  let last = { ok: false, reason: "unknown" };
+  for (let i = 0; i < REGISTER_RETRY_DELAYS_MS.length; i += 1) {
+    if (REGISTER_RETRY_DELAYS_MS[i] > 0) {
+      await new Promise((resolve) => setTimeout(resolve, REGISTER_RETRY_DELAYS_MS[i]));
+    }
+    last = await registerPushTokenForUid(uid);
+    if (last.ok) return last;
+    if (last.reason === "permission_denied" || last.reason === "unsupported") return last;
+  }
+  if (!last.ok) {
+    console.warn("Push token register failed:", last.reason || "unknown");
+  }
+  return last;
+}
 
 /**
  * Registers Expo push token by Firebase uid when authenticated.
@@ -28,7 +47,10 @@ export default function PushNotificationBootstrap() {
       if (registerInFlight.current) return;
       registerInFlight.current = true;
       try {
-        await registerPushTokenForUid(uid);
+        if (Platform.OS === "android") {
+          await new Promise((resolve) => setTimeout(resolve, ANDROID_REGISTER_DELAY_MS));
+        }
+        await registerPushTokenWithRetry(uid);
       } catch (e) {
         console.warn("Push token register:", e?.message);
       } finally {

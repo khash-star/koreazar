@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { navigationRef } from "../navigation/AppNavigator.js";
+import { notifyUnreadTabBadge } from "./unreadBadgeEvents.js";
 
 function isExpoGoAndroid() {
   return Platform.OS === "android" && Constants.appOwnership === "expo";
@@ -60,7 +61,7 @@ export async function setupChatPushNotificationHandlers() {
   });
 
   const receivedSub = Notifications.addNotificationReceivedListener(() => {
-    /* tab/icon badges updated by existing polling + notifyUnreadTabBadge */
+    notifyUnreadTabBadge();
   });
 
   const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {

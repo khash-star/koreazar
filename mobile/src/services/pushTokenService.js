@@ -46,8 +46,12 @@ export async function ensureChatPushPermissions() {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("chat", {
       name: "Мессеж",
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 200, 120, 200],
+      lightColor: "#EA580C",
+      sound: "default",
+      enableVibrate: true,
+      showBadge: true,
     });
   }
 

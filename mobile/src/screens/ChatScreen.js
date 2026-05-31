@@ -50,8 +50,9 @@ export default function ChatScreen({ route, navigation }) {
   const normalizedOtherEmail = typeof paramOther === "string" ? paramOther.trim().toLowerCase() : "";
   const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value);
 
-  const { email, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
 
+  const [chatEmail, setChatEmail] = useState("");
   const [convId, setConvId] = useState(paramConvId || null);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -87,6 +88,21 @@ export default function ChatScreen({ route, navigation }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!auth.currentUser?.uid) {
+      setChatEmail("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const em = await resolveChatParticipantEmail();
+      if (!cancelled && em) setChatEmail(em);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.currentUser?.uid]);
+
   const scrollToEnd = () => {
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     scrollTimerRef.current = setTimeout(() => {
@@ -96,13 +112,14 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const resolveConversation = useCallback(async () => {
-    if (!email || !auth.currentUser) return;
+    if (!auth.currentUser) return;
     try {
-      const chatEmail = await resolveChatParticipantEmail();
-      if (!chatEmail) {
+      const me = await resolveChatParticipantEmail();
+      if (!me) {
         showAlert("Чат", "Профайл имэйл тохируулагдаагүй байна. Дахин нэвтэрнэ үү.");
         return;
       }
+      if (mountedRef.current) setChatEmail(me);
       if (paramConvId) {
         setConvId(paramConvId);
         return;
@@ -115,7 +132,7 @@ export default function ChatScreen({ route, navigation }) {
         navigation.goBack();
         return;
       }
-      if (normalizedOtherEmail === normalizeEmail(chatEmail)) {
+      if (normalizedOtherEmail === normalizeEmail(me)) {
         showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
         navigation.goBack();
         return;
@@ -124,7 +141,7 @@ export default function ChatScreen({ route, navigation }) {
       if (
         !(adminForBlock && normalizeEmail(adminForBlock) === normalizeEmail(normalizedOtherEmail))
       ) {
-        const myProfile = await getUserByEmail(normalizeEmail(chatEmail));
+        const myProfile = await getUserByEmail(normalizeEmail(me));
         if (myProfile && isSellerBlockedByViewer(myProfile, normalizedOtherEmail)) {
           showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
             { text: "OK", onPress: () => navigation.goBack() },
@@ -132,15 +149,15 @@ export default function ChatScreen({ route, navigation }) {
           return;
         }
       }
-      let existing = await findConversation(normalizeEmail(chatEmail), normalizedOtherEmail);
+      let existing = await findConversation(normalizeEmail(me), normalizedOtherEmail);
       if (!existing) {
         const iso = new Date().toISOString();
         existing = await createConversation({
-          participant_1: normalizeEmail(chatEmail),
+          participant_1: normalizeEmail(me),
           participant_2: normalizedOtherEmail,
           last_message: "",
           last_message_time: iso,
-          last_message_sender: normalizeEmail(chatEmail),
+          last_message_sender: normalizeEmail(me),
           unread_count_p1: 0,
           unread_count_p2: 0,
         });
@@ -151,10 +168,13 @@ export default function ChatScreen({ route, navigation }) {
       showAlert("Чат", e?.message || "Яриа эхлүүлж чадсангүй. Дахин оролдоно уу.");
       navigation.goBack();
     }
-  }, [email, paramConvId, normalizedOtherEmail, navigation]);
+  }, [paramConvId, normalizedOtherEmail, navigation]);
 
   const fetchMessages = useCallback(async () => {
-    if (!convId || !email) return;
+    if (!convId) return;
+    const me = chatEmail || (await resolveChatParticipantEmail());
+    if (!me) return;
+    if (!chatEmail && me && mountedRef.current) setChatEmail(me);
     try {
       const list = await listMessages(convId, 120);
       if (!mountedRef.current) return;
@@ -163,8 +183,8 @@ export default function ChatScreen({ route, navigation }) {
 
       const conv = await getConversation(convId);
       if (!conv) return;
-      const me = normalizeEmail(email);
-      const unread = list.filter((m) => normalizeEmail(m.receiver_email) === me && !m.is_read);
+      const meNorm = normalizeEmail(me);
+      const unread = list.filter((m) => normalizeEmail(m.receiver_email) === meNorm && !m.is_read);
       if (unread.length === 0) return;
       for (const m of unread) {
         try {
@@ -173,7 +193,7 @@ export default function ChatScreen({ route, navigation }) {
           /* ignore */
         }
       }
-      const isP1 = normalizeEmail(conv.participant_1) === normalizeEmail(email);
+      const isP1 = normalizeEmail(conv.participant_1) === meNorm;
       try {
         await updateConversation(convId, {
           [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,
@@ -185,21 +205,25 @@ export default function ChatScreen({ route, navigation }) {
     } catch (e) {
       console.warn("listMessages:", e?.message);
     }
-  }, [convId, email]);
+  }, [convId, chatEmail]);
 
   const loadMeta = useCallback(async () => {
-    if (!convId || !email) return;
+    if (!convId) return;
+    const me = chatEmail || (await resolveChatParticipantEmail());
+    if (!me) return;
+    if (!chatEmail && me && mountedRef.current) setChatEmail(me);
     try {
       if (auth.currentUser) {
-        await ensureUserDocEmailForFirestoreRules(auth.currentUser, email);
+        await ensureUserDocEmailForFirestoreRules(auth.currentUser, me);
       }
       const conv = await getConversation(convId);
       if (!mountedRef.current) return;
       setConversation(conv);
       if (!conv) return;
 
+      const meNorm = normalizeEmail(me);
       const other =
-        normalizeEmail(conv.participant_1) === normalizeEmail(email)
+        normalizeEmail(conv.participant_1) === meNorm
           ? conv.participant_2
           : conv.participant_1;
       const admin = await getAdminEmail();
@@ -213,7 +237,7 @@ export default function ChatScreen({ route, navigation }) {
       setOtherUser({ email: other, displayName });
 
       if (!(admin && normalizeEmail(admin) === normalizeEmail(other))) {
-        const myProfile = await getUserByEmail(normalizeEmail(email));
+        const myProfile = await getUserByEmail(meNorm);
         if (myProfile && isSellerBlockedByViewer(myProfile, other)) {
           if (!mountedRef.current) return;
           showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
@@ -235,7 +259,7 @@ export default function ChatScreen({ route, navigation }) {
     } catch (e) {
       console.warn("loadMeta:", e?.message);
     }
-  }, [convId, email, listingId, navigation]);
+  }, [convId, chatEmail, listingId, navigation]);
 
   useEffect(() => {
     setLoading(true);
@@ -367,11 +391,11 @@ export default function ChatScreen({ route, navigation }) {
 
   useEffect(() => {
     if (loading || convId || paramConvId || normalizedOtherEmail) return;
-    if (!email) return;
+    if (!auth.currentUser) return;
     navigation.replace("MsgMain");
-  }, [loading, convId, paramConvId, normalizedOtherEmail, email, navigation]);
+  }, [loading, convId, paramConvId, normalizedOtherEmail, navigation]);
 
-  if (!email) {
+  if (!auth.currentUser) {
     return (
       <View style={styles.center}>
         <Text style={styles.muted}>Нэвтэрнэ үү.</Text>
@@ -432,7 +456,8 @@ export default function ChatScreen({ route, navigation }) {
         keyboardShouldPersistTaps="always"
       >
         {messages.map((m) => {
-          const mine = normalizeEmail(m.sender_email) === normalizeEmail(email);
+          const meNorm = normalizeEmail(chatEmail);
+          const mine = meNorm && normalizeEmail(m.sender_email) === meNorm;
           const delBtn = isAdmin ? (
             <Pressable
               style={styles.adminDeleteBtn}

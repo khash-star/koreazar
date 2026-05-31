@@ -19,7 +19,7 @@ import {
 import { auth, db } from "../config/firebase";
 import { ensureUserDocEmailForFirestoreRules, getAllUsers, getResolvedAuthEmail } from "./authService";
 import { getUserByEmail } from "./userProfileService";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
 import { checkBannedContent } from "../utils/bannedContent.js";
 
 export function isFirestorePermissionDenied(err) {
@@ -30,8 +30,22 @@ export function isFirestorePermissionDenied(err) {
   return msg.includes("missing or insufficient permissions") || msg.includes("permission-denied");
 }
 
+/** UID query алдаа гарвал имэйл query руу шилжих (index, permission). */
+function isRecoverableConversationListError(err) {
+  if (isFirestorePermissionDenied(err)) return true;
+  const code = String(err?.code || "");
+  return code === "failed-precondition" || code === "firestore/failed-precondition";
+}
+
 /** Firestore rules authEmailLower()-тай ижил имэйл — чат query-ийн өмнө заавал. */
 export async function resolveChatParticipantEmail() {
+  if (typeof auth.authStateReady === "function") {
+    try {
+      await auth.authStateReady();
+    } catch {
+      /* ignore */
+    }
+  }
   const u = auth.currentUser;
   if (!u?.uid) return "";
   try {
@@ -110,9 +124,13 @@ export async function listConversationsForCurrentUser() {
   const u = auth.currentUser;
   if (!u?.uid) return [];
 
-  await resolveChatParticipantEmail();
+  const chatEmail = await resolveChatParticipantEmail();
+  if (chatEmail) {
+    await ensureUserDocEmailForFirestoreRules(u, chatEmail);
+  } else {
+    await ensureUserDocEmailForFirestoreRules(u);
+  }
 
-  const convsRef = collection(db, "conversations");
   const rows = [];
   const seen = new Set();
 
@@ -124,18 +142,9 @@ export async function listConversationsForCurrentUser() {
     }
   };
 
-  try {
-    const qUid = query(
-      convsRef,
-      where("participant_uids", "array-contains", u.uid),
-      orderBy("last_message_date", "desc")
-    );
-    pushRows((await getDocs(qUid)).docs.map(mapConversationDoc));
-  } catch (e) {
-    if (!isFirestorePermissionDenied(e)) throw e;
-  }
+  pushRows(await queryConversationsByUid(u.uid));
 
-  const email = await getResolvedAuthEmail(u);
+  const email = chatEmail || (await getResolvedAuthEmail(u));
   if (email) {
     for (const em of emailQueryVariants(email)) {
       try {
@@ -149,6 +158,8 @@ export async function listConversationsForCurrentUser() {
       }
     }
   }
+
+  await ensureCurrentUidOnConversations(rows);
 
   rows.sort((a, b) => {
     const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
@@ -346,7 +357,75 @@ export async function syncConversationLastMessageFromMessages(conversationId) {
 
 export function emailQueryVariants(email) {
   const em = normalizeEmail(email);
-  return em ? [em] : [];
+  if (!em) return [];
+  const out = new Set([em]);
+  const m = em.match(/^phone_(\d+)@phone\.zarkorea\.com$/);
+  if (m) {
+    const digits = m[1];
+    if (digits.startsWith("82") && digits.length > 10) {
+      out.add(`phone_${digits.slice(2)}@phone.zarkorea.com`);
+      out.add(normalizeEmail(phoneToAuthEmail(`+${digits}`)));
+    } else if (!digits.startsWith("82") && digits.length >= 9) {
+      out.add(`phone_82${digits}@phone.zarkorea.com`);
+      out.add(normalizeEmail(phoneToAuthEmail(`+82${digits}`)));
+    }
+  }
+  return [...out];
+}
+
+async function ensureCurrentUidOnConversations(conversations) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  const tasks = [];
+  for (const c of conversations) {
+    if (!c?.id) continue;
+    const uids = Array.isArray(c.participant_uids) ? c.participant_uids : [];
+    if (uids.includes(uid)) continue;
+    tasks.push(
+      updateDoc(doc(db, "conversations", c.id), {
+        participant_uids: [...new Set([...uids, uid])],
+      }).catch(() => {})
+    );
+  }
+  if (tasks.length) await Promise.all(tasks);
+}
+
+async function queryConversationsByUid(uid) {
+  const convsRef = collection(db, "conversations");
+  const rows = [];
+
+  try {
+    const qSimple = query(convsRef, where("participant_uids", "array-contains", uid));
+    pushRowsFromSnap((await getDocs(qSimple)).docs, rows);
+  } catch (e) {
+    if (!isRecoverableConversationListError(e)) throw e;
+    console.warn("listConversations uid query (simple):", e?.code || e?.message || e);
+  }
+
+  if (rows.length === 0) {
+    try {
+      const qOrdered = query(
+        convsRef,
+        where("participant_uids", "array-contains", uid),
+        orderBy("last_message_date", "desc")
+      );
+      pushRowsFromSnap((await getDocs(qOrdered)).docs, rows);
+    } catch (e) {
+      if (!isRecoverableConversationListError(e)) throw e;
+      console.warn("listConversations uid query (ordered):", e?.code || e?.message || e);
+    }
+  }
+
+  return rows;
+}
+
+function pushRowsFromSnap(docs, rows) {
+  const seen = new Set(rows.map((r) => r.id));
+  for (const d of docs) {
+    if (seen.has(d.id)) continue;
+    seen.add(d.id);
+    rows.push(mapConversationDoc(d));
+  }
 }
 
 /** Хэрэглэгчийн уншаагүй мессежийн нийт тоо */

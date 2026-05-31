@@ -75,14 +75,20 @@ export async function resolveChatParticipantEmail() {
   if (!u) return '';
   const fromAuth = normalizeEmail(u.email);
   if (fromAuth) return fromAuth;
+  let phone = u.phoneNumber || '';
   try {
     const snap = await getDoc(doc(db, 'users', u.uid));
     if (snap.exists()) {
-      const em = normalizeEmail(snap.data()?.email);
+      const d = snap.data();
+      const em = normalizeEmail(d?.email);
       if (em) return em;
+      phone = phone || d?.phone || d?.phoneNumber || '';
     }
   } catch (e) {
     console.warn('resolveChatParticipantEmail:', e?.message);
+  }
+  if (phone) {
+    return normalizeEmail(phoneToAuthEmail(phone)) || '';
   }
   return '';
 }

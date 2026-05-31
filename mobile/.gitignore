@@ -42,6 +42,7 @@ GoogleService-Info.plist
 credentials.json
 play-service-account.json
 *-service-account*.json
+*firebase-adminsdk*.json
 keystores/
 
 # typescript
