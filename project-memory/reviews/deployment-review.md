@@ -27,7 +27,7 @@ Pre-deploy and post-deploy verification. **Requires explicit user approval** bef
 
 ### PWA: manifest.json
 
-- [ ] `dist/manifest.json` present if PWA enabled  
+- [ ] `dist/manifest.json` present if PWA enabled
 - [ ] `name`, `short_name`, `theme_color`, `start_url` correct  
 - [ ] Icons 192/512 reachable on production domain  
 - [ ] `vite-plugin-pwa` config matches `docs/PWA_IMPLEMENTATION_PLAN.md` if applicable  

@@ -37,7 +37,7 @@ See `../reviews/firebase-review.md`, `docs/FIRESTORE_INDEXES.md`.
 - [ ] `VITE_FIREBASE_*` set for Production (and Preview if used)  
 - [ ] Custom domain `zarkorea.com` resolves  
 - [ ] Latest commit deployed  
-- [ ] PWA: `manifest.json` + SW if feature enabled (`docs/PWA_IMPLEMENTATION_PLAN.md`)  
+- [ ] PWA: `manifest.json` + SW if feature enabled (`docs/PWA_IMPLEMENTATION_PLAN.md`)
 - [ ] TWA: `public/.well-known/assetlinks.json` real SHA-256 if Android shell updated  
 
 See `../reviews/deployment-review.md`, `../runbooks/production-verification.md`.
@@ -49,7 +49,7 @@ See `../reviews/deployment-review.md`, `../runbooks/production-verification.md`.
 - [ ] `npm run sync-listings` from repo root if web `listings.js` changed  
 - [ ] `mobile/docs/EAS_PRODUCTION_ENV.md` — production Firebase env in EAS  
 - [ ] `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md` signed off  
-- [ ] Claim only implemented push flows: chat push exists; listing/status push is not implemented (`mobile/README.md`, `mobile/docs/CHAT_PUSH_SETUP.md`)  
+- [ ] Claim only implemented push flows: chat push exists; listing/status push is not implemented (`mobile/README.md`, `mobile/docs/CHAT_PUSH_SETUP.md`)
 - [ ] TWA vs RN path clear: `docs/PLAY_STORE_SETUP.md` vs `mobile/docs/PLAY_STORE_RN_REPLACE_TWA.md`  
 
 ---

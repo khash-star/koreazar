@@ -1,6 +1,6 @@
 # Architecture Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > **Source wins:** verify behavior in `src/`, `mobile/`, `api/`, and `functions/` before editing docs or code.
 
 ## Stack

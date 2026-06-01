@@ -18,9 +18,9 @@ Checklist after code changes. Use with `self-review-workflow.md`.
 
 ## Firestore queries & indexes
 
-- [ ] Home: PHP API listings load and Firestore banners load  
-- [ ] My listings: PHP API filters by `firebase_uid` / `customer_id` / `created_by` as applicable  
-- [ ] Chat/saved-listing Firestore queries succeed  
+- [ ] Home: PHP API listings load and Firestore banners load
+- [ ] My listings: PHP API filters by `firebase_uid` / `customer_id` / `created_by` as applicable
+- [ ] Chat/saved-listing Firestore queries succeed
 - [ ] No `failed-precondition` / index errors in console  
 - [ ] `firestore.indexes.json` updated if query shape changed  
 - [ ] Banner ads query (`banner_ads`, `is_active`) works  
@@ -80,7 +80,7 @@ _Note: mobile chat push is implemented through Expo push tokens and `functions/i
 
 ## PWA / TWA behavior
 
-- [ ] `manifest.json` served on production (if PWA enabled)  
+- [ ] `manifest.json` served on production (if PWA enabled)
 - [ ] Service worker registers; offline fallback acceptable for scope  
 - [ ] `start_url` `/` loads app shell  
 - [ ] `public/.well-known/assetlinks.json` valid for TWA (real SHA-256)  

@@ -1,7 +1,7 @@
 # Koreazar — AI Project Memory
 
-> **Source:** Canonical project-authored docs in `docs/` and task summaries in `summaries/`.  
-> **Updated:** 2026-06-01 · See `summaries/` and `reports/` for broader inventory.  
+> **Source:** Canonical project-authored docs in `docs/` and task summaries in `summaries/`.
+> **Updated:** 2026-06-01 · See `summaries/` and `reports/` for broader inventory.
 > **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.  
 > **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.  
 > **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.  
