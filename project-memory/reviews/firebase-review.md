@@ -20,7 +20,7 @@ Use when changes touch **Auth, Firestore, Storage, FCM**, or security rules/inde
 - [ ] Writes go through existing services where possible  
 - [ ] No client write to admin-only collections without rules + UI guard  
 - [ ] Conversations/messages: participant rules respected  
-- [ ] Listings: create/update/delete match ownership rules  
+- [ ] Listings: Firestore references (saved listings, reports, chat links) still point to valid MySQL listing IDs  
 
 ### Indexes
 
@@ -59,7 +59,7 @@ Use when changes touch **Auth, Firestore, Storage, FCM**, or security rules/inde
 
 - [ ] Token handling not logging PII unnecessarily  
 - [ ] Push only changed when explicitly in scope  
-- [ ] No store metadata claiming push if not implemented  
+- [ ] Store metadata claims only implemented push flows (chat push exists; listing/status push does not)  
 
 ---
 
@@ -75,6 +75,6 @@ Use when changes touch **Auth, Firestore, Storage, FCM**, or security rules/inde
 ## Verification
 
 - [ ] Firebase Console → Authentication: test user flow  
-- [ ] Firestore → Data: sample listing CRUD  
+- [ ] Firestore → Data: banner/chat/saved-listing happy paths  
 - [ ] Storage: upload test image  
 - [ ] Browser console: no permission-denied on happy path  

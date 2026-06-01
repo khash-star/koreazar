@@ -1,7 +1,7 @@
 # Koreazar — AI Project Memory
 
-> **Source:** Canonical project-authored docs in `docs/` only (4 files).  
-> **Updated:** 2026-05-28 · See `summaries/` and `reports/` for broader inventory.  
+> **Source:** Canonical project-authored docs in `docs/` and task summaries in `summaries/`.  
+> **Updated:** 2026-06-01 · See `summaries/` and `reports/` for broader inventory.  
 > **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.  
 > **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.  
 > **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.  
@@ -15,7 +15,7 @@
 
 - **Product:** Koreazar (Zarkorea) — Mongolian-language classified ads for users in South Korea.
 - **Web app:** Vite 6 + React 18 SPA (`react-router`), built to `dist/`, hosted on **Vercel** at **https://zarkorea.com**.
-- **Data:** Firebase **Firestore** (listings, banners) and **Firebase Storage** (images).
+- **Data:** Hybrid model — listings through PHP/MySQL API; Firebase **Firestore** for users, banners, chat, saved-listing pointers, feedback/reports, and push-token state; **Firebase Storage** for images.
 - **Android distribution (documented path):** Wrap the deployed PWA as a **TWA** via Bubblewrap for Google Play (`com.zarkorea.twa`).
 - **Privacy:** Play Store flow expects https://zarkorea.com/Privacy.
 
@@ -35,16 +35,18 @@
 ### Home page data path (performance-critical)
 
 1. Load `index.html` → JS bundle → mount `Home`.
-2. `useQuery` fetches **banner ads** + **listings** via Firestore `getDocs()` (~0.5–2s typical).
-3. Only after Firestore returns are image URLs known; browser then fetches from Firebase Storage.
+2. Listing cards load through the PHP MySQL API (`api/index.php?action=listings`).
+3. Banner ads still load from Firestore (`banner_ads`).
+4. Only after listing/banner records return are image URLs known; browser then fetches from Firebase Storage.
 
-**Bottleneck:** Image loading cannot start until the Firestore round-trip completes.
+**Bottleneck:** Image loading cannot start until the API/Firestore metadata round-trips complete.
 
-### PWA (planned / incremental)
+### PWA (implemented)
 
-- Add **vite-plugin-pwa**: manifest + Workbox service worker, `registerType: 'autoUpdate'`.
-- Precache static assets; `navigateFallback: '/index.html'` for SPA routes.
-- Manifest branding: name `Koreazar`, theme `#ea580c`, `start_url: '/'`.
+- **vite-plugin-pwa** is configured in `vite.config.js` after `nonBlockingCss()`.
+- Manifest is generated as **`manifest.json`** (not `manifest.webmanifest`).
+- Workbox uses `registerType: 'autoUpdate'`, SPA `navigateFallback: '/index.html'`, and runtime image caches for Firebase Storage URLs.
+- `npm run build` runs `generate-pwa-icons` before `vite build`.
 - PWA is a **prerequisite** for Play Store TWA packaging.
 
 ### Firestore query indexes
@@ -53,9 +55,12 @@ Defined in **`firestore.indexes.json`** (see `docs/FIRESTORE_INDEXES.md`):
 
 | Use case | Fields |
 |----------|--------|
-| Active listings (home) | `status` ASC, `created_date` DESC |
-| My listings | `created_by` ASC, `created_date` DESC |
-| Category filter | `status` ASC, `category` ASC, `created_date` DESC |
+| Banners | `is_active` ASC, `order` ASC |
+| Chat inbox | `participant_1` / `participant_2` ASC, `last_message_date` DESC |
+| Phone OTP chat visibility | `participant_uids` ARRAY_CONTAINS, `last_message_date` DESC |
+| Saved listing history | `created_by` ASC, `created_date` DESC |
+
+Listing indexes may remain in `firestore.indexes.json` for legacy/migration data, but primary listing reads/writes now use the PHP MySQL API.
 
 ---
 
@@ -64,13 +69,13 @@ Defined in **`firestore.indexes.json`** (see `docs/FIRESTORE_INDEXES.md`):
 ### Web (Vercel)
 
 - Build output: `dist/` (`index.html` + hashed assets).
-- After PWA plugin: expect `manifest.webmanifest` and `sw.js` in `dist/`.
+- PWA build outputs include `manifest.json`, `sw.js`, and Workbox files in `dist/`.
 - Deploy Firestore indexes: `firebase deploy --only firestore:indexes` (or create via Console link on index errors).
 
 ### Android Play Store (TWA)
 
 1. PWA live on Vercel with valid **manifest** + **service worker**.
-2. `npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.webmanifest`
+2. `npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.json`
 3. App ID: `com.zarkorea.twa`; start URL `/`; theme `#ea580c`.
 4. Update **`public/.well-known/assetlinks.json`** with real **SHA-256** signing fingerprint from Bubblewrap init.
 5. Redeploy web so `assetlinks.json` is served; verify Digital Asset Links.
@@ -83,7 +88,7 @@ Defined in **`firestore.indexes.json`** (see `docs/FIRESTORE_INDEXES.md`):
 
 ## Admin system notes
 
-The four canonical `docs/` files **do not** define admin RBAC. For AI tasks involving admin:
+The canonical `docs/` files **do not** define admin RBAC. For AI tasks involving admin:
 
 - Treat admin as **out of scope** in this memory file until `ADMIN_SETUP_GUIDE.md` (repo root) is ingested separately.
 - Product areas that typically need admin (banners, listing moderation, broadcast messages) are not specified in the `docs/` quartet.
@@ -94,10 +99,11 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 
 | Decision | Rationale |
 |----------|-----------|
+| **Hybrid data architecture** | `docs/DATA_ARCHITECTURE.md` documents which domains use PHP/MySQL vs Firestore. |
 | **Indexes as code** | `firestore.indexes.json` + CLI deploy; `docs/FIRESTORE_INDEXES.md` is canonical over root `FIRESTORE_INDEXES.md`. |
-| **Firestore-before-images** | Listing/banner documents carry image URLs; no image fetch until Firestore responds. |
+| **Metadata-before-images** | Listing/banner records carry image URLs; no image fetch until API/Firestore metadata responds. |
 | **Mitigations for LCP** | `preconnect` to `firestore.googleapis.com`; React Query `staleTime` 2–5 min; `loading="eager"` on first two cards. |
-| **PWA via vite-plugin-pwa** | Incremental, non-breaking steps; plugin order after `nonBlockingCss` in `vite.config.js`. |
+| **PWA via vite-plugin-pwa** | Implemented with `manifest.json`; plugin order after `nonBlockingCss` in `vite.config.js`. |
 | **TWA over native wrapper (Android doc path)** | Reuses web app; requires correct `assetlinks.json` + manifest URL. |
 | **SPA + Workbox fallback** | All navigations serve `index.html` except SW/workbox assets. |
 
@@ -107,10 +113,11 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| **Missing Firestore composite indexes** | Home/category/my-listings queries fail at runtime | Deploy `firestore.indexes.json`; use Console link from error |
+| **Missing Firestore composite indexes** | Banner/chat/saved-listing queries fail at runtime | Deploy `firestore.indexes.json`; use Console link from error |
+| **PHP API unavailable or stale** | Listing reads/writes fail on web and mobile | Verify `VITE_API_BASE_URL` / `EXPO_PUBLIC_API_BASE_URL` and the deployed `api/index.php` |
 | **Wrong or placeholder `assetlinks.json` fingerprint** | TWA / Play integrity fails | Replace `00:00:00:...` with Bubblewrap SHA-256; redeploy |
 | **PWA not deployed before TWA** | Bubblewrap init or store review fails | Ship manifest + SW on production domain first |
-| **Manifest URL mismatch** | Init uses wrong origin | Use `https://zarkorea.com/manifest.webmanifest` |
+| **Manifest URL mismatch** | Init uses wrong origin | Use `https://zarkorea.com/manifest.json` |
 | **Stale documentation elsewhere in repo** | Wrong paths (`zar-746103b7/`), domains (`zarmongolia.com`), or Firebase project IDs | Prefer this file + `docs/*`; verify against live Vercel/Firebase console |
 | **Doc vs code drift on PWA** | `PWA_IMPLEMENTATION_PLAN.md` may lag actual `vite.config.js` | Confirm `vite-plugin-pwa` in repo before Play/TWA steps |
 
@@ -141,4 +148,4 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 | `reports/MEMORY_ANALYSIS_REPORT.md` | Full 66-file markdown audit |
 
 **Canonical doc sources for this file:**  
-`docs/FIRESTORE_INDEXES.md` · `docs/IMAGE_LOAD_ANALYSIS.md` · `docs/PWA_IMPLEMENTATION_PLAN.md` · `docs/PLAY_STORE_SETUP.md`
+`docs/DATA_ARCHITECTURE.md` · `docs/FIRESTORE_INDEXES.md` · `docs/IMAGE_LOAD_ANALYSIS.md` · `docs/PWA_IMPLEMENTATION_PLAN.md` · `docs/PLAY_STORE_SETUP.md`

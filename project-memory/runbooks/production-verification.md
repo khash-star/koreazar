@@ -13,13 +13,13 @@ Run after web deploy or when validating production behavior. **Confirm URLs and 
 ## Firebase
 
 - [ ] Project ID matches production (`koreazar-32e7a` — verify in console)  
-- [ ] Firestore indexes **Enabled** for listing queries  
+- [ ] Firestore indexes **Enabled** for banner/chat/saved-listing queries  
 - [ ] Storage rules published if image upload tested  
 - [ ] No widespread `permission-denied` in console  
 
 ## PWA / TWA (if applicable)
 
-- [ ] `manifest.webmanifest` served  
+- [ ] `manifest.json` served  
 - [ ] Service worker registered  
 - [ ] `public/.well-known/assetlinks.json` has real SHA-256 (not placeholder)  
 

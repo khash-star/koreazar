@@ -1,6 +1,9 @@
-# Phone OTP native spike — Expo SDK 55 setup
+# Phone OTP native setup — Expo SDK 55
 
-Spike only: validates `@react-native-firebase/auth` vs existing Firebase **JS** SDK auth. Not production OTP UI.
+Production login uses native SMS verification from `@react-native-firebase/auth`
+and signs into the existing Firebase **JS** SDK session with a
+`PhoneAuthProvider` credential. The dev spike screen remains available for
+diagnostics only.
 
 ## Prerequisites
 
@@ -76,6 +79,20 @@ npx expo run:android
 npx expo run:ios
 ```
 
+## Production login flow
+
+1. Open app → **Нэвтрэх** → **Утас** tab.
+2. Enter an E.164 phone number, for example `+821012345678`.
+3. Confirm the 6-digit OTP.
+4. `mobile/src/services/authService.js` signs into JS Auth, writes/merges
+   `users/{uid}` with phone identity data, and syncs the user to MySQL through
+   `?action=user_sync`.
+5. The session persists across app restarts until logout.
+
+Phone users use the shared synthetic email format
+`phone_<digits>@phone.zarkorea.com` when Firebase token email is empty. Keep this
+in sync with web/mobile `emailNormalize` helpers and the PHP API.
+
 ## Spike screen
 
 1. Set `EXPO_PUBLIC_PHONE_AUTH_SPIKE=true` in `mobile/.env` (optional; also enabled in `__DEV__`).
@@ -83,9 +100,7 @@ npx expo run:ios
 3. Use a **Firebase test phone** + OTP from Console, or a real number.
 4. Read **Auth sync** panel: compares `@react-native-firebase/auth` vs `firebase/auth` (JS SDK) `currentUser`.
 
-Record results in your spike notes before building full Login UI.
-
-**Production login:** `LoginScreen` → **Утас** tab uses the same native SMS + JS Auth bridge (session persists across app restarts until logout).
+Record results in your spike notes when debugging native/JS Auth sync.
 
 ## Env (optional spike defaults)
 

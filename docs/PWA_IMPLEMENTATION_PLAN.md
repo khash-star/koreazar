@@ -1,86 +1,84 @@
-# PWA нэмэх төлөвлөгөө
+# PWA implementation status
 
-Одоогийн бүтэц, үйлдлүүдийг эвдэхгүйгээр PWA нэмэх алхмууд. Нэг бүрчлэн шалгаад хэрэгжүүлнэ.
+PWA support is implemented. This file now records the current configuration and
+keeps the original rollout checklist as maintenance guidance.
 
 ---
 
-## Өмнөх нөхцөл
+## Current state
 
-- **Одоогийн бүтэц:** Vite 6 + React 18, SPA (react-router), Vercel deploy
-- **Routing:** `/` = Home, `/Login`, `/ListingDetail?id=...` гэх мэт
-- **Build output:** `dist/` — index.html, assets/
-- **Төлөв:** manifest, service worker байхгүй
+- **App:** Vite 6 + React 18 SPA on Vercel.
+- **Routing:** `/`, `/Login`, `/ListingDetail?id=...`, and other SPA routes fall back to `index.html`.
+- **Build output:** `dist/` — `index.html`, hashed assets, `manifest.json`, `sw.js`, and Workbox files.
+- **Plugin:** `vite-plugin-pwa` in `vite.config.js`, after `nonBlockingCss()`.
+- **Manifest URL:** `https://zarkorea.com/manifest.json`.
+- **Service worker:** Workbox, `registerType: 'autoUpdate'`.
+- **Runtime caching:** Firebase Storage image URLs use `CacheFirst` caches.
+- **Icons:** `npm run build` runs `npm run generate-pwa-icons` before `vite build`; the script generates `public/icon-180.png`, `public/icon-192.png`, and `public/icon-512.png` from `scripts/generate-pwa-icons.mjs`.
 
 ---
 
 ## Алхам 1: PWA icon
 
-**Одоо:** `public/favicon.svg`-ийг manifest-д ашиглана (SVG дэмжигддэг).
+**Одоо:** build script generates PNG icons used by the manifest and iOS metadata.
 
-**Хувилбар:** Дараа нь 192×192, 512×512 PNG нэмж, илүү сайн browser дэмжлэг авах боломжтой.
+If `public/icon-180.png` is missing, `scripts/generate-pwa-icons.mjs` creates an amber placeholder and derives 192/512 assets. Replace the source icon with branded artwork when available.
 
 ---
 
-## Алхам 2: vite-plugin-pwa суулгах
+## Алхам 2: vite-plugin-pwa
 
-**Зорилго:** Manifest болон Service Worker автоматаар үүсгэх.
+**Төлөв:** installed in `devDependencies`.
 
 **Үйлдэл:**
 ```bash
 npm i vite-plugin-pwa -D
 ```
 
-**Эвдрэл:** Шинэ dependency л нэмэгдэнэ, одоогийн кодыг өөрчлөхгүй.
-
 **Шалгах:** `package.json`-д `vite-plugin-pwa` байгаа эсэх.
 
 ---
 
-## Алхам 3: vite.config.js-д PWA plugin нэмэх
+## Алхам 3: vite.config.js PWA plugin
 
-**Зорилго:** Plugin-ийг идэвхжүүлж, manifest тохиргоо өгөх.
+**Төлөв:** configured in `vite.config.js`.
 
 **Өөрчлөлт:**
 - `vite.config.js`-д `VitePWA` import
 - `plugins` массивт `VitePWA({ ... })` нэмэх
 - `nonBlockingCss`-ийн **дараа** байрлуулах (plugin дараалал чухал)
 
-**Тохиргоо (хөндлөнгийн оролцоо бага):**
+**Одоогийн тохиргооны гол хэсгүүд:**
 ```js
 VitePWA({
-  registerType: 'autoUpdate',      // Шинэ SW хөрвүүлэгдэхэд автоматаар шинэчлэнэ
-  includeAssets: ['favicon.svg'],  // precache-д оруулах
-  manifest: {
-    name: 'Koreazar - Зарын сайт',
-    short_name: 'Koreazar',
-    description: 'Солонгост буй Монголчуудын зарын сайт',
-    theme_color: '#ea580c',        // Tailwind amber-600
-    background_color: '#ffffff',
-    display: 'standalone',
-    start_url: '/',
-    icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+  registerType: 'autoUpdate',
+  manifestFilename: 'manifest.json',
+  includeAssets: ['favicon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png'],
+  workbox: {
+    navigateFallback: '/index.html',
+    runtimeCaching: [
+      // Firebase Storage image caches
     ],
   },
-  workbox: {
-    globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-    navigateFallback: '/index.html',
-    navigateFallbackDenylist: [/^\/sw\.js$/, /^\/workbox-.*\.js$/],
+  manifest: {
+    name: 'Zarkorea - Солонгос дахь Монголчуудын зарын сайт',
+    short_name: 'Zarkorea',
+    theme_color: '#ea580c',
+    start_url: '/',
   },
 })
 ```
 
-**Шалгах:** `npm run build` ажиллаж, `dist/` дотор `manifest.webmanifest` болон `sw.js` үүссэн эсэх.
+**Шалгах:** `npm run build` ажиллаж, `dist/` дотор `manifest.json` болон `sw.js` үүссэн эсэх.
 
 ---
 
-## Алхам 4: index.html-д manifest холбох (шаардлагагүй бол зайл)
+## Алхам 4: index.html manifest link
 
 **Тайлбар:** vite-plugin-pwa ихэвчлэн manifest-ийг автоматаар `<head>`-д нэмдэг. Build хийгээд index.html-ийг шалгаад, manifest link байгаа бол энэ алхамыг алгасна.
 
 **Хэрэв байхгүй бол:**
-- `<head>`-д `<link rel="manifest" href="/manifest.webmanifest">` нэмнэ.
+- `<head>`-д `<link rel="manifest" href="/manifest.json">` нэмнэ.
 
 ---
 
@@ -107,7 +105,7 @@ Worker-д `worker-src 'self'` нэмбэл найдвартай.
 2. `npm run preview` — local preview ажиллана
 3. Browser дээр `/` → Home
 4. `/Login`, `/Home`, `/ListingDetail?id=xxx` — routing хэвийн
-5. Banner, listing картууд, Firestore — өгөгдөл хэвийн ирнэ
+5. Banner, listing картууд — PHP API + Firestore өгөгдөл хэвийн ирнэ
 6. DevTools → Application → Manifest — manifest зөв ачаалагдана
 7. DevTools → Application → Service Workers — SW бүртгэгдсэн
 
@@ -128,9 +126,8 @@ Worker-д `worker-src 'self'` нэмбэл найдвартай.
 
 ## Хийхгүй зүйлс (одоогоор)
 
-- Capacitor / TWA (Play Store) — PWA бэлэн болсны дараа тусад нь төлөвлөнө
-- Push notification — дараагийн үе шатанд
-- Offline-д Firestore cache — одоо зөвхөн precache (HTML/JS/CSS), API-г онлайнаар л ашиглана
+- Web push notification — mobile chat push is documented separately in `mobile/docs/CHAT_PUSH_SETUP.md`.
+- Offline Firestore/MySQL data cache — app shell/assets and image runtime caches exist, but API data remains online-first.
 
 ---
 
@@ -138,7 +135,7 @@ Worker-д `worker-src 'self'` нэмбэл найдвартай.
 
 1. `vite.config.js`-аас `VitePWA(...)` устгах
 2. `package.json`-аас `vite-plugin-pwa` устгах
-3. `public/icon-192.png`, `public/icon-512.png` устгах (нэмсэн бол)
+3. Generated icon files устгах (шаардлагатай бол)
 4. `vercel.json` CSP-ийн өөрчлөлтийг буцаах
 5. `npm run build` дахин ажиллуулна
 
@@ -146,13 +143,13 @@ Worker-д `worker-src 'self'` нэмбэл найдвартай.
 
 ## Дүгнэлт
 
-| Алхам | Өөрчлөлт                         | Эрсдэл |
-|-------|-----------------------------------|--------|
-| 1     | Icon файлууд нэмэх                | Бага   |
-| 2     | npm install vite-plugin-pwa       | Бага   |
-| 3     | vite.config.js — plugin тохиргоо  | Дунд   |
-| 4     | manifest link (хэрэв шаардлагатай)| Бага   |
-| 5     | vercel.json CSP                   | Бага   |
-| 6–7   | Шалгалт                           | —      |
+| Хэсэг | Төлөв | Эрсдэл |
+|-------|-------|--------|
+| Icons | Build script generates PNG assets | Бага |
+| Plugin | `vite-plugin-pwa` configured | Дунд |
+| Manifest | `manifest.json` | Бага |
+| Service worker | Workbox auto-update | Дунд |
+| CSP | Verify on production if SW registration fails | Бага |
 
-Бүх алхамыг дарааллаар хийж, алхам бүрийн дараа build + шалгалт хийнэ.
+PWA-related changes should still be followed by `npm run build` and the
+checks in `project-memory/qa/pwa-twa-tests.md`.

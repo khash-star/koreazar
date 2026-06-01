@@ -1,6 +1,8 @@
 # Push Notification Tests
 
-**Default:** Push is **not** implemented for store claims (`mobile/README.md`). Run this playbook **only** when FCM/Expo push is in scope.
+**Default:** Chat push is implemented for mobile through Expo push tokens and
+`functions/index.js`; listing/status push is not implemented. Run this playbook
+when FCM/Expo push is in scope or when store claims mention notifications.
 
 ---
 
@@ -60,7 +62,7 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Store rejection for undeclared push | Do not claim push in listing if not implemented |
+| Store rejection for undeclared push | Claim only implemented push flows; chat push exists, listing/status push does not |
 | Token PII in logs | Redact in test reports |
 | Web push vs native mismatch | Test only platforms in scope |
 
@@ -68,4 +70,5 @@
 
 ## Not in scope (document N/A)
 
-If push not implemented: mark all rows **N/A** in `../templates/test-report.md`.
+If the changed release does not touch push and does not claim push behavior,
+mark this playbook **N/A** in `../templates/test-report.md`.

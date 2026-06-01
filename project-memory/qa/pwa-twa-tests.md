@@ -4,11 +4,11 @@
 
 ---
 
-## PWA — manifest.webmanifest
+## PWA — manifest.json
 
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
-| `GET /manifest.webmanifest` returns 200 | ☐ | ☐ | |
+| `GET /manifest.json` returns 200 | ☐ | ☐ | |
 | `name`, `short_name`, `start_url` `/` | ☐ | ☐ | |
 | `theme_color` / icons present | ☐ | ☐ | |
 | Linked from built `index.html` | ☐ | ☐ | |

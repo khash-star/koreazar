@@ -9,7 +9,7 @@
 
 1. **Root cause** — Confirm in source, not only in `DEBUG_*.md` or `*_FIX.md` at repo root.  
 2. **Minimal fix** — Target the failing path; no unrelated refactors.  
-3. **Side effects** — Auth session, admin visibility, listing queries, image load order (Firestore before images).  
+3. **Side effects** — Auth session, admin visibility, PHP listing API queries, image load order (metadata before images).  
 4. **Regression** — Note what else could break; suggest focused retest.  
 5. **Report** — Use `../templates/change-report.md`.  
 
