@@ -136,6 +136,16 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
   }
 };
 
+export const getListingsByCreator = async (email, limitCount = 100) => {
+  if (!email) return [];
+  const payload = await requestJson(buildApiUrl('listings', {
+    created_by: email,
+    status: 'all',
+    limit: Math.min(limitCount, 100),
+  }));
+  return (payload?.data || []).map(normalizeListing).filter(Boolean);
+};
+
 /**
  * Listing үүсгэх
  * @param {Object} data - Listing data

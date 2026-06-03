@@ -5,20 +5,68 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  serverTimestamp,
+  setDoc,
   where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { deleteListing, getMyListings } from "./listingService";
 
 async function deleteSnapshotDocs(snap, collectionName) {
   await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, collectionName, d.id))));
 }
 
+async function scrubUserProfileForDeletion(uid) {
+  await setDoc(
+    doc(db, "users", uid),
+    {
+      accountDeleted: true,
+      deletedAt: serverTimestamp(),
+      displayName: "",
+      phone: "",
+      phoneNumber: "",
+      city: "",
+      district: "",
+      kakao_id: "",
+      wechat_id: "",
+      whatsapp: "",
+      facebook: "",
+      blocked_seller_emails: [],
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function deleteOwnedApiListingsForUser(uid, email) {
+  let customerId = null;
+  try {
+    const userSnap = await getDoc(doc(db, "users", uid));
+    const raw = userSnap.data()?.customerId ?? userSnap.data()?.customer_id;
+    const parsed = raw != null && raw !== "" ? Number(raw) : NaN;
+    customerId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    /* customer_id is only an additional ownership key; uid/email still apply. */
+  }
+
+  for (let page = 0; page < 20; page += 1) {
+    const listings = await getMyListings(email, customerId, 100, { firebaseUid: uid });
+    if (listings.length === 0) return;
+    await Promise.all(listings.map((listing) => deleteListing(listing.id)));
+    if (listings.length < 100) return;
+  }
+  throw new Error("Зарын мэдээлэл олон байна. Түр хүлээгээд дахин оролдоно уу.");
+}
+
 export async function deleteAllFirestoreDataForUser(uid, email) {
   if (!uid || !email) throw new Error("UID эсвэл имэйл байхгүй");
+
+  await deleteOwnedApiListingsForUser(uid, email);
 
   const purgeQuery = async (collectionName, q) => {
     for (;;) {
@@ -114,7 +162,7 @@ export async function deleteAllFirestoreDataForUser(uid, email) {
     await deleteSnapshotDocs(uSnap, "ai_usage");
   }
 
-  await deleteDoc(doc(db, "users", uid));
+  await scrubUserProfileForDeletion(uid);
 
   try {
     const tokenSnap = await getDocs(collection(db, "user_push_tokens", uid, "devices"));

@@ -161,13 +161,21 @@ try {
                     $sql .= ' AND LOWER(created_by) = LOWER(:created_by)';
                     $params[':created_by'] = $createdBy;
                 }
-                if ($customerIdFilter > 0 && table_has($pdo, 'listings', 'customer_id')) {
-                    $sql .= ' AND customer_id = :customer_id';
-                    $params[':customer_id'] = $customerIdFilter;
+                if ($customerIdFilter > 0) {
+                    if (table_has($pdo, 'listings', 'customer_id')) {
+                        $sql .= ' AND customer_id = :customer_id';
+                        $params[':customer_id'] = $customerIdFilter;
+                    } else {
+                        $sql .= ' AND 1 = 0';
+                    }
                 }
-                if ($firebaseUidFilter !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
-                    $sql .= ' AND firebase_uid = :firebase_uid';
-                    $params[':firebase_uid'] = $firebaseUidFilter;
+                if ($firebaseUidFilter !== '') {
+                    if (table_has($pdo, 'listings', 'firebase_uid')) {
+                        $sql .= ' AND firebase_uid = :firebase_uid';
+                        $params[':firebase_uid'] = $firebaseUidFilter;
+                    } else {
+                        $sql .= ' AND 1 = 0';
+                    }
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -350,7 +358,13 @@ try {
             }
             $authUser = require_firebase_user();
             $body = read_json_body();
-            upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body);
+            upsert_user_profile_best_effort(
+                $pdo,
+                $authUser['uid'],
+                $authUser['email'],
+                $authUser['phoneNumber'] ?? null,
+                $body
+            );
             $customerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
             $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
             echo json_encode([
@@ -1002,10 +1016,12 @@ function upsert_user_best_effort(PDO $pdo, string $firebaseUid, ?string $email):
 /**
  * @param array<string,mixed> $body
  */
-function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string $email, array $body): void
+function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string $email, ?string $authPhone, array $body): void
 {
     if ($firebaseUid === '') return;
     try {
+        $emailForDb = $email !== null ? strtolower(trim($email)) : null;
+        if ($emailForDb === '') $emailForDb = null;
         $displayName = isset($body['display_name']) ? trim((string) $body['display_name']) : null;
         if ($displayName === '') $displayName = null;
         if ($displayName === null && isset($body['displayName'])) {
@@ -1013,7 +1029,13 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
             if ($displayName === '') $displayName = null;
         }
         $phone = isset($body['phone']) ? trim((string) $body['phone']) : null;
+        if (($phone === null || $phone === '') && $authPhone !== null) {
+            $phone = trim($authPhone);
+        }
         if ($phone === '') $phone = null;
+        if ($emailForDb === null && $phone !== null) {
+            $emailForDb = phone_to_auth_email($phone);
+        }
         $city = isset($body['city']) ? trim((string) $body['city']) : null;
         if ($city === '') $city = null;
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
