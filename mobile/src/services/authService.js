@@ -43,6 +43,34 @@ function stripProtectedUserFields(data) {
 
 /** Вэбийн authService.TERMS_POLICY_VERSION-тай ижил байлгана уу */
 const TERMS_POLICY_VERSION = "2025-03-28";
+const PHONE_DELETE_RECENT_LOGIN_WINDOW_MS = 4 * 60 * 1000;
+
+function lastSignInTimeMs(user) {
+  const raw = user?.metadata?.lastSignInTime || user?.metadata?.lastLoginAt;
+  if (raw == null) return 0;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  if (/^\d+$/.test(String(raw))) {
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function hasPhoneProvider(user) {
+  return (
+    !!user?.phoneNumber ||
+    user?.providerData?.some((provider) => provider?.providerId === "phone")
+  );
+}
+
+function assertRecentPhoneLoginBeforeDelete(user, hasPasswordProvider) {
+  if (hasPasswordProvider || !hasPhoneProvider(user)) return;
+  const signedInAt = lastSignInTimeMs(user);
+  if (!signedInAt || Date.now() - signedInAt > PHONE_DELETE_RECENT_LOGIN_WINDOW_MS) {
+    throw new Error("Сүүлийн нэвтрэлт хэт хуучин байна. Гараад утсаар дахин нэвтэрч, дахин оролдоно уу");
+  }
+}
 
 async function ensureTermsAcceptanceIfMissing(user) {
   if (!user?.uid) return;
@@ -440,6 +468,7 @@ export async function deleteAccountForCurrentUser(password = "") {
       throw e;
     }
   }
+  assertRecentPhoneLoginBeforeDelete(user, hasPasswordProvider);
 
   const uid = user.uid;
   try {
