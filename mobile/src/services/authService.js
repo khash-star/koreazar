@@ -49,6 +49,10 @@ function lastSignInTimeMs(user) {
   const raw = user?.metadata?.lastSignInTime || user?.metadata?.lastLoginAt;
   if (raw == null) return 0;
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+  if (/^\d+$/.test(String(raw))) {
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
   const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? parsed : 0;
 }
