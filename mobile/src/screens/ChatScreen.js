@@ -42,7 +42,7 @@ import {
 } from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { areEmailVariants, normalizeEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
