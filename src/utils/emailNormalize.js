@@ -43,3 +43,7 @@ export function areEmailVariants(a, b) {
   const variants = new Set(emailQueryVariants(left));
   return variants.has(right);
 }
+
+export function emailsMatch(a, b) {
+  return areEmailVariants(a, b);
+}

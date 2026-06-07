@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Resolved high-severity regressions
+
+| Date | Symptom | Fixed in |
+|------|---------|----------|
+| 2026-06-07 | Chat `messages` rules allowed any authenticated user to read/query message documents by `conversation_id`; phone email variants also split or hid conversations. | `firestore.rules`, web/mobile `conversationService`, chat/message screens |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides

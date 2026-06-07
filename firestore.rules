@@ -24,6 +24,15 @@ service cloud.firestore {
         : '';
     }
 
+    function isAuthEmail(value) {
+      let em = authEmailLower();
+      return request.auth != null &&
+        em.size() > 0 &&
+        value is string &&
+        value.size() > 0 &&
+        value.lower() == em;
+    }
+
     // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
     function isConversationParticipant() {
       let em = authEmailLower();
@@ -43,6 +52,24 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
     }
+
+    function isMessageCreateSender() {
+      return isAuthEmail(request.resource.data.sender_email);
+    }
+
+    function isConversationParticipantById(conversationId) {
+      let em = authEmailLower();
+      let conversation = get(/databases/$(database)/documents/conversations/$(conversationId));
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+        (
+          (conversation.data.participant_uids is list && conversation.data.participant_uids.hasAny([request.auth.uid])) ||
+          (em.size() > 0 && (
+            (conversation.data.participant_1 is string && conversation.data.participant_1.size() > 0 && conversation.data.participant_1.lower() == em) ||
+            (conversation.data.participant_2 is string && conversation.data.participant_2.size() > 0 && conversation.data.participant_2.lower() == em)
+          ))
+        );
+    }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
@@ -54,7 +81,7 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin'])
         && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (request.auth != null && request.auth.uid == userId);
     }
     
     // Listings collection
@@ -64,7 +91,7 @@ service cloud.firestore {
       // Allow update if user is owner/admin
       // Also allow anyone authenticated to update views field (for view count tracking)
       allow update: if request.auth != null && (
-        resource.data.created_by == request.auth.token.email || 
+        isAuthEmail(resource.data.created_by) ||
         isAdmin() ||
         // Allow view count increment - check if views is being incremented and other fields unchanged
         (request.resource.data.views == resource.data.views + 1 &&
@@ -73,7 +100,7 @@ service cloud.firestore {
          request.resource.data.category == resource.data.category)
       );
       allow delete: if request.auth != null && 
-        (resource.data.created_by == request.auth.token.email || isAdmin());
+        (isAuthEmail(resource.data.created_by) || isAdmin());
     }
     
     // Banner ads - Admin only
@@ -148,8 +175,18 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null && (
+        isAdmin() ||
+        isMessageSenderOrReceiver() ||
+        (
+          resource.data.conversation_id is string &&
+          isConversationParticipantById(resource.data.conversation_id)
+        )
+      );
+      allow create: if request.auth != null &&
+        request.resource.data.conversation_id is string &&
+        isMessageCreateSender() &&
+        isConversationParticipantById(request.resource.data.conversation_id);
       allow update: if request.auth != null && 
         (isMessageSenderOrReceiver() || isAdmin());
       allow delete: if request.auth != null && 
@@ -160,31 +197,31 @@ service cloud.firestore {
     match /ai_conversations/{conversationId} {
       // Allow read if user owns the conversation
       allow read: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
       // Allow list queries with where clause - Firestore will filter results
       allow list: if request.auth != null;
       // Allow create if user_email matches authenticated user
       allow create: if request.auth != null && 
-        request.resource.data.user_email == request.auth.token.email;
+        isAuthEmail(request.resource.data.user_email);
       // Allow update if user owns the conversation
       allow update: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
       allow delete: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
     }
     
     // AI Messages
     match /ai_messages/{messageId} {
       // Allow read if user owns the message
       allow read: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
       // Allow list queries with where clause - Firestore will filter results
       allow list: if request.auth != null;
       // Allow create if user_email matches authenticated user
       allow create: if request.auth != null && 
-        request.resource.data.user_email == request.auth.token.email;
+        isAuthEmail(request.resource.data.user_email);
       allow delete: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
     }
     
     // Expo push tokens — one doc per device under uid (chat push)
@@ -207,16 +244,16 @@ service cloud.firestore {
       // Also allow read if document doesn't exist (for getDoc checks)
       allow get: if request.auth != null && (
         !exists(/databases/$(database)/documents/ai_usage/$(usageId)) ||
-        resource.data.user_email == request.auth.token.email ||
+        isAuthEmail(resource.data.user_email) ||
         isAdmin()
       );
       // Allow list queries for authenticated users
       allow list: if request.auth != null;
       // Allow create/update if user_email matches authenticated user
       allow create, update: if request.auth != null && 
-        request.resource.data.user_email == request.auth.token.email;
+        isAuthEmail(request.resource.data.user_email);
       allow delete: if request.auth != null && 
-        resource.data.user_email == request.auth.token.email;
+        isAuthEmail(resource.data.user_email);
     }
   }
 }
