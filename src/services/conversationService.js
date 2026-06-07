@@ -104,6 +104,14 @@ function pushConversationRowsFromSnap(docs, rows) {
   }
 }
 
+async function ensureCurrentUidOnConversations(conversations) {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+  await Promise.all(
+    conversations.map((c) => (c?.id ? repairConversationParticipants(c, { meUid: uid }) : null))
+  );
+}
+
 /**
  * Чатын participant query-д ашиглах имэйл: Auth token-д байхгүй тохиолдолд users/{uid}.email (Firestore дүрэмтэй ижил).
  */
