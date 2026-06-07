@@ -17,7 +17,7 @@ import {
 import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
-import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants, emailsMatch } from '@/utils/emailNormalize';
 import { getUserByEmail } from '@/services/authService';
 
 async function resolveUidForChatEmail(email, hintUid = null) {
@@ -79,6 +79,31 @@ export function isFirestorePermissionDenied(err) {
   return msg.includes('missing or insufficient permissions') || msg.includes('permission-denied');
 }
 
+function isRecoverableConversationListError(err) {
+  if (isFirestorePermissionDenied(err)) return true;
+  const code = String(err?.code || '');
+  return code === 'failed-precondition' || code === 'firestore/failed-precondition';
+}
+
+function mapConversationDoc(d) {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    created_date: convertTimestamp(data.created_date),
+    last_message_date: convertTimestamp(data.last_message_date),
+  };
+}
+
+function pushConversationRowsFromSnap(docs, rows) {
+  const seen = new Set(rows.map((r) => r.id));
+  for (const d of docs) {
+    if (seen.has(d.id)) continue;
+    seen.add(d.id);
+    rows.push(mapConversationDoc(d));
+  }
+}
+
 /**
  * Чатын participant query-д ашиглах имэйл: Auth token-д байхгүй тохиолдолд users/{uid}.email (Firestore дүрэмтэй ижил).
  */
@@ -112,34 +137,53 @@ export async function resolveChatParticipantEmail() {
 export const listConversations = async () => {
   try {
     const email = await resolveChatParticipantEmail();
-    if (!email) return [];
+    const uid = auth.currentUser?.uid || null;
+    if (!email && !uid) return [];
     const convsRef = collection(db, 'conversations');
-    const q1 = query(
-      convsRef,
-      where('participant_1', '==', email),
-      orderBy('last_message_date', 'desc')
-    );
-    const q2 = query(
-      convsRef,
-      where('participant_2', '==', email),
-      orderBy('last_message_date', 'desc')
-    );
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     const seen = new Set();
     const rows = [];
-    for (const s of [snap1, snap2]) {
-      s.docs.forEach((d) => {
-        if (seen.has(d.id)) return;
-        seen.add(d.id);
-        const data = d.data();
-        rows.push({
-          id: d.id,
-          ...data,
-          created_date: convertTimestamp(data.created_date),
-          last_message_date: convertTimestamp(data.last_message_date),
-        });
-      });
+
+    const pushRows = (items) => {
+      for (const c of items) {
+        if (!c?.id || seen.has(c.id)) continue;
+        seen.add(c.id);
+        rows.push(c);
+      }
+    };
+
+    if (uid) {
+      try {
+        const uidQ = query(convsRef, where('participant_uids', 'array-contains', uid));
+        const uidSnap = await getDocs(uidQ);
+        pushConversationRowsFromSnap(uidSnap.docs, rows);
+      } catch (e) {
+        if (!isRecoverableConversationListError(e)) throw e;
+      }
     }
+
+    if (email) {
+      for (const em of emailQueryVariants(email)) {
+        try {
+          const q1 = query(
+            convsRef,
+            where('participant_1', '==', em),
+            orderBy('last_message_date', 'desc')
+          );
+          const q2 = query(
+            convsRef,
+            where('participant_2', '==', em),
+            orderBy('last_message_date', 'desc')
+          );
+          const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+          pushRows([...snap1.docs, ...snap2.docs].map(mapConversationDoc));
+        } catch (e) {
+          if (!isFirestorePermissionDenied(e)) throw e;
+        }
+      }
+    }
+
+    await ensureCurrentUidOnConversations(rows);
+
     rows.sort((a, b) => {
       const ta = a.last_message_date?.getTime?.() || 0;
       const tb = b.last_message_date?.getTime?.() || 0;
@@ -162,8 +206,7 @@ export async function getUnreadMessagesCount() {
   const rows = await listConversations();
   let total = 0;
   for (const c of rows) {
-    const p1 = normalizeEmail(c.participant_1);
-    total += p1 === me ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
+    total += emailsMatch(c.participant_1, me) ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
   }
   return total;
 }
@@ -286,7 +329,7 @@ export const findConversation = async (email1, email2) => {
           const data = d.data();
           const p1 = normalizeEmail(data.participant_1);
           const p2 = normalizeEmail(data.participant_2);
-          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+          if ((emailsMatch(p1, a) && emailsMatch(p2, b)) || (emailsMatch(p1, b) && emailsMatch(p2, a))) {
             return { id: d.id, ...data };
           }
         }
@@ -296,19 +339,19 @@ export const findConversation = async (email1, email2) => {
     }
 
     const convsRef = collection(db, 'conversations');
+    for (const av of emailQueryVariants(a)) {
+      for (const bv of emailQueryVariants(b)) {
+        const q1 = query(convsRef, where('participant_1', '==', av), where('participant_2', '==', bv));
+        const q2 = query(convsRef, where('participant_1', '==', bv), where('participant_2', '==', av));
+        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
 
-    const q1 = query(convsRef, where('participant_1', '==', a), where('participant_2', '==', b));
-    const q2 = query(convsRef, where('participant_1', '==', b), where('participant_2', '==', a));
-    
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    
-    if (!snap1.empty) {
-      const docSnap = snap1.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    if (!snap2.empty) {
-      const docSnap = snap2.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
+        if (!snap1.empty) {
+          return mapConversationDoc(snap1.docs[0]);
+        }
+        if (!snap2.empty) {
+          return mapConversationDoc(snap2.docs[0]);
+        }
+      }
     }
     
     return null;

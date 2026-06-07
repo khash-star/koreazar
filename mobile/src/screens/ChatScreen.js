@@ -42,7 +42,7 @@ import {
 } from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { emailsMatch, normalizeEmail } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
@@ -194,7 +194,7 @@ export default function ChatScreen({ route, navigation }) {
           /* ignore */
         }
       }
-      const isP1 = normalizeEmail(conv.participant_1) === meNorm;
+      const isP1 = emailsMatch(conv.participant_1, meNorm);
       try {
         await updateConversation(convId, {
           [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,
@@ -226,11 +226,9 @@ export default function ChatScreen({ route, navigation }) {
       notifyMessagesListRefresh();
 
       const meNorm = normalizeEmail(me);
-      const other =
-        normalizeEmail(activeConv.participant_1) === meNorm ||
-        areEmailVariants(activeConv.participant_1, meNorm)
-          ? activeConv.participant_2
-          : activeConv.participant_1;
+      const other = emailsMatch(activeConv.participant_1, meNorm)
+        ? activeConv.participant_2
+        : activeConv.participant_1;
       const admin = await getAdminEmail();
       let displayName;
       if (admin && normalizeEmail(other) === normalizeEmail(admin)) displayName = "АДМИН";

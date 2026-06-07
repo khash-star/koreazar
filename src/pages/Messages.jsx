@@ -17,7 +17,7 @@ import {
   createConversation,
   deleteConversationAndMessages,
 } from '@/services/conversationService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { emailsMatch, normalizeEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
@@ -59,7 +59,7 @@ export default function Messages() {
         ...new Set(
           allConvs.map((conv) => {
             const p1 = normalizeEmail(conv.participant_1);
-            const imP1 = userEmail && p1 === userEmail;
+            const imP1 = userEmail && emailsMatch(p1, userEmail);
             return imP1 ? conv.participant_2 : conv.participant_1;
           })
         ),
@@ -81,7 +81,7 @@ export default function Messages() {
 
       return allConvs.map((conv) => {
         const p1 = normalizeEmail(conv.participant_1);
-        const imP1 = userEmail && p1 === userEmail;
+        const imP1 = userEmail && emailsMatch(p1, userEmail);
         const otherEmail = imP1 ? conv.participant_2 : conv.participant_1;
         const unreadCount = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
         const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };

@@ -19,7 +19,7 @@ import {
 import { auth, db } from "../config/firebase";
 import { ensureUserDocEmailForFirestoreRules, getAllUsers, getResolvedAuthEmail } from "./authService";
 import { getUserByEmail } from "./userProfileService";
-import { normalizeEmail, areEmailVariants, emailQueryVariants } from "../utils/emailNormalize.js";
+import { normalizeEmail, areEmailVariants, emailQueryVariants, emailsMatch } from "../utils/emailNormalize.js";
 import { checkBannedContent } from "../utils/bannedContent.js";
 
 export function isFirestorePermissionDenied(err) {
@@ -232,7 +232,7 @@ export async function findConversation(email1, email2) {
         const row = mapConversationDoc(d);
         const p1 = normalizeEmail(row.participant_1);
         const p2 = normalizeEmail(row.participant_2);
-        if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+        if ((emailsMatch(p1, a) && emailsMatch(p2, b)) || (emailsMatch(p1, b) && emailsMatch(p2, a))) {
           return row;
         }
       }
@@ -243,11 +243,15 @@ export async function findConversation(email1, email2) {
 
   const convsRef = collection(db, "conversations");
   try {
-    const q1 = query(convsRef, where("participant_1", "==", a), where("participant_2", "==", b));
-    const q2 = query(convsRef, where("participant_1", "==", b), where("participant_2", "==", a));
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    if (!snap1.empty) return mapConversationDoc(snap1.docs[0]);
-    if (!snap2.empty) return mapConversationDoc(snap2.docs[0]);
+    for (const av of emailQueryVariants(a)) {
+      for (const bv of emailQueryVariants(b)) {
+        const q1 = query(convsRef, where("participant_1", "==", av), where("participant_2", "==", bv));
+        const q2 = query(convsRef, where("participant_1", "==", bv), where("participant_2", "==", av));
+        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+        if (!snap1.empty) return mapConversationDoc(snap1.docs[0]);
+        if (!snap2.empty) return mapConversationDoc(snap2.docs[0]);
+      }
+    }
   } catch (e) {
     if (isFirestorePermissionDenied(e)) return null;
     throw e;
@@ -537,7 +541,7 @@ export async function getUnreadMessagesCount(emailHint = "") {
     let total = 0;
     for (const c of convs) {
       const p1 = normalizeEmail(c.participant_1);
-      const imP1 = me && (p1 === me || areEmailVariants(p1, me));
+      const imP1 = me && emailsMatch(p1, me);
       total += imP1 ? c.unread_count_p1 || 0 : c.unread_count_p2 || 0;
     }
     return total;
