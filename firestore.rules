@@ -43,6 +43,45 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
     }
+
+    function isConversationDataParticipant(conversationData) {
+      let em = authEmailLower();
+      return request.auth != null && (
+        (conversationData.participant_uids is list && conversationData.participant_uids.hasAny([request.auth.uid])) ||
+        (em.size() > 0 && (
+          (conversationData.participant_1 is string && conversationData.participant_1.size() > 0 && conversationData.participant_1.lower() == em) ||
+          (conversationData.participant_2 is string && conversationData.participant_2.size() > 0 && conversationData.participant_2.lower() == em)
+        ))
+      );
+    }
+
+    function isConversationParticipantById(conversationId) {
+      return conversationId is string &&
+        conversationId.size() > 0 &&
+        exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+        isConversationDataParticipant(get(/databases/$(database)/documents/conversations/$(conversationId)).data);
+    }
+
+    function canReadMessage() {
+      return request.auth != null && (
+        isAdmin() ||
+        isMessageSenderOrReceiver() ||
+        isConversationParticipantById(resource.data.conversation_id)
+      );
+    }
+
+    function canCreateMessage() {
+      let em = authEmailLower();
+      return request.auth != null &&
+        request.resource.data.conversation_id is string &&
+        request.resource.data.conversation_id.size() > 0 &&
+        request.resource.data.sender_email is string &&
+        request.resource.data.sender_email.size() > 0 &&
+        request.resource.data.receiver_email is string &&
+        request.resource.data.receiver_email.size() > 0 &&
+        (isAdmin() || (em.size() > 0 && request.resource.data.sender_email.lower() == em)) &&
+        isConversationParticipantById(request.resource.data.conversation_id);
+    }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
@@ -148,8 +187,8 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if canReadMessage();
+      allow create: if canCreateMessage();
       allow update: if request.auth != null && 
         (isMessageSenderOrReceiver() || isAdmin());
       allow delete: if request.auth != null && 
