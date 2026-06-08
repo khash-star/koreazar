@@ -34,7 +34,7 @@ const PHONE_COUNTRIES = [
 
 export default function LoginScreen({ navigation }) {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [loginMethod, setLoginMethod] = useState("phone");
+  const [loginMethod, setLoginMethod] = useState(Platform.OS === "web" ? "email" : "phone");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -216,7 +216,11 @@ export default function LoginScreen({ navigation }) {
   );
 
   return (
-    <KeyboardAvoidingView style={styles.wrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={styles.wrap}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+    >
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.heading}>Нэвтрэх</Text>
         <Text style={styles.subheading}>Имэйл эсвэл утсаар OTP код ашиглан нэвтрэнэ үү</Text>

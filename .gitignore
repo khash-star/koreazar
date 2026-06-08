@@ -53,3 +53,16 @@ app/build/
 # EAS / local build artifacts
 mobile/builds/
 .github.zip
+
+# Mobile / EAS secrets (if placed at repo root)
+google-services.json
+GoogleService-Info.plist
+credentials.json
+play-service-account.json
+*-service-account*.json
+*firebase-adminsdk*.json
+.env*.local
+*.p8
+*.p12
+*.jks
+keystores/
