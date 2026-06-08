@@ -82,7 +82,7 @@ export default function AdminNewListingsScreen({ navigation }) {
           <View style={styles.card}>
             <Pressable style={styles.row} onPress={() => navigateToHomeListing(navigation, item.id)}>
               {uri ? (
-                <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
+                <Image source={{ uri }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <View style={[styles.thumb, styles.ph]} />
               )}

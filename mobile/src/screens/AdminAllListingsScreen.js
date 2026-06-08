@@ -249,7 +249,7 @@ export default function AdminAllListingsScreen({ navigation }) {
               disabled={busy}
             >
               {uri ? (
-                <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
+                <Image source={{ uri }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <View style={[styles.thumb, styles.ph]} />
               )}

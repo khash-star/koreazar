@@ -246,7 +246,7 @@ export default function MyListingsScreen({ navigation }) {
               onPress={() => navigateToHomeListing(navigation, item.id)}
             >
               {uri ? (
-                <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
+                <Image source={{ uri }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <View style={[styles.thumb, styles.thumbPh]}>
                   <Text style={styles.thumbPhText}>📷</Text>

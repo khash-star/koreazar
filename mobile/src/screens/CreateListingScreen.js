@@ -359,7 +359,7 @@ export default function CreateListingScreen({ navigation }) {
           <View style={styles.imageRow}>
             {images.map((img, i) => (
               <View key={i} style={styles.imgWrap}>
-                <Image source={{ uri: img.w400 || img.w800 }} style={styles.thumb} contentFit="cover" />
+                <Image source={{ uri: img.w400 || img.w800 }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
                 <Pressable style={styles.removeBtn} onPress={() => removeImage(i)}>
                   <Ionicons name="close" size={18} color="#fff" />
                 </Pressable>

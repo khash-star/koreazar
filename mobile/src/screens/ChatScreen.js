@@ -482,6 +482,7 @@ export default function ChatScreen({ route, navigation }) {
                 source={{ uri: getListingImageUrl(listing.images[0], "w150") }}
                 style={styles.listingThumb}
                 contentFit="cover"
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={[styles.listingThumb, styles.listingThumbPh]} />
