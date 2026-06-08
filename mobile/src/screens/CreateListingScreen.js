@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
 import { getListingAutoApprove } from "../services/appConfigService.js";
 import { createListing, getListingById, updateListing } from "../services/listingService.js";
-import { uploadImageFromUri } from "../services/storageService";
+import { uploadListingImageVariants } from "../services/listingImageUpload";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
 const conditionOptions = _conditionOptions ?? [
@@ -98,6 +98,7 @@ export default function CreateListingScreen({ navigation }) {
     }));
   }, [lockedName, lockedPhone]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [images, setImages] = useState([]);
   const [form, setForm] = useState(createInitialForm);
   const [initialListing, setInitialListing] = useState(null);
@@ -185,21 +186,24 @@ export default function CreateListingScreen({ navigation }) {
     const toAdd = result.assets.slice(0, 10 - images.length);
     if (toAdd.length === 0) return;
     setUploading(true);
+    setUploadProgress({ current: 0, total: toAdd.length });
     try {
-      const uploaded = await Promise.all(
-        toAdd.map(async (asset) => {
-          const { file_url } = await uploadImageFromUri(asset.uri, {
-            mimeType: asset.mimeType,
-            fileName: asset.fileName,
-          });
-          return { w800: file_url, w640: file_url, w400: file_url, w150: file_url };
-        })
-      );
+      const uploaded = [];
+      for (let i = 0; i < toAdd.length; i++) {
+        setUploadProgress({ current: i + 1, total: toAdd.length });
+        const asset = toAdd[i];
+        const variants = await uploadListingImageVariants(asset.uri, {
+          mimeType: asset.mimeType,
+          fileName: asset.fileName,
+        });
+        uploaded.push(variants);
+      }
       setImages((prev) => [...prev, ...uploaded]);
     } catch (e) {
       showAlert("Алдаа", e?.message || "Зураг upload амжилтгүй");
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }, [images.length]);
 
@@ -378,6 +382,16 @@ export default function CreateListingScreen({ navigation }) {
               </Pressable>
             )}
           </View>
+          {uploading ? (
+            <View style={styles.uploadStatus}>
+              <Text style={styles.uploadStatusText}>Зураг боловсруулж байна…</Text>
+              {uploadProgress && uploadProgress.total > 1 ? (
+                <Text style={styles.uploadProgressText}>
+                  {uploadProgress.current}/{uploadProgress.total}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         {/* Basic */}
@@ -593,6 +607,9 @@ const styles = StyleSheet.create({
   removeBtn: { position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center" },
   addImg: { width: 80, height: 80, borderRadius: 10, borderWidth: 2, borderStyle: "dashed", borderColor: "#d1d5db", alignItems: "center", justifyContent: "center" },
   addImgText: { fontSize: 11, color: "#9ca3af", marginTop: 4 },
+  uploadStatus: { marginTop: 8, alignItems: "center", gap: 2 },
+  uploadStatusText: { fontSize: 13, color: "#6b7280" },
+  uploadProgressText: { fontSize: 12, color: "#9ca3af", fontWeight: "600" },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   chipRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

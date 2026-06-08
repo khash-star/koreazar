@@ -3,6 +3,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { ref, getDownloadURL } from "firebase/storage";
+import { createImageVariants } from "../utils/createImageVariants";
 import { normalizeImageOrientation } from "../utils/normalizeImageOrientation";
 import { SDK_VERSION } from "firebase/app";
 import { storage, auth, getStorageBucketId } from "../config/firebase";
@@ -106,26 +107,87 @@ export async function uploadImageFromUri(uri, options = {}) {
   assertStorageConfig();
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 12);
-  const extFromName = extractExtensionFromName(options.fileName);
-  const extFromUri = extractExtensionFromName(uri);
-  const extFromMime = extensionForMimeType(options.mimeType);
-  const ext = extFromName || extFromUri || extFromMime || "jpg";
+  const suffix = options.nameSuffix ? `_${String(options.nameSuffix)}` : "";
 
-  const uploadUri = await normalizeImageOrientation(uri);
-  const normalizedToJpeg =
-    uploadUri !== uri ||
-    uploadUri.endsWith(".jpg") ||
-    uploadUri.endsWith(".jpeg");
-  const uploadExt = normalizedToJpeg ? "jpg" : ext;
-  const uploadType = normalizedToJpeg
-    ? contentTypeForExtension("jpg")
-    : options.mimeType || contentTypeForExtension(ext);
+  let uploadUri = uri;
+  let uploadExt;
+  let uploadType;
 
-  const fileName = `${timestamp}_${random}.${uploadExt}`;
+  if (options.format === "webp") {
+    uploadExt = "webp";
+    uploadType = "image/webp";
+    if (!options.skipNormalize) {
+      uploadUri = await normalizeImageOrientation(uri);
+    }
+  } else if (options.format === "jpeg" || options.format === "jpg") {
+    uploadExt = "jpg";
+    uploadType = "image/jpeg";
+    if (!options.skipNormalize) {
+      uploadUri = await normalizeImageOrientation(uri);
+    }
+  } else if (options.skipNormalize) {
+    const extFromUri = extractExtensionFromName(uri);
+    uploadExt = extFromUri || extensionForMimeType(options.mimeType) || "jpg";
+    uploadType = options.mimeType || contentTypeForExtension(uploadExt);
+  } else {
+    const extFromName = extractExtensionFromName(options.fileName);
+    const extFromUri = extractExtensionFromName(uri);
+    const extFromMime = extensionForMimeType(options.mimeType);
+    const ext = extFromName || extFromUri || extFromMime || "jpg";
+
+    uploadUri = await normalizeImageOrientation(uri);
+    const normalizedToJpeg =
+      uploadUri !== uri || uploadUri.endsWith(".jpg") || uploadUri.endsWith(".jpeg");
+    uploadExt = normalizedToJpeg ? "jpg" : ext;
+    uploadType = normalizedToJpeg
+      ? contentTypeForExtension("jpg")
+      : options.mimeType || contentTypeForExtension(ext);
+  }
+
+  const fileName = `${timestamp}_${random}${suffix}.${uploadExt}`;
   const storageRef = ref(storage, `images/${fileName}`);
 
   await uploadNative(storageRef, uploadUri, uploadExt, timestamp, uploadType);
 
   const downloadURL = await getDownloadURL(storageRef);
   return { file_url: downloadURL };
+}
+
+/**
+ * Picker URI → 4 listing variants (web CreateListing parity). All uploads must succeed or throws (no partial listing save).
+ * @param {string} sourceUri
+ * @param {{ mimeType?: string, fileName?: string }} [pickerMeta]
+ */
+export async function uploadListingImageVariants(sourceUri, pickerMeta = {}) {
+  const normalized = await normalizeImageOrientation(sourceUri);
+  const built = await createImageVariants(normalized);
+  const format = built.format === "jpeg" ? "jpeg" : "webp";
+
+  const specs = [
+    ["w800", built.w800],
+    ["w640", built.w640],
+    ["w400", built.w400],
+    ["w150", built.w150],
+  ];
+
+  const out = {};
+  await Promise.all(
+    specs.map(async ([nameSuffix, localUri]) => {
+      const { file_url } = await uploadImageFromUri(localUri, {
+        skipNormalize: true,
+        nameSuffix,
+        format,
+        mimeType: format === "webp" ? "image/webp" : "image/jpeg",
+        fileName: pickerMeta.fileName,
+      });
+      out[nameSuffix] = file_url;
+    })
+  );
+
+  return {
+    w800: out.w800,
+    w640: out.w640,
+    w400: out.w400,
+    w150: out.w150,
+  };
 }
