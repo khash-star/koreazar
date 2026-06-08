@@ -66,6 +66,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [relatedLoading, setRelatedLoading] = useState(false);
   const relatedSectionY = useRef(Number.POSITIVE_INFINITY);
   const bodyTopY = useRef(0);
+  const listingLoadSeqRef = useRef(0);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportReason, setReportReason] = useState("Залилан/сэжигтэй");
@@ -103,51 +104,62 @@ export default function ListingDetailScreen({ route, navigation }) {
     }, [refreshSaved])
   );
 
-  const load = useCallback(async () => {
-    if (!listingId) {
-      setError("Зарын ID байхгүй");
-      setLoading(false);
-      return;
-    }
-    const hasInstant = Boolean(
-      peekListingDetailCache(listingId) ||
-      (listingPreview && String(listingPreview.id) === String(listingId))
-    );
-    try {
-      if (!hasInstant) setLoading(true);
-      setError("");
-      const { listing: data, httpStatus } = await fetchListingByIdResult(listingId, {
-        bypassCache: hasInstant,
-      });
-      if (!data) {
-        if (!hasInstant) {
-          setError("Зар олдсонгүй");
-          setListing(null);
-        }
-        if (httpStatus === 404 && email) {
-          try {
-            const sid = await findSavedDocId(email, listingId);
-            if (sid) {
-              await removeSaved(sid);
-              setSavedDocId(null);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      } else {
-        setListing(data);
-        setError("");
-        navigation.setOptions({ title: data.title?.slice(0, 28) || "Зар" });
+  const load = useCallback(
+    async (requestId) => {
+      if (requestId !== listingLoadSeqRef.current) return;
+
+      if (!listingId) {
+        setError("Зарын ID байхгүй");
+        setLoading(false);
+        return;
       }
-    } catch (e) {
-      setError(e?.message || "Ачаалахад алдаа гарлаа");
-    } finally {
-      setLoading(false);
-    }
-  }, [listingId, listingPreview, navigation, email]);
+      const hasInstant = Boolean(
+        peekListingDetailCache(listingId) ||
+          (listingPreview && String(listingPreview.id) === String(listingId))
+      );
+      try {
+        if (!hasInstant) setLoading(true);
+        setError("");
+        const { listing: data, httpStatus } = await fetchListingByIdResult(listingId, {
+          bypassCache: hasInstant,
+        });
+        if (requestId !== listingLoadSeqRef.current) return;
+
+        if (!data) {
+          if (!hasInstant) {
+            setError("Зар олдсонгүй");
+            setListing(null);
+          }
+          if (httpStatus === 404 && email) {
+            try {
+              const sid = await findSavedDocId(email, listingId);
+              if (requestId !== listingLoadSeqRef.current) return;
+              if (sid) {
+                await removeSaved(sid);
+                if (requestId !== listingLoadSeqRef.current) return;
+                setSavedDocId(null);
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        } else {
+          setListing(data);
+          setError("");
+          navigation.setOptions({ title: data.title?.slice(0, 28) || "Зар" });
+        }
+      } catch (e) {
+        if (requestId !== listingLoadSeqRef.current) return;
+        setError(e?.message || "Ачаалахад алдаа гарлаа");
+      } finally {
+        if (requestId === listingLoadSeqRef.current) setLoading(false);
+      }
+    },
+    [listingId, listingPreview, navigation, email]
+  );
 
   useEffect(() => {
+    const requestId = ++listingLoadSeqRef.current;
     const seed = initialListingForRoute(listingId, listingPreview);
     setListing(seed);
     setLoading(!seed);
@@ -158,7 +170,10 @@ export default function ListingDetailScreen({ route, navigation }) {
     setImageIndex(0);
     setLightboxIndex(0);
     setError("");
-    load();
+    load(requestId);
+    return () => {
+      listingLoadSeqRef.current += 1;
+    };
   }, [listingId, listingPreview, load]);
 
   /** Clamp gallery indices when image count shrinks (avoids OOB in lightbox). */

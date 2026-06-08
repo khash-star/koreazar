@@ -532,14 +532,7 @@ export default function ChatScreen({ route, navigation }) {
         })}
       </ScrollView>
 
-      <View
-        style={[
-          styles.inputRow,
-          { paddingBottom: inputBottomPad },
-          Platform.OS === "android" && keyboardHeight > 0 && { marginBottom: keyboardHeight },
-        ]}
-        pointerEvents="box-none"
-      >
+      <View style={[styles.inputRow, { paddingBottom: inputBottomPad }]} pointerEvents="box-none">
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -570,14 +563,14 @@ export default function ChatScreen({ route, navigation }) {
     </View>
   );
 
-  if (Platform.OS === "web") {
-    return <View style={styles.flex}>{chatBody}</View>;
-  }
+  // Web: RN KeyboardAvoidingView padding only (no VisualViewport yet — refine after device QA).
+  const chatKeyboardBehavior =
+    Platform.OS === "ios" ? "padding" : Platform.OS === "android" ? "height" : "padding";
 
   return (
     <KeyboardAvoidingView
       style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={chatKeyboardBehavior}
       keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
     >
       {chatBody}
