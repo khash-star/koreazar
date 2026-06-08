@@ -36,7 +36,7 @@ Record environment in `../templates/test-report.md`.
 
 ## Cursor workflow
 
-1. Read `../PROJECT_MEMORY.md` — know critical paths (Firestore-before-images on Home).  
+1. Read `../PROJECT_MEMORY.md` — know critical paths (hybrid PHP/Firestore data-before-images on Home).  
 2. Identify **blast radius** from diff (routes, services, rules, mobile).  
 3. Run playbooks listed above (checklists, pass/fail).  
 4. Fill `../templates/test-report.md` in the agent reply.  
@@ -57,7 +57,7 @@ Record environment in `../templates/test-report.md`.
 ## What not to claim
 
 - “All tests pass” without listing checks run  
-- Push notifications tested if not implemented (`mobile/README.md`)  
+- Push notifications tested beyond implemented chat push scope  
 - Production Firebase tested against wrong project ID from stale docs  
 
 ---

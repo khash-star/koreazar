@@ -5,7 +5,7 @@ Run after web deploy or when validating production behavior. **Confirm URLs and 
 ## Web (Vercel)
 
 - [ ] https://zarkorea.com loads  
-- [ ] Home: listings + banners load (no index errors in browser console)  
+- [ ] Home: listings load from PHP API and banners load from Firestore (no API/index errors in browser console)  
 - [ ] Login / logout works  
 - [ ] Listing create → detail navigation works  
 - [ ] Admin pages reachable only for `role: admin`  
@@ -13,13 +13,13 @@ Run after web deploy or when validating production behavior. **Confirm URLs and 
 ## Firebase
 
 - [ ] Project ID matches production (`koreazar-32e7a` — verify in console)  
-- [ ] Firestore indexes **Enabled** for listing queries  
+- [ ] Firestore indexes **Enabled** for banners, chat, saved listings, and any legacy listing queries  
 - [ ] Storage rules published if image upload tested  
 - [ ] No widespread `permission-denied` in console  
 
 ## PWA / TWA (if applicable)
 
-- [ ] `manifest.webmanifest` served  
+- [ ] `manifest.json` served  
 - [ ] Service worker registered  
 - [ ] `public/.well-known/assetlinks.json` has real SHA-256 (not placeholder)  
 

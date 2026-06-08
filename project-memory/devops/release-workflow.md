@@ -35,9 +35,10 @@ See `../reviews/firebase-review.md`, `docs/FIRESTORE_INDEXES.md`.
 ## Vercel checks
 
 - [ ] `VITE_FIREBASE_*` set for Production (and Preview if used)  
+- [ ] `VITE_API_BASE_URL` set only if overriding the default PHP API host  
 - [ ] Custom domain `zarkorea.com` resolves  
 - [ ] Latest commit deployed  
-- [ ] PWA: `manifest.webmanifest` + SW if feature enabled (`docs/PWA_IMPLEMENTATION_PLAN.md`)  
+- [ ] PWA: `manifest.json` + SW if feature enabled (`docs/PWA_IMPLEMENTATION_PLAN.md`)  
 - [ ] TWA: `public/.well-known/assetlinks.json` real SHA-256 if Android shell updated  
 
 See `../reviews/deployment-review.md`, `../runbooks/production-verification.md`.
@@ -49,7 +50,7 @@ See `../reviews/deployment-review.md`, `../runbooks/production-verification.md`.
 - [ ] `npm run sync-listings` from repo root if web `listings.js` changed  
 - [ ] `mobile/docs/EAS_PRODUCTION_ENV.md` — production Firebase env in EAS  
 - [ ] `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md` signed off  
-- [ ] Do not claim push notifications if not implemented (`mobile/README.md`)  
+- [ ] Push claims match implemented scope: chat push only unless another push flow was added/tested  
 - [ ] TWA vs RN path clear: `docs/PLAY_STORE_SETUP.md` vs `mobile/docs/PLAY_STORE_RN_REPLACE_TWA.md`  
 
 ---

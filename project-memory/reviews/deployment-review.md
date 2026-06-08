@@ -25,9 +25,9 @@ Pre-deploy and post-deploy verification. **Requires explicit user approval** bef
 - [ ] No secrets committed in repo markdown or source  
 - [ ] Project root directory correct (repo root, not legacy `zar-746103b7/`)  
 
-### PWA: manifest.webmanifest
+### PWA: manifest.json
 
-- [ ] `dist/manifest.webmanifest` (or generated equivalent) present if PWA enabled  
+- [ ] `dist/manifest.json` present if PWA enabled  
 - [ ] `name`, `short_name`, `theme_color`, `start_url` correct  
 - [ ] Icons 192/512 reachable on production domain  
 - [ ] `vite-plugin-pwa` config matches `docs/PWA_IMPLEMENTATION_PLAN.md` if applicable  

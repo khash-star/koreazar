@@ -54,8 +54,8 @@ Web (`src/`) and mobile (`mobile/`) — use `../qa/image-upload-tests.md` with p
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | Missing/broken URL shows placeholder | ☐ | ☐ | |
-| Home skeleton → image transition | ☐ | ☐ | Firestore-before-images path |
-| No infinite skeleton on Firestore error | ☐ | ☐ | |
+| Home skeleton → image transition | ☐ | ☐ | Data-before-images path: PHP listings + Firestore banners |
+| No infinite skeleton on API/Firestore error | ☐ | ☐ | |
 
 ---
 

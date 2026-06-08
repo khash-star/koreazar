@@ -18,9 +18,9 @@ Checklist after code changes. Use with `self-review-workflow.md`.
 
 ## Firestore queries & indexes
 
-- [ ] Home: active listings query (`status` + `created_date`) succeeds  
-- [ ] My listings: `created_by` + `created_date` succeeds  
-- [ ] Category filter: composite index query succeeds  
+- [ ] Home: listings PHP API query succeeds and banners Firestore query succeeds  
+- [ ] My listings: PHP API identity filters (`firebase_uid` / `customer_id` / `created_by`) work  
+- [ ] Firestore composite queries for banners, chat, saved listings, and any legacy listing fallback succeed  
 - [ ] No `failed-precondition` / index errors in console  
 - [ ] `firestore.indexes.json` updated if query shape changed  
 - [ ] Banner ads query (`banner_ads`, `is_active`) works  
@@ -40,11 +40,11 @@ Checklist after code changes. Use with `self-review-workflow.md`.
 
 ## Push notifications (FCM)
 
-- [ ] **If not implementing push:** no new FCM permission prompts or store claims  
-- [ ] **If FCM touched:** token registration, foreground/background behavior documented  
+- [ ] **If not touching chat push:** no new permission prompts or store claims  
+- [ ] **If chat push touched:** token registration, foreground/background behavior documented  
 - [ ] No broken auth flow from notification handlers  
 
-_Note: `mobile/README.md` — push not implemented; do not regress store listing accuracy._
+_Note: native chat push is implemented; do not claim listing/status push unless added and tested._
 
 ---
 
@@ -80,7 +80,7 @@ _Note: `mobile/README.md` — push not implemented; do not regress store listing
 
 ## PWA / TWA behavior
 
-- [ ] `manifest.webmanifest` served on production (if PWA enabled)  
+- [ ] `manifest.json` served on production (if PWA enabled)  
 - [ ] Service worker registers; offline fallback acceptable for scope  
 - [ ] `start_url` `/` loads app shell  
 - [ ] `public/.well-known/assetlinks.json` valid for TWA (real SHA-256)  

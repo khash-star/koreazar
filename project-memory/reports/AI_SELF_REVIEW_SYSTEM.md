@@ -84,7 +84,7 @@ Also read before coding:
 1. **Never ship** new Firestore query shapes without indexes deployed.  
 2. **Never weaken** admin or auth guards “temporarily.”  
 3. **Verify** Firebase project ID and Vercel env in Console, not old markdown.  
-4. **Keep** Firestore-before-images behavior on Home unless explicitly redesigning LCP.  
+4. **Keep** Home data-before-images behavior predictable: PHP listings and Firestore banners must return image URLs before image fetch/preload.  
 5. **Sync** listing constants web → mobile before store builds.  
 6. **Document** rollback in every change audit for non-trivial diffs.  
 7. **Ignore** vendor markdown and `node_modules` for context (see `.cursorignore`).  

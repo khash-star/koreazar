@@ -71,7 +71,7 @@ Complete each section. Mark **N/A** with one-line reason if not applicable.
 
 ### 8. Performance risks
 
-- [ ] Firestore-before-images pattern not broken on Home  
+- [ ] Home data-before-images pattern not regressed (PHP listings + Firestore banners provide image URLs before image fetch)  
 - [ ] No unbounded queries or missing pagination where list size matters  
 - [ ] No new blocking work on critical path without reason  
 - [ ] Image upload size/format limits preserved (see `SECURITY.md`)  
