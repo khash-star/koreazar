@@ -155,6 +155,118 @@ export async function filterConversations(filters = {}) {
   return querySnapshot.docs.map(mapConversationDoc);
 }
 
+function conversationsUidQuery(uid) {
+  return query(collection(db, "conversations"), where("participant_uids", "array-contains", uid));
+}
+
+function conversationsParticipantQuery(field, email) {
+  const convsRef = collection(db, "conversations");
+  return query(convsRef, where(field, "==", email), orderBy("last_message_date", "desc"));
+}
+
+function sortConversationsByRecency(rows) {
+  rows.sort((a, b) => {
+    const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
+    const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
+    return tb - ta;
+  });
+  return rows;
+}
+
+/** Merge per-listener buckets; each bucket keeps its latest snapshot (R10). */
+export function mergeConversationBuckets(buckets) {
+  const rows = [];
+  const seen = new Set();
+  for (const list of buckets.values()) {
+    if (!Array.isArray(list)) continue;
+    for (const c of list) {
+      if (!c?.id || seen.has(c.id)) continue;
+      seen.add(c.id);
+      rows.push(c);
+    }
+  }
+  return sortConversationsByRecency(rows);
+}
+
+/**
+ * Real-time conversations for current user (uid + email variant queries).
+ * @param {(conversations: object[], meta: { hasPendingWrites: boolean, fromCache: boolean }) => void} callback
+ * @returns {() => void} unsubscribe all listeners
+ */
+export function subscribeConversationsForUser(callback) {
+  if (typeof callback !== "function") return () => {};
+  const u = auth.currentUser;
+  if (!u?.uid) return () => {};
+
+  let cancelled = false;
+  const unsubs = [];
+  const buckets = new Map();
+  const bucketMeta = new Map();
+
+  const emitMerged = () => {
+    if (cancelled) return;
+    const merged = mergeConversationBuckets(buckets);
+    let hasPendingWrites = false;
+    let fromCache = false;
+    for (const meta of bucketMeta.values()) {
+      if (meta.hasPendingWrites) hasPendingWrites = true;
+      if (meta.fromCache) fromCache = true;
+    }
+    callback(merged, { hasPendingWrites, fromCache });
+  };
+
+  const attachListener = (key, q) => {
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        if (cancelled) return;
+        buckets.set(key, snapshot.docs.map(mapConversationDoc));
+        bucketMeta.set(key, {
+          hasPendingWrites: snapshot.metadata.hasPendingWrites,
+          fromCache: snapshot.metadata.fromCache,
+        });
+        emitMerged();
+      },
+      (error) => {
+        console.warn(`subscribeConversationsForUser ${key}:`, error?.message || error);
+      }
+    );
+    unsubs.push(unsub);
+  };
+
+  void (async () => {
+    try {
+      let chatEmail = await resolveChatParticipantEmail();
+      if (chatEmail) {
+        await ensureUserDocEmailForFirestoreRules(u, chatEmail);
+      } else {
+        await ensureUserDocEmailForFirestoreRules(u);
+      }
+      if (cancelled) return;
+
+      attachListener("uid", conversationsUidQuery(u.uid));
+
+      const email = chatEmail || (await getResolvedAuthEmail(u));
+      if (email) {
+        for (const em of emailQueryVariants(email)) {
+          attachListener(`p1:${em}`, conversationsParticipantQuery("participant_1", em));
+          attachListener(`p2:${em}`, conversationsParticipantQuery("participant_2", em));
+        }
+      }
+    } catch (e) {
+      console.warn("subscribeConversationsForUser setup:", e?.message || e);
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+    for (const unsub of unsubs) unsub();
+    unsubs.length = 0;
+    buckets.clear();
+    bucketMeta.clear();
+  };
+}
+
 /** Phone OTP + email — uid query (rules participant_uids) + legacy email queries. */
 export async function listConversationsForCurrentUser() {
   const u = auth.currentUser;
@@ -167,18 +279,8 @@ export async function listConversationsForCurrentUser() {
     await ensureUserDocEmailForFirestoreRules(u);
   }
 
-  const rows = [];
-  const seen = new Set();
-
-  const pushRows = (items) => {
-    for (const c of items) {
-      if (!c?.id || seen.has(c.id)) continue;
-      seen.add(c.id);
-      rows.push(c);
-    }
-  };
-
-  pushRows(await queryConversationsByUid(u.uid));
+  const buckets = new Map();
+  buckets.set("uid", await queryConversationsByUid(u.uid));
 
   const email = chatEmail || (await getResolvedAuthEmail(u));
   if (email) {
@@ -188,20 +290,16 @@ export async function listConversationsForCurrentUser() {
           filterConversations({ participant_1: em }),
           filterConversations({ participant_2: em }),
         ]);
-        pushRows([...conv1, ...conv2]);
+        buckets.set(`p1:${em}`, conv1);
+        buckets.set(`p2:${em}`, conv2);
       } catch (e) {
         if (!isFirestorePermissionDenied(e)) throw e;
       }
     }
   }
 
+  const rows = mergeConversationBuckets(buckets);
   await ensureCurrentUidOnConversations(rows);
-
-  rows.sort((a, b) => {
-    const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
-    const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
-    return tb - ta;
-  });
   return rows;
 }
 

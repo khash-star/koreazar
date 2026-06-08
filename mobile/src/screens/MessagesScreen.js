@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -22,6 +22,7 @@ import {
   listConversationsForCurrentUser,
   resolveChatParticipantEmail,
   isFirestorePermissionDenied,
+  subscribeConversationsForUser,
 } from "../services/conversationService.js";
 import { normalizeEmail, isSyntheticPhoneAuthEmail, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, subscribeMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
@@ -53,6 +54,16 @@ function formatTimeAgo(d) {
   }
 }
 
+function convListFingerprint(convs) {
+  return [...convs]
+    .map(
+      (c) =>
+        `${c.id}|${c.last_message_time ?? ""}|${c.unread_count_p1 ?? 0}|${c.unread_count_p2 ?? 0}`
+    )
+    .sort()
+    .join(";");
+}
+
 export default function MessagesScreen({ navigation }) {
   const { isAuthenticated, user, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -64,8 +75,133 @@ export default function MessagesScreen({ navigation }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingConv, setDeletingConv] = useState(false);
   const loadSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+  const nameCacheRef = useRef(new Map());
+  const rowsFingerprintRef = useRef("");
+  const listenerHasEmittedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const buildRowsFromConversations = useCallback(
+    async (all, admin, meNorm, { skipEnrich = false } = {}) => {
+      const otherEmails = [
+        ...new Set(
+          all.map((c) => {
+            const p1 = normalizeEmail(c.participant_1);
+            const imP1 = meNorm && (p1 === meNorm || areEmailVariants(p1, meNorm));
+            return imP1 ? c.participant_2 : c.participant_1;
+          })
+        ),
+      ];
+
+      if (!skipEnrich) {
+        const adminN = admin ? normalizeEmail(admin) : "";
+        const needed = otherEmails.filter((em) => em && !nameCacheRef.current.has(em));
+        await Promise.all(
+          needed.map(async (em) => {
+            if (adminN && normalizeEmail(em) === adminN) {
+              nameCacheRef.current.set(em, "АДМИН");
+              return;
+            }
+            const u = await getUserByEmail(em);
+            nameCacheRef.current.set(em, u?.displayName || em.split("@")[0]);
+          })
+        );
+      }
+
+      const enriched = all.map((conv) => {
+        const p1 = normalizeEmail(conv.participant_1);
+        const p2 = normalizeEmail(conv.participant_2);
+        let imP1 = !!(meNorm && (p1 === meNorm || areEmailVariants(p1, meNorm)));
+        if (
+          !meNorm &&
+          user?.uid &&
+          Array.isArray(conv.participant_uids) &&
+          conv.participant_uids.includes(user.uid)
+        ) {
+          if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
+          else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
+        }
+        const other = imP1 ? conv.participant_2 : conv.participant_1;
+        const unread = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
+        return {
+          ...conv,
+          otherEmail: other,
+          otherName: nameCacheRef.current.get(other) || other.split("@")[0],
+          unreadCount: unread || 0,
+        };
+      });
+
+      const seen = new Set();
+      const adminN = admin ? normalizeEmail(admin) : "";
+      return enriched
+        .filter((c) => {
+          const k = c.id;
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        })
+        .sort((a, b) => {
+          const aAdmin = adminN && normalizeEmail(a.otherEmail) === adminN;
+          const bAdmin = adminN && normalizeEmail(b.otherEmail) === adminN;
+          if (aAdmin && !bAdmin) return -1;
+          if (!aAdmin && bAdmin) return 1;
+          if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
+          const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
+          const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
+          return tb - ta;
+        });
+    },
+    [user?.uid]
+  );
+
+  const applyConversationList = useCallback(
+    async (all, meta = {}, options = {}) => {
+      if (!mountedRef.current) return;
+      const { forceSetRows = false, forceEnrich = false } = options;
+
+      if (!forceSetRows && listenerHasEmittedRef.current && options.fromLoad) {
+        return;
+      }
+
+      const fp = convListFingerprint(all);
+      const dataChanged = fp !== rowsFingerprintRef.current;
+      const skipEnrich =
+        !forceEnrich && (meta.hasPendingWrites || (!dataChanged && !forceSetRows));
+
+      let admin = adminEmail;
+      if (!admin) {
+        admin = await getAdminEmail();
+        if (admin && mountedRef.current) setAdminEmail(admin);
+      }
+
+      let meNorm = normalizeEmail(meEmail);
+      if (!meNorm) {
+        const resolved = await resolveChatParticipantEmail();
+        if (resolved && mountedRef.current) {
+          setMeEmail(resolved);
+          meNorm = normalizeEmail(resolved);
+        }
+      }
+
+      const deduped = await buildRowsFromConversations(all, admin, meNorm, { skipEnrich });
+      if (!mountedRef.current) return;
+
+      rowsFingerprintRef.current = fp;
+      setRows(deduped);
+      notifyUnreadTabBadge();
+      setLoading(false);
+      setRefreshing(false);
+    },
+    [adminEmail, meEmail, buildRowsFromConversations]
+  );
+
+  const load = useCallback(async (options = {}) => {
     const seq = ++loadSeqRef.current;
     if (!auth.currentUser) {
       setRows([]);
@@ -94,9 +230,8 @@ export default function MessagesScreen({ navigation }) {
       while (true) {
         try {
           const admin = await getAdminEmail();
-          setAdminEmail(admin);
+          if (seq === loadSeqRef.current && admin) setAdminEmail(admin);
 
-          const me = normalizeEmail(chatEmail || meEmail);
           let all = await listConversationsForCurrentUser();
           if (all.length === 0 && auth.currentUser?.uid) {
             await new Promise((resolve) => setTimeout(resolve, 600));
@@ -105,68 +240,13 @@ export default function MessagesScreen({ navigation }) {
             }
             all = await listConversationsForCurrentUser();
           }
-          const otherEmails = [
-            ...new Set(
-              all.map((c) => {
-                const p1 = normalizeEmail(c.participant_1);
-                const imP1 = me && (p1 === me || areEmailVariants(p1, me));
-                return imP1 ? c.participant_2 : c.participant_1;
-              })
-            ),
-          ];
 
-          const nameMap = new Map();
-          await Promise.all(
-            otherEmails.map(async (em) => {
-              if (admin && normalizeEmail(em) === normalizeEmail(admin)) {
-                nameMap.set(em, "АДМИН");
-                return;
-              }
-              const u = await getUserByEmail(em);
-              nameMap.set(em, u?.displayName || em.split("@")[0]);
-            })
-          );
-
-          const enriched = all.map((conv) => {
-            const p1 = normalizeEmail(conv.participant_1);
-            const p2 = normalizeEmail(conv.participant_2);
-            let imP1 = !!(me && (p1 === me || areEmailVariants(p1, me)));
-            if (!me && user?.uid && Array.isArray(conv.participant_uids) && conv.participant_uids.includes(user.uid)) {
-              if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
-              else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
-            }
-            const other = imP1 ? conv.participant_2 : conv.participant_1;
-            const unread = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
-            return {
-              ...conv,
-              otherEmail: other,
-              otherName: nameMap.get(other) || other.split("@")[0],
-              unreadCount: unread || 0,
-            };
-          });
-
-          const seen = new Set();
-          const deduped = enriched
-            .filter((c) => {
-              const k = c.id;
-              if (!k || seen.has(k)) return false;
-              seen.add(k);
-              return true;
-            })
-            .sort((a, b) => {
-              const adminN = admin ? normalizeEmail(admin) : "";
-              const aAdmin = adminN && normalizeEmail(a.otherEmail) === adminN;
-              const bAdmin = adminN && normalizeEmail(b.otherEmail) === adminN;
-              if (aAdmin && !bAdmin) return -1;
-              if (!aAdmin && bAdmin) return 1;
-              if (a.unreadCount !== b.unreadCount) return (b.unreadCount || 0) - (a.unreadCount || 0);
-              const ta = new Date(a.last_message_time || a.last_message_date || 0).getTime();
-              const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
-              return tb - ta;
-            });
           if (seq === loadSeqRef.current) {
-            setRows(deduped);
-            notifyUnreadTabBadge();
+            await applyConversationList(all, { hasPendingWrites: false }, {
+              fromLoad: true,
+              forceSetRows: Boolean(options.forceSetRows),
+              forceEnrich: true,
+            });
           }
           break;
         } catch (e) {
@@ -202,31 +282,39 @@ export default function MessagesScreen({ navigation }) {
         setRefreshing(false);
       }
     }
-  }, [user?.uid, meEmail, refreshUserData]);
+  }, [user?.uid, meEmail, refreshUserData, applyConversationList]);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      load();
-      const sub = AppState.addEventListener("change", (state) => {
-        if (state === "active") load();
+      listenerHasEmittedRef.current = false;
+      rowsFingerprintRef.current = "";
+
+      const unsubConvs = subscribeConversationsForUser((all, meta) => {
+        listenerHasEmittedRef.current = true;
+        void applyConversationList(all, meta);
       });
-      const t = setInterval(() => {
-        if (AppState.currentState !== "active") return;
-        load();
-      }, 12000);
+
+      void load();
+
+      const sub = AppState.addEventListener("change", (state) => {
+        if (state === "active") load({ forceSetRows: true });
+      });
+
       return () => {
-        clearInterval(t);
+        unsubConvs();
+        listenerHasEmittedRef.current = false;
+        rowsFingerprintRef.current = "";
         sub.remove();
         blurActiveElementWeb();
       };
-    }, [load])
+    }, [load, applyConversationList])
   );
 
   useFocusEffect(
     useCallback(() => {
       const unsub = subscribeMessagesListRefresh(() => {
-        load();
+        load({ forceSetRows: true });
       });
       return unsub;
     }, [load])
@@ -258,7 +346,7 @@ export default function MessagesScreen({ navigation }) {
     try {
       await deleteConversationAndMessages(item.id);
       setDeleteTarget(null);
-      await load();
+      await load({ forceSetRows: true });
     } catch (e) {
       const code = e?.code || "";
       const msg =
@@ -304,7 +392,7 @@ export default function MessagesScreen({ navigation }) {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    load();
+    load({ forceSetRows: true });
   }, [load]);
 
   const renderRow = useCallback(
