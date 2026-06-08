@@ -517,7 +517,7 @@ export default function AdminScreen({ navigation }) {
     />
     <Modal visible={infoOpen} transparent animationType="fade" onRequestClose={() => setInfoOpen(false)}>
       <Pressable style={styles.modalBackdrop} onPress={() => setInfoOpen(false)}>
-        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
           <Text style={styles.modalTitle}>{infoTitle}</Text>
           <Text style={styles.modalText}>{infoText}</Text>
           <Pressable style={styles.modalBtn} onPress={() => setInfoOpen(false)}>

@@ -300,7 +300,7 @@ export default function ProfileTabScreen({ navigation }) {
               contentContainerStyle={styles.editScroll}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.modalCardWide}>
+              <Pressable style={styles.modalCardWide} onPress={(e) => e.stopPropagation?.()}>
               <Text style={styles.modalTitle}>Профайл засах</Text>
               <Text style={styles.modalHint}>Нэр, утас зэргээ шинэчилнэ үү. Имэйлийг энд өөрчлөх боломжгүй.</Text>
               {editErr ? <Text style={styles.modalErr}>{editErr}</Text> : null}
@@ -393,7 +393,7 @@ export default function ProfileTabScreen({ navigation }) {
                   )}
                 </Pressable>
               </View>
-              </View>
+              </Pressable>
             </ScrollView>
           </Pressable>
         </KeyboardAvoidingView>
@@ -401,7 +401,7 @@ export default function ProfileTabScreen({ navigation }) {
 
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={closeDeleteModal}>
         <Pressable style={styles.modalBackdrop} onPress={closeDeleteModal}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
             <Text style={styles.modalTitle}>Бүртгэл устгах</Text>
             <Text style={styles.modalHint}>
               {isPhoneOnlyAccount
@@ -485,7 +485,7 @@ export default function ProfileTabScreen({ navigation }) {
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <View style={styles.modalCard}>
+              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
                 <Text style={styles.modalTitle}>Санал хүсэлт</Text>
                 <Text style={styles.modalHint}>Таны саналыг бид сайжруулалтад ашиглана.</Text>
                 {feedbackErr ? <Text style={styles.modalErr}>{feedbackErr}</Text> : null}
@@ -522,7 +522,7 @@ export default function ProfileTabScreen({ navigation }) {
                     )}
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             </ScrollView>
           </Pressable>
         </KeyboardAvoidingView>

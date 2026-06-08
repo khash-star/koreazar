@@ -241,7 +241,7 @@ export default function AdminBannersScreen() {
     />
     <Modal visible={dialogOpen} transparent animationType="fade" onRequestClose={() => setDialogOpen(false)}>
       <Pressable style={styles.modalBackdrop} onPress={() => !saving && setDialogOpen(false)}>
-        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
           <Text style={styles.modalTitle}>{editingId ? "Баннер засах" : "Шинэ баннер"}</Text>
           <Pressable style={styles.pickBtn} onPress={pickImage} disabled={uploading || saving}>
             <Text style={styles.pickBtnText}>{uploading ? "Зураг upload..." : "Зураг сонгох"}</Text>

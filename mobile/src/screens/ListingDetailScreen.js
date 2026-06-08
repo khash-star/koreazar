@@ -697,7 +697,7 @@ export default function ListingDetailScreen({ route, navigation }) {
               bounces={false}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.modalCard}>
+              <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
                 <Text style={styles.modalTitle}>Санал/гомдол</Text>
                 <Text style={styles.modalHint}>Шалтгаанаа сонгоод илгээнэ үү.</Text>
                 <View style={styles.reasonList}>
@@ -745,7 +745,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                     )}
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             </ScrollView>
           </Pressable>
         </KeyboardAvoidingView>
