@@ -52,16 +52,62 @@ export async function getUserProfileByUid(uid) {
 }
 
 /** Админы имэйл (users коллекц дээр role === 'admin') */
+const ADMIN_EMAIL_CACHE_TTL_MS = 5 * 60 * 1000;
+let adminEmailCache = { email: null, hasValue: false, expiresAt: 0, cachedAt: 0 };
+let adminEmailFetchPromise = null;
+
+function readAdminEmailCache(allowStale) {
+  if (!adminEmailCache.hasValue) return undefined;
+  const now = Date.now();
+  if (adminEmailCache.expiresAt > now) return adminEmailCache.email;
+  if (allowStale) return adminEmailCache.email;
+  return undefined;
+}
+
+function writeAdminEmailCache(email) {
+  const now = Date.now();
+  adminEmailCache = {
+    email,
+    hasValue: true,
+    cachedAt: now,
+    expiresAt: now + ADMIN_EMAIL_CACHE_TTL_MS,
+  };
+}
+
+async function fetchAdminEmailFromFirestore() {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("role", "==", "admin"), limit(1));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const raw = snapshot.docs[0].data()?.email;
+  return raw ? normalizeEmail(raw) : null;
+}
+
 export async function getAdminEmail() {
-  try {
-    const usersRef = collection(db, "users");
-    const snapshot = await getDocs(usersRef);
-    const admin = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })).find((u) => u.role === "admin");
-    return admin?.email || null;
-  } catch (e) {
-    console.warn("getAdminEmail:", e?.message);
-    return null;
-  }
+  const cached = readAdminEmailCache(false);
+  if (cached !== undefined) return cached;
+
+  if (adminEmailFetchPromise) return adminEmailFetchPromise;
+
+  adminEmailFetchPromise = (async () => {
+    try {
+      const email = await fetchAdminEmailFromFirestore();
+      writeAdminEmailCache(email);
+      return email;
+    } catch (e) {
+      console.warn("getAdminEmail:", e?.message);
+      const stale = readAdminEmailCache(true);
+      if (stale !== undefined) {
+        console.warn("[getAdminEmail] using stale cache after fetch error");
+        return stale;
+      }
+      return null;
+    } finally {
+      adminEmailFetchPromise = null;
+    }
+  })();
+
+  return adminEmailFetchPromise;
 }
 
 /** Имэйлээр хэрэглэгчийн профайл */
