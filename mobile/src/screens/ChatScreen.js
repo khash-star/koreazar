@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { useHeaderHeight } from "@react-navigation/elements";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext.js";
@@ -42,7 +44,7 @@ import {
 } from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
@@ -67,6 +69,22 @@ export default function ChatScreen({ route, navigation }) {
   const inputRef = useRef(null);
   const mountedRef = useRef(true);
   const scrollTimerRef = useRef(null);
+  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
+
+  const resolvedOtherEmail = useMemo(() => {
+    if (otherUser?.email) return otherUser.email;
+    if (normalizedOtherEmail) return normalizedOtherEmail;
+    if (!conversation || !chatEmail) return null;
+    const meNorm = normalizeEmail(chatEmail);
+    const p1 = conversation.participant_1;
+    const p2 = conversation.participant_2;
+    if (normalizeEmail(p1) === meNorm || areEmailVariants(p1, meNorm)) return p2;
+    if (normalizeEmail(p2) === meNorm || areEmailVariants(p2, meNorm)) return p1;
+    return p2 || p1 || null;
+  }, [otherUser?.email, normalizedOtherEmail, conversation, chatEmail]);
+
+  const canSend = Boolean(draft.trim()) && !sending;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -283,6 +301,16 @@ export default function ChatScreen({ route, navigation }) {
 
   useFocusEffect(
     useCallback(() => {
+      const tabNav = navigation.getParent();
+      tabNav?.setOptions({ tabBarStyle: { display: "none" } });
+      return () => {
+        tabNav?.setOptions({ tabBarStyle: undefined });
+      };
+    }, [navigation])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
       const cleanupBlur = () => {
         blurActiveElementWeb();
         inputRef.current?.blur?.();
@@ -340,11 +368,16 @@ export default function ChatScreen({ route, navigation }) {
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text || !convId || !otherUser?.email || sending) return;
+    if (!text || sending) return;
+    const recipient = resolvedOtherEmail;
+    if (!convId || !recipient) {
+      showAlert("Чат", "Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.");
+      return;
+    }
     setSending(true);
     try {
-      const chatEmail = await resolveChatParticipantEmail();
-      if (!chatEmail) {
+      const meEmail = await resolveChatParticipantEmail();
+      if (!meEmail) {
         showAlert("Алдаа", "Нэвтрэлтийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.");
         return;
       }
@@ -362,16 +395,16 @@ export default function ChatScreen({ route, navigation }) {
       }
       await createMessage({
         conversation_id: convId,
-        sender_email: normalizeEmail(chatEmail),
-        receiver_email: normalizeEmail(otherUser.email),
+        sender_email: normalizeEmail(meEmail),
+        receiver_email: normalizeEmail(recipient),
         message: text,
         is_read: false,
       });
       const updated = await updateConversationAfterMessage({
         conversationId: convId,
         conversation: conv,
-        senderEmail: chatEmail,
-        receiverEmail: otherUser.email,
+        senderEmail: meEmail,
+        receiverEmail: recipient,
         messageText: text,
       });
       setDraft("");
@@ -416,8 +449,10 @@ export default function ChatScreen({ route, navigation }) {
     );
   }
 
+  const inputBottomPad = Math.max(insets.bottom, Platform.OS === "ios" ? 12 : 8);
+
   const chatBody = (
-    <>
+    <View style={styles.chatColumn}>
       {listing ? (
         <Pressable
           style={styles.listingBanner}
@@ -450,7 +485,9 @@ export default function ChatScreen({ route, navigation }) {
         ref={scrollRef}
         style={styles.msgScroll}
         contentContainerStyle={styles.msgContent}
-        keyboardShouldPersistTaps="always"
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        nestedScrollEnabled
       >
         {messages.map((m) => {
           const meNorm = normalizeEmail(chatEmail);
@@ -498,8 +535,10 @@ export default function ChatScreen({ route, navigation }) {
       <View
         style={[
           styles.inputRow,
+          { paddingBottom: inputBottomPad },
           Platform.OS === "android" && keyboardHeight > 0 && { marginBottom: keyboardHeight },
         ]}
+        pointerEvents="box-none"
       >
         <TextInput
           ref={inputRef}
@@ -510,20 +549,25 @@ export default function ChatScreen({ route, navigation }) {
           placeholderTextColor="#9ca3af"
           multiline
           maxLength={2000}
+          blurOnSubmit={false}
         />
-        <Pressable
-          style={[styles.sendBtn, (!draft.trim() || sending) && styles.sendBtnDisabled]}
+        <TouchableOpacity
+          style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
           onPress={handleSend}
-          disabled={!draft.trim() || sending}
+          disabled={!canSend}
+          activeOpacity={0.75}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Илгээх"
         >
           {sending ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.sendBtnText}>Илгээх</Text>
           )}
-        </Pressable>
+        </TouchableOpacity>
       </View>
-    </>
+    </View>
   );
 
   if (Platform.OS === "web") {
@@ -534,7 +578,7 @@ export default function ChatScreen({ route, navigation }) {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === "ios" ? headerHeight : 0}
     >
       {chatBody}
     </KeyboardAvoidingView>
@@ -543,6 +587,7 @@ export default function ChatScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: "#f1f5f9" },
+  chatColumn: { flex: 1, minHeight: 0 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   muted: { color: "#6b7280", fontSize: 15 },
   listingBanner: {
@@ -558,8 +603,8 @@ const styles = StyleSheet.create({
   listingThumbPh: { alignItems: "center", justifyContent: "center" },
   listingTitle: { fontSize: 14, fontWeight: "600", color: "#111827" },
   listingPrice: { fontSize: 13, color: "#ea580c", fontWeight: "700", marginTop: 2 },
-  msgScroll: { flex: 1 },
-  msgContent: { padding: 12, paddingBottom: 20 },
+  msgScroll: { flex: 1, minHeight: 0 },
+  msgContent: { padding: 12, paddingBottom: 20, flexGrow: 1 },
   bubbleWrap: {
     marginBottom: 10,
     maxWidth: "88%",
@@ -588,12 +633,15 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    padding: 10,
-    paddingBottom: Platform.OS === "ios" ? 24 : 12,
+    paddingHorizontal: 10,
+    paddingTop: 10,
     gap: 8,
     backgroundColor: "#fff",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#e5e7eb",
+    position: "relative",
+    zIndex: 30,
+    ...(Platform.OS === "android" ? { elevation: 12 } : {}),
   },
   input: {
     flex: 1,
