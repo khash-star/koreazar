@@ -1,6 +1,16 @@
 # Push Notification Tests
 
-**Default:** Push is **not** implemented for store claims (`mobile/README.md`). Run this playbook **only** when FCM/Expo push is in scope.
+**Current scope:** Native **chat push** is implemented for the Expo mobile app.
+It uses Expo push tokens stored in Firestore and a Firebase Function triggered by
+new `messages` documents. Listing/status marketing push is not documented as a
+shipped flow.
+
+Source docs/code:
+
+- `mobile/docs/CHAT_PUSH_SETUP.md`
+- `mobile/src/components/PushNotificationBootstrap.js`
+- `mobile/src/services/pushTokenService.js`
+- `functions/index.js`
 
 ---
 
@@ -8,8 +18,9 @@
 
 | Question | Answer |
 |----------|--------|
-| Is push intentionally implemented in this PR? | Yes / No |
-| If No, confirm no new permission prompts or store claims | ☐ |
+| Is the change touching chat, messages, auth identity, push tokens, Firebase Functions, EAS credentials, or Firestore rules? | Yes / No |
+| If Yes, run the relevant sections below on a real development/production EAS build. | ☐ |
+| If No, confirm the change does not add push permission prompts or new store claims. | ☐ |
 
 ---
 
@@ -17,11 +28,12 @@
 
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
-| Permission prompt on first use (if designed) | ☐ | ☐ | |
-| FCM/Expo token obtained | ☐ | ☐ | |
-| Token stored server-side or in Firestore (per design) | ☐ | ☐ | |
+| Permission prompt appears only after authenticated mobile session initializes push bootstrap | ☐ | ☐ | |
+| Expo push token obtained (`ExponentPushToken[...]`) | ☐ | ☐ | |
+| Token stored at `user_push_tokens/{uid}/devices/{tokenId}` | ☐ | ☐ | |
 | Token refresh on reinstall | ☐ | ☐ | |
-| Logout clears or invalidates token (if required) | ☐ | ☐ | |
+| Logout removes this device token doc | ☐ | ☐ | |
+| Android test is not Expo Go; uses an EAS build with `projectId` | ☐ | ☐ | |
 
 ---
 
@@ -29,9 +41,9 @@
 
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
-| Notification received while app open | ☐ | ☐ | |
+| Notification received or handled safely while app open | ☐ | ☐ | |
 | In-app handling does not crash | ☐ | ☐ | |
-| Tap navigates to correct screen | ☐ | ☐ | |
+| Tap navigates to chat/conversation context | ☐ | ☐ | |
 
 ---
 
@@ -39,9 +51,12 @@
 
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
-| Notification received when app backgrounded | ☐ | ☐ | |
-| Tap opens app to correct route | ☐ | ☐ | |
-| Cold start from notification | ☐ | ☐ | |
+| User A sends chat from web or mobile | ☐ | ☐ | |
+| User B receives push when app backgrounded | ☐ | ☐ | |
+| User B receives push when app killed/cold | ☐ | ☐ | |
+| Tap opens app to chat/conversation context | ☐ | ☐ | |
+| Email user -> phone OTP user works | ☐ | ☐ | |
+| Phone OTP user -> email user works | ☐ | ☐ | |
 
 ---
 
@@ -50,9 +65,21 @@
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | `expo-notifications` config in `app.json` (if used) | ☐ | ☐ | Read-only |
-| EAS credentials / FCM v1 for production build | ☐ | ☐ | |
+| EAS credentials / FCM v1 for Android production build | ☐ | ☐ | |
+| APNs credentials for iOS build | ☐ | ☐ | |
 | Physical device test (simulator limits noted) | ☐ | ☐ | |
 | Android channel / iOS entitlement errors absent | ☐ | ☐ | |
+
+---
+
+## Firebase Function behavior
+
+| Check | Pass | Fail | Notes |
+|-------|:----:|:----:|-------|
+| `onChatMessageCreatedPush` deployed in `asia-northeast3` | ☐ | ☐ | |
+| New `messages/{messageId}` doc triggers function | ☐ | ☐ | |
+| Receiver uid resolves from `users.email` including phone synthetic email users | ☐ | ☐ | |
+| Invalid Expo tokens are pruned (`DeviceNotRegistered`, `InvalidCredentials`) | ☐ | ☐ | |
 
 ---
 
@@ -60,12 +87,17 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Store rejection for undeclared push | Do not claim push in listing if not implemented |
+| Store rejection for undeclared push | Claim only implemented chat push behavior; do not claim listing/status push unless implemented and tested |
 | Token PII in logs | Redact in test reports |
 | Web push vs native mismatch | Test only platforms in scope |
+| Android silent while iOS works | Verify Expo FCM V1 service account upload and rebuild/re-login |
+| Receiver identity mismatch | Test both email users and phone OTP synthetic-email users |
 
 ---
 
 ## Not in scope (document N/A)
 
-If push not implemented: mark all rows **N/A** in `../templates/test-report.md`.
+If the change cannot affect chat push, mark this playbook **N/A** in
+`../templates/test-report.md`. If a change affects push but credentials/devices
+are unavailable, document exactly which checks were blocked and which source
+paths were reviewed.

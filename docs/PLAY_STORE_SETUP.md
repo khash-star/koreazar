@@ -28,7 +28,7 @@ npm install -g @bubblewrap/cli
 Шинэ Bubblewrap CLI нь `--manifest` заавал шаардана. Сайтын manifest URL:
 
 ```bash
-npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.webmanifest
+npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.json
 ```
 
 (Хэрэв алдаа гарвал `--manifest=https://zarkorea.com` эсвэл локал `twa-manifest.json` ашиглана.)
