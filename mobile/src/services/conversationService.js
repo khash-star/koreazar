@@ -9,6 +9,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -76,6 +77,25 @@ function mapConversationDoc(d) {
     created_date: convertTimestamp(data.created_date),
     last_message_date: convertTimestamp(data.last_message_date),
   };
+}
+
+function mapMessageDoc(d) {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    created_date: convertTimestamp(data.created_date),
+  };
+}
+
+function messagesQuery(conversationId, limitCount) {
+  const messagesRef = collection(db, "messages");
+  return query(
+    messagesRef,
+    where("conversation_id", "==", conversationId),
+    orderBy("created_date", "desc"),
+    limit(limitCount)
+  );
 }
 
 async function resolveUidForChatEmail(email, hintUid = null) {
@@ -257,24 +277,37 @@ export async function findConversation(email1, email2) {
 }
 
 export async function listMessages(conversationId, limitCount = 100) {
-  const messagesRef = collection(db, "messages");
-  const q = query(
-    messagesRef,
-    where("conversation_id", "==", conversationId),
-    orderBy("created_date", "desc"),
-    limit(limitCount)
+  const cid = String(conversationId ?? "").trim();
+  if (!cid) return [];
+  const querySnapshot = await getDocs(messagesQuery(cid, limitCount));
+  return querySnapshot.docs.map(mapMessageDoc).reverse();
+}
+
+/**
+ * Real-time messages for one conversation (same query/mapping as listMessages).
+ * @param {string} conversationId
+ * @param {(messages: object[], meta: { hasPendingWrites: boolean, fromCache: boolean }) => void} callback
+ * @param {{ limit?: number }} [options]
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeMessages(conversationId, callback, options = {}) {
+  const cid = String(conversationId ?? "").trim();
+  if (!cid || typeof callback !== "function") return () => {};
+
+  const limitCount = options.limit ?? 100;
+  return onSnapshot(
+    messagesQuery(cid, limitCount),
+    (snapshot) => {
+      const list = snapshot.docs.map(mapMessageDoc).reverse();
+      callback(list, {
+        hasPendingWrites: snapshot.metadata.hasPendingWrites,
+        fromCache: snapshot.metadata.fromCache,
+      });
+    },
+    (error) => {
+      console.warn("subscribeMessages:", error?.message || error);
+    }
   );
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs
-    .map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date),
-      };
-    })
-    .reverse();
 }
 
 /**

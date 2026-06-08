@@ -29,6 +29,7 @@ import {
   findConversation,
   getConversation,
   listMessages,
+  subscribeMessages,
   repairConversationParticipants,
   resolveChatParticipantEmail,
   syncConversationLastMessageFromMessages,
@@ -85,6 +86,8 @@ export default function ChatScreen({ route, navigation }) {
   const mountedRef = useRef(true);
   const scrollTimerRef = useRef(null);
   const sendingRef = useRef(false);
+  const readMarkInFlightRef = useRef(false);
+  const readMarkedIdsRef = useRef(new Set());
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
@@ -205,6 +208,68 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [paramConvId, normalizedOtherEmail, navigation]);
 
+  const applyMessagesList = useCallback((list) => {
+    if (!mountedRef.current) return;
+    setMessages(list);
+    scrollToEnd();
+  }, []);
+
+  const markUnreadAsRead = useCallback(
+    async (list, meEmailHint, meta = {}) => {
+      if (!convId || !mountedRef.current) return;
+      if (meta.hasPendingWrites) return;
+
+      let me = meEmailHint ? normalizeEmail(meEmailHint) : "";
+      if (!me) {
+        const resolved = await resolveChatParticipantEmail();
+        if (!resolved) return;
+        me = normalizeEmail(resolved);
+        if (mountedRef.current) setChatEmail(resolved);
+      }
+
+      const unread = list.filter(
+        (m) =>
+          m?.id &&
+          normalizeEmail(m.receiver_email) === me &&
+          !m.is_read &&
+          !readMarkedIdsRef.current.has(m.id)
+      );
+      if (unread.length === 0) return;
+      if (readMarkInFlightRef.current) return;
+
+      readMarkInFlightRef.current = true;
+      try {
+        for (const m of unread) {
+          readMarkedIdsRef.current.add(m.id);
+        }
+
+        for (const m of unread) {
+          try {
+            await updateMessage(m.id, { is_read: true });
+          } catch {
+            readMarkedIdsRef.current.delete(m.id);
+          }
+        }
+
+        if (!mountedRef.current) return;
+        const conv = await getConversation(convId);
+        if (!conv) return;
+        const isP1 = normalizeEmail(conv.participant_1) === me;
+        try {
+          await updateConversation(convId, {
+            [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,
+          });
+        } catch {
+          /* ignore */
+        }
+        notifyUnreadTabBadge();
+      } finally {
+        readMarkInFlightRef.current = false;
+      }
+    },
+    [convId]
+  );
+
   const fetchMessages = useCallback(async () => {
     if (!convId) return;
     const me = chatEmail || (await resolveChatParticipantEmail());
@@ -213,34 +278,12 @@ export default function ChatScreen({ route, navigation }) {
     try {
       const list = await listMessages(convId, 120);
       if (!mountedRef.current) return;
-      setMessages(list);
-      scrollToEnd();
-
-      const conv = await getConversation(convId);
-      if (!conv) return;
-      const meNorm = normalizeEmail(me);
-      const unread = list.filter((m) => normalizeEmail(m.receiver_email) === meNorm && !m.is_read);
-      if (unread.length === 0) return;
-      for (const m of unread) {
-        try {
-          await updateMessage(m.id, { is_read: true });
-        } catch {
-          /* ignore */
-        }
-      }
-      const isP1 = normalizeEmail(conv.participant_1) === meNorm;
-      try {
-        await updateConversation(convId, {
-          [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,
-        });
-      } catch {
-        /* ignore */
-      }
-      notifyUnreadTabBadge();
+      applyMessagesList(list);
+      await markUnreadAsRead(list, me, { hasPendingWrites: false });
     } catch (e) {
       console.warn("listMessages:", e?.message);
     }
-  }, [convId, chatEmail]);
+  }, [convId, chatEmail, applyMessagesList, markUnreadAsRead]);
 
   const loadMeta = useCallback(async () => {
     if (!convId) return;
@@ -308,12 +351,10 @@ export default function ChatScreen({ route, navigation }) {
   useEffect(() => {
     if (!convId) return;
     setLoading(true);
-    loadMeta()
-      .then(() => fetchMessages())
-      .finally(() => {
-        if (mountedRef.current) setLoading(false);
-      });
-  }, [convId, loadMeta, fetchMessages]);
+    loadMeta().finally(() => {
+      if (mountedRef.current) setLoading(false);
+    });
+  }, [convId, loadMeta]);
 
   useFocusEffect(
     useCallback(() => {
@@ -334,23 +375,29 @@ export default function ChatScreen({ route, navigation }) {
       if (!convId) {
         return cleanupBlur;
       }
+      const unsubMessages = subscribeMessages(
+        convId,
+        (list, meta) => {
+          if (!mountedRef.current) return;
+          applyMessagesList(list);
+          void markUnreadAsRead(list, chatEmail, meta);
+        },
+        { limit: 120 }
+      );
       const sub = AppState.addEventListener("change", (state) => {
         if (state === "active") fetchMessages();
       });
-      const t = setInterval(() => {
-        if (AppState.currentState !== "active") return;
-        fetchMessages();
-      }, 10000);
       const unsubNav = navigation.addListener("blur", () => {
         notifyMessagesListRefresh();
       });
       return () => {
         cleanupBlur();
-        clearInterval(t);
+        unsubMessages();
+        readMarkedIdsRef.current.clear();
         sub.remove();
         unsubNav();
       };
-    }, [convId, fetchMessages, navigation])
+    }, [convId, chatEmail, applyMessagesList, markUnreadAsRead, fetchMessages, navigation])
   );
 
   useEffect(() => {
@@ -426,7 +473,6 @@ export default function ChatScreen({ route, navigation }) {
       });
       setDraft("");
       setConversation(updated);
-      await fetchMessages();
       notifyUnreadTabBadge();
     } catch (e) {
       showAlert("Алдаа", toUserFacingError(e));
