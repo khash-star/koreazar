@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
@@ -52,6 +52,8 @@ export default function AdminScreen({ navigation }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [infoTitle, setInfoTitle] = useState("");
   const [infoText, setInfoText] = useState("");
+  const autoApproveInFlightRef = useRef(false);
+  const autoApproveFailedIdsRef = useRef(new Set());
 
   useEffect(() => {
     getListingAutoApprove()
@@ -70,6 +72,9 @@ export default function AdminScreen({ navigation }) {
 
   const handleAutoApproveChange = useCallback(async (value) => {
     const prev = autoApprove;
+    if (!value) {
+      autoApproveFailedIdsRef.current.clear();
+    }
     setAutoApprove(value);
     await AsyncStorage.setItem(AUTO_APPROVE_KEY, String(value));
     try {
@@ -85,33 +90,59 @@ export default function AdminScreen({ navigation }) {
     }
   }, [autoApprove]);
 
-  const load = useCallback(
-    async (isRefresh) => {
-      try {
-        if (isRefresh) setRefreshing(true);
-        else setLoading(true);
-        const data = await getPendingListings();
-        setRows(data);
-        if (autoApprove && data.length > 0) {
-          for (const item of data) {
-            try {
-              await updateListing(item.id, { status: "active" });
-            } catch {
-              /* skip on error */
-            }
-          }
-          setRows([]);
-          notifyListingBadgeRefresh();
+  const runAutoApprove = useCallback(async (currentRows) => {
+    if (!autoApprove || autoApproveInFlightRef.current) return;
+
+    const pending = currentRows.filter(
+      (r) => r.status === "pending" && !autoApproveFailedIdsRef.current.has(String(r.id))
+    );
+    if (pending.length === 0) return;
+
+    autoApproveInFlightRef.current = true;
+    let approved = 0;
+    let failed = 0;
+    const succeededIds = [];
+
+    try {
+      for (const item of pending) {
+        try {
+          await updateListing(item.id, { status: "active" });
+          approved += 1;
+          succeededIds.push(item.id);
+        } catch (e) {
+          failed += 1;
+          autoApproveFailedIdsRef.current.add(String(item.id));
+          console.warn(`[auto-approve] fail id=${item.id}:`, e?.message);
         }
-      } catch (e) {
-        showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
-    },
-    [autoApprove]
-  );
+      if (approved > 0) {
+        const ok = new Set(succeededIds.map(String));
+        setRows((prev) => prev.filter((r) => !ok.has(String(r.id))));
+        notifyListingBadgeRefresh();
+      }
+      if (approved > 0 || failed > 0) {
+        console.log(
+          `[auto-approve] approved=${approved} failed=${failed} skip-cache=${autoApproveFailedIdsRef.current.size}`
+        );
+      }
+    } finally {
+      autoApproveInFlightRef.current = false;
+    }
+  }, [autoApprove]);
+
+  const load = useCallback(async (isRefresh) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      const data = await getPendingListings();
+      setRows(data);
+    } catch (e) {
+      showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   const loadAdminStats = useCallback(async () => {
     try {
@@ -172,21 +203,9 @@ export default function AdminScreen({ navigation }) {
   );
 
   useEffect(() => {
-    if (autoApprove && rows.length > 0) {
-      const approveAll = async () => {
-        for (const item of rows) {
-          try {
-            await updateListing(item.id, { status: "active" });
-          } catch {
-            /* skip */
-          }
-        }
-        setRows([]);
-        notifyListingBadgeRefresh();
-      };
-      approveAll();
-    }
-  }, [autoApprove]);
+    if (!autoApprove) return;
+    runAutoApprove(rows);
+  }, [autoApprove, rows, runAutoApprove]);
 
   const handleApprove = useCallback(
     async (item) => {
