@@ -15,7 +15,13 @@ import {
   getCreatorPendingListingsCount,
   getPendingListingsCount,
 } from "../services/listingService";
-import { getUnreadMessagesCount } from "../services/conversationService";
+import {
+  getUnreadMessagesCount,
+  resolveChatParticipantEmail,
+  subscribeConversationsForUser,
+  tallyUnreadForUser,
+} from "../services/conversationService";
+import { normalizeEmail } from "../utils/emailNormalize.js";
 import { subscribeListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
 import { subscribeUnreadTabBadge } from "../utils/unreadBadgeEvents.js";
 import {
@@ -393,25 +399,56 @@ function MainTabs() {
       setUnreadCount(0);
       return;
     }
-    const refresh = () => getUnreadMessagesCount().then(setUnreadCount).catch(() => {});
-    refresh();
-    const unsubBadge = subscribeUnreadTabBadge(refresh);
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") refresh();
+    const uid = user.uid;
+    let cancelled = false;
+    let myEmail = normalizeEmail(email);
+
+    // Phone-auth хэрэглэгчид email хоосон байж болно; нэг удаа resolve хийнэ.
+    if (!myEmail) {
+      resolveChatParticipantEmail()
+        .then((resolved) => {
+          if (!cancelled && resolved) myEmail = normalizeEmail(resolved);
+        })
+        .catch(() => {});
+    }
+
+    // Real-time: conversations өөрчлөгдөх бүрт push ирнэ (8s polling-ийн оронд).
+    // hasPendingWrites snapshot-ийг ч хүлээж авна — ChatScreen уншсаны дараа
+    // badge шууд буурна. Тоо ижил бол setState дахин render хийхгүй (анивчихгүй).
+    const unsubConvs = subscribeConversationsForUser((convs) => {
+      if (cancelled) return;
+      setUnreadCount(tallyUnreadForUser(convs, { email: myEmail, uid }));
     });
-    const interval = setInterval(
-      () => {
-        if (AppState.currentState !== "active") return;
-        refresh();
-      },
-      8000
-    );
+
+    // Listener алдаа гарвал нэмэлт хамгаалалт болгон event bus-ийг үлдээнэ
+    // (сүлжээний нэг удаагийн fallback тооцоо).
+    const unsubBadge = subscribeUnreadTabBadge(() => {
+      if (cancelled) return;
+      getUnreadMessagesCount()
+        .then((n) => {
+          if (!cancelled) setUnreadCount(n);
+        })
+        .catch(() => {});
+    });
+
+    // Firestore listener-ийг өөрөө resume хийдэг ч урт background-ийн дараа
+    // найдвартай байхын тулд active болоход нэг удаагийн refetch хийнэ.
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || cancelled) return;
+      getUnreadMessagesCount()
+        .then((n) => {
+          if (!cancelled) setUnreadCount(n);
+        })
+        .catch(() => {});
+    });
+
     return () => {
+      cancelled = true;
+      unsubConvs();
       unsubBadge();
-      clearInterval(interval);
       sub.remove();
     };
-  }, [user?.uid]);
+  }, [user?.uid, email]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -482,9 +519,6 @@ function MainTabs() {
         listeners={({ navigation }) => ({
           tabPress: () => {
             navigation.navigate("MessagesTab", { screen: "MsgMain", params: {} });
-            if (user?.uid) {
-              getUnreadMessagesCount().then(setUnreadCount).catch(() => {});
-            }
           },
         })}
       />

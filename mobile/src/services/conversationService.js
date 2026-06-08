@@ -21,7 +21,7 @@ import {
 import { auth, db } from "../config/firebase";
 import { ensureUserDocEmailForFirestoreRules, getAllUsers, getResolvedAuthEmail } from "./authService";
 import { getUserByEmail } from "./userProfileService";
-import { normalizeEmail, areEmailVariants, emailQueryVariants } from "../utils/emailNormalize.js";
+import { normalizeEmail, areEmailVariants, emailQueryVariants, isSyntheticPhoneAuthEmail } from "../utils/emailNormalize.js";
 import { checkBannedContent } from "../utils/bannedContent.js";
 
 export function isFirestorePermissionDenied(err) {
@@ -665,23 +665,44 @@ function pushRowsFromSnap(docs, rows) {
   }
 }
 
+/**
+ * Уншаагүй мессежийн нийт тоог яриануудаас бодно. Өөрийн тал (p1/p2)-ыг
+ * email-ээр, эс бөгөөс phone-auth synthetic email + participant_uids-аар
+ * тодорхойлно (MessagesScreen-тэй ижил дүрэм — буруу тал бодохоос сэргийлнэ).
+ */
+export function tallyUnreadForUser(convs, { email = "", uid = "" } = {}) {
+  if (!Array.isArray(convs) || convs.length === 0) return 0;
+  const meNorm = normalizeEmail(email);
+  let total = 0;
+  for (const c of convs) {
+    const p1 = normalizeEmail(c.participant_1);
+    const p2 = normalizeEmail(c.participant_2);
+    let imP1 = !!(meNorm && (p1 === meNorm || areEmailVariants(p1, meNorm)));
+    if (
+      !meNorm &&
+      uid &&
+      Array.isArray(c.participant_uids) &&
+      c.participant_uids.includes(uid)
+    ) {
+      if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
+      else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
+    }
+    total += imP1 ? c.unread_count_p1 || 0 : c.unread_count_p2 || 0;
+  }
+  return total;
+}
+
 /** Хэрэглэгчийн уншаагүй мессежийн нийт тоо */
 export async function getUnreadMessagesCount(emailHint = "") {
   let email = normalizeEmail(emailHint);
   if (!email) {
     email = await resolveChatParticipantEmail();
   }
-  if (!email) return 0;
+  const uid = auth.currentUser?.uid || "";
+  if (!email && !uid) return 0;
   try {
     const convs = await listConversationsForCurrentUser();
-    const me = normalizeEmail(email);
-    let total = 0;
-    for (const c of convs) {
-      const p1 = normalizeEmail(c.participant_1);
-      const imP1 = me && (p1 === me || areEmailVariants(p1, me));
-      total += imP1 ? c.unread_count_p1 || 0 : c.unread_count_p2 || 0;
-    }
-    return total;
+    return tallyUnreadForUser(convs, { email, uid });
   } catch (_e) {
     return 0;
   }
