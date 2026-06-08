@@ -48,6 +48,21 @@ import { normalizeEmail, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
+function toUserFacingError(e) {
+  const code = String(e?.code || "");
+  const msg = String(e?.message || "");
+  if (code === "already-exists" || /already exists/i.test(msg)) {
+    return "Мессеж аль хэдийн илгээгдсэн.";
+  }
+  if (code === "permission-denied" || /insufficient permissions/i.test(msg)) {
+    return "Эрх хүрэхгүй байна. Дахин нэвтэрнэ үү.";
+  }
+  if (/projects\//.test(msg) || /documents\//.test(msg)) {
+    return "Мессеж илгээхэд алдаа гарлаа. Дахин оролдоно уу.";
+  }
+  return msg || "Илгээж чадсангүй";
+}
+
 export default function ChatScreen({ route, navigation }) {
   const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route?.params ?? {};
   const normalizedOtherEmail = typeof paramOther === "string" ? paramOther.trim().toLowerCase() : "";
@@ -69,6 +84,7 @@ export default function ChatScreen({ route, navigation }) {
   const inputRef = useRef(null);
   const mountedRef = useRef(true);
   const scrollTimerRef = useRef(null);
+  const sendingRef = useRef(false);
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
@@ -368,12 +384,13 @@ export default function ChatScreen({ route, navigation }) {
 
   async function handleSend() {
     const text = draft.trim();
-    if (!text || sending) return;
+    if (!text || sending || sendingRef.current) return;
     const recipient = resolvedOtherEmail;
     if (!convId || !recipient) {
       showAlert("Чат", "Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.");
       return;
     }
+    sendingRef.current = true;
     setSending(true);
     try {
       const meEmail = await resolveChatParticipantEmail();
@@ -412,9 +429,9 @@ export default function ChatScreen({ route, navigation }) {
       await fetchMessages();
       notifyUnreadTabBadge();
     } catch (e) {
-      const msg = e?.message || "Илгээж чадсангүй";
-      showAlert("Алдаа", msg);
+      showAlert("Алдаа", toUserFacingError(e));
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   }

@@ -11,6 +11,7 @@ import {
   limit,
   orderBy,
   query,
+  setDoc,
   Timestamp,
   updateDoc,
   where,
@@ -295,7 +296,16 @@ export async function createMessage(data, options = {}) {
     created_date: Timestamp.now(),
     is_read: data.is_read !== undefined ? data.is_read : false,
   };
-  const docRef = await addDoc(messagesRef, messageData);
+  const docRef = doc(messagesRef);
+  try {
+    await setDoc(docRef, messageData);
+  } catch (e) {
+    const code = String(e?.code || "");
+    const msg = String(e?.message || "");
+    if (code !== "already-exists" && !/already exists/i.test(msg)) {
+      throw e;
+    }
+  }
   return {
     id: docRef.id,
     ...messageData,
