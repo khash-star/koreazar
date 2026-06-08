@@ -1,6 +1,6 @@
 # Deployment Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > Verify project IDs, secrets, and hosting targets in the relevant console before
 > release work. Do not copy values from stale migration guides.
 

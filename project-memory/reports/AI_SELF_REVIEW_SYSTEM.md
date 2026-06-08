@@ -6,9 +6,9 @@ How Cursor should **audit its own work** on Koreazar before handoff. Infrastruct
 
 ## Purpose
 
-- Catch architecture, Firebase, routing, and deploy regressions before merge  
-- Enforce a consistent **change audit** in every coding reply  
-- Reduce duplicate logic and production incidents from stale docs or wrong project IDs  
+- Catch architecture, Firebase, routing, and deploy regressions before merge
+- Enforce a consistent **change audit** in every coding reply
+- Reduce duplicate logic and production incidents from stale docs or wrong project IDs
 
 ---
 
@@ -24,9 +24,9 @@ How Cursor should **audit its own work** on Koreazar before handoff. Infrastruct
 
 Also read before coding:
 
-1. `../PROJECT_MEMORY.md`  
-2. `../CODING_SAFETY_CHECKLIST.md`  
-3. `../SENIOR_DEVELOPER_SYSTEM.md` (complex / production-sensitive tasks)  
+1. `../PROJECT_MEMORY.md`
+2. `../CODING_SAFETY_CHECKLIST.md`
+3. `../SENIOR_DEVELOPER_SYSTEM.md` (complex / production-sensitive tasks)
 
 ---
 
@@ -47,11 +47,11 @@ Also read before coding:
 
 ## How Cursor should self-review
 
-1. **Assume production is live** at `https://zarkorea.com` with real Firebase data.  
-2. **Trace the change** in source — do not rely only on root `*_FIX.md` guides.  
-3. **Walk dimensions** in `self-review-workflow.md`: architecture, deploy, Firebase, routing, mobile/web, regressions, duplicates, performance.  
-4. **Run specialized checklists** when triggers match (security, firebase, deployment).  
-5. **Produce the change audit** in the agent reply (not optional for code tasks).  
+1. **Assume production is live** at `https://zarkorea.com` with real Firebase data.
+2. **Trace the change** in source — do not rely only on root `*_FIX.md` guides.
+3. **Walk dimensions** in `self-review-workflow.md`: architecture, deploy, Firebase, routing, mobile/web, regressions, duplicates, performance.
+4. **Run specialized checklists** when triggers match (security, firebase, deployment).
+5. **Produce the change audit** in the agent reply (not optional for code tasks).
 
 ### Required change audit fields
 
@@ -81,21 +81,21 @@ Also read before coding:
 
 ## Preventing production regressions
 
-1. **Never ship** new Firestore query shapes without indexes deployed.  
-2. **Never weaken** admin or auth guards “temporarily.”  
-3. **Verify** Firebase project ID and Vercel env in Console, not old markdown.  
-4. **Keep** Home data-before-images behavior predictable: PHP listings and Firestore banners must return image URLs before image fetch/preload.  
-5. **Sync** listing constants web → mobile before store builds.  
-6. **Document** rollback in every change audit for non-trivial diffs.  
-7. **Ignore** vendor markdown and `node_modules` for context (see `.cursorignore`).  
+1. **Never ship** new Firestore query shapes without indexes deployed.
+2. **Never weaken** admin or auth guards “temporarily.”
+3. **Verify** Firebase project ID and Vercel env in Console, not old markdown.
+4. **Keep** Home data-before-images behavior predictable: PHP listings and Firestore banners must return image URLs before image fetch/preload.
+5. **Sync** listing constants web → mobile before store builds.
+6. **Document** rollback in every change audit for non-trivial diffs.
+7. **Ignore** vendor markdown and `node_modules` for context (see `.cursorignore`).
 
 ---
 
 ## Integration with Senior Developer System
 
-- Workflows: `../workflows/` (feature, bugfix, firebase, mobile)  
-- Templates: `../templates/change-report.md`, `pr-description.md`  
-- Decisions: `../decisions/` for ADRs on major arch changes  
+- Workflows: `../workflows/` (feature, bugfix, firebase, mobile)
+- Templates: `../templates/change-report.md`, `pr-description.md`
+- Decisions: `../decisions/` for ADRs on major arch changes
 
 After a major architecture change, propose an ADR and run full self-review + security + firebase checklists.
 
@@ -103,13 +103,13 @@ After a major architecture change, propose an ADR and run full self-review + sec
 
 ## Quick reference: 8 self-review dimensions
 
-1. Architecture impact  
-2. Deployment impact  
-3. Firebase impact  
-4. Routing impact  
-5. Mobile/web compatibility  
-6. Regression risks  
-7. Duplicate logic risks  
-8. Performance risks  
+1. Architecture impact
+2. Deployment impact
+3. Firebase impact
+4. Routing impact
+5. Mobile/web compatibility
+6. Regression risks
+7. Duplicate logic risks
+8. Performance risks
 
 *Detail: `../reviews/self-review-workflow.md`*

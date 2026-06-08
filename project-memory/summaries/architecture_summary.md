@@ -1,6 +1,6 @@
 # Architecture Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > Source wins over stale markdown. Verify against `src/`, `mobile/`, `api/`,
 > `functions/`, `firestore.rules`, and `firestore.indexes.json` before changing
 > behavior.

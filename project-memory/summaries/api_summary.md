@@ -1,6 +1,6 @@
 # API Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > No Swagger/OpenAPI file exists. Treat this as a source-backed route and
 > collection map, then verify details in code before changing contracts.
 

@@ -1,12 +1,12 @@
 # Koreazar — AI Project Memory
 
-> **Source:** Canonical project-authored docs in `docs/` only (4 files).  
-> **Updated:** 2026-05-28 · See `summaries/` and `reports/` for broader inventory.  
-> **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.  
-> **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.  
-> **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.  
-> **PR / release / deploy / rollback:** Use `devops/README.md` and playbooks (`pull-request-workflow.md`, `deployment-gates.md`, `release-workflow.md`, `rollback-workflow.md`).  
-> **QA / testing:** After code changes run applicable `qa/` playbooks (`qa/README.md`, `qa/test-strategy.md`); before release use `qa/pre-release-qa-checklist.md`; fill `templates/test-report.md`.  
+> **Source:** Canonical project-authored docs in `docs/` only (4 files).
+> **Updated:** 2026-05-28 · See `summaries/` and `reports/` for broader inventory.
+> **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.
+> **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.
+> **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.
+> **PR / release / deploy / rollback:** Use `devops/README.md` and playbooks (`pull-request-workflow.md`, `deployment-gates.md`, `release-workflow.md`, `rollback-workflow.md`).
+> **QA / testing:** After code changes run applicable `qa/` playbooks (`qa/README.md`, `qa/test-strategy.md`); before release use `qa/pre-release-qa-checklist.md`; fill `templates/test-report.md`.
 > **Full agent order:** `AGENT_TASK_WORKFLOW.md` (Task → memory → code → review → QA → DevOps → memory update).
 
 ---
@@ -164,5 +164,5 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 | `summaries/known_bugs.md` | Historical issues index |
 | `reports/MEMORY_ANALYSIS_REPORT.md` | Full 66-file markdown audit |
 
-**Canonical doc sources for this file:**  
+**Canonical doc sources for this file:**
 `docs/FIRESTORE_INDEXES.md` · `docs/IMAGE_LOAD_ANALYSIS.md` · `docs/PWA_IMPLEMENTATION_PLAN.md` · `docs/PLAY_STORE_SETUP.md` · `mobile/docs/CHAT_PUSH_SETUP.md` · `mobile/docs/EAS_PRODUCTION_ENV.md`

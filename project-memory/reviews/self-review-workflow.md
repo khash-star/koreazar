@@ -1,6 +1,6 @@
 # Self-Review Workflow
 
-Standard post-implementation review for Cursor **before** marking a task complete.  
+Standard post-implementation review for Cursor **before** marking a task complete.
 Use with `../CODING_SAFETY_CHECKLIST.md`, `../templates/change-report.md`, and domain playbooks below.
 
 ---
@@ -22,59 +22,59 @@ Complete each section. Mark **N/A** with one-line reason if not applicable.
 
 ### 1. Architecture impact
 
-- [ ] Fits web-at-root / `mobile/`-only layout  
-- [ ] No duplicate service, API wrapper, or data layer  
-- [ ] Query/service logic separate from display/UI components  
-- [ ] Agents SQL (or PHP/service layer) not merged into presentation-only code  
-- [ ] Shared constants synced if `src/constants/listings.js` changed (`npm run sync-listings`)  
+- [ ] Fits web-at-root / `mobile/`-only layout
+- [ ] No duplicate service, API wrapper, or data layer
+- [ ] Query/service logic separate from display/UI components
+- [ ] Agents SQL (or PHP/service layer) not merged into presentation-only code
+- [ ] Shared constants synced if `src/constants/listings.js` changed (`npm run sync-listings`)
 
 ### 2. Deployment impact
 
-- [ ] No unintended edits to `vercel.json`, `app.json`, EAS profiles, rules, indexes  
-- [ ] Build still `npm run build` → `dist/` (not bare `vite`)  
-- [ ] Env assumptions documented (`VITE_*`; mobile `.env` not committed)  
-- [ ] If deploy-related → run `deployment-review.md`  
+- [ ] No unintended edits to `vercel.json`, `app.json`, EAS profiles, rules, indexes
+- [ ] Build still `npm run build` → `dist/` (not bare `vite`)
+- [ ] Env assumptions documented (`VITE_*`; mobile `.env` not committed)
+- [ ] If deploy-related → run `deployment-review.md`
 
 ### 3. Firebase impact
 
-- [ ] Auth / Firestore / Storage / FCM paths unchanged or intentionally updated  
-- [ ] New queries have matching indexes in `firestore.indexes.json`  
-- [ ] Rules changes explicit and user-approved  
-- [ ] If Firebase touched → run `firebase-review.md`  
+- [ ] Auth / Firestore / Storage / FCM paths unchanged or intentionally updated
+- [ ] New queries have matching indexes in `firestore.indexes.json`
+- [ ] Rules changes explicit and user-approved
+- [ ] If Firebase touched → run `firebase-review.md`
 
 ### 4. Routing impact
 
-- [ ] SPA routes (`react-router`) still resolve; no broken deep links  
-- [ ] Protected routes and admin routes still guarded  
-- [ ] `ListingDetail?id=...` and similar query-param patterns preserved  
-- [ ] Mobile navigation stacks unchanged or intentionally updated  
+- [ ] SPA routes (`react-router`) still resolve; no broken deep links
+- [ ] Protected routes and admin routes still guarded
+- [ ] `ListingDetail?id=...` and similar query-param patterns preserved
+- [ ] Mobile navigation stacks unchanged or intentionally updated
 
 ### 5. Mobile / web compatibility
 
-- [ ] Web-only vs mobile-only code in correct trees  
-- [ ] Native vs web splits respected (Reanimated, `firebase.web.js`, storage shims)  
-- [ ] Feature parity called out if only one platform changed  
+- [ ] Web-only vs mobile-only code in correct trees
+- [ ] Native vs web splits respected (Reanimated, `firebase.web.js`, storage shims)
+- [ ] Feature parity called out if only one platform changed
 
 ### 6. Regression risks
 
-- [ ] Home listings + banners load  
-- [ ] Listing create → detail flow  
-- [ ] Auth login / logout / register  
-- [ ] Saved listings, messaging (if touched)  
-- [ ] See `regression-review.md` for full checklist  
+- [ ] Home listings + banners load
+- [ ] Listing create → detail flow
+- [ ] Auth login / logout / register
+- [ ] Saved listings, messaging (if touched)
+- [ ] See `regression-review.md` for full checklist
 
 ### 7. Duplicate logic risks
 
-- [ ] No second implementation of same Firestore access pattern  
-- [ ] No parallel auth client or listing fetch path  
-- [ ] Reused `src/services/*`, `src/api/entities.js`, mobile services  
+- [ ] No second implementation of same Firestore access pattern
+- [ ] No parallel auth client or listing fetch path
+- [ ] Reused `src/services/*`, `src/api/entities.js`, mobile services
 
 ### 8. Performance risks
 
-- [ ] Home data-before-images pattern not regressed (PHP listings + Firestore banners provide image URLs before image fetch)  
-- [ ] No unbounded queries or missing pagination where list size matters  
-- [ ] No new blocking work on critical path without reason  
-- [ ] Image upload size/format limits preserved (see `SECURITY.md`)  
+- [ ] Home data-before-images pattern not regressed (PHP listings + Firestore banners provide image URLs before image fetch)
+- [ ] No unbounded queries or missing pagination where list size matters
+- [ ] No new blocking work on critical path without reason
+- [ ] Image upload size/format limits preserved (see `SECURITY.md`)
 
 ---
 
@@ -108,6 +108,6 @@ Template: `../templates/change-report.md` (add rollback + production verificatio
 
 ## Sign-off
 
-- [ ] All applicable dimensions reviewed  
-- [ ] Change audit format included in handoff  
-- [ ] `pre-merge-checklist.md` satisfied  
+- [ ] All applicable dimensions reviewed
+- [ ] Change audit format included in handoff
+- [ ] `pre-merge-checklist.md` satisfied
