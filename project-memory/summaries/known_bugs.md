@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Recently fixed regressions
+
+| Date | Area | Notes |
+|------|------|-------|
+| 2026-06-11 | Chat / phone OTP identity | Conversation list/find/open/read paths must match phone synthetic email variants (`phone_82...` and `phone_...`) and prefer `participant_uids` where available; strict participant email equality can hide or fork existing threads. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides
