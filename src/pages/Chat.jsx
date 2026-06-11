@@ -20,6 +20,8 @@ import {
 import { normalizeEmail } from '@/utils/emailNormalize';
 import {
   deleteMessage,
+  findConversation,
+  participantEmailMatches,
   syncConversationLastMessageFromMessages,
   repairConversationParticipants,
   updateConversationAfterMessage,
@@ -68,7 +70,7 @@ export default function Chat() {
         if (cancelled || !conv) return;
         const p1 = normalizeEmail(conv.participant_1);
         const p2 = normalizeEmail(conv.participant_2);
-        const other = p1 === myEmail ? p2 : p1;
+        const other = participantEmailMatches(p1, myEmail) ? p2 : p1;
         if (!other) return;
         let admin = adminEmail;
         if (!admin) admin = await getAdminEmail();
@@ -139,20 +141,10 @@ export default function Chat() {
       }
 
       try {
-        const existing1 = await entities.Conversation.filter({
-          participant_1: meN,
-          participant_2: otherN
-        });
-        
-        const existing2 = await entities.Conversation.filter({
-          participant_1: otherN,
-          participant_2: meN
-        });
-        
-        if (existing1.length > 0) {
-          setActualConversationId(existing1[0].id);
-        } else if (existing2.length > 0) {
-          setActualConversationId(existing2[0].id);
+        const existing = await findConversation(meN, otherN);
+
+        if (existing) {
+          setActualConversationId(existing.id);
         } else {
           const newConv = await entities.Conversation.create({
             participant_1: meN,
@@ -205,7 +197,7 @@ export default function Chat() {
     queryFn: async () => {
       const email = userData?.email || user?.email;
       if (!conversation || !email) return null;
-      const otherEmail = conversation.participant_1 === email 
+      const otherEmail = participantEmailMatches(conversation.participant_1, email)
         ? conversation.participant_2 
         : conversation.participant_1;
       
@@ -254,7 +246,7 @@ export default function Chat() {
       try {
         const me = normalizeEmail(email);
         const unreadMessages = messages.filter(
-          (m) => normalizeEmail(m.receiver_email) === me && !m.is_read
+          (m) => participantEmailMatches(m.receiver_email, me) && !m.is_read
         );
         
         for (const msg of unreadMessages) {
@@ -263,7 +255,7 @@ export default function Chat() {
         
         if (unreadMessages.length > 0) {
           const isParticipant1 =
-            normalizeEmail(conversation.participant_1) === normalizeEmail(email);
+            participantEmailMatches(conversation.participant_1, email);
           await entities.Conversation.update(actualConversationId, {
             [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
           });
@@ -285,7 +277,9 @@ export default function Chat() {
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
       const email = userData?.email || user?.email;
-      if (!email || !actualConversationId || !otherUser?.email) return;
+      if (!email || !actualConversationId || !otherUser?.email) {
+        throw new Error('Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.');
+      }
       
       const senderNorm = normalizeEmail(email);
       const receiverNorm = normalizeEmail(otherUser.email);
@@ -453,7 +447,7 @@ export default function Chat() {
             <div className="space-y-4">
               {messages.map((msg, index) => {
                 const email = userData?.email || user?.email;
-                const isOwnMessage = msg.sender_email === email;
+                const isOwnMessage = participantEmailMatches(msg.sender_email, email);
                 const showDate = index === 0 || 
                   format(new Date(messages[index - 1].created_date), 'yyyy-MM-dd') !== 
                   format(new Date(msg.created_date), 'yyyy-MM-dd');

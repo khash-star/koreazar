@@ -16,6 +16,7 @@ import {
   findConversation,
   createConversation,
   deleteConversationAndMessages,
+  participantEmailMatches,
 } from '@/services/conversationService';
 import { normalizeEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
@@ -59,7 +60,7 @@ export default function Messages() {
         ...new Set(
           allConvs.map((conv) => {
             const p1 = normalizeEmail(conv.participant_1);
-            const imP1 = userEmail && p1 === userEmail;
+            const imP1 = userEmail && participantEmailMatches(p1, userEmail);
             return imP1 ? conv.participant_2 : conv.participant_1;
           })
         ),
@@ -81,7 +82,7 @@ export default function Messages() {
 
       return allConvs.map((conv) => {
         const p1 = normalizeEmail(conv.participant_1);
-        const imP1 = userEmail && p1 === userEmail;
+        const imP1 = userEmail && participantEmailMatches(p1, userEmail);
         const otherEmail = imP1 ? conv.participant_2 : conv.participant_1;
         const unreadCount = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
         const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
@@ -306,7 +307,7 @@ export default function Messages() {
                         
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-gray-600 truncate flex-1 min-w-0">
-                            {normalizeEmail(conv.last_message_sender) === userEmail && (
+                            {participantEmailMatches(conv.last_message_sender, userEmail) && (
                               <span className="text-gray-500">Та: </span>
                             )}
                             <span className="truncate">
