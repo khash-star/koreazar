@@ -493,7 +493,7 @@ export default function ProfileTabScreen({ navigation }) {
                   autoCapitalize="none"
                 />
               </>
-            ) : null}
+            )}
             <Text style={styles.inputLabel}>Баталгаажуулах</Text>
             <TextInput
               style={styles.input}
