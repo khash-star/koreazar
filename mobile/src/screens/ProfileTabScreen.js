@@ -241,7 +241,7 @@ export default function ProfileTabScreen({ navigation }) {
               <Text style={styles.displayName}>
                 {userData?.displayName || user?.displayName}
               </Text>
-            ) : null}
+            )}
             {(userData?.phone || user?.phoneNumber) ? (
               <Text style={styles.phoneLine}>{userData?.phone || user?.phoneNumber}</Text>
             ) : null}
@@ -504,7 +504,11 @@ export default function ProfileTabScreen({ navigation }) {
               autoCapitalize="characters"
             />
             <View style={styles.modalActions}>
-              <Pressable style={styles.modalCancel} onPress={closeDeleteModal} disabled={delBusy}>
+              <Pressable
+                style={styles.modalCancel}
+                onPress={closeDeleteModal}
+                disabled={delBusy || delOtpBusy}
+              >
                 <Text style={styles.modalCancelText}>Цуцлах</Text>
               </Pressable>
               <Pressable
