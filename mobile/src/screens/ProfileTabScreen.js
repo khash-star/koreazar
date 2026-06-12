@@ -241,7 +241,7 @@ export default function ProfileTabScreen({ navigation }) {
               <Text style={styles.displayName}>
                 {userData?.displayName || user?.displayName}
               </Text>
-            )}
+            ) : null}
             {(userData?.phone || user?.phoneNumber) ? (
               <Text style={styles.phoneLine}>{userData?.phone || user?.phoneNumber}</Text>
             ) : null}
