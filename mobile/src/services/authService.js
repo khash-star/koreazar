@@ -411,8 +411,37 @@ export async function updateUserData(uid, data) {
   }).catch(() => {});
 }
 
+async function reauthenticatePhoneForAccountDeletion(user, otpCode) {
+  const verificationId = getPendingPhoneVerificationId();
+  if (!verificationId) {
+    throw new Error("Эхлээд OTP код илгээнэ үү");
+  }
+  const code = typeof otpCode === "string" ? otpCode.trim() : "";
+  if (!code) {
+    throw new Error("OTP код оруулна уу");
+  }
+
+  const credential = PhoneAuthProvider.credential(verificationId, code);
+  try {
+    await reauthenticateWithCredential(user, credential);
+    clearPendingPhoneOtp();
+  } catch (e) {
+    const codeValue = e?.code || "";
+    if (codeValue === "auth/invalid-verification-code" || codeValue === "auth/invalid-credential") {
+      throw new Error("OTP код буруу байна");
+    }
+    if (codeValue === "auth/code-expired" || codeValue === "auth/session-expired") {
+      throw new Error("OTP кодын хугацаа дууссан. Дахин код илгээнэ үү");
+    }
+    if (codeValue === "auth/requires-recent-login" || codeValue === "auth/user-mismatch") {
+      throw new Error("Аюулгүй байдлын шалтгаанаар дахин нэвтэрч, дахин оролдоно уу");
+    }
+    throw e;
+  }
+}
+
 /** Apple 5.1.1(v) — бүртгэл бүрэн устгах (имэйл/нууц үг эсвэл утасны OTP). */
-export async function deleteAccountForCurrentUser(password = "") {
+export async function deleteAccountForCurrentUser(password = "", phoneOtpCode = "") {
   const user = auth.currentUser;
   if (!user?.uid) throw new Error("Нэвтэрсэн хэрэглэгч олдсонгүй");
 
@@ -422,6 +451,8 @@ export async function deleteAccountForCurrentUser(password = "") {
 
   const hasPasswordProvider =
     !!user.email && user.providerData?.some((p) => p.providerId === "password");
+  const hasPhoneProvider =
+    !!user.phoneNumber || user.providerData?.some((p) => p.providerId === "phone");
 
   if (hasPasswordProvider) {
     const pwd = typeof password === "string" ? password.trim() : "";
@@ -439,6 +470,10 @@ export async function deleteAccountForCurrentUser(password = "") {
       }
       throw e;
     }
+  } else if (hasPhoneProvider) {
+    await reauthenticatePhoneForAccountDeletion(user, phoneOtpCode);
+  } else {
+    throw new Error("Бүртгэлийг устгахын тулд дахин нэвтэрнэ үү");
   }
 
   const uid = user.uid;
