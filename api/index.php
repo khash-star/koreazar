@@ -212,6 +212,7 @@ try {
                     break;
                 }
 
+                enforce_listing_status_privileges($pdo, $authUser, $payload, null, true);
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
@@ -289,6 +290,7 @@ try {
                 if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
+                    enforce_listing_status_privileges($pdo, $authUser, $payload, $existing, false);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
                     if (api_find_banned_in_listing_payload($payload) !== null) {
                         api_respond_prohibited_listing();
@@ -857,6 +859,48 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
 }
 
 /**
+ * Non-admin owners can manage sale state, but cannot self-approve moderation status.
+ *
+ * @param array<string,mixed> $payload
+ * @param array<string,mixed>|null $existing
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function enforce_listing_status_privileges(PDO $pdo, array $authUser, array &$payload, ?array $existing, bool $isCreate): void
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    if ($isCreate) {
+        $payload['status'] = 'pending';
+        return;
+    }
+
+    if ($existing === null || !array_key_exists('status', $payload)) {
+        return;
+    }
+
+    $newStatus = normalize_listing_type_value($payload['status']);
+    $oldStatus = normalize_listing_type_value($existing['status'] ?? '');
+    if ($newStatus === '' || $newStatus === $oldStatus) {
+        return;
+    }
+
+    $ownerAllowed =
+        $newStatus === 'sold' ||
+        $newStatus === 'pending' ||
+        ($oldStatus === 'sold' && $newStatus === 'active');
+    if ($ownerAllowed) {
+        $payload['status'] = $newStatus;
+        return;
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'Зарын төлөв батлах/татгалзах эрх зөвхөн админд'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/**
  * @return array<int,string>
  */
 function get_table_columns(PDO $pdo, string $table): array
@@ -1006,6 +1050,8 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
 {
     if ($firebaseUid === '') return;
     try {
+        $emailForDb = $email !== null ? strtolower(trim($email)) : null;
+        if ($emailForDb === '') $emailForDb = null;
         $displayName = isset($body['display_name']) ? trim((string) $body['display_name']) : null;
         if ($displayName === '') $displayName = null;
         if ($displayName === null && isset($body['displayName'])) {

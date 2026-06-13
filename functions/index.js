@@ -15,6 +15,30 @@ function normalizeEmail(value) {
   return value.trim().toLowerCase();
 }
 
+function phoneToAuthEmail(phoneE164) {
+  const digits = String(phoneE164 || "").replace(/[^\d]/g, "");
+  if (!digits) return "";
+  return `phone_${digits}@phone.zarkorea.com`;
+}
+
+function emailQueryVariants(email) {
+  const em = normalizeEmail(email);
+  if (!em) return [];
+  const out = new Set([em]);
+  const match = em.match(/^phone_(\d+)@phone\.zarkorea\.com$/);
+  if (match) {
+    const digits = match[1];
+    if (digits.startsWith("82") && digits.length > 10) {
+      out.add(`phone_${digits.slice(2)}@phone.zarkorea.com`);
+      out.add(normalizeEmail(phoneToAuthEmail(`+${digits}`)));
+    } else if (!digits.startsWith("82") && digits.length >= 9) {
+      out.add(`phone_82${digits}@phone.zarkorea.com`);
+      out.add(normalizeEmail(phoneToAuthEmail(`+82${digits}`)));
+    }
+  }
+  return [...out].filter(Boolean);
+}
+
 function previewMessage(text) {
   const s = String(text || "")
     .replace(/\s+/g, " ")
@@ -27,11 +51,12 @@ function previewMessage(text) {
  * Resolve receiver Firebase uid from normalized chat email (email + phone synthetic).
  */
 async function findUidByEmail(email) {
-  const em = normalizeEmail(email);
-  if (!em) return null;
-  const snap = await db.collection("users").where("email", "==", em).limit(1).get();
-  if (snap.empty) return null;
-  return snap.docs[0].id;
+  const variants = emailQueryVariants(email);
+  for (const em of variants) {
+    const snap = await db.collection("users").where("email", "==", em).limit(1).get();
+    if (!snap.empty) return snap.docs[0].id;
+  }
+  return null;
 }
 
 async function loadExpoTokensForUid(uid) {
