@@ -44,6 +44,7 @@ export default function AdminNewListings() {
     }
   });
   const [autoApproveLoaded, setAutoApproveLoaded] = useState(false);
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
 
   useEffect(() => {
     getListingAutoApprove()
@@ -65,6 +66,7 @@ export default function AdminNewListings() {
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
+    enabled: !!user && isAdmin,
     refetchInterval: autoApprove ? 10000 : false,
   });
 
@@ -141,8 +143,6 @@ export default function AdminNewListings() {
     exportListingsToCSV(listings, 'шинэ_зарууд');
   };
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
