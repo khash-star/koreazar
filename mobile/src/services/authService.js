@@ -411,6 +411,20 @@ export async function updateUserData(uid, data) {
   }).catch(() => {});
 }
 
+async function assertRecentPhoneLoginForAccountDelete(user) {
+  try {
+    const tokenResult = await user.getIdTokenResult(true);
+    const authTimeMs = Date.parse(tokenResult?.authTime || "");
+    if (!Number.isFinite(authTimeMs)) return;
+    // Firebase Auth deleteUser requires a recent sign-in; block stale phone sessions before purging data.
+    if (Date.now() - authTimeMs > 4 * 60 * 1000) {
+      throw new Error("Сүүлийн нэвтрэлт хэт хуучин байна. Дахин утсаар нэвтэрч, дахин оролдоно уу");
+    }
+  } catch (e) {
+    if (e?.message) throw e;
+  }
+}
+
 /** Apple 5.1.1(v) — бүртгэл бүрэн устгах (имэйл/нууц үг эсвэл утасны OTP). */
 export async function deleteAccountForCurrentUser(password = "") {
   const user = auth.currentUser;
@@ -439,6 +453,8 @@ export async function deleteAccountForCurrentUser(password = "") {
       }
       throw e;
     }
+  } else {
+    await assertRecentPhoneLoginForAccountDelete(user);
   }
 
   const uid = user.uid;
