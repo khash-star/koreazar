@@ -87,6 +87,30 @@ Record results in your spike notes before building full Login UI.
 
 **Production login:** `LoginScreen` → **Утас** tab uses the same native SMS + JS Auth bridge (session persists across app restarts until logout).
 
+## Chat and Firestore rules after OTP login
+
+Phone OTP users do not have a normal email claim in Firebase Auth. The mobile app
+bridges that gap before any chat query:
+
+1. `confirmPhoneLogin()` converts the E.164 phone number to a synthetic email
+   with `phoneToAuthEmail()`, for example
+   `phone_821012345678@phone.zarkorea.com`.
+2. `ensureUserDocEmailForFirestoreRules()` writes that value to
+   `users/{uid}.email` so `firestore.rules` can resolve `authEmailLower()`.
+3. `MessagesScreen` and `ChatScreen` call `resolveChatParticipantEmail()` before
+   listing, opening, or sending messages.
+4. Conversations include `participant_uids` in addition to `participant_1` /
+   `participant_2`; this lets phone users see threads even when Auth token email
+   is empty.
+
+Korean phone-number variants with and without the `82` country prefix are treated
+as the same chat identity by `emailQueryVariants()` / `areEmailVariants()`.
+
+If an OTP user can open a chat from push but cannot see it in Messages, verify
+that `participant_uids` is present and run the legacy backfill documented in
+[`CHAT_PUSH_SETUP.md`](CHAT_PUSH_SETUP.md). The mobile chat data flow is
+summarized in [`MOBILE_CHAT.md`](MOBILE_CHAT.md).
+
 ## Env (optional spike defaults)
 
 ```env

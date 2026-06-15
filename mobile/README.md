@@ -46,6 +46,9 @@ npx expo start --web -c
 - **Listing detail:** Gallery, contact, **Хадгалах** (`saved_listings`).
 - **Auth:** Email/password **Нэвтрэх**, **Утас + OTP** (EAS dev/production build, not Expo Go), **Бүртгүүлэх**, нууц үг сэргээх, **Гарах**. OTP нэг удаа → дараагийн нээлтэд session хадгалагдана (Firebase JS Auth + `AsyncStorage`).
 - **Хадгалсан:** List + pull-to-refresh.
+- **Messages/chat:** Mobile chat uses shared Firestore conversations/messages,
+  phone OTP synthetic emails, `participant_uids`, and Expo chat push. See
+  [docs/MOBILE_CHAT.md](docs/MOBILE_CHAT.md).
 
 ## 4) Категори / locations (вэбтэй синк)
 
@@ -80,4 +83,6 @@ npm run generate-app-store-screenshots
 
 - Search / filters / categories
 - Google / Facebook sign-in (Expo auth session)
-- **Chat push** (EAS build + Cloud Function deploy): [docs/CHAT_PUSH_SETUP.md](docs/CHAT_PUSH_SETUP.md). Listing/status push — одоогоор байхгүй.
+- Listing/status push — одоогоор байхгүй. **Chat push** is implemented for EAS
+  builds when the Cloud Function and Expo credentials are configured:
+  [docs/CHAT_PUSH_SETUP.md](docs/CHAT_PUSH_SETUP.md).

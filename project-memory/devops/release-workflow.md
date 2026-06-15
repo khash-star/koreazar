@@ -49,7 +49,7 @@ See `../reviews/deployment-review.md`, `../runbooks/production-verification.md`.
 - [ ] `npm run sync-listings` from repo root if web `listings.js` changed  
 - [ ] `mobile/docs/EAS_PRODUCTION_ENV.md` — production Firebase env in EAS  
 - [ ] `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md` signed off  
-- [ ] Do not claim push notifications if not implemented (`mobile/README.md`)  
+- [ ] Claim chat push only if EAS credentials, Firebase Function deploy, and `mobile/docs/CHAT_PUSH_SETUP.md` QA pass; listing/status push is not implemented
 - [ ] TWA vs RN path clear: `docs/PLAY_STORE_SETUP.md` vs `mobile/docs/PLAY_STORE_RN_REPLACE_TWA.md`  
 
 ---

@@ -1,8 +1,14 @@
 # Мессеж Бичилцэх Системийн Архитектур
 
+> **Status note:** This document primarily describes the web React messaging
+> flow. Mobile chat has additional phone OTP identity, `participant_uids`, push,
+> send idempotency, and platform keyboard constraints; see
+> `mobile/docs/MOBILE_CHAT.md`. Older line-number references below are historical
+> anchors and should be verified against source before coding.
+
 ## 📋 Ерөнхий тойм
 
-Энэхүү систем нь хэрэглэгчдэд хоорондоо мессеж бичилцэх боломжийг олгодог. Систем нь Firebase Firestore ашиглаж, React Query-гөөр data fetching удирдана.
+Энэхүү систем нь хэрэглэгчдэд хоорондоо мессеж бичилцэх боломжийг олгодог. Web client нь Firebase Firestore ашиглаж, React Query-гөөр data fetching удирдана. Mobile client нь ижил Firestore collection-уудыг ашигладаг боловч Expo navigation, phone OTP synthetic email, `participant_uids`, Expo push notification нэмэлт урсгалтай.
 
 ---
 
@@ -35,6 +41,15 @@
   - `createMessage()` - 206-228 мөр
   - `listMessages()` - 181-204 мөр
   - `sendMessageToAllUsers()` - 321-383 мөр (зөвхөн админ)
+
+#### `mobile/src/services/conversationService.js` - Expo mobile chat service
+- **Үүрэг**: Mobile Messages/Chat screen-үүдийн Firestore үйлдэл, phone OTP identity repair, admin broadcast, unread count sync
+- **Гол функцүүд**:
+  - `resolveChatParticipantEmail()` - Auth token/email fallback-ийг Firestore rules-тэй нийцүүлнэ
+  - `listConversationsForCurrentUser()` - `participant_uids` UID query + legacy email query fallback
+  - `repairConversationParticipants()` - хуучин conversation дээр UID болон phone email variant нөхнө
+  - `createMessage()` - mobile дээр `setDoc()` ашиглаж `already-exists` race-г тэсвэрлэнэ
+  - `updateConversationAfterMessage()` - last message, unread count, `participant_uids` шинэчилнэ
 
 ### 3. **API Entities**
 
@@ -231,6 +246,7 @@ Update unread_count to 0
   id: "conversation_id",
   participant_1: "user1@email.com",
   participant_2: "user2@email.com",
+  participant_uids: ["firebaseUid1", "firebaseUid2"], // mobile phone OTP visibility
   last_message: "Сайн уу!",
   last_message_time: "2024-01-15T10:30:00Z",
   last_message_sender: "user1@email.com",
@@ -240,6 +256,11 @@ Update unread_count to 0
   last_message_date: Timestamp
 }
 ```
+
+`participant_1` / `participant_2` are still required for web and legacy email
+queries. `participant_uids` is required for mobile phone OTP users whose Firebase
+Auth token may not include an email. Deploy the conversation indexes documented in
+`docs/FIRESTORE_INDEXES.md`.
 
 #### 2. `messages` Collection
 ```javascript

@@ -42,6 +42,19 @@ This checklist is for final QA before App Store / Play submission.
 - Admin pending counts refresh after foreground resume.
 - No runaway polling when app is backgrounded.
 
+## 4a) Messaging/chat regression checks
+
+- Email user <-> phone OTP user: both sides see the conversation in Messages and
+  can reply after foreground/background resume.
+- Rapidly tap send twice in Chat; mobile should block duplicate sends and recover
+  the input state.
+- iOS physical device: open keyboard and tap `Илгээх`; the text send button is
+  visible and tappable above the keyboard.
+- Android physical device: keyboard open; send/delete controls remain tappable
+  above the keyboard.
+- Admin broadcast to a phone OTP user: receiver gets chat push, tap opens Chat,
+  and returning to Messages still shows the thread.
+
 ## 5) Deep Link Checks (custom scheme)
 
 Supported prefix: `zarkorea://`
@@ -64,6 +77,7 @@ Test cases:
 
 ## 7) Store Metadata Consistency
 
-- Do not claim Push Notifications unless implemented in app and configured.
+- Claim chat Push Notifications only when EAS credentials, Cloud Function deploy,
+  and `docs/CHAT_PUSH_SETUP.md` QA pass. Listing/status push is not implemented.
 - Privacy policy link opens correctly from Profile help section.
 - Data safety forms match actual permissions and data usage.
