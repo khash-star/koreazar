@@ -287,20 +287,16 @@ export const findConversation = async (email1, email2) => {
     const uid = auth.currentUser?.uid;
 
     if (uid) {
-      try {
-        const q = query(
-          collection(db, 'conversations'),
-          where('participant_uids', 'array-contains', uid)
-        );
-        const snap = await getDocs(q);
-        for (const d of snap.docs) {
-          const data = d.data();
-          if (conversationMatchesParticipants(data, a, b)) {
-            return { id: d.id, ...data };
-          }
+      const q = query(
+        collection(db, 'conversations'),
+        where('participant_uids', 'array-contains', uid)
+      );
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (conversationMatchesParticipants(data, a, b)) {
+          return { id: d.id, ...data };
         }
-      } catch (e) {
-        throw e;
       }
     }
 

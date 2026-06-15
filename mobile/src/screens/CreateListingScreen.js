@@ -102,7 +102,7 @@ export default function CreateListingScreen({ navigation }) {
   const [form, setForm] = useState(createInitialForm);
   const [initialListing, setInitialListing] = useState(null);
   const [loadingListing, setLoadingListing] = useState(false);
-  const [autoApprove, setAutoApprove] = useState(false);
+  const [, setAutoApprove] = useState(false);
 
   useEffect(() => {
     if (!editListingId) {

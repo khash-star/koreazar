@@ -235,53 +235,45 @@ export async function findConversation(email1, email2) {
   const uid = auth.currentUser?.uid;
 
   if (uid) {
-    try {
-      const q = query(
-        collection(db, "conversations"),
-        where("participant_uids", "array-contains", uid)
-      );
-      const snap = await getDocs(q);
-      for (const d of snap.docs) {
-        const row = mapConversationDoc(d);
-        if (conversationMatchesParticipants(row, a, b)) {
-          return row;
-        }
+    const q = query(
+      collection(db, "conversations"),
+      where("participant_uids", "array-contains", uid)
+    );
+    const snap = await getDocs(q);
+    for (const d of snap.docs) {
+      const row = mapConversationDoc(d);
+      if (conversationMatchesParticipants(row, a, b)) {
+        return row;
       }
-    } catch (e) {
-      throw e;
     }
   }
 
   const convsRef = collection(db, "conversations");
-  try {
-    const seenQueries = new Set();
-    for (const aVariant of emailQueryVariants(a)) {
-      for (const bVariant of emailQueryVariants(b)) {
-        const pairs = [
-          [aVariant, bVariant],
-          [bVariant, aVariant],
-        ];
-        for (const [left, right] of pairs) {
-          const key = `${left}\u0000${right}`;
-          if (seenQueries.has(key)) continue;
-          seenQueries.add(key);
-          const q = query(
-            convsRef,
-            where("participant_1", "==", left),
-            where("participant_2", "==", right)
-          );
-          const snap = await getDocs(q);
-          for (const d of snap.docs) {
-            const row = mapConversationDoc(d);
-            if (conversationMatchesParticipants(row, a, b)) {
-              return row;
-            }
+  const seenQueries = new Set();
+  for (const aVariant of emailQueryVariants(a)) {
+    for (const bVariant of emailQueryVariants(b)) {
+      const pairs = [
+        [aVariant, bVariant],
+        [bVariant, aVariant],
+      ];
+      for (const [left, right] of pairs) {
+        const key = `${left}\u0000${right}`;
+        if (seenQueries.has(key)) continue;
+        seenQueries.add(key);
+        const q = query(
+          convsRef,
+          where("participant_1", "==", left),
+          where("participant_2", "==", right)
+        );
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          const row = mapConversationDoc(d);
+          if (conversationMatchesParticipants(row, a, b)) {
+            return row;
           }
         }
       }
     }
-  } catch (e) {
-    throw e;
   }
   return null;
 }
