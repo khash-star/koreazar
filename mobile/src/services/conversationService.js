@@ -117,6 +117,17 @@ function pickCanonicalParticipantEmail(stored, canonical) {
   return storedNorm;
 }
 
+function conversationMatchesParticipants(row, email1, email2) {
+  const a = normalizeEmail(email1);
+  const b = normalizeEmail(email2);
+  const p1 = normalizeEmail(row?.participant_1);
+  const p2 = normalizeEmail(row?.participant_2);
+  return (
+    (areEmailVariants(p1, a) && areEmailVariants(p2, b)) ||
+    (areEmailVariants(p1, b) && areEmailVariants(p2, a))
+  );
+}
+
 export async function filterConversations(filters = {}) {
   const convsRef = collection(db, "conversations");
   const conditions = [];
@@ -220,6 +231,7 @@ export async function getConversation(id) {
 export async function findConversation(email1, email2) {
   const a = normalizeEmail(email1);
   const b = normalizeEmail(email2);
+  if (!a || !b) return null;
   const uid = auth.currentUser?.uid;
 
   if (uid) {
@@ -231,26 +243,44 @@ export async function findConversation(email1, email2) {
       const snap = await getDocs(q);
       for (const d of snap.docs) {
         const row = mapConversationDoc(d);
-        const p1 = normalizeEmail(row.participant_1);
-        const p2 = normalizeEmail(row.participant_2);
-        if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+        if (conversationMatchesParticipants(row, a, b)) {
           return row;
         }
       }
     } catch (e) {
-      if (!isFirestorePermissionDenied(e)) throw e;
+      throw e;
     }
   }
 
   const convsRef = collection(db, "conversations");
   try {
-    const q1 = query(convsRef, where("participant_1", "==", a), where("participant_2", "==", b));
-    const q2 = query(convsRef, where("participant_1", "==", b), where("participant_2", "==", a));
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    if (!snap1.empty) return mapConversationDoc(snap1.docs[0]);
-    if (!snap2.empty) return mapConversationDoc(snap2.docs[0]);
+    const seenQueries = new Set();
+    for (const aVariant of emailQueryVariants(a)) {
+      for (const bVariant of emailQueryVariants(b)) {
+        const pairs = [
+          [aVariant, bVariant],
+          [bVariant, aVariant],
+        ];
+        for (const [left, right] of pairs) {
+          const key = `${left}\u0000${right}`;
+          if (seenQueries.has(key)) continue;
+          seenQueries.add(key);
+          const q = query(
+            convsRef,
+            where("participant_1", "==", left),
+            where("participant_2", "==", right)
+          );
+          const snap = await getDocs(q);
+          for (const d of snap.docs) {
+            const row = mapConversationDoc(d);
+            if (conversationMatchesParticipants(row, a, b)) {
+              return row;
+            }
+          }
+        }
+      }
+    }
   } catch (e) {
-    if (isFirestorePermissionDenied(e)) return null;
     throw e;
   }
   return null;

@@ -63,6 +63,16 @@ function toUserFacingError(e) {
   return msg || "Илгээж чадсангүй";
 }
 
+function getOtherParticipantEmail(conv, meEmail) {
+  if (!conv || !meEmail) return null;
+  const meNorm = normalizeEmail(meEmail);
+  const p1 = normalizeEmail(conv.participant_1);
+  const p2 = normalizeEmail(conv.participant_2);
+  if (areEmailVariants(p1, meNorm)) return p2;
+  if (areEmailVariants(p2, meNorm)) return p1;
+  return null;
+}
+
 export default function ChatScreen({ route, navigation }) {
   const { conversationId: paramConvId, otherUserEmail: paramOther, listingId } = route?.params ?? {};
   const normalizedOtherEmail = typeof paramOther === "string" ? paramOther.trim().toLowerCase() : "";
@@ -90,14 +100,10 @@ export default function ChatScreen({ route, navigation }) {
 
   const resolvedOtherEmail = useMemo(() => {
     if (otherUser?.email) return otherUser.email;
+    const fromConversation = getOtherParticipantEmail(conversation, chatEmail);
+    if (fromConversation) return fromConversation;
     if (normalizedOtherEmail) return normalizedOtherEmail;
-    if (!conversation || !chatEmail) return null;
-    const meNorm = normalizeEmail(chatEmail);
-    const p1 = conversation.participant_1;
-    const p2 = conversation.participant_2;
-    if (normalizeEmail(p1) === meNorm || areEmailVariants(p1, meNorm)) return p2;
-    if (normalizeEmail(p2) === meNorm || areEmailVariants(p2, meNorm)) return p1;
-    return p2 || p1 || null;
+    return null;
   }, [otherUser?.email, normalizedOtherEmail, conversation, chatEmail]);
 
   const canSend = Boolean(draft.trim()) && !sending;
@@ -167,7 +173,7 @@ export default function ChatScreen({ route, navigation }) {
         navigation.goBack();
         return;
       }
-      if (normalizedOtherEmail === normalizeEmail(me)) {
+      if (areEmailVariants(normalizedOtherEmail, me)) {
         showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
         navigation.goBack();
         return;
@@ -385,8 +391,7 @@ export default function ChatScreen({ route, navigation }) {
   async function handleSend() {
     const text = draft.trim();
     if (!text || sending || sendingRef.current) return;
-    const recipient = resolvedOtherEmail;
-    if (!convId || !recipient) {
+    if (!convId) {
       showAlert("Чат", "Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.");
       return;
     }
@@ -408,6 +413,15 @@ export default function ChatScreen({ route, navigation }) {
           "Алдаа",
           "Ярианы мэдээлэл ачаалагдаагүй байна. Сүлжээ, нэвтрэл эсвэл Firestore дүрмээ шалгана уу."
         );
+        return;
+      }
+      const recipient = getOtherParticipantEmail(conv, meEmail) || normalizeEmail(resolvedOtherEmail);
+      if (!recipient) {
+        showAlert("Чат", "Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.");
+        return;
+      }
+      if (areEmailVariants(recipient, meEmail)) {
+        showAlert("Чат", "Өөртөө мессеж илгээх боломжгүй.");
         return;
       }
       await createMessage({

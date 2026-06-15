@@ -20,6 +20,7 @@ import {
 import { normalizeEmail } from '@/utils/emailNormalize';
 import {
   deleteMessage,
+  findConversation,
   syncConversationLastMessageFromMessages,
   repairConversationParticipants,
   updateConversationAfterMessage,
@@ -139,20 +140,10 @@ export default function Chat() {
       }
 
       try {
-        const existing1 = await entities.Conversation.filter({
-          participant_1: meN,
-          participant_2: otherN
-        });
-        
-        const existing2 = await entities.Conversation.filter({
-          participant_1: otherN,
-          participant_2: meN
-        });
-        
-        if (existing1.length > 0) {
-          setActualConversationId(existing1[0].id);
-        } else if (existing2.length > 0) {
-          setActualConversationId(existing2[0].id);
+        const existing = await findConversation(meN, otherN);
+
+        if (existing) {
+          setActualConversationId(existing.id);
         } else {
           const newConv = await entities.Conversation.create({
             participant_1: meN,

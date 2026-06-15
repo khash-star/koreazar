@@ -70,6 +70,17 @@ function pickCanonicalParticipantEmail(stored, canonical) {
   return storedNorm;
 }
 
+function conversationMatchesParticipants(row, email1, email2) {
+  const a = normalizeEmail(email1);
+  const b = normalizeEmail(email2);
+  const p1 = normalizeEmail(row?.participant_1);
+  const p2 = normalizeEmail(row?.participant_2);
+  return (
+    (areEmailVariants(p1, a) && areEmailVariants(p2, b)) ||
+    (areEmailVariants(p1, b) && areEmailVariants(p2, a))
+  );
+}
+
 export function isFirestorePermissionDenied(err) {
   if (err == null) return false;
   const code = err.code;
@@ -284,36 +295,46 @@ export const findConversation = async (email1, email2) => {
         const snap = await getDocs(q);
         for (const d of snap.docs) {
           const data = d.data();
-          const p1 = normalizeEmail(data.participant_1);
-          const p2 = normalizeEmail(data.participant_2);
-          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+          if (conversationMatchesParticipants(data, a, b)) {
             return { id: d.id, ...data };
           }
         }
       } catch (e) {
-        if (!isFirestorePermissionDenied(e)) throw e;
+        throw e;
       }
     }
 
     const convsRef = collection(db, 'conversations');
+    const seenQueries = new Set();
 
-    const q1 = query(convsRef, where('participant_1', '==', a), where('participant_2', '==', b));
-    const q2 = query(convsRef, where('participant_1', '==', b), where('participant_2', '==', a));
-    
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    
-    if (!snap1.empty) {
-      const docSnap = snap1.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
-    }
-    if (!snap2.empty) {
-      const docSnap = snap2.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
+    for (const aVariant of emailQueryVariants(a)) {
+      for (const bVariant of emailQueryVariants(b)) {
+        const pairs = [
+          [aVariant, bVariant],
+          [bVariant, aVariant],
+        ];
+        for (const [left, right] of pairs) {
+          const key = `${left}\u0000${right}`;
+          if (seenQueries.has(key)) continue;
+          seenQueries.add(key);
+          const q = query(
+            convsRef,
+            where('participant_1', '==', left),
+            where('participant_2', '==', right)
+          );
+          const snap = await getDocs(q);
+          for (const d of snap.docs) {
+            const data = d.data();
+            if (conversationMatchesParticipants(data, a, b)) {
+              return { id: d.id, ...data };
+            }
+          }
+        }
+      }
     }
     
     return null;
   } catch (error) {
-    if (isFirestorePermissionDenied(error)) return null;
     console.error('Error finding conversation:', error);
     throw error;
   }

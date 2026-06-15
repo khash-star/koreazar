@@ -33,6 +33,7 @@ const AUTO_APPROVE_KEY = 'admin_auto_approve_listings';
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   const [deleteId, setDeleteId] = useState(null);
   const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
   const [checkingListingId, setCheckingListingId] = useState(null);
@@ -46,15 +47,21 @@ export default function AdminNewListings() {
   const [autoApproveLoaded, setAutoApproveLoaded] = useState(false);
 
   useEffect(() => {
+    if (!user || !isAdmin) {
+      setAutoApproveState(false);
+      setAutoApproveLoaded(true);
+      return;
+    }
     getListingAutoApprove()
       .then((v) => {
         setAutoApproveState(v);
         setAutoApproveLoaded(true);
       })
       .catch(() => setAutoApproveLoaded(true));
-  }, []);
+  }, [user, isAdmin]);
 
   const setAutoApprove = (value) => {
+    if (!isAdmin) return;
     setAutoApproveState(value);
     try {
       localStorage.setItem(AUTO_APPROVE_KEY, String(value));
@@ -65,7 +72,8 @@ export default function AdminNewListings() {
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
-    refetchInterval: autoApprove ? 10000 : false,
+    enabled: !!user && isAdmin,
+    refetchInterval: autoApprove && isAdmin ? 10000 : false,
   });
 
 
@@ -91,7 +99,7 @@ export default function AdminNewListings() {
 
   const approvedIdsRef = useRef(new Set());
   useEffect(() => {
-    if (!autoApprove) return;
+    if (!autoApprove || !isAdmin) return;
     if (listings.length === 0) {
       approvedIdsRef.current.clear();
       return;
@@ -101,7 +109,7 @@ export default function AdminNewListings() {
       approvedIdsRef.current.add(l.id);
       updateStatusMutation.mutate({ id: l.id, status: 'active' });
     });
-  }, [autoApprove, listings]);
+  }, [autoApprove, isAdmin, listings]);
 
   const handleApprove = (id) => {
     updateStatusMutation.mutate({ id, status: 'active' });
@@ -141,8 +149,6 @@ export default function AdminNewListings() {
     exportListingsToCSV(listings, 'шинэ_зарууд');
   };
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

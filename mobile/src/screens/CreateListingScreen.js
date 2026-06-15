@@ -294,15 +294,18 @@ export default function CreateListingScreen({ navigation }) {
     submittingRef.current = true;
     setLoading(true);
     try {
+      const latestAutoApprove = await getListingAutoApprove().catch(() => false);
+      setAutoApprove(!!latestAutoApprove);
       const submitData = {
         ...form,
         contact_name: lockedName,
         phone: phoneForListing,
         price: priceNum,
         images,
-        status: autoApprove ? "active" : "pending",
+        status: latestAutoApprove ? "active" : "pending",
       };
-      await createListing(submitData, { timeoutMs: 20000 });
+      const createdListing = await createListing(submitData, { timeoutMs: 20000 });
+      const createdActive = createdListing?.status === "active";
       refreshUserData().catch(() => {});
       notifyListingBadgeRefresh();
       // Keep Create tab clean after successful submit.
@@ -310,7 +313,7 @@ export default function CreateListingScreen({ navigation }) {
       setForm(createInitialForm());
       showAlert(
         "Амжилттай",
-        autoApprove
+        createdActive
           ? "Зар илгээгдлээ. Нүүр хуудсан дээр харагдана."
           : "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
         [{ text: "OK", onPress: () => navigateToHomeMain(navigation) }]

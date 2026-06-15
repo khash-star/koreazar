@@ -28,6 +28,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function AdminAllListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
+  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -42,7 +43,8 @@ export default function AdminAllListings() {
 
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-all-listings'],
-    queryFn: () => entities.Listing.list('-created_date', 500),
+    queryFn: () => entities.Listing.filter({ status: 'all' }, '-created_date', 500),
+    enabled: !!user && isAdmin,
   });
 
   const deleteMutation = useMutation({
@@ -119,8 +121,6 @@ export default function AdminAllListings() {
     exportListingsToCSV(listingsToExport, filename, { includeListingTypeExpires: true });
   };
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

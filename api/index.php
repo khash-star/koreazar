@@ -800,19 +800,21 @@ function is_app_admin(PDO $pdo, array $authUser): bool
 }
 
 /**
- * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use admin panel / APP_ADMIN_UIDS).
+ * Non-admins cannot self-approve listings, self-assign VIP/Featured, or extend VIP expiry.
+ * Owner status changes are limited to sale-state transitions after admin approval.
  *
  * @param array<string,mixed> $payload
  * @param array<string,mixed>|null $existing
  * @param array{uid:string,email:?string} $authUser
  */
-function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $payload, ?array $existing, bool $isCreate): void
+function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array &$payload, ?array $existing, bool $isCreate): void
 {
     if (is_app_admin($pdo, $authUser)) {
         return;
     }
 
     if ($isCreate) {
+        $payload['status'] = 'pending';
         $lt = normalize_listing_type_value($payload['listing_type'] ?? '');
         if ($lt === 'vip' || $lt === 'featured') {
             http_response_code(403);
@@ -825,6 +827,20 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
 
     if ($existing === null) {
         return;
+    }
+
+    if (array_key_exists('status', $payload)) {
+        $newStatus = normalize_listing_type_value($payload['status']);
+        $oldStatus = normalize_listing_type_value($existing['status'] ?? '');
+        $saleStateTransition = (
+            ($oldStatus === 'active' && $newStatus === 'sold') ||
+            ($oldStatus === 'sold' && $newStatus === 'active')
+        );
+        if ($newStatus !== $oldStatus && !$saleStateTransition) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Зарын төлөвийг зөвхөн админ баталгаажуулж өөрчилнө'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
     }
 
     if (array_key_exists('listing_type', $payload)) {
