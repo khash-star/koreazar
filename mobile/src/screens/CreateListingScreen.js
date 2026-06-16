@@ -302,7 +302,8 @@ export default function CreateListingScreen({ navigation }) {
         images,
         status: autoApprove ? "active" : "pending",
       };
-      await createListing(submitData, { timeoutMs: 20000 });
+      const createdListing = await createListing(submitData, { timeoutMs: 20000 });
+      const isActive = createdListing?.status === "active";
       refreshUserData().catch(() => {});
       notifyListingBadgeRefresh();
       // Keep Create tab clean after successful submit.
@@ -310,7 +311,7 @@ export default function CreateListingScreen({ navigation }) {
       setForm(createInitialForm());
       showAlert(
         "Амжилттай",
-        autoApprove
+        isActive
           ? "Зар илгээгдлээ. Нүүр хуудсан дээр харагдана."
           : "Зар илгээгдлээ. Админ баталгаажуулсны дараа харагдана.",
         [{ text: "OK", onPress: () => navigateToHomeMain(navigation) }]

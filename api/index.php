@@ -141,6 +141,29 @@ try {
                 $firebaseUidFilter = isset($_GET['firebase_uid']) ? trim((string) $_GET['firebase_uid']) : '';
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+                $statusKey = normalize_listing_status_value($status);
+                $requestsProtectedRows = ($status === '' || $statusKey === 'all' || $statusKey !== 'active');
+                $hasOwnerScopedFilter = ($createdBy !== '' || $customerIdFilter > 0 || $firebaseUidFilter !== '');
+
+                if ($requestsProtectedRows) {
+                    $authUser = require_firebase_user();
+                    if (!is_app_admin($pdo, $authUser) && (
+                        !$hasOwnerScopedFilter ||
+                        !listing_query_matches_auth_identity($pdo, $authUser, $createdBy, $customerIdFilter, $firebaseUidFilter)
+                    )) {
+                        http_response_code(403);
+                        echo json_encode(['error' => 'Forbidden: protected listing status'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                }
+
+                if (
+                    ($customerIdFilter > 0 && !table_has($pdo, 'listings', 'customer_id')) ||
+                    ($firebaseUidFilter !== '' && !table_has($pdo, 'listings', 'firebase_uid'))
+                ) {
+                    echo json_encode(['data' => []], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
@@ -213,6 +236,11 @@ try {
                 }
 
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
+                if (!is_app_admin($pdo, $authUser)) {
+                    $payload['status'] = 'pending';
+                } elseif (normalize_listing_status_value($payload['status'] ?? '') === '') {
+                    $payload['status'] = 'pending';
+                }
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
                 upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
@@ -266,6 +294,14 @@ try {
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
+                if (!listing_is_publicly_visible($row)) {
+                    $authUser = get_optional_firebase_user();
+                    if ($authUser === null || !auth_user_can_view_listing($pdo, $row, $authUser)) {
+                        http_response_code(404);
+                        echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
             }
@@ -286,10 +322,14 @@ try {
                 $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
                 $existingViews = isset($existing['views']) ? (int) $existing['views'] : 0;
                 $requestedViews = isset($payload['views']) ? (int) $payload['views'] : $existingViews;
-                if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
+                $isPublicViewIncrement = $isViewOnlyPayload
+                    && $requestedViews === $existingViews + 1
+                    && listing_is_publicly_visible($existing);
+                if (!$isPublicViewIncrement) {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
+                    enforce_listing_status_privileges($pdo, $authUser, $payload, $existing);
                     if (api_find_banned_in_listing_payload($payload) !== null) {
                         api_respond_prohibited_listing();
                         break;
@@ -606,6 +646,16 @@ function require_firebase_user(): array
     return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
 }
 
+function get_optional_firebase_user(): ?array
+{
+    $authHeader = get_authorization_header();
+    if (!is_string($authHeader) || stripos($authHeader, 'Bearer ') !== 0) {
+        return null;
+    }
+
+    return require_firebase_user();
+}
+
 /**
  * Phone OTP synthetic email (must match web phoneToAuthEmail / Firestore users.email).
  */
@@ -740,9 +790,7 @@ function openai_chat_completion(array $payload): array
  */
 function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): void
 {
-    $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
-    $uid = $authUser['uid'];
-    if ($ownerUid === $uid) {
+    if (auth_user_owns_listing($pdo, $existing, $authUser)) {
         return;
     }
     if (is_app_admin($pdo, $authUser)) {
@@ -764,6 +812,108 @@ function normalize_listing_type_value($v): string
     }
 
     return strtolower(trim((string) $v));
+}
+
+/**
+ * @param mixed $v
+ */
+function normalize_listing_status_value($v): string
+{
+    if ($v === null || $v === '') {
+        return '';
+    }
+
+    return strtolower(trim((string) $v));
+}
+
+/**
+ * @param array<string,mixed> $row
+ */
+function listing_is_publicly_visible(array $row): bool
+{
+    return normalize_listing_status_value($row['status'] ?? '') === 'active';
+}
+
+/**
+ * @param array<string,mixed> $existing
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function auth_user_owns_listing(PDO $pdo, array $existing, array $authUser): bool
+{
+    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    if ($uid === '') {
+        return false;
+    }
+
+    $ownerUid = isset($existing['firebase_uid']) ? (string) $existing['firebase_uid'] : '';
+    if ($ownerUid !== '') {
+        return $ownerUid === $uid;
+    }
+
+    $createdBy = isset($existing['created_by']) ? trim((string) $existing['created_by']) : '';
+    if ($createdBy !== '') {
+        $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+        if ($resolvedEmail !== null && strcasecmp($createdBy, $resolvedEmail) === 0) {
+            return true;
+        }
+    }
+
+    if (isset($existing['customer_id'])) {
+        $customerId = (int) $existing['customer_id'];
+        if ($customerId > 0) {
+            $authCustomerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+            if ($authCustomerId !== null && $authCustomerId === $customerId) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @param array<string,mixed> $listing
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function auth_user_can_view_listing(PDO $pdo, array $listing, array $authUser): bool
+{
+    return is_app_admin($pdo, $authUser) || auth_user_owns_listing($pdo, $listing, $authUser);
+}
+
+/**
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function listing_query_matches_auth_identity(
+    PDO $pdo,
+    array $authUser,
+    string $createdBy,
+    int $customerIdFilter,
+    string $firebaseUidFilter
+): bool {
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid === '') {
+        return false;
+    }
+
+    if ($firebaseUidFilter !== '' && $firebaseUidFilter !== $uid) {
+        return false;
+    }
+
+    if ($customerIdFilter > 0) {
+        $authCustomerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+        if ($authCustomerId === null || $authCustomerId !== $customerIdFilter) {
+            return false;
+        }
+    }
+
+    if ($createdBy !== '') {
+        $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+        if ($resolvedEmail === null || strcasecmp($createdBy, $resolvedEmail) !== 0) {
+            return false;
+        }
+    }
+
+    return $firebaseUidFilter !== '' || $customerIdFilter > 0 || $createdBy !== '';
 }
 
 /**
@@ -854,6 +1004,37 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
             exit;
         }
     }
+}
+
+/**
+ * Non-admin owners can only keep the current moderation state or toggle sale state.
+ *
+ * @param array<string,mixed> $payload
+ * @param array<string,mixed> $existing
+ * @param array{uid:string,email:?string} $authUser
+ */
+function enforce_listing_status_privileges(PDO $pdo, array $authUser, array $payload, array $existing): void
+{
+    if (!array_key_exists('status', $payload) || is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    $oldStatus = normalize_listing_status_value($existing['status'] ?? '');
+    $newStatus = normalize_listing_status_value($payload['status']);
+    if ($newStatus === '' || $newStatus === $oldStatus) {
+        return;
+    }
+
+    $allowedOwnerSaleTransition =
+        ($oldStatus === 'active' && $newStatus === 'sold') ||
+        ($oldStatus === 'sold' && $newStatus === 'active');
+    if ($allowedOwnerSaleTransition) {
+        return;
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'Зарын төлөвийг зөвхөн админ баталгаажуулна'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 /**
