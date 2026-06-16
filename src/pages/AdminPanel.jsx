@@ -37,7 +37,7 @@ export default function AdminPanel() {
   const { data: pendingListings = [], isLoading: pendingLoading } = useQuery({
     queryKey: ['pending-count'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }),
-    enabled: isAdmin,
+    enabled: !!user && isAdmin,
   });
 
   const { data: vipListings = [], isLoading: vipLoading } = useQuery({
@@ -74,14 +74,14 @@ export default function AdminPanel() {
 
   const { data: allListingsForStats = [] } = useQuery({
     queryKey: ['all-listings-stats'],
-    queryFn: () => entities.Listing.list('-created_date', 1000),
-    enabled: isAdmin,
+    queryFn: () => entities.Listing.filter({ status: 'all' }, '-created_date', 1000),
+    enabled: !!user && isAdmin,
   });
 
   const { data: allListings = [] } = useQuery({
     queryKey: ['all-listings-for-user-stats'],
-    queryFn: () => entities.Listing.list('-created_date', 1000),
-    enabled: isAdmin && showUserSearch,
+    queryFn: () => entities.Listing.filter({ status: 'all' }, '-created_date', 1000),
+    enabled: !!user && isAdmin && showUserSearch,
   });
 
   // Calculate statistics

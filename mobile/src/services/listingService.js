@@ -40,6 +40,13 @@ async function getAuthHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
+async function getOptionalAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) return {};
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== "object") return false;
@@ -200,7 +207,8 @@ export async function getListingsByFirebaseUid(firebaseUid, limitCount = 50, opt
 
 /** Миний зарууд — uid + customerId + email (pending зарууд орно). */
 export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
-  const opts = { includeAllStatuses: true, ...options };
+  const headers = await getAuthHeaders();
+  const opts = { includeAllStatuses: true, ...options, headers: { ...(options.headers || {}), ...headers } };
   const firebaseUid = options.firebaseUid || auth.currentUser?.uid || "";
   const seen = new Set();
   const rows = [];
@@ -262,7 +270,11 @@ export async function fetchListingByIdResult(id, options = {}) {
     if (cached) return { listing: cached };
   }
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), {
+      retries: 1,
+      headers,
+    });
     const listing = normalizeListing(payload?.data);
     if (listing) storeListingDetailCache(mysqlId, listing);
     return { listing };
@@ -322,8 +334,10 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
     retries: 1,
+    headers,
   });
   return (payload?.data || []).length;
 }
@@ -333,16 +347,19 @@ export async function getCreatorPendingListingsCount(email, customerId) {
   const cid = customerId != null && customerId !== "" ? String(customerId).trim() : "";
   const em = typeof email === "string" ? email.trim() : "";
   if (!cid && !em) return 0;
+  const headers = await getAuthHeaders();
+  const options = { includeAllStatuses: true, headers };
   const listings = cid
-    ? await getListingsByCustomerId(cid, 80)
-    : await getListingsByCreator(em, 80);
+    ? await getListingsByCustomerId(cid, 80, options)
+    : await getListingsByCreator(em, 80, options);
   return listings.filter((l) => l.status === "pending").length;
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { retries: 1, headers }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
