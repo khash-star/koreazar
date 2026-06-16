@@ -181,8 +181,11 @@ Admin role is stored in Firestore `users/{uid}.role == 'admin'`. Grant via Fireb
 |-----|--------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, routes, services, data flows |
 | [FIREBASE.md](./FIREBASE.md) | Project config, collections, rules, indexes, functions |
+| [FIRESTORE_SCHEMA.md](./FIRESTORE_SCHEMA.md) | Firestore + MySQL schema, fields, indexes, relations |
 | [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) | Messaging, push, Firestore schema |
+| [SECURITY.md](./SECURITY.md) | Headers, auth, rules, secrets policy, checklist |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Vercel, Firebase CLI, EAS, API hosting |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Common issues and fixes |
 | `docs/FIRESTORE_INDEXES.md` | Index deploy quick reference |
 | `docs/PLAY_STORE_SETUP.md` | TWA / Play Store (Bubblewrap) |
 | `docs/PWA_IMPLEMENTATION_PLAN.md` | PWA rollout notes |
