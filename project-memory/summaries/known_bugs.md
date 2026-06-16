@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Resolved critical issues
+
+| Date | Issue | Fix |
+|------|-------|-----|
+| 2026-06-16 | Non-active MySQL listings (`pending`, `rejected`, `sold`) were readable through unauthenticated PHP API list/detail requests and non-admin clients could submit moderation status. | `api/index.php` now serves non-active listings only to owners/admins, forces non-admin creates to `pending`, and requires admin status changes except owner active/sold toggles. Web/mobile listing services send auth headers for protected status reads. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides
