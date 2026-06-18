@@ -25,23 +25,56 @@ service cloud.firestore {
     }
 
     // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
-    function isConversationParticipant() {
+    function isConversationParticipantData(conversationData) {
       let em = authEmailLower();
       return request.auth != null && (
-        (resource.data.participant_uids is list && resource.data.participant_uids.hasAny([request.auth.uid])) ||
+        (conversationData.participant_uids is list && conversationData.participant_uids.hasAny([request.auth.uid])) ||
         (em.size() > 0 && (
-          (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
-          (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
+          (conversationData.participant_1 is string && conversationData.participant_1.size() > 0 && conversationData.participant_1.lower() == em) ||
+          (conversationData.participant_2 is string && conversationData.participant_2.size() > 0 && conversationData.participant_2.lower() == em)
         ))
       );
     }
 
-    function isMessageSenderOrReceiver() {
+    function isConversationParticipant() {
+      return isConversationParticipantData(resource.data);
+    }
+
+    function isMessageSender(messageData) {
       let em = authEmailLower();
       return request.auth != null && em.size() > 0 && (
-        (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
-        (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
+        messageData.sender_email is string &&
+        messageData.sender_email.size() > 0 &&
+        messageData.sender_email.lower() == em
       );
+    }
+
+    function isMessageReceiver(messageData) {
+      let em = authEmailLower();
+      return request.auth != null && em.size() > 0 && (
+        messageData.receiver_email is string &&
+        messageData.receiver_email.size() > 0 &&
+        messageData.receiver_email.lower() == em
+      );
+    }
+
+    function isMessageSenderOrReceiver(messageData) {
+      return isMessageSender(messageData) || isMessageReceiver(messageData);
+    }
+
+    function isMessageConversationParticipant(messageData) {
+      return request.auth != null &&
+        messageData.conversation_id is string &&
+        exists(/databases/$(database)/documents/conversations/$(messageData.conversation_id)) &&
+        isConversationParticipantData(
+          get(/databases/$(database)/documents/conversations/$(messageData.conversation_id)).data
+        );
+    }
+
+    function isReadReceiptUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']) &&
+        request.resource.data.is_read is bool &&
+        isMessageReceiver(resource.data);
     }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
@@ -148,12 +181,16 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
-      allow delete: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+      allow read: if isAdmin() || isMessageConversationParticipant(resource.data);
+      allow create: if isAdmin() || (
+        isMessageSender(request.resource.data) &&
+        isMessageConversationParticipant(request.resource.data)
+      );
+      allow update: if isAdmin() || (
+        isMessageConversationParticipant(resource.data) &&
+        isReadReceiptUpdate()
+      );
+      allow delete: if isAdmin() || isMessageSenderOrReceiver(resource.data);
     }
     
     // AI Conversations

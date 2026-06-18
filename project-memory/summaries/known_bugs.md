@@ -9,6 +9,7 @@
 |---------|------------|--------|
 | Base44 redirect on login | `TROUBLESHOOTING.md` | Migration-era; likely obsolete |
 | Migration status conflicts | `CURRENT_STATUS.md`, `MIGRATION_COMPLETE.md` | Snapshots may disagree with `README.md` |
+| Chat message privacy bypass | `firestore.rules`, `tests/firestore-message-rules.test.mjs` | Fixed 2026-06-10: messages now require conversation participant/admin access and authenticated sender on create |
 
 ## Recurring operational issues
 
