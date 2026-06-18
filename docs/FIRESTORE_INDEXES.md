@@ -1,22 +1,45 @@
 # Firestore Indexes
 
-## Шаардлагатай индексүүд
+## Source of truth
 
-Эдгээр индексүүд `firestore.indexes.json` дээр тодорхойлогдсон. Firebase Console эсвэл `firebase deploy --only firestore:indexes` ашиглан deploy хийнэ.
+Энэ файл нь `firestore.indexes.json`-ийн тайлбар. Индекс нэмэх/устгахдаа
+эхлээд `firestore.indexes.json`-ийг өөрчлөөд, дараа нь энэ хүснэгтийг
+шинэчилнэ.
 
-### Listings collection
+> Анхаарах зүйл: web/mobile listings одоо PHP/MySQL API (`api/index.php`) ашигладаг.
+> `listings` collection-ийн индексүүд нь legacy/fallback Firestore query болон
+> шилжилтийн кодод үлдсэн тул устгахаас өмнө source usage-ийг шалгана.
 
-| Query | Fields | Хэрэглээ |
-|-------|--------|----------|
-| `status` + `created_date` | status ASC, created_date DESC | Home хуудас - идэвхтэй зарууд |
-| `created_by` + `created_date` | created_by ASC, created_date DESC | Миний зарууд |
-| `status` + `category` + `created_date` | status ASC, category ASC, created_date DESC | Категориар шүүсэн зарууд |
+## Required composite indexes
 
-### Deploy заавар
+| Collection group | Fields | Хэрэглээ |
+|------------------|--------|----------|
+| `banner_ads` | `is_active` ASC, `order` ASC, `__name__` ASC | Home дээр active banner-уудыг дарааллаар авах (`bannerService.filterBannerAds`). |
+| `banner_requests` | `created_by` ASC, `created_date` DESC, `__name__` DESC | Хэрэглэгчийн banner request history/admin filter. |
+| `conversations` | `participant_1` ASC, `last_message_date` DESC, `__name__` DESC | Legacy email participant chat inbox query. |
+| `conversations` | `participant_2` ASC, `last_message_date` DESC, `__name__` DESC | Legacy email participant chat inbox query. |
+| `conversations` | `participant_uids` ARRAY_CONTAINS, `last_message_date` DESC, `__name__` DESC | Phone OTP / uid-aware chat inbox query. |
+| `listings` | `category` ASC, `status` ASC, `created_date` DESC, `__name__` DESC | Legacy/category Firestore listing query fallback. |
+| `listings` | `created_by` ASC, `created_date` DESC, `__name__` DESC | Legacy "my listings" Firestore query fallback. |
+| `listings` | `listing_type` ASC, `status` ASC, `created_date` DESC, `__name__` DESC | Legacy VIP/featured listing query fallback. |
+| `listings` | `status` ASC, `created_date` DESC, `__name__` DESC | Legacy active listing query fallback. |
+| `messages` | `conversation_id` ASC, `created_date` DESC, `__name__` DESC | Chat thread message list. |
+| `saved_listings` | `created_by` ASC, `created_date` DESC, `__name__` DESC | Saved listings list by owner. |
+
+## Deploy заавар
 
 ```bash
-# Firebase CLI суулгасан бол
 firebase deploy --only firestore:indexes
 ```
 
-Алдаа гарвал Firebase Console → Firestore → Indexes дээр гарсан холбоос дараад индекс үүсгэнэ үү.
+Алдаа гарвал Firebase Console -> Firestore -> Indexes дээр гарсан холбоосоор
+индекс үүсгэж болно. Гэхдээ Console-оор үүсгэсэн өөрчлөлтийг дараа нь
+`firestore.indexes.json`-д буцааж sync хийнэ.
+
+## Change checklist
+
+- [ ] Query source verified in `src/services/`, `mobile/src/services/`, or
+      `firestore.rules`.
+- [ ] `firestore.indexes.json` updated first.
+- [ ] This doc updated with collection, fields, and usage.
+- [ ] Index deploy command run against the intended Firebase project.
