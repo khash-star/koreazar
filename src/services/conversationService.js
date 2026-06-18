@@ -108,38 +108,76 @@ export async function resolveChatParticipantEmail() {
   return '';
 }
 
+function mapConversationDoc(d) {
+  const data = d.data();
+  return {
+    id: d.id,
+    ...data,
+    created_date: convertTimestamp(data.created_date),
+    last_message_date: convertTimestamp(data.last_message_date),
+  };
+}
+
+export function participantEmailMatches(stored, candidate) {
+  const left = normalizeEmail(stored);
+  const right = normalizeEmail(candidate);
+  return !!(left && right && (left === right || areEmailVariants(left, right)));
+}
+
+function conversationMatchesParticipants(data, a, b) {
+  const p1 = normalizeEmail(data?.participant_1);
+  const p2 = normalizeEmail(data?.participant_2);
+  return (
+    (participantEmailMatches(p1, a) && participantEmailMatches(p2, b)) ||
+    (participantEmailMatches(p1, b) && participantEmailMatches(p2, a))
+  );
+}
+
 // Conversations
 export const listConversations = async () => {
   try {
     const email = await resolveChatParticipantEmail();
     if (!email) return [];
     const convsRef = collection(db, 'conversations');
-    const q1 = query(
-      convsRef,
-      where('participant_1', '==', email),
-      orderBy('last_message_date', 'desc')
-    );
-    const q2 = query(
-      convsRef,
-      where('participant_2', '==', email),
-      orderBy('last_message_date', 'desc')
-    );
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     const seen = new Set();
     const rows = [];
-    for (const s of [snap1, snap2]) {
-      s.docs.forEach((d) => {
+    const pushDocs = (docs) => {
+      docs.forEach((d) => {
         if (seen.has(d.id)) return;
         seen.add(d.id);
-        const data = d.data();
-        rows.push({
-          id: d.id,
-          ...data,
-          created_date: convertTimestamp(data.created_date),
-          last_message_date: convertTimestamp(data.last_message_date),
-        });
+        rows.push(mapConversationDoc(d));
       });
+    };
+
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      try {
+        const uidQuery = query(convsRef, where('participant_uids', 'array-contains', uid));
+        pushDocs((await getDocs(uidQuery)).docs);
+      } catch (e) {
+        if (!isFirestorePermissionDenied(e)) throw e;
+      }
     }
+
+    const participantQueries = [];
+    for (const em of emailQueryVariants(email)) {
+      participantQueries.push(
+        getDocs(query(convsRef, where('participant_1', '==', em), orderBy('last_message_date', 'desc')))
+          .catch((e) => {
+            if (isFirestorePermissionDenied(e)) return null;
+            throw e;
+          }),
+        getDocs(query(convsRef, where('participant_2', '==', em), orderBy('last_message_date', 'desc')))
+          .catch((e) => {
+            if (isFirestorePermissionDenied(e)) return null;
+            throw e;
+          })
+      );
+    }
+    for (const snap of await Promise.all(participantQueries)) {
+      if (snap) pushDocs(snap.docs);
+    }
+
     rows.sort((a, b) => {
       const ta = a.last_message_date?.getTime?.() || 0;
       const tb = b.last_message_date?.getTime?.() || 0;
@@ -162,8 +200,8 @@ export async function getUnreadMessagesCount() {
   const rows = await listConversations();
   let total = 0;
   for (const c of rows) {
-    const p1 = normalizeEmail(c.participant_1);
-    total += p1 === me ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
+    const imP1 = participantEmailMatches(c.participant_1, me);
+    total += imP1 ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
   }
   return total;
 }
@@ -284,10 +322,8 @@ export const findConversation = async (email1, email2) => {
         const snap = await getDocs(q);
         for (const d of snap.docs) {
           const data = d.data();
-          const p1 = normalizeEmail(data.participant_1);
-          const p2 = normalizeEmail(data.participant_2);
-          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
-            return { id: d.id, ...data };
+          if (conversationMatchesParticipants(data, a, b)) {
+            return mapConversationDoc(d);
           }
         }
       } catch (e) {
@@ -304,11 +340,11 @@ export const findConversation = async (email1, email2) => {
     
     if (!snap1.empty) {
       const docSnap = snap1.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
+      return mapConversationDoc(docSnap);
     }
     if (!snap2.empty) {
       const docSnap = snap2.docs[0];
-      return { id: docSnap.id, ...docSnap.data() };
+      return mapConversationDoc(docSnap);
     }
     
     return null;

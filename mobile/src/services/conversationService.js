@@ -117,6 +117,21 @@ function pickCanonicalParticipantEmail(stored, canonical) {
   return storedNorm;
 }
 
+function participantEmailMatches(stored, candidate) {
+  const left = normalizeEmail(stored);
+  const right = normalizeEmail(candidate);
+  return !!(left && right && (left === right || areEmailVariants(left, right)));
+}
+
+function conversationMatchesParticipants(data, a, b) {
+  const p1 = normalizeEmail(data?.participant_1);
+  const p2 = normalizeEmail(data?.participant_2);
+  return (
+    (participantEmailMatches(p1, a) && participantEmailMatches(p2, b)) ||
+    (participantEmailMatches(p1, b) && participantEmailMatches(p2, a))
+  );
+}
+
 export async function filterConversations(filters = {}) {
   const convsRef = collection(db, "conversations");
   const conditions = [];
@@ -231,9 +246,7 @@ export async function findConversation(email1, email2) {
       const snap = await getDocs(q);
       for (const d of snap.docs) {
         const row = mapConversationDoc(d);
-        const p1 = normalizeEmail(row.participant_1);
-        const p2 = normalizeEmail(row.participant_2);
-        if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+        if (conversationMatchesParticipants(row, a, b)) {
           return row;
         }
       }
