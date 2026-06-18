@@ -13,7 +13,8 @@
 
 | Topic | Canonical source (repo root unless noted) |
 |-------|---------------------------------------------|
-| Messaging / chat | `MESSAGE_SYSTEM_ARCHITECTURE.md` |
+| Messaging / chat (web) | `MESSAGE_SYSTEM_ARCHITECTURE.md` |
+| Messaging / chat (mobile, phone OTP, push) | `mobile/docs/MOBILE_CHAT.md`, `mobile/docs/CHAT_PUSH_SETUP.md`, `mobile/docs/PHONE_OTP_NATIVE_SETUP.md` |
 | Admin message reply flow | `ADMIN_MESSAGE_REPLY_FLOW.md` |
 | Image load performance | `docs/IMAGE_LOAD_ANALYSIS.md` |
 | PWA plan | `docs/PWA_IMPLEMENTATION_PLAN.md` |
@@ -23,6 +24,14 @@
 
 - **Web:** repository root (`src/`, `public/`)
 - **Mobile:** `mobile/` only (Expo RN) — do not mix with web `src/`
+
+## Firestore chat identity snapshot
+
+- Web and mobile share `conversations` and `messages` collections.
+- Mobile phone OTP users use synthetic emails (`phone_*@phone.zarkorea.com`) plus
+  `participant_uids` for conversation visibility.
+- Conversation indexes are documented in `docs/FIRESTORE_INDEXES.md`; legacy
+  conversation UID backfill is documented in `mobile/docs/MOBILE_CHAT.md`.
 
 ## Placeholder slots
 
