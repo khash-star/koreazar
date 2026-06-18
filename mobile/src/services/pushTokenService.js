@@ -36,6 +36,22 @@ async function getNotificationsModule() {
   }
 }
 
+async function getCurrentExpoPushToken() {
+  const projectId = getEasProjectId();
+  if (!projectId) return null;
+
+  const Notifications = await getNotificationsModule();
+  if (!Notifications) return null;
+
+  try {
+    const tokenRes = await Notifications.getExpoPushTokenAsync({ projectId });
+    return tokenRes?.data || null;
+  } catch (e) {
+    console.warn("getExpoPushTokenAsync:", e?.message);
+    return null;
+  }
+}
+
 /**
  * Alert/sound for remote chat push (separate from app icon badge permission in appIconBadge.js).
  */
@@ -92,14 +108,7 @@ export async function registerPushTokenForUid(uid) {
   const permitted = await ensureChatPushPermissions();
   if (!permitted) return { ok: false, reason: "permission_denied" };
 
-  let expoPushToken;
-  try {
-    const tokenRes = await Notifications.getExpoPushTokenAsync({ projectId });
-    expoPushToken = tokenRes?.data;
-  } catch (e) {
-    console.warn("getExpoPushTokenAsync:", e?.message);
-    return { ok: false, reason: "token_error" };
-  }
+  const expoPushToken = await getCurrentExpoPushToken();
 
   if (!expoPushToken) return { ok: false, reason: "empty_token" };
 
@@ -132,8 +141,10 @@ export async function registerPushTokenForUid(uid) {
 
 /** Remove this device's token from Firestore (logout). */
 export async function unregisterCurrentPushToken(uid) {
-  if (!uid || !lastRegisteredToken) return;
-  const tokenId = pushTokenDocId(lastRegisteredToken);
+  if (!uid) return;
+  const expoPushToken = lastRegisteredToken || (await getCurrentExpoPushToken());
+  if (!expoPushToken) return;
+  const tokenId = pushTokenDocId(expoPushToken);
   if (!tokenId) return;
   try {
     await deleteDoc(doc(db, "user_push_tokens", String(uid), "devices", tokenId));
