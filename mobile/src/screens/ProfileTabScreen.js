@@ -13,7 +13,12 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext.js";
-import { deleteAccountForCurrentUser, logout, updateUserData } from "../services/authService";
+import {
+  deleteAccountForCurrentUser,
+  logout,
+  startPhoneLogin,
+  updateUserData,
+} from "../services/authService";
 import { showAlert } from "../utils/showAlert";
 import { createFeedback } from "../services/feedbackService";
 import {
@@ -65,6 +70,9 @@ export default function ProfileTabScreen({ navigation }) {
   const [editErr, setEditErr] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [delPwd, setDelPwd] = useState("");
+  const [delOtp, setDelOtp] = useState("");
+  const [delOtpSent, setDelOtpSent] = useState(false);
+  const [delOtpBusy, setDelOtpBusy] = useState(false);
   const [delConfirm, setDelConfirm] = useState("");
   const [delBusy, setDelBusy] = useState(false);
   const [delErr, setDelErr] = useState("");
@@ -77,11 +85,34 @@ export default function ProfileTabScreen({ navigation }) {
   const feedbackScrollRef = useRef(null);
 
   const closeDeleteModal = () => {
-    if (delBusy) return;
+    if (delBusy || delOtpBusy) return;
     setDeleteOpen(false);
     setDelPwd("");
+    setDelOtp("");
+    setDelOtpSent(false);
+    setDelOtpBusy(false);
     setDelConfirm("");
     setDelErr("");
+  };
+
+  const sendDeleteOtp = async () => {
+    const phone = user?.phoneNumber || userData?.phoneNumber || userData?.phone || "";
+    if (!phone) {
+      setDelErr("Утасны дугаар олдсонгүй. Дахин нэвтэрч оролдоно уу.");
+      return;
+    }
+    setDelOtpBusy(true);
+    setDelErr("");
+    try {
+      await startPhoneLogin(phone);
+      setDelOtp("");
+      setDelOtpSent(true);
+      showAlert("OTP илгээгдлээ", "Бүртгэл устгахын тулд ирсэн кодыг оруулна уу.");
+    } catch (e) {
+      setDelErr(e?.message || "OTP код илгээж чадсангүй.");
+    } finally {
+      setDelOtpBusy(false);
+    }
   };
 
   const runDeleteAccount = async () => {
@@ -89,10 +120,17 @@ export default function ProfileTabScreen({ navigation }) {
       setDelErr("Баталгаажуулахын тулд УСТГАХ гэж яг энэ үгийг бичнэ үү.");
       return;
     }
+    if (isPhoneOnlyAccount && !delOtp.trim()) {
+      setDelErr("OTP код оруулна уу.");
+      return;
+    }
     setDelBusy(true);
     setDelErr("");
     try {
-      await deleteAccountForCurrentUser(delPwd);
+      await deleteAccountForCurrentUser(
+        isPhoneOnlyAccount ? "" : delPwd,
+        isPhoneOnlyAccount ? delOtp : ""
+      );
       closeDeleteModal();
     } catch (e) {
       setDelErr(e?.message || "Бүртгэл устгахад алдаа гарлаа.");
@@ -251,6 +289,9 @@ export default function ProfileTabScreen({ navigation }) {
             style={styles.dangerOutline}
             onPress={() => {
               setDelPwd("");
+              setDelOtp("");
+              setDelOtpSent(false);
+              setDelOtpBusy(false);
               setDelConfirm("");
               setDelErr("");
               setDeleteOpen(true);
@@ -405,12 +446,41 @@ export default function ProfileTabScreen({ navigation }) {
             <Text style={styles.modalTitle}>Бүртгэл устгах</Text>
             <Text style={styles.modalHint}>
               {isPhoneOnlyAccount
-                ? "Профайл, зар, хадгалсан зар, чатны түүх устгагдана. Доор "
+                ? "Профайл, зар, хадгалсан зар, чатны түүх устгагдана. OTP кодоор дахин баталгаажуулж, доор "
                 : "Профайл, зар, хадгалсан зар, чатны түүх устгагдана. Нууц үгээ оруулж, доор "}
               <Text style={styles.modalHintBold}>УСТГАХ</Text> гэж бичнэ үү.
             </Text>
             {delErr ? <Text style={styles.modalErr}>{delErr}</Text> : null}
-            {!isPhoneOnlyAccount ? (
+            {isPhoneOnlyAccount ? (
+              <>
+                <Pressable
+                  style={[styles.otpBtn, (delBusy || delOtpBusy) && styles.modalDeleteDisabled]}
+                  onPress={sendDeleteOtp}
+                  disabled={delBusy || delOtpBusy}
+                >
+                  {delOtpBusy ? (
+                    <ActivityIndicator color="#ea580c" />
+                  ) : (
+                    <Text style={styles.otpBtnText}>
+                      {delOtpSent ? "OTP дахин илгээх" : "OTP код илгээх"}
+                    </Text>
+                  )}
+                </Pressable>
+                {delOtpSent ? (
+                  <Text style={styles.otpSentHint}>Ирсэн OTP кодыг оруулна уу.</Text>
+                ) : null}
+                <Text style={styles.inputLabel}>OTP код</Text>
+                <TextInput
+                  style={styles.input}
+                  value={delOtp}
+                  onChangeText={setDelOtp}
+                  placeholder="6 оронтой код"
+                  editable={!delBusy}
+                  keyboardType="number-pad"
+                  autoCapitalize="none"
+                />
+              </>
+            ) : (
               <>
                 <Text style={styles.inputLabel}>Нууц үг</Text>
                 <TextInput
@@ -423,7 +493,7 @@ export default function ProfileTabScreen({ navigation }) {
                   autoCapitalize="none"
                 />
               </>
-            ) : null}
+            )}
             <Text style={styles.inputLabel}>Баталгаажуулах</Text>
             <TextInput
               style={styles.input}
@@ -434,22 +504,32 @@ export default function ProfileTabScreen({ navigation }) {
               autoCapitalize="characters"
             />
             <View style={styles.modalActions}>
-              <Pressable style={styles.modalCancel} onPress={closeDeleteModal} disabled={delBusy}>
+              <Pressable
+                style={styles.modalCancel}
+                onPress={closeDeleteModal}
+                disabled={delBusy || delOtpBusy}
+              >
                 <Text style={styles.modalCancelText}>Цуцлах</Text>
               </Pressable>
               <Pressable
                 style={[
                   styles.modalDelete,
                   (delBusy ||
+                    delOtpBusy ||
                     delConfirm !== "УСТГАХ" ||
-                    (!isPhoneOnlyAccount && !delPwd.trim())) &&
+                    (isPhoneOnlyAccount
+                      ? !delOtpSent || !delOtp.trim()
+                      : !delPwd.trim())) &&
                     styles.modalDeleteDisabled,
                 ]}
                 onPress={runDeleteAccount}
                 disabled={
                   delBusy ||
+                  delOtpBusy ||
                   delConfirm !== "УСТГАХ" ||
-                  (!isPhoneOnlyAccount && !delPwd.trim())
+                  (isPhoneOnlyAccount
+                    ? !delOtpSent || !delOtp.trim()
+                    : !delPwd.trim())
                 }
               >
                 {delBusy ? (
@@ -666,6 +746,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: "#111827",
   },
+  otpBtn: {
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    backgroundColor: "#fff7ed",
+    marginBottom: 8,
+  },
+  otpBtnText: { fontWeight: "700", color: "#ea580c" },
+  otpSentHint: { color: "#4b5563", fontSize: 13, marginBottom: 8 },
   modalActions: { flexDirection: "row", gap: 12, marginTop: 8 },
   modalCancel: {
     flex: 1,
