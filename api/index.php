@@ -1018,6 +1018,14 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
         if ($city === '') $city = null;
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
         if ($district === '') $district = null;
+        $emailForDb = null;
+        $emailTrim = $email !== null ? trim((string) $email) : '';
+        if ($emailTrim !== '') {
+            $emailForDb = strtolower($emailTrim);
+        } elseif ($phone !== null) {
+            $synthetic = phone_to_auth_email($phone);
+            $emailForDb = $synthetic !== null ? strtolower($synthetic) : null;
+        }
 
         upsert_user_best_effort($pdo, $firebaseUid, $emailForDb);
 

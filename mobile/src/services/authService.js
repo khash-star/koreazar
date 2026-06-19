@@ -43,6 +43,39 @@ function stripProtectedUserFields(data) {
 
 /** Вэбийн authService.TERMS_POLICY_VERSION-тай ижил байлгана уу */
 const TERMS_POLICY_VERSION = "2025-03-28";
+const DESTRUCTIVE_DELETE_RECENT_LOGIN_MAX_AGE_MS = 4 * 60 * 1000;
+
+function getLastSignInTimeMs(user) {
+  const metadata = user?.metadata || {};
+  const candidates = [
+    metadata.lastSignInTime,
+    metadata.lastLoginAt,
+    metadata.lastSignInAt,
+  ];
+  for (const value of candidates) {
+    if (value == null || value === "") continue;
+    const ms = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(ms) && ms > 0) return ms;
+    const parsed = Date.parse(String(value));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+async function assertRecentLoginBeforeDestructiveDelete(user, hasPasswordProvider) {
+  if (hasPasswordProvider) return;
+  try {
+    await user.reload?.();
+  } catch {
+    /* best effort; metadata below still protects stale sessions when available */
+  }
+  const lastSignInMs = getLastSignInTimeMs(user);
+  if (!lastSignInMs || Date.now() - lastSignInMs > DESTRUCTIVE_DELETE_RECENT_LOGIN_MAX_AGE_MS) {
+    throw new Error(
+      "Аюулгүй байдлын үүднээс бүртгэл устгахаас өмнө утсаар дахин нэвтэрч, шууд дахин оролдоно уу"
+    );
+  }
+}
 
 async function ensureTermsAcceptanceIfMissing(user) {
   if (!user?.uid) return;
@@ -440,6 +473,8 @@ export async function deleteAccountForCurrentUser(password = "") {
       throw e;
     }
   }
+
+  await assertRecentLoginBeforeDestructiveDelete(user, hasPasswordProvider);
 
   const uid = user.uid;
   try {
