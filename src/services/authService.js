@@ -488,16 +488,37 @@ export const getMe = async () => {
     const user = auth.currentUser;
     if (!user) return null;
 
-    const userData = await getUserData(user.uid);
-    if (!userData) {
+    const fallbackEmail = normalizeEmail(user.email) || normalizeEmail(phoneToAuthEmail(user.phoneNumber));
+    const fallbackDisplayName = user.displayName || (fallbackEmail ? fallbackEmail.split('@')[0] : 'User');
+    const fallbackUser = {
+      uid: user.uid,
+      email: fallbackEmail || user.email || '',
+      displayName: fallbackDisplayName
+    };
+
+    const userRef = doc(db, 'users', user.uid);
+    let userDoc;
+    try {
+      userDoc = await getDoc(userRef);
+    } catch (error) {
+      // A failed read must not be treated as a missing profile; that can wipe role/customer data.
+      if (error.code === 'unavailable' || error.message?.includes('offline')) {
+        console.warn('Firestore offline - keeping auth-only user data');
+      } else {
+        console.error('Error reading current user profile:', error);
+      }
+      return fallbackUser;
+    }
+
+    if (!userDoc.exists()) {
       // Хэрэв Firestore дээр байхгүй бол үүсгэх (offline байвал skip)
       try {
-        await setDoc(doc(db, 'users', user.uid), {
-          email: user.email,
-          displayName: user.displayName || user.email.split('@')[0],
+        await setDoc(userRef, {
+          email: fallbackEmail || '',
+          displayName: fallbackDisplayName,
           role: 'user',
-          createdAt: new Date()
-        });
+          createdAt: serverTimestamp()
+        }, { merge: true });
       } catch (error) {
         // Ignore offline errors
         if (error.code === 'unavailable' || error.message?.includes('offline')) {
@@ -505,16 +526,15 @@ export const getMe = async () => {
         }
       }
       return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email.split('@')[0],
+        ...fallbackUser,
         role: 'user'
       };
     }
 
+    const userData = { id: userDoc.id, ...userDoc.data() };
     return {
       uid: user.uid,
-      email: user.email,
+      email: user.email || userData.email || fallbackUser.email,
       ...userData
     };
   } catch (error) {

@@ -17,7 +17,7 @@ import {
   getUserByEmail,
   isSellerBlockedByViewer,
 } from '@/services/authService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, areEmailVariants } from '@/utils/emailNormalize';
 import {
   deleteMessage,
   syncConversationLastMessageFromMessages,
@@ -68,7 +68,7 @@ export default function Chat() {
         if (cancelled || !conv) return;
         const p1 = normalizeEmail(conv.participant_1);
         const p2 = normalizeEmail(conv.participant_2);
-        const other = p1 === myEmail ? p2 : p1;
+        const other = p1 === myEmail || areEmailVariants(p1, myEmail) ? p2 : p1;
         if (!other) return;
         let admin = adminEmail;
         if (!admin) admin = await getAdminEmail();
@@ -105,8 +105,7 @@ export default function Chat() {
     // Wait for auth to finish loading before checking
     if (loading) return;
     
-    const email = userData?.email || user?.email;
-    if (!email) {
+    if (!user) {
       redirectToLogin(window.location.href);
     }
   }, [user, userData, loading]);
@@ -205,8 +204,10 @@ export default function Chat() {
     queryFn: async () => {
       const email = userData?.email || user?.email;
       if (!conversation || !email) return null;
-      const otherEmail = conversation.participant_1 === email 
-        ? conversation.participant_2 
+      const me = normalizeEmail(email);
+      const p1 = normalizeEmail(conversation.participant_1);
+      const otherEmail = p1 === me || areEmailVariants(p1, me)
+        ? conversation.participant_2
         : conversation.participant_1;
       
       // Get admin email if not already set
@@ -216,7 +217,7 @@ export default function Chat() {
       }
       
       // Check if other user is admin
-      const isAdmin = currentAdminEmail && otherEmail === currentAdminEmail;
+      const isAdmin = currentAdminEmail && areEmailVariants(otherEmail, currentAdminEmail);
       
       // Get user data from Firestore
       let displayName;
@@ -263,7 +264,7 @@ export default function Chat() {
         
         if (unreadMessages.length > 0) {
           const isParticipant1 =
-            normalizeEmail(conversation.participant_1) === normalizeEmail(email);
+            areEmailVariants(conversation.participant_1, email);
           await entities.Conversation.update(actualConversationId, {
             [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
           });

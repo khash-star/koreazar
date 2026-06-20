@@ -53,7 +53,6 @@ export default function AdminScreen({ navigation }) {
   const [infoTitle, setInfoTitle] = useState("");
   const [infoText, setInfoText] = useState("");
   const autoApproveInFlightRef = useRef(false);
-  const autoApproveFailedIdsRef = useRef(new Set());
 
   useEffect(() => {
     getListingAutoApprove()
@@ -72,9 +71,6 @@ export default function AdminScreen({ navigation }) {
 
   const handleAutoApproveChange = useCallback(async (value) => {
     const prev = autoApprove;
-    if (!value) {
-      autoApproveFailedIdsRef.current.clear();
-    }
     setAutoApprove(value);
     await AsyncStorage.setItem(AUTO_APPROVE_KEY, String(value));
     try {
@@ -93,9 +89,7 @@ export default function AdminScreen({ navigation }) {
   const runAutoApprove = useCallback(async (currentRows) => {
     if (!autoApprove || autoApproveInFlightRef.current) return;
 
-    const pending = currentRows.filter(
-      (r) => r.status === "pending" && !autoApproveFailedIdsRef.current.has(String(r.id))
-    );
+    const pending = currentRows.filter((r) => r.status === "pending");
     if (pending.length === 0) return;
 
     autoApproveInFlightRef.current = true;
@@ -111,7 +105,6 @@ export default function AdminScreen({ navigation }) {
           succeededIds.push(item.id);
         } catch (e) {
           failed += 1;
-          autoApproveFailedIdsRef.current.add(String(item.id));
           console.warn(`[auto-approve] fail id=${item.id}:`, e?.message);
         }
       }
@@ -122,7 +115,7 @@ export default function AdminScreen({ navigation }) {
       }
       if (approved > 0 || failed > 0) {
         console.log(
-          `[auto-approve] approved=${approved} failed=${failed} skip-cache=${autoApproveFailedIdsRef.current.size}`
+          `[auto-approve] approved=${approved} failed=${failed}`
         );
       }
     } finally {

@@ -65,6 +65,7 @@ export default function AdminNewListings() {
   const { data: listings = [], isLoading } = useQuery({
     queryKey: ['admin-new-listings'],
     queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
+    enabled: !!user && (userData?.role === 'admin' || user?.role === 'admin'),
     refetchInterval: autoApprove ? 10000 : false,
   });
 
