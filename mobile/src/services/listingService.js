@@ -133,6 +133,7 @@ const MY_LISTING_STATUSES = ["active", "pending", "sold"];
 async function requestListingsQuery(params, options = {}) {
   const { includeAllStatuses, ...fetchOpts } = options;
   const limit = Math.min(Number(params.limit) || 50, 100);
+  const protectedReadHeaders = includeAllStatuses ? await getAuthHeaders() : {};
 
   if (!includeAllStatuses) {
     const payload = await requestJson(buildApiUrl("listings", { ...params, limit }), {
@@ -156,7 +157,7 @@ async function requestListingsQuery(params, options = {}) {
   try {
     const all = await requestJson(
       buildApiUrl("listings", { ...params, limit, status: "all" }),
-      { retries: 1, ...fetchOpts }
+      { retries: 1, ...fetchOpts, headers: { ...protectedReadHeaders, ...(fetchOpts.headers || {}) } }
     );
     const rows = (all?.data || []).map(normalizeListing).filter(Boolean);
     if (rows.length > 0) return rows;
@@ -168,7 +169,7 @@ async function requestListingsQuery(params, options = {}) {
     try {
       const payload = await requestJson(
         buildApiUrl("listings", { ...params, limit, status }),
-        { retries: 1, ...fetchOpts }
+        { retries: 1, ...fetchOpts, headers: { ...protectedReadHeaders, ...(fetchOpts.headers || {}) } }
       );
       add((payload?.data || []).map(normalizeListing).filter(Boolean));
     } catch {
@@ -322,8 +323,10 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
     retries: 1,
+    headers,
   });
   return (payload?.data || []).length;
 }
@@ -334,15 +337,16 @@ export async function getCreatorPendingListingsCount(email, customerId) {
   const em = typeof email === "string" ? email.trim() : "";
   if (!cid && !em) return 0;
   const listings = cid
-    ? await getListingsByCustomerId(cid, 80)
-    : await getListingsByCreator(em, 80);
+    ? await getListingsByCustomerId(cid, 80, { includeAllStatuses: true })
+    : await getListingsByCreator(em, 80, { includeAllStatuses: true });
   return listings.filter((l) => l.status === "pending").length;
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { retries: 1, headers }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }

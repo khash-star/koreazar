@@ -142,6 +142,22 @@ try {
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
+                enforce_listing_collection_read_access(
+                    $pdo,
+                    $status,
+                    $createdBy,
+                    $customerIdFilter,
+                    $firebaseUidFilter
+                );
+
+                if (
+                    ($customerIdFilter > 0 && !table_has($pdo, 'listings', 'customer_id')) ||
+                    ($firebaseUidFilter !== '' && !table_has($pdo, 'listings', 'firebase_uid'))
+                ) {
+                    echo json_encode(['data' => []], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
@@ -751,6 +767,82 @@ function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): 
 
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function normalize_api_email(?string $email): string
+{
+    return strtolower(trim((string) $email));
+}
+
+/**
+ * @return array<int,string>
+ */
+function api_email_variants(?string $email): array
+{
+    $em = normalize_api_email($email);
+    if ($em === '') {
+        return [];
+    }
+    $out = [$em => true];
+    if (preg_match('/^phone_(\d+)@phone\.zarkorea\.com$/', $em, $m)) {
+        $digits = $m[1];
+        if (strpos($digits, '82') === 0 && strlen($digits) > 10) {
+            $out['phone_' . substr($digits, 2) . '@phone.zarkorea.com'] = true;
+        } elseif (strpos($digits, '82') !== 0 && strlen($digits) >= 9) {
+            $out['phone_82' . $digits . '@phone.zarkorea.com'] = true;
+        }
+    }
+    return array_keys($out);
+}
+
+function api_emails_match(?string $a, ?string $b): bool
+{
+    $left = api_email_variants($a);
+    $right = normalize_api_email($b);
+    return $right !== '' && in_array($right, $left, true);
+}
+
+/**
+ * Public listing collection reads are limited to active listings. Non-active/all
+ * reads expose moderation state and must be scoped to an owner or an admin.
+ */
+function enforce_listing_collection_read_access(
+    PDO $pdo,
+    string $status,
+    string $createdBy,
+    int $customerIdFilter,
+    string $firebaseUidFilter
+): void {
+    $statusNorm = strtolower(trim($status));
+    if ($statusNorm === '' || $statusNorm === 'active') {
+        return;
+    }
+
+    $authUser = require_firebase_user();
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    if ($firebaseUidFilter !== '' && $uid !== '' && $firebaseUidFilter === $uid) {
+        return;
+    }
+
+    $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+    if ($createdBy !== '' && $resolvedEmail !== null && api_emails_match($resolvedEmail, $createdBy)) {
+        return;
+    }
+
+    if ($customerIdFilter > 0) {
+        $customerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+        if ($customerId !== null && $customerId === $customerIdFilter) {
+            return;
+        }
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden: listing status requires owner or admin'], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
