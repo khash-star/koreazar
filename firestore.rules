@@ -43,6 +43,48 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
     }
+
+    function isMessageSenderRequest() {
+      let em = authEmailLower();
+      return request.auth != null && em.size() > 0 &&
+        request.resource.data.sender_email is string &&
+        request.resource.data.sender_email.size() > 0 &&
+        request.resource.data.sender_email.lower() == em;
+    }
+
+    function isConversationDataParticipant(data) {
+      let em = authEmailLower();
+      return request.auth != null && (
+        (data.participant_uids is list && data.participant_uids.hasAny([request.auth.uid])) ||
+        (em.size() > 0 && (
+          (data.participant_1 is string && data.participant_1.size() > 0 && data.participant_1.lower() == em) ||
+          (data.participant_2 is string && data.participant_2.size() > 0 && data.participant_2.lower() == em)
+        ))
+      );
+    }
+
+    function canAccessConversationById(conversationId) {
+      return request.auth != null &&
+        conversationId is string &&
+        conversationId.size() > 0 &&
+        exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+        (
+          isAdmin() ||
+          isConversationDataParticipant(
+            get(/databases/$(database)/documents/conversations/$(conversationId)).data
+          )
+        );
+    }
+
+    function isMessageConversationParticipant() {
+      return resource.data.conversation_id is string &&
+        canAccessConversationById(resource.data.conversation_id);
+    }
+
+    function isMessageConversationParticipantRequest() {
+      return request.resource.data.conversation_id is string &&
+        canAccessConversationById(request.resource.data.conversation_id);
+    }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
     match /users/{userId} {
@@ -148,12 +190,16 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null && 
+        (isMessageSenderOrReceiver() || isMessageConversationParticipant() || isAdmin());
+      allow create: if request.auth != null && (
+        isAdmin() ||
+        (isMessageSenderRequest() && isMessageConversationParticipantRequest())
+      );
       allow update: if request.auth != null && 
         (isMessageSenderOrReceiver() || isAdmin());
       allow delete: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+        (isMessageSenderOrReceiver() || isMessageConversationParticipant() || isAdmin());
     }
     
     // AI Conversations
