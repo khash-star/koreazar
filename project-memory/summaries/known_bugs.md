@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Recently fixed critical bugs
+
+| Date | Area | Fix summary |
+|------|------|-------------|
+| 2026-06-22 | Chat + listing moderation | Restricted Firestore `messages` reads/creates to participants/admins and forced non-admin API listing creates/approval transitions through moderation. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides
