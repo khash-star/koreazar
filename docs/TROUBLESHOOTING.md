@@ -10,6 +10,7 @@
 | Шинж тэмдэг | Эхлээд шалгах |
 |-------------|---------------|
 | Цагаан хуудас / SPA 404 | Vercel rewrite, `dist/` build |
+| `koreazar.vercel.app` index-д орж байна | Vercel redirect, canonical, sitemap |
 | Firebase auth алдаа | `VITE_FIREBASE_*` / `EXPO_PUBLIC_FIREBASE_*` |
 | Permission denied (Firestore) | `firestore.rules` deploy, `users/{uid}.email` |
 | Index алдаа | `firebase deploy --only firestore:indexes` |
@@ -49,6 +50,42 @@
 ```json
 { "source": "/((?!.*\\..*).*)", "destination": "/index.html" }
 ```
+
+### Vercel preview домэйн redirect хийхгүй
+
+**Шалтгаан:** `vercel.json` дээр host-based redirect дутуу эсвэл redirect нь SPA rewrite-ийн дараа орсон.
+
+**Шийдэл:**
+- `vercel.json` redirects нь rewrites-ээс өмнө ажиллах ёстой:
+
+```json
+{
+  "source": "/:path+",
+  "has": [{ "type": "host", "value": "koreazar.vercel.app" }],
+  "destination": "https://zarkorea.com/:path*",
+  "permanent": true
+}
+```
+
+- Deploy дараа шалгах:
+
+```bash
+curl -I https://koreazar.vercel.app/
+curl -I https://koreazar.vercel.app/ListingDetail
+```
+
+`Location` нь `https://zarkorea.com/...` байх ёстой.
+
+### Google дээр буруу домэйн / хуучин app link харагдах
+
+**Шалтгаан:** canonical, sitemap, robots, эсвэл structured metadata зөрсөн.
+
+**Шийдэл:**
+- `index.html` → `<link rel="canonical" href="https://zarkorea.com/">`
+- `public/robots.txt` → `Sitemap: https://zarkorea.com/sitemap.xml`
+- `public/sitemap.xml` → бүх `<loc>` `https://zarkorea.com/...`
+- `src/constants/appUrls.js` → Play Store URL/package `com.zarkorea.twa`
+- Public route нэмсэн бол sitemap-д нэмнэ; private/admin/user-specific route бол robots дээр `Disallow` хэвээр үлдээнэ.
 
 ### PWA / manifest олдсонгүй
 
