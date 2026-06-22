@@ -213,6 +213,7 @@ try {
                 }
 
                 enforce_listing_promotion_privileges($pdo, $authUser, $payload, null, true);
+                enforce_listing_moderation_status($pdo, $authUser, $payload, null, true);
 
                 // Best-effort auxiliary upserts for legacy/shared schemas.
                 upsert_user_best_effort($pdo, $authUser['uid'], $authUser['email']);
@@ -290,6 +291,7 @@ try {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
+                    enforce_listing_moderation_status($pdo, $authUser, $payload, $existing, false);
                     if (api_find_banned_in_listing_payload($payload) !== null) {
                         api_respond_prohibited_listing();
                         break;
@@ -854,6 +856,50 @@ function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $
             exit;
         }
     }
+}
+
+/**
+ * Non-admin owners may only toggle their own live/sold state; moderation approval
+ * stays server/admin-controlled even if a modified client sends status=active.
+ *
+ * @param array<string,mixed> $payload
+ * @param array<string,mixed>|null $existing
+ * @param array{uid:string,email:?string} $authUser
+ */
+function enforce_listing_moderation_status(PDO $pdo, array $authUser, array &$payload, ?array $existing, bool $isCreate): void
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    if ($isCreate) {
+        $payload['status'] = 'pending';
+        return;
+    }
+
+    if (!array_key_exists('status', $payload)) {
+        return;
+    }
+
+    $newStatus = normalize_listing_type_value($payload['status']);
+    $oldStatus = normalize_listing_type_value($existing['status'] ?? '');
+    $payload['status'] = $newStatus;
+
+    if ($newStatus === $oldStatus) {
+        return;
+    }
+
+    $ownerAllowed = (
+        ($oldStatus === 'active' && $newStatus === 'sold') ||
+        ($oldStatus === 'sold' && $newStatus === 'active')
+    );
+    if ($ownerAllowed) {
+        return;
+    }
+
+    http_response_code(403);
+    echo json_encode(['error' => 'Зарын төлөвийг батлах/татгалзах эрх зөвхөн админд'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 /**
