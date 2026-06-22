@@ -1,7 +1,7 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.  
-> **Updated:** 2026-06-15 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
+> **Updated:** 2026-06-22 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
 > **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
@@ -73,7 +73,7 @@ koreazar/
 ├── firestore.indexes.json  # Composite indexes (deploy via Firebase CLI)
 ├── storage.rules           # Firebase Storage rules
 ├── firebase.json           # Firestore + Functions config
-├── vercel.json             # Web hosting, SPA rewrites, security headers
+├── vercel.json             # Web hosting, official-domain redirects, SPA rewrites, security headers
 ├── docs/                   # Canonical documentation (this folder)
 └── project-memory/         # AI agent workflows and extended memory
 ```
@@ -149,6 +149,7 @@ Template: `api/.env.example`.
 | **Hybrid listings (MySQL + Firestore)** | Listings migrated to PHP/MySQL API; chat/banners remain Firestore-native |
 | **Firestore-before-images on home** | Banner/listing image URLs come from API/Firestore responses; LCP depends on data round-trip |
 | **PWA via vite-plugin-pwa** | `manifest.json`, Workbox SW, `registerType: 'autoUpdate'`; prerequisite for Play/TWA path |
+| **Canonical web domain** | `zarkorea.com` is canonical; `koreazar.vercel.app` redirects same-path requests to `zarkorea.com`; `index.html`, `robots.txt`, and `sitemap.xml` keep SEO URLs canonical |
 | **Indexes as code** | `firestore.indexes.json` deployed with `firebase deploy --only firestore:indexes` |
 | **Mobile in `mobile/`** | Separate Expo app; constants synced via `npm run sync-listings` from web `src/constants/listings.js` |
 | **Chat push via Cloud Function** | `onChatMessageCreatedPush` on `messages/{messageId}` create → Expo Push API |
@@ -170,6 +171,7 @@ Admin role is stored in Firestore `users/{uid}.role == 'admin'`. Grant via Fireb
 | Wrong `EXPO_PUBLIC_FIREBASE_*` on EAS | Match Firebase Console exactly; `eas env:push` from `mobile/.env` |
 | `google-services.json` missing on EAS build | Upload via `GOOGLE_SERVICES_JSON` file env |
 | Android push without FCM V1 on Expo | Configure in `eas credentials` — see `mobile/docs/CHAT_PUSH_SETUP.md` |
+| Preview host indexed separately | Verify Vercel redirect plus `index.html` canonical, `public/robots.txt`, and `public/sitemap.xml` all point to `zarkorea.com` |
 | Stale root-level markdown (52 files) | Prefer `docs/*` and this file; many root docs reference obsolete paths/domains |
 | `storage.rules` not in `firebase.json` | Deploy storage rules separately: `firebase deploy --only storage` |
 

@@ -76,6 +76,25 @@ Client-side routes (path = component):
 
 Vercel SPA fallback: all non-file paths rewrite to `/index.html` (`vercel.json`).
 
+### Public SEO surface
+
+The web SPA has a small static SEO surface that lives outside React route rendering:
+
+| File | Role | Constraints |
+|------|------|-------------|
+| `index.html` | Canonical URL, robots meta, Open Graph/Twitter tags, JSON-LD organization/website/mobile app metadata | Keep canonical and structured-data URLs on `https://zarkorea.com/` |
+| `public/robots.txt` | Crawl policy and sitemap pointer | Allow public pages; block admin, profile, messaging, saved-listing, edit, and upgrade routes |
+| `public/sitemap.xml` | Canonical public route inventory | Use `https://zarkorea.com/...`; do not list private or user-specific routes |
+| `vercel.json` | Permanent redirect from `koreazar.vercel.app` to `zarkorea.com` | Preserve same-path redirects before SPA rewrites |
+| `src/constants/appUrls.js` | Official Play Store URL/package shared by footer and SEO copy | Keep package aligned with `mobile/app.json` / Play Store (`com.zarkorea.twa`) |
+
+Example route-change checklist:
+
+1. Add or change the React route in `src/pages/index.jsx`.
+2. If the route is publicly indexable, add it to `public/sitemap.xml`.
+3. If the route is private, admin-only, auth-only, or user-specific, add or keep a `Disallow` rule in `public/robots.txt`.
+4. Re-check `docs/DEPLOYMENT.md` domain and SEO verification after deploy.
+
 ### Service layer (`src/services/`)
 
 | Service | Backend | Responsibility |
