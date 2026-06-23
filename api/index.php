@@ -140,12 +140,13 @@ try {
                 $customerIdFilter = isset($_GET['customer_id']) ? (int) $_GET['customer_id'] : 0;
                 $firebaseUidFilter = isset($_GET['firebase_uid']) ? trim((string) $_GET['firebase_uid']) : '';
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
+                $statusLower = strtolower($status);
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
-                if ($status !== '' && strtolower($status) !== 'all') {
+                if ($status !== '' && $statusLower !== 'all') {
                     $sql .= ' AND status = :status';
                     $params[':status'] = $status;
                 }
@@ -168,6 +169,11 @@ try {
                 if ($firebaseUidFilter !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
                     $sql .= ' AND firebase_uid = :firebase_uid';
                     $params[':firebase_uid'] = $firebaseUidFilter;
+                }
+
+                if ($statusLower === 'all' || ($statusLower !== '' && $statusLower !== 'active')) {
+                    $authUser = require_firebase_user();
+                    apply_private_listing_read_scope($pdo, $sql, $params, $authUser);
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -265,6 +271,11 @@ try {
                     http_response_code(404);
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
+                }
+                $rowStatus = strtolower(trim((string) ($row['status'] ?? 'active')));
+                if ($rowStatus !== '' && $rowStatus !== 'active') {
+                    $authUser = require_firebase_user();
+                    enforce_listing_ownership($pdo, $row, $authUser);
                 }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
@@ -752,6 +763,47 @@ function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): 
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * Private collection reads (pending/rejected/sold/all) must be admin-only or
+ * constrained to rows owned by the authenticated user.
+ *
+ * @param array<string,mixed> $params
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function apply_private_listing_read_scope(PDO $pdo, string &$sql, array &$params, array $authUser): void
+{
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    $constraints = [];
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
+        $constraints[] = 'firebase_uid = :auth_firebase_uid';
+        $params[':auth_firebase_uid'] = $uid;
+    }
+
+    $customerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+    if ($customerId > 0 && table_has($pdo, 'listings', 'customer_id')) {
+        $constraints[] = 'customer_id = :auth_customer_id';
+        $params[':auth_customer_id'] = $customerId;
+    }
+
+    $authEmail = resolve_auth_email_for_listing($pdo, $authUser);
+    if ($authEmail !== null && $authEmail !== '') {
+        $constraints[] = 'LOWER(created_by) = LOWER(:auth_created_by)';
+        $params[':auth_created_by'] = $authEmail;
+    }
+
+    if (count($constraints) === 0) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden: private listing scope unavailable'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $sql .= ' AND (' . implode(' OR ', $constraints) . ')';
 }
 
 /**

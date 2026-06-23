@@ -17,11 +17,16 @@ let latestListingsCache = { at: 0, key: "", data: null, pending: null };
 /** @type {Map<string, { at: number, data: object }>} */
 const listingDetailCache = new Map();
 
+function isPublicListing(listing) {
+  const status = String(listing?.status ?? "active").trim().toLowerCase();
+  return status === "" || status === "active";
+}
+
 export function peekListingDetailCache(id) {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return null;
   const row = listingDetailCache.get(mysqlId);
-  if (!row || Date.now() - row.at > DETAIL_CACHE_TTL_MS) {
+  if (!row || Date.now() - row.at > DETAIL_CACHE_TTL_MS || !isPublicListing(row.data)) {
     if (row) listingDetailCache.delete(mysqlId);
     return null;
   }
@@ -29,7 +34,7 @@ export function peekListingDetailCache(id) {
 }
 
 function storeListingDetailCache(mysqlId, listing) {
-  if (!mysqlId || !listing) return;
+  if (!mysqlId || !listing || !isPublicListing(listing)) return;
   listingDetailCache.set(mysqlId, { at: Date.now(), data: listing });
 }
 
@@ -38,6 +43,19 @@ async function getAuthHeaders() {
   if (!user) throw new Error("Хэрэглэгч нэвтрээгүй байна");
   const token = await user.getIdToken();
   return { Authorization: `Bearer ${token}` };
+}
+
+async function getOptionalAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) return {};
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
+function needsPrivateListingReadAuth(params = {}, options = {}) {
+  if (options.includeAllStatuses) return true;
+  const status = String(params.status ?? "").trim().toLowerCase();
+  return status === "all" || (status !== "" && status !== "active");
 }
 
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
@@ -133,11 +151,16 @@ const MY_LISTING_STATUSES = ["active", "pending", "sold"];
 async function requestListingsQuery(params, options = {}) {
   const { includeAllStatuses, ...fetchOpts } = options;
   const limit = Math.min(Number(params.limit) || 50, 100);
+  const authHeaders = needsPrivateListingReadAuth(params, options) ? await getAuthHeaders() : {};
 
   if (!includeAllStatuses) {
     const payload = await requestJson(buildApiUrl("listings", { ...params, limit }), {
       retries: 1,
       ...fetchOpts,
+      headers: {
+        ...authHeaders,
+        ...(fetchOpts.headers || {}),
+      },
     });
     return (payload?.data || []).map(normalizeListing).filter(Boolean);
   }
@@ -156,7 +179,14 @@ async function requestListingsQuery(params, options = {}) {
   try {
     const all = await requestJson(
       buildApiUrl("listings", { ...params, limit, status: "all" }),
-      { retries: 1, ...fetchOpts }
+      {
+        retries: 1,
+        ...fetchOpts,
+        headers: {
+          ...authHeaders,
+          ...(fetchOpts.headers || {}),
+        },
+      }
     );
     const rows = (all?.data || []).map(normalizeListing).filter(Boolean);
     if (rows.length > 0) return rows;
@@ -168,7 +198,14 @@ async function requestListingsQuery(params, options = {}) {
     try {
       const payload = await requestJson(
         buildApiUrl("listings", { ...params, limit, status }),
-        { retries: 1, ...fetchOpts }
+        {
+          retries: 1,
+          ...fetchOpts,
+          headers: {
+            ...authHeaders,
+            ...(fetchOpts.headers || {}),
+          },
+        }
       );
       add((payload?.data || []).map(normalizeListing).filter(Boolean));
     } catch {
@@ -262,7 +299,10 @@ export async function fetchListingByIdResult(id, options = {}) {
     if (cached) return { listing: cached };
   }
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), {
+      retries: 1,
+      headers: await getOptionalAuthHeaders(),
+    });
     const listing = normalizeListing(payload?.data);
     if (listing) storeListingDetailCache(mysqlId, listing);
     return { listing };
@@ -322,8 +362,10 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
     retries: 1,
+    headers,
   });
   return (payload?.data || []).length;
 }
@@ -334,15 +376,16 @@ export async function getCreatorPendingListingsCount(email, customerId) {
   const em = typeof email === "string" ? email.trim() : "";
   if (!cid && !em) return 0;
   const listings = cid
-    ? await getListingsByCustomerId(cid, 80)
-    : await getListingsByCreator(em, 80);
-  return listings.filter((l) => l.status === "pending").length;
+    ? await requestListingsQuery({ customer_id: cid, status: "pending", limit: 80 })
+    : await requestListingsQuery({ created_by: em, status: "pending", limit: 80 });
+  return listings.length;
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { retries: 1, headers }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }
