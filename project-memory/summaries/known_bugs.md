@@ -24,6 +24,12 @@
 | Auth failures | `LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Resolved critical bugs
+
+| Date | Symptom | Fix |
+|------|---------|-----|
+| 2026-06-23 | PHP listings API allowed unauthenticated `status=pending` / `status=all` collection reads and non-active detail reads, exposing unpublished listing/contact data. | `api/index.php` now requires Firebase auth for non-active reads; admins can read all, normal users are scoped to their own `firebase_uid` / `customer_id` / `created_by`. Web and mobile listing services send bearer tokens for legitimate private reads. |
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in many guides
