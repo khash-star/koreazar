@@ -176,6 +176,11 @@ export default function ListingDetailScreen({ route, navigation }) {
     };
   }, [listingId, listingPreview, load]);
 
+  const retryLoad = useCallback(() => {
+    const requestId = ++listingLoadSeqRef.current;
+    load(requestId);
+  }, [load]);
+
   /** Clamp gallery indices when image count shrinks (avoids OOB in lightbox). */
   useEffect(() => {
     const n = Array.isArray(listing?.images) ? listing.images.length : 0;
@@ -246,7 +251,7 @@ export default function ListingDetailScreen({ route, navigation }) {
     return (
       <View style={styles.center}>
         <Text style={styles.error}>{error || "Зар олдсонгүй"}</Text>
-        <Pressable style={styles.retryBtn} onPress={load}>
+        <Pressable style={styles.retryBtn} onPress={retryLoad}>
           <Text style={styles.retryText}>Дахин оролдох</Text>
         </Pressable>
       </View>

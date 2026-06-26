@@ -50,6 +50,17 @@ const getAuthHeaders = async () => {
   return { Authorization: `Bearer ${token}` };
 };
 
+const getOptionalAuthHeaders = async () => {
+  const user = auth.currentUser;
+  if (!user) return {};
+  try {
+    const token = await user.getIdToken(true);
+    return { Authorization: `Bearer ${token}` };
+  } catch {
+    return {};
+  }
+};
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== 'object') return false;
@@ -104,21 +115,29 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
   try {
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
     const params = { limit: limitCount };
+    const hasOwnerFilter = Boolean(filters.created_by || filters.firebase_uid || filters.customer_id);
     if (filters.category) params.category = filters.category;
     if (filters.subcategory) params.subcategory = filters.subcategory;
+    if (filters.created_by) params.created_by = filters.created_by;
+    if (filters.firebase_uid) params.firebase_uid = filters.firebase_uid;
     if (filters.customer_id != null && filters.customer_id !== '') {
       params.customer_id = String(filters.customer_id);
     }
     if (filters.status !== undefined && filters.status !== null && filters.status !== '') {
       params.status = filters.status;
-    } else if (!filters.created_by) {
+    } else if (hasOwnerFilter) {
+      params.status = 'all';
+    } else {
       params.status = 'active';
     }
 
-    const payload = await requestJson(buildApiUrl('listings', params));
+    const needsAuth = hasOwnerFilter || params.status !== 'active';
+    const payload = await requestJson(buildApiUrl('listings', params), {
+      headers: needsAuth ? await getOptionalAuthHeaders() : {},
+    });
     let result = (payload?.data || []).map(normalizeListing);
 
-    // Server-side currently supports category/subcategory/status. Apply the rest client-side.
+    // Keep client-side filtering as a compatibility guard for older API deployments.
     Object.keys(filters).forEach((key) => {
       const value = filters[key];
       if (value === undefined || value === null || value === '') return;
@@ -134,6 +153,50 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     console.error('Error filtering listings:', error);
     throw error;
   }
+};
+
+export const listMyListings = async ({ firebaseUid, email, customerId } = {}, limitCount = 100) => {
+  const seen = new Set();
+  const rows = [];
+  let lastError = null;
+
+  const merge = (items) => {
+    for (const item of items || []) {
+      if (!item?.id || seen.has(item.id)) continue;
+      seen.add(item.id);
+      rows.push(item);
+    }
+  };
+
+  const tryMerge = async (filters) => {
+    try {
+      merge(await filterListings(filters, '-created_date', limitCount));
+    } catch (e) {
+      lastError = e;
+    }
+  };
+
+  if (firebaseUid) {
+    await tryMerge({ firebase_uid: firebaseUid });
+  }
+  if (customerId != null && customerId !== '') {
+    await tryMerge({ customer_id: customerId });
+  }
+  if (email) {
+    await tryMerge({ created_by: email });
+  }
+
+  if (rows.length === 0 && lastError) {
+    throw lastError;
+  }
+
+  rows.sort((a, b) => {
+    const ta = new Date(a.created_date || a.created_at || 0).getTime();
+    const tb = new Date(b.created_date || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+
+  return rows.slice(0, limitCount);
 };
 
 /**
@@ -212,7 +275,9 @@ export const fetchListingByIdResult = async (id) => {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return { listing: null };
   try {
-    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
+    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }), {
+      headers: await getOptionalAuthHeaders(),
+    });
     return { listing: normalizeListing(payload?.data) };
   } catch (e) {
     const st = typeof e?.status === 'number' ? e.status : undefined;
