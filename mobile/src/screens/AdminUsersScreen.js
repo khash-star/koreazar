@@ -73,7 +73,9 @@ export default function AdminUsersScreen() {
     setStatsLoading(true);
     setUserStats({ total: 0, active: 0, pending: 0 });
     try {
-      const listings = await getListingsByCreator(user.email || "", 300);
+      const listings = await getListingsByCreator(user.email || "", 300, {
+        includeAllStatuses: true,
+      });
       const total = listings.length;
       const active = listings.filter((l) => l.status === "active").length;
       const pending = listings.filter((l) => l.status === "pending").length;

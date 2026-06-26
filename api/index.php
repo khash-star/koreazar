@@ -140,12 +140,29 @@ try {
                 $customerIdFilter = isset($_GET['customer_id']) ? (int) $_GET['customer_id'] : 0;
                 $firebaseUidFilter = isset($_GET['firebase_uid']) ? trim((string) $_GET['firebase_uid']) : '';
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
+                if ($status === '') {
+                    $status = 'active';
+                }
+                $statusLower = strtolower($status);
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
+                $hasOwnerFilter = $createdBy !== '' || $customerIdFilter > 0 || $firebaseUidFilter !== '';
+                $requiresPrivateAccess = $hasOwnerFilter || $statusLower !== 'active';
+
+                if ($requiresPrivateAccess) {
+                    $authUser = require_firebase_user();
+                    enforce_listing_read_scope(
+                        $pdo,
+                        $authUser,
+                        $createdBy,
+                        $customerIdFilter,
+                        $firebaseUidFilter
+                    );
+                }
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
                 $params = [];
 
-                if ($status !== '' && strtolower($status) !== 'all') {
+                if ($statusLower !== 'all') {
                     $sql .= ' AND status = :status';
                     $params[':status'] = $status;
                 }
@@ -164,10 +181,14 @@ try {
                 if ($customerIdFilter > 0 && table_has($pdo, 'listings', 'customer_id')) {
                     $sql .= ' AND customer_id = :customer_id';
                     $params[':customer_id'] = $customerIdFilter;
+                } elseif ($customerIdFilter > 0) {
+                    $sql .= ' AND 1=0';
                 }
                 if ($firebaseUidFilter !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
                     $sql .= ' AND firebase_uid = :firebase_uid';
                     $params[':firebase_uid'] = $firebaseUidFilter;
+                } elseif ($firebaseUidFilter !== '') {
+                    $sql .= ' AND 1=0';
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -265,6 +286,11 @@ try {
                     http_response_code(404);
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
+                }
+                $rowStatus = strtolower(trim((string) ($row['status'] ?? '')));
+                if ($rowStatus !== 'active') {
+                    $authUser = require_firebase_user();
+                    enforce_listing_ownership($pdo, $row, $authUser);
                 }
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
@@ -752,6 +778,55 @@ function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): 
     http_response_code(403);
     echo json_encode(['error' => 'Forbidden: not owner'], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+/**
+ * Collection reads outside the public active feed must be owner-scoped or admin-only.
+ *
+ * @param array{uid:string,email:?string,phoneNumber?:?string} $authUser
+ */
+function enforce_listing_read_scope(
+    PDO $pdo,
+    array $authUser,
+    string $createdBy,
+    int $customerIdFilter,
+    string $firebaseUidFilter
+): void {
+    if (is_app_admin($pdo, $authUser)) {
+        return;
+    }
+
+    $hasOwnerFilter = $createdBy !== '' || $customerIdFilter > 0 || $firebaseUidFilter !== '';
+    if (!$hasOwnerFilter) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden: admin required for non-public listings'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    if ($firebaseUidFilter !== '' && $firebaseUidFilter !== $uid) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden: firebase_uid does not match authenticated user'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($createdBy !== '') {
+        $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+        if ($resolvedEmail === null || strtolower($createdBy) !== strtolower($resolvedEmail)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: created_by does not match authenticated user'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
+    if ($customerIdFilter > 0) {
+        $customerId = get_user_customer_id_by_firebase_uid($pdo, $uid);
+        if ($customerId === null || $customerIdFilter !== $customerId) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: customer_id does not match authenticated user'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
 }
 
 /**

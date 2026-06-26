@@ -7,6 +7,7 @@ import { createPageUrl } from '@/utils';
 import { normalizeProfilePhone } from '@/utils/phoneNormalize';
 import { isSyntheticPhoneAuthEmail } from '@/utils/emailNormalize';
 import { getListingImageUrl } from '@/utils/imageUrl';
+import { listMyListings } from '@/services/listingService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -67,9 +68,13 @@ export default function Profile() {
   
   // Fetch user's listings
   const { data: listings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['myListings', user?.email],
-    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
-    enabled: !!(userData?.email || user?.email)
+    queryKey: ['myListings', user?.uid, userData?.email || user?.email],
+    queryFn: () => listMyListings({
+      firebaseUid: user?.uid,
+      email: userData?.email || user?.email,
+      customerId: userData?.customerId ?? userData?.customer_id,
+    }),
+    enabled: !!user?.uid
   });
 
   const deleteMutation = useMutation({
