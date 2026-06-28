@@ -12,7 +12,8 @@
     "generate-app-store-screenshots": "node scripts/generate-app-store-screenshots.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "npm run test:firestore-rules",
+    "test:firestore-rules": "npx firebase-tools@latest emulators:exec --only firestore --project demo-koreazar \"node scripts/check-firestore-message-rules.mjs\""
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",
@@ -69,6 +70,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@flydotio/dockerfile": "^0.7.8",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
