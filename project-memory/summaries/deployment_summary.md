@@ -1,6 +1,6 @@
 # Deployment Summary
 
-> Source-backed summary. Canonical details live in `docs/DEPLOYMENT.md`.  
+> Source-backed summary. Canonical details live in `docs/DEPLOYMENT.md`.
 > **Quick load:** `../PROJECT_MEMORY.md`
 
 ## Web hosting

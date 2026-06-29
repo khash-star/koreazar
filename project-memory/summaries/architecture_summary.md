@@ -1,6 +1,6 @@
 # Architecture Summary
 
-> Source-backed summary. Canonical details live in `docs/ARCHITECTURE.md`.  
+> Source-backed summary. Canonical details live in `docs/ARCHITECTURE.md`.
 > **Quick load:** `../PROJECT_MEMORY.md`
 
 ## Stack (web)
