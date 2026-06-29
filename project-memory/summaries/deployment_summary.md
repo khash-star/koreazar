@@ -1,14 +1,14 @@
 # Deployment Summary
 
-> AI memory placeholder — expand from repo sources over time.  
+> Source-backed summary. Canonical details live in `docs/DEPLOYMENT.md`.  
 > **Quick load:** `../PROJECT_MEMORY.md`
 
 ## Web hosting
 
 - **Platform:** Vercel
 - **Build:** `npm run build` → `dist/`
-- **Canonical deploy guides (pick 1–2):** `VERCEL_DEPLOYMENT_GUIDE.md`, `VERCEL_ENV_SETUP.md`
-- **Env vars:** `VITE_FIREBASE_*` on Vercel (see `FIREBASE_VERCEL_SETUP.md`)
+- **Config:** `vercel.json` (`framework: vite`, output `dist/`, SPA fallback to `/index.html`)
+- **Env vars:** `VITE_FIREBASE_*`, `VITE_API_BASE_URL` on Vercel (see `docs/DEPLOYMENT.md`)
 
 ## Firebase ops
 
@@ -20,8 +20,10 @@
 
 ## DNS / domain
 
-- Production domain documented as **zarkorea.com**
-- Cloudflare + Vercel: `CLOUDFLARE_VERCEL_DNS.md`, `DOMAIN_SETUP_GUIDE.md`
+- Production domain is **zarkorea.com**.
+- Vercel default host **koreazar.vercel.app** redirects permanently to `https://zarkorea.com/`.
+- Root `/` and `/:path+` redirects are separate in `vercel.json`; keep both when editing redirects.
+- Cloudflare + Vercel: `CLOUDFLARE_VERCEL_DNS.md`, `DOMAIN_SETUP_GUIDE.md`; canonical runbook is `docs/DEPLOYMENT.md`.
 - **Risk:** older docs mention `zarmongolia.com` — verify live DNS
 
 ## Mobile release

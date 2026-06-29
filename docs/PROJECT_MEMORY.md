@@ -1,7 +1,7 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.  
-> **Updated:** 2026-06-15 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
+> **Updated:** 2026-06-29 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
 > **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
@@ -12,6 +12,7 @@
 |------|--------|
 | **Product** | Koreazar / Zarkorea — Mongolian-language classified ads for users in South Korea |
 | **Public web** | https://zarkorea.com (Vercel) |
+| **Vercel default host** | `koreazar.vercel.app` redirects permanently to `zarkorea.com` |
 | **API** | https://api.zarkorea.com/index.php (PHP + MySQL) |
 | **Privacy policy** | https://zarkorea.com/Privacy |
 | **Repository layout** | Web at repo root; mobile at `mobile/` |
@@ -64,6 +65,7 @@ koreazar/
 │   ├── components/         # UI + feature components
 │   ├── services/           # Data layer (Firestore, PHP API, auth)
 │   ├── contexts/           # AuthContext
+│   ├── constants/          # Shared web constants (`appUrls.js`, listing options)
 │   ├── firebase/           # config.js (from VITE_* env)
 │   └── api/entities.js     # Entity wrappers for pages
 ├── mobile/                 # Expo React Native app (separate client)
@@ -149,6 +151,8 @@ Template: `api/.env.example`.
 | **Hybrid listings (MySQL + Firestore)** | Listings migrated to PHP/MySQL API; chat/banners remain Firestore-native |
 | **Firestore-before-images on home** | Banner/listing image URLs come from API/Firestore responses; LCP depends on data round-trip |
 | **PWA via vite-plugin-pwa** | `manifest.json`, Workbox SW, `registerType: 'autoUpdate'`; prerequisite for Play/TWA path |
+| **Canonical SEO host** | `index.html`, `robots.txt`, `sitemap.xml`, and Vercel redirects all point crawlers/users to `zarkorea.com` |
+| **Official app URL constants** | Play Store link/package live in `src/constants/appUrls.js`; footer UI imports `PLAY_STORE_URL` |
 | **Indexes as code** | `firestore.indexes.json` deployed with `firebase deploy --only firestore:indexes` |
 | **Mobile in `mobile/`** | Separate Expo app; constants synced via `npm run sync-listings` from web `src/constants/listings.js` |
 | **Chat push via Cloud Function** | `onChatMessageCreatedPush` on `messages/{messageId}` create → Expo Push API |
