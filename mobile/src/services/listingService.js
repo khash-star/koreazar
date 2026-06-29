@@ -40,6 +40,30 @@ async function getAuthHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
+async function getOptionalAuthHeaders() {
+  const user = auth.currentUser;
+  if (!user) return {};
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
+function isPrivateListingsQuery(params, includeAllStatuses = false) {
+  const status = String(params?.status ?? "active").trim().toLowerCase();
+  return (
+    includeAllStatuses ||
+    status !== "active" ||
+    Boolean(params?.created_by) ||
+    Boolean(params?.customer_id) ||
+    Boolean(params?.firebase_uid)
+  );
+}
+
+async function withPrivateReadAuth(params, fetchOpts = {}, includeAllStatuses = false) {
+  if (!isPrivateListingsQuery(params, includeAllStatuses)) return fetchOpts;
+  const headers = await getAuthHeaders();
+  return { ...fetchOpts, headers: { ...headers, ...(fetchOpts.headers || {}) } };
+}
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== "object") return false;
@@ -133,11 +157,12 @@ const MY_LISTING_STATUSES = ["active", "pending", "sold"];
 async function requestListingsQuery(params, options = {}) {
   const { includeAllStatuses, ...fetchOpts } = options;
   const limit = Math.min(Number(params.limit) || 50, 100);
+  const authedFetchOpts = await withPrivateReadAuth(params, fetchOpts, includeAllStatuses);
 
   if (!includeAllStatuses) {
     const payload = await requestJson(buildApiUrl("listings", { ...params, limit }), {
       retries: 1,
-      ...fetchOpts,
+      ...authedFetchOpts,
     });
     return (payload?.data || []).map(normalizeListing).filter(Boolean);
   }
@@ -156,7 +181,7 @@ async function requestListingsQuery(params, options = {}) {
   try {
     const all = await requestJson(
       buildApiUrl("listings", { ...params, limit, status: "all" }),
-      { retries: 1, ...fetchOpts }
+      { retries: 1, ...authedFetchOpts }
     );
     const rows = (all?.data || []).map(normalizeListing).filter(Boolean);
     if (rows.length > 0) return rows;
@@ -168,7 +193,7 @@ async function requestListingsQuery(params, options = {}) {
     try {
       const payload = await requestJson(
         buildApiUrl("listings", { ...params, limit, status }),
-        { retries: 1, ...fetchOpts }
+        { retries: 1, ...authedFetchOpts }
       );
       add((payload?.data || []).map(normalizeListing).filter(Boolean));
     } catch {
@@ -262,7 +287,11 @@ export async function fetchListingByIdResult(id, options = {}) {
     if (cached) return { listing: cached };
   }
   try {
-    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), { retries: 1 });
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl("listing", { id: mysqlId }), {
+      retries: 1,
+      headers,
+    });
     const listing = normalizeListing(payload?.data);
     if (listing) storeListingDetailCache(mysqlId, listing);
     return { listing };
@@ -322,8 +351,10 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(buildApiUrl("listings", { status: "pending", limit: 500 }), {
     retries: 1,
+    headers,
   });
   return (payload?.data || []).length;
 }
@@ -340,9 +371,10 @@ export async function getCreatorPendingListingsCount(email, customerId) {
 }
 
 export async function getPendingListings(limitCount = 100) {
+  const headers = await getAuthHeaders();
   const payload = await requestJson(
     buildApiUrl("listings", { status: "pending", limit: Math.min(limitCount, 200) }),
-    { retries: 1 }
+    { retries: 1, headers }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
 }

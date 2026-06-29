@@ -50,6 +50,29 @@ const getAuthHeaders = async () => {
   return { Authorization: `Bearer ${token}` };
 };
 
+const getOptionalAuthHeaders = async () => {
+  const user = auth.currentUser;
+  if (!user) return {};
+  const token = await user.getIdToken(true);
+  return { Authorization: `Bearer ${token}` };
+};
+
+const isPrivateListingsQuery = (params) => {
+  const status = String(params?.status ?? 'active').trim().toLowerCase();
+  return (
+    status !== 'active' ||
+    Boolean(params?.created_by) ||
+    Boolean(params?.customer_id) ||
+    Boolean(params?.firebase_uid)
+  );
+};
+
+const withPrivateReadAuth = async (params, options = {}) => {
+  if (!isPrivateListingsQuery(params)) return options;
+  const headers = await getAuthHeaders();
+  return { ...options, headers: { ...headers, ...(options.headers || {}) } };
+};
+
 /** API allows unauthenticated PATCH when body is only views = existing + 1 (see api/index.php). */
 function isViewCountOnlyBump(data) {
   if (!data || typeof data !== 'object') return false;
@@ -109,13 +132,16 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     if (filters.customer_id != null && filters.customer_id !== '') {
       params.customer_id = String(filters.customer_id);
     }
+    if (filters.firebase_uid) params.firebase_uid = String(filters.firebase_uid);
+    if (filters.created_by) params.created_by = String(filters.created_by);
     if (filters.status !== undefined && filters.status !== null && filters.status !== '') {
       params.status = filters.status;
     } else if (!filters.created_by) {
       params.status = 'active';
     }
 
-    const payload = await requestJson(buildApiUrl('listings', params));
+    const requestOptions = await withPrivateReadAuth(params);
+    const payload = await requestJson(buildApiUrl('listings', params), requestOptions);
     let result = (payload?.data || []).map(normalizeListing);
 
     // Server-side currently supports category/subcategory/status. Apply the rest client-side.
@@ -212,7 +238,8 @@ export const fetchListingByIdResult = async (id) => {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return { listing: null };
   try {
-    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }));
+    const headers = await getOptionalAuthHeaders();
+    const payload = await requestJson(buildApiUrl('listing', { id: mysqlId }), { headers });
     return { listing: normalizeListing(payload?.data) };
   } catch (e) {
     const st = typeof e?.status === 'number' ? e.status : undefined;
