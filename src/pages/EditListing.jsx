@@ -27,10 +27,12 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
+import { getActiveCountry } from '@/config/country';
 
 export default function EditListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const activeCountry = getActiveCountry();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -645,7 +647,7 @@ export default function EditListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({activeCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"

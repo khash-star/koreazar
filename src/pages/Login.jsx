@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
+import { getActiveCountry } from '@/config/country';
 
 /** Same-origin path only – prevents open redirect */
 function safeRedirectPath(url) {
@@ -50,6 +51,14 @@ const PHONE_COUNTRIES = [
   { value: '+82', name: 'Солонгос' },
   { value: '+976', name: 'Монгол' },
 ];
+// Default selected phone prefix comes from the active country config (KR
+// fallback === '+82', so existing behavior is unchanged). Falls back to
+// '+82' if the active country isn't one of the supported login options
+// yet. OTP/auth logic itself (startPhoneLogin/confirmPhoneLogin) is untouched.
+const ACTIVE_COUNTRY_PHONE_CODE = getActiveCountry().defaultPhoneCode;
+const DEFAULT_PHONE_COUNTRY_PREFIX = PHONE_COUNTRIES.some((c) => c.value === ACTIVE_COUNTRY_PHONE_CODE)
+  ? ACTIVE_COUNTRY_PHONE_CODE
+  : '+82';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -99,7 +108,7 @@ export default function Login() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState('');
   const [loginMethod, setLoginMethod] = useState('phone');
-  const [phoneCountryPrefix, setPhoneCountryPrefix] = useState('+82');
+  const [phoneCountryPrefix, setPhoneCountryPrefix] = useState(DEFAULT_PHONE_COUNTRY_PREFIX);
   const [phoneLocal, setPhoneLocal] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [confirmationResult, setConfirmationResult] = useState(null);
