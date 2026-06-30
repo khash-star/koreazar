@@ -15,9 +15,13 @@ need extra toolchains/credentials and are not required to develop the web app.
   `getAuth(app)` at module load. If `VITE_FIREBASE_*` env vars are missing/empty,
   Firebase throws `auth/invalid-api-key` and the **entire app renders a blank
   white page** (not just auth features). A `.env` with *present* `VITE_FIREBASE_*`
-  values (even placeholders) is required for the app to boot. `.env` is gitignored
-  — copy `.env.example` and fill it in. Real Firebase web credentials are only
-  needed for auth/chat/storage/posting; placeholders are enough to render and browse.
+  values is required for the app to boot.
+- **Vite reads `import.meta.env` from `.env` files only — NOT from the process
+  environment.** Setting `VITE_FIREBASE_*` as plain env vars/secrets is not enough;
+  the values must land in a `.env` file. The startup/update script materializes a
+  gitignored `.env` from the injected `VITE_FIREBASE_*` secrets when one is absent,
+  so fresh VMs boot fully. If you rotate the secrets, delete `.env` and re-run the
+  update script (or edit `.env` directly), then restart the dev server.
 - **Listings & AI come from a public PHP API**, not Firebase: defaults to
   `https://api.zarkorea.com/index.php` (override via `VITE_API_BASE_URL`). So
   browsing/viewing listings works with no Firebase setup, as long as `.env` exists
