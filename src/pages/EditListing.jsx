@@ -201,6 +201,9 @@ export default function EditListing() {
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
+    submitData.country_code = listing?.country_code || activeCountry.countryCode;
+    delete submitData.state_code;
+
     Object.keys(submitData).forEach(key => {
       if ((key.startsWith('vehicle_') || key.startsWith('electronics_') || 
            key.startsWith('realestate_') || key.startsWith('job_')) && !submitData[key]) {

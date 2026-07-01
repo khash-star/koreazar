@@ -25,6 +25,8 @@ export default function Home() {
   const listingsRef = useRef(null);
   const location = useLocation();
   const activeCountry = useActiveCountry();
+  const isUsMarket = activeCountry.countryCode === 'US';
+  const marketCountryCode = activeCountry.countryCode;
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -35,6 +37,7 @@ export default function Home() {
     subcategory: '',
     search: '',
     location: '',
+    state_code: '',
     minPrice: '',
     maxPrice: '',
     condition: ''
@@ -91,6 +94,7 @@ export default function Home() {
         subcategory: '',
         search: '',
         location: '',
+        state_code: '',
         minPrice: '',
         maxPrice: '',
         condition: ''
@@ -153,13 +157,17 @@ export default function Home() {
   };
 
   const { data: listings = [], isLoading, refetch: refetchListings } = useQuery({
-    queryKey: ['listings', filters],
+    queryKey: ['listings', filters, marketCountryCode],
     queryFn: async () => {
-      let query = { status: 'active' };
+      let query = { status: 'active', country_code: marketCountryCode };
       
       if (filters.category) query.category = filters.category;
       if (filters.subcategory) query.subcategory = filters.subcategory;
-      if (filters.location) query.location = filters.location;
+      if (marketCountryCode === 'US') {
+        if (filters.state_code) query.state_code = filters.state_code;
+      } else if (filters.location) {
+        query.location = filters.location;
+      }
       if (filters.condition) query.condition = filters.condition;
       
       let results = await entities.Listing.filter(query, '-created_date', 100);
@@ -246,8 +254,8 @@ export default function Home() {
   }, [listings.length, visibleListingCount]);
 
   const { data: allListings = [] } = useQuery({
-    queryKey: ['allListings'],
-    queryFn: () => entities.Listing.filter({ status: 'active' }),
+    queryKey: ['allListings', marketCountryCode],
+    queryFn: () => entities.Listing.filter({ status: 'active', country_code: marketCountryCode }),
   });
 
   const savedQueryKey = userData?.uid || user?.uid;
@@ -430,6 +438,7 @@ export default function Home() {
             className="mb-4"
           >
             <button
+              type="button"
               onClick={() => setCategoriesExpanded(!categoriesExpanded)}
               className="flex items-center justify-between gap-2 mb-6 w-full md:pointer-events-none"
             >

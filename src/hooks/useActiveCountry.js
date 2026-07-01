@@ -5,7 +5,7 @@ import { getActiveCountry } from '@/config/country';
 /**
  * Reactive version of `getActiveCountry()` — recomputes whenever the route
  * (path) changes, so components stay correct across client-side navigation
- * between `/`, `/kr`, `/mn`, `/jp`, etc. without a full page reload.
+ * between `/`, `/kr`, `/us`, `/jp`, etc. without a full page reload.
  */
 export function useActiveCountry() {
   const location = useLocation();

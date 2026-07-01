@@ -165,6 +165,7 @@ export default function CreateListing() {
     }
 
     const autoApprove = await getListingAutoApprove().catch(() => false);
+
     const submitData = {
       ...formData,
       price: formData.category === 'free' ? 0 : Number(formData.price) || 0,
@@ -179,6 +180,9 @@ export default function CreateListing() {
     if (formData.realestate_size) submitData.realestate_size = Number(formData.realestate_size);
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
+
+    submitData.country_code = activeCountry.countryCode;
+    delete submitData.state_code;
 
     // Remove empty category-specific fields
     Object.keys(submitData).forEach((key) => {

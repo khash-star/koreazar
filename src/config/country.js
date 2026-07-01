@@ -4,11 +4,11 @@
  * Safe, additive resolver for the "active country" — no schema, Firebase,
  * or auth changes. Used to read display-only values (app name, country
  * name, currency, default phone prefix, city/address labels) so the same
- * codebase can serve /kr, /mn, /jp without forking.
+ * codebase can serve /kr, /us, /jp without forking.
  *
  * Resolution order:
  *   1. `VITE_ACTIVE_COUNTRY` env var, if set to a known country code.
- *   2. First path segment of the current URL (e.g. `/kr/...`, `/mn/...`),
+ *   2. First path segment of the current URL (e.g. `/kr/...`, `/us/...`),
  *      if it matches a known country code.
  *   3. Root path `/` — always KR. Never affected by stored preference, so
  *      the existing production Zarkorea homepage never changes behavior.
@@ -18,13 +18,13 @@
  *   5. Fallback to KR.
  */
 import { kr } from './countries/kr';
-import { mn } from './countries/mn';
+import { us } from './countries/us';
 import { jp } from './countries/jp';
 
 /** Registry of all known country configs, keyed by countryCode. */
 export const COUNTRIES = {
   KR: kr,
-  MN: mn,
+  US: us,
   JP: jp,
 };
 
@@ -60,7 +60,7 @@ function envActiveCountryCode() {
  * localStorage persistence for the user's last-selected country (country
  * selector UI). Read by `resolveActiveCountryCode()` only for non-root
  * paths that don't already carry a country in the URL — root `/` and any
- * `/kr`, `/mn`, `/jp` path always take priority. All access is safe/no-throw
+ * `/kr`, `/us`, `/jp` path always take priority. All access is safe/no-throw
  * (private browsing, storage disabled, SSR).
  */
 const STORED_COUNTRY_KEY = 'zarkorea_active_country';
