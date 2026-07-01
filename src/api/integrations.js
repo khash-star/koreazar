@@ -3,8 +3,25 @@
 import { uploadFile, uploadPrivateFile } from '@/services/storageService';
 
 // UploadFile - Firebase Storage ашиглах
-export const UploadFile = async ({ file }) => {
-  return await uploadFile(file);
+export const UploadFile = async ({
+  file,
+  kind,
+  countryCode,
+  listingId,
+  bannerId,
+  variant,
+  userId,
+  storagePath,
+} = {}) => {
+  return await uploadFile(file, {
+    kind,
+    countryCode,
+    listingId,
+    bannerId,
+    variant,
+    userId,
+    storagePath,
+  });
 };
 
 // UploadPrivateFile - Firebase Storage ашиглах

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,7 @@ export default function CreateListing() {
   const activeCountry = useActiveCountry();
   const isUsMarket = activeCountry.countryCode === 'US';
   const { user, userData } = useAuth();
+  const draftListingKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -138,11 +139,16 @@ export default function CreateListing() {
     try {
       for (const file of validFiles) {
         const variants = await createImageVariants(file);
+        const uploadBase = {
+          kind: 'listing',
+          countryCode: activeCountry.countryCode,
+          listingId: draftListingKeyRef.current,
+        };
         const [r800, r640, r400, r150] = await Promise.all([
-          UploadFile({ file: variants.w800 }),
-          UploadFile({ file: variants.w640 }),
-          UploadFile({ file: variants.w400 }),
-          UploadFile({ file: variants.w150 }),
+          UploadFile({ file: variants.w800, ...uploadBase, variant: 'w800' }),
+          UploadFile({ file: variants.w640, ...uploadBase, variant: 'w640' }),
+          UploadFile({ file: variants.w400, ...uploadBase, variant: 'w400' }),
+          UploadFile({ file: variants.w150, ...uploadBase, variant: 'w150' }),
         ]);
         setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }

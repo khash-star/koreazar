@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,10 +15,12 @@ import { Image } from "expo-image";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
 import { uploadImageFromUri } from "../services/storageService";
+import { defaultMobileStorageCountryCode } from "../utils/storagePaths";
 import { createBannerAd, deleteBannerAd, listBannerAds, updateBannerAd } from "../services/bannerService";
 import { showAlert } from "../utils/showAlert";
 
 export default function AdminBannersScreen() {
+  const draftBannerKeyRef = useRef(`draft-banner-${Date.now()}`);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -104,6 +106,9 @@ export default function AdminBannersScreen() {
       const uploaded = await uploadImageFromUri(uri, {
         mimeType: picked?.mimeType,
         fileName: picked?.fileName,
+        kind: "banner",
+        countryCode: defaultMobileStorageCountryCode(),
+        bannerId: editingId || draftBannerKeyRef.current,
       });
       setForm((prev) => ({ ...prev, image_url: uploaded.file_url || "" }));
     } catch (e) {
