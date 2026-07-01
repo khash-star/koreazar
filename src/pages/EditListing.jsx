@@ -27,12 +27,12 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
-import { getActiveCountry } from '@/config/country';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function EditListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const activeCountry = getActiveCountry();
+  const activeCountry = useActiveCountry();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);

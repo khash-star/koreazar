@@ -19,10 +19,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function Home() {
   const listingsRef = useRef(null);
   const location = useLocation();
+  const activeCountry = useActiveCountry();
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -299,11 +301,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <div className="flex-1 text-center">
             <h1 className="text-sm md:text-lg font-bold tracking-wide">
-              <span className="sr-only">Zarkorea — </span>
+              <span className="sr-only">{activeCountry.appName} — </span>
               🇲🇳 СОЛОНГОС ДАХЬ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ
             </h1>
             <p className="sr-only">
-              Zarkorea, Zarkorea app, Zarkorea Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.
+              {activeCountry.appName}, {activeCountry.appName} app, {activeCountry.appName} Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.
             </p>
           </div>
           {!(user || userData) ? (
@@ -435,7 +437,7 @@ export default function Home() {
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Ангилалууд</h2>
-                  <p className="text-sm text-gray-500">Zarkorea — Солонгос дахь Монголчуудын зарын сайт</p>
+                  <p className="text-sm text-gray-500">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</p>
                 </div>
               </div>
               <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform md:hidden ${categoriesExpanded ? 'rotate-180' : ''}`} />

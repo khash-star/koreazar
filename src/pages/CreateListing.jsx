@@ -29,12 +29,12 @@ import { getListingAutoApprove } from '@/services/appConfigService';
 import { checkBannedListingFields } from '@/utils/bannedContent';
 
 import { locations, conditionOptions } from '@/constants/listings';
-import { getActiveCountry } from '@/config/country';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function CreateListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const activeCountry = getActiveCountry();
+  const activeCountry = useActiveCountry();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
