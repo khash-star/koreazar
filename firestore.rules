@@ -24,16 +24,28 @@ service cloud.firestore {
         : '';
     }
 
-    // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
-    function isConversationParticipant() {
+    function isConversationParticipantData(conversation) {
       let em = authEmailLower();
       return request.auth != null && (
-        (resource.data.participant_uids is list && resource.data.participant_uids.hasAny([request.auth.uid])) ||
+        (conversation.participant_uids is list && conversation.participant_uids.hasAny([request.auth.uid])) ||
         (em.size() > 0 && (
-          (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
-          (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
+          (conversation.participant_1 is string && conversation.participant_1.size() > 0 && conversation.participant_1.lower() == em) ||
+          (conversation.participant_2 is string && conversation.participant_2.size() > 0 && conversation.participant_2.lower() == em)
         ))
       );
+    }
+
+    // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
+    function isConversationParticipant() {
+      return isConversationParticipantData(resource.data);
+    }
+
+    function isConversationParticipantById(conversationId) {
+      return conversationId is string &&
+        exists(/databases/$(database)/documents/conversations/$(conversationId)) &&
+        isConversationParticipantData(
+          get(/databases/$(database)/documents/conversations/$(conversationId)).data
+        );
     }
 
     function isMessageSenderOrReceiver() {
@@ -42,6 +54,25 @@ service cloud.firestore {
         (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
       );
+    }
+
+    function isMessageConversationParticipant() {
+      return resource.data.conversation_id is string &&
+        isConversationParticipantById(resource.data.conversation_id);
+    }
+
+    function isNewMessageSender() {
+      let em = authEmailLower();
+      return request.auth != null &&
+        em.size() > 0 &&
+        request.resource.data.sender_email is string &&
+        request.resource.data.sender_email.size() > 0 &&
+        request.resource.data.sender_email.lower() == em;
+    }
+
+    function isNewMessageConversationParticipant() {
+      return request.resource.data.conversation_id is string &&
+        isConversationParticipantById(request.resource.data.conversation_id);
     }
     
     // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
@@ -148,12 +179,16 @@ service cloud.firestore {
     
     // Messages
     match /messages/{messageId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null &&
+        (isMessageSenderOrReceiver() || isMessageConversationParticipant() || isAdmin());
+      allow create: if request.auth != null && (
+        isAdmin() ||
+        (isNewMessageSender() && isNewMessageConversationParticipant())
+      );
       allow update: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+        (isMessageSenderOrReceiver() || isMessageConversationParticipant() || isAdmin());
       allow delete: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+        (isMessageSenderOrReceiver() || isMessageConversationParticipant() || isAdmin());
     }
     
     // AI Conversations
