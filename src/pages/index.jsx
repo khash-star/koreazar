@@ -86,6 +86,13 @@ function PagesContent() {
             
             {/* All other pages with Layout */}
             <Route path="/" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
+
+            {/* Country-prefixed Home (country selector). Root `/` above is
+                unaffected and keeps resolving to the KR fallback. Listings
+                are not filtered by country yet — same Home content. */}
+            <Route path="/kr" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
+            <Route path="/us" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
+            <Route path="/jp" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
             
             <Route path="/AdminAllListings" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
             

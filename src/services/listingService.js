@@ -60,10 +60,13 @@ function isViewCountOnlyBump(data) {
 const normalizeListing = (item) => {
   if (!item || typeof item !== 'object') return null;
   const cid = item.customer_id;
+  const countryCode = String(item.country_code || 'KR').trim().toUpperCase() || 'KR';
   return {
     ...item,
     id: item?.id != null ? String(item.id) : '',
     customer_id: cid != null && cid !== '' ? Number(cid) : undefined,
+    country_code: countryCode,
+    state_code: item.state_code ? String(item.state_code).trim().toUpperCase() : null,
     images: Array.isArray(item.images) ? item.images : [],
   };
 };
@@ -106,6 +109,8 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     const params = { limit: limitCount };
     if (filters.category) params.category = filters.category;
     if (filters.subcategory) params.subcategory = filters.subcategory;
+    if (filters.country_code) params.country_code = filters.country_code;
+    if (filters.state_code) params.state_code = filters.state_code;
     if (filters.customer_id != null && filters.customer_id !== '') {
       params.customer_id = String(filters.customer_id);
     }
@@ -118,11 +123,18 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     const payload = await requestJson(buildApiUrl('listings', params));
     let result = (payload?.data || []).map(normalizeListing);
 
-    // Server-side currently supports category/subcategory/status. Apply the rest client-side.
+    // Server-side: category/subcategory/status/country_code/state_code. Rest client-side.
+    const serverFilterKeys = new Set([
+      'category',
+      'subcategory',
+      'status',
+      'country_code',
+      'state_code',
+    ]);
     Object.keys(filters).forEach((key) => {
       const value = filters[key];
       if (value === undefined || value === null || value === '') return;
-      if (key === 'category' || key === 'subcategory' || key === 'status') return;
+      if (serverFilterKeys.has(key)) return;
       result = result.filter((item) => String(item?.[key] ?? '') === String(value));
     });
 

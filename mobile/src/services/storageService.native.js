@@ -6,6 +6,10 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { normalizeImageOrientation } from "../utils/normalizeImageOrientation";
 import { SDK_VERSION } from "firebase/app";
 import { storage, auth, getStorageBucketId } from "../config/firebase";
+import {
+  defaultMobileStorageCountryCode,
+  resolveUploadStoragePathFromParts,
+} from "../utils/storagePaths";
 
 const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024;
 
@@ -105,7 +109,6 @@ async function uploadNative(storageRef, uri, ext, timestamp, contentType) {
 export async function uploadImageFromUri(uri, options = {}) {
   assertStorageConfig();
   const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 12);
   const extFromName = extractExtensionFromName(options.fileName);
   const extFromUri = extractExtensionFromName(uri);
   const extFromMime = extensionForMimeType(options.mimeType);
@@ -121,8 +124,19 @@ export async function uploadImageFromUri(uri, options = {}) {
     ? contentTypeForExtension("jpg")
     : options.mimeType || contentTypeForExtension(ext);
 
-  const fileName = `${timestamp}_${random}.${uploadExt}`;
-  const storageRef = ref(storage, `images/${fileName}`);
+  const countryCode = options.countryCode || defaultMobileStorageCountryCode();
+  const storagePath = resolveUploadStoragePathFromParts({
+    storagePath: options.storagePath,
+    kind: options.kind || "listing",
+    countryCode,
+    listingId: options.listingId,
+    bannerId: options.bannerId,
+    variant: options.variant,
+    extension: uploadExt,
+    userId: options.userId,
+  });
+
+  const storageRef = ref(storage, storagePath);
 
   await uploadNative(storageRef, uploadUri, uploadExt, timestamp, uploadType);
 

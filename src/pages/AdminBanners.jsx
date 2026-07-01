@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { compressImage } from '@/components/utils/imageCompressor';
@@ -18,9 +18,12 @@ import {
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function AdminBanners() {
   const { user, userData } = useAuth();
+  const activeCountry = useActiveCountry();
+  const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [showDialog, setShowDialog] = useState(false);
   const [editingBannerId, setEditingBannerId] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -75,7 +78,12 @@ export default function AdminBanners() {
     setUploading(true);
     try {
       const compressed = await compressImage(file, 1200, 600, 0.8);
-      const { file_url } = await UploadFile({ file: compressed });
+      const { file_url } = await UploadFile({
+        file: compressed,
+        kind: 'banner',
+        countryCode: activeCountry.countryCode,
+        bannerId: editingBannerId || draftBannerKeyRef.current,
+      });
       setFormData({ ...formData, image_url: file_url });
     } finally {
       setUploading(false);

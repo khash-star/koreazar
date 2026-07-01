@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -29,11 +29,16 @@ import { getListingAutoApprove } from '@/services/appConfigService';
 import { checkBannedListingFields } from '@/utils/bannedContent';
 
 import { locations, conditionOptions } from '@/constants/listings';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
+import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function CreateListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const activeCountry = useActiveCountry();
+  const isUsMarket = activeCountry.countryCode === 'US';
   const { user, userData } = useAuth();
+  const draftListingKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,6 +48,7 @@ export default function CreateListing() {
     category: '',
     subcategory: '',
     location: '',
+    state_code: '',
     phone: '',
     kakao_id: '',
     wechat_id: '',
@@ -133,11 +139,16 @@ export default function CreateListing() {
     try {
       for (const file of validFiles) {
         const variants = await createImageVariants(file);
+        const uploadBase = {
+          kind: 'listing',
+          countryCode: activeCountry.countryCode,
+          listingId: draftListingKeyRef.current,
+        };
         const [r800, r640, r400, r150] = await Promise.all([
-          UploadFile({ file: variants.w800 }),
-          UploadFile({ file: variants.w640 }),
-          UploadFile({ file: variants.w400 }),
-          UploadFile({ file: variants.w150 }),
+          UploadFile({ file: variants.w800, ...uploadBase, variant: 'w800' }),
+          UploadFile({ file: variants.w640, ...uploadBase, variant: 'w640' }),
+          UploadFile({ file: variants.w400, ...uploadBase, variant: 'w400' }),
+          UploadFile({ file: variants.w150, ...uploadBase, variant: 'w150' }),
         ]);
         setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
@@ -162,7 +173,13 @@ export default function CreateListing() {
       return;
     }
 
+    if (isUsMarket && !formData.state_code) {
+      alert('Муж сонгоно уу.');
+      return;
+    }
+
     const autoApprove = await getListingAutoApprove().catch(() => false);
+
     const submitData = {
       ...formData,
       price: formData.category === 'free' ? 0 : Number(formData.price) || 0,
@@ -177,6 +194,15 @@ export default function CreateListing() {
     if (formData.realestate_size) submitData.realestate_size = Number(formData.realestate_size);
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
+
+    submitData.country_code = activeCountry.countryCode;
+
+    if (isUsMarket) {
+      submitData.state_code = formData.state_code || '';
+      delete submitData.location;
+    } else {
+      delete submitData.state_code;
+    }
 
     // Remove empty category-specific fields
     Object.keys(submitData).forEach((key) => {
@@ -387,7 +413,7 @@ export default function CreateListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({activeCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -415,22 +441,30 @@ export default function CreateListing() {
               </>
             )}
 
-            <div>
-              <Label className="text-base font-semibold">Байршил</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
-              >
-                <SelectTrigger className="mt-2 h-12 rounded-xl">
-                  <SelectValue placeholder="Сонгох" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isUsMarket ? (
+              <UsStateSelect
+                value={formData.state_code}
+                onValueChange={(value) => setFormData({ ...formData, state_code: value })}
+                required
+              />
+            ) : (
+              <div>
+                <Label className="text-base font-semibold">Байршил</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger className="mt-2 h-12 rounded-xl">
+                    <SelectValue placeholder="Сонгох" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </motion.div>
 
           {/* Category-Specific Fields */}

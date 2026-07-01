@@ -59,6 +59,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/components/ui/use-toast';
 import { fetchSavedListingsResolved, sameListingSaveId } from '@/services/savedListingsResolve';
+import { getListingLocationLabel } from '@/utils/listingLocation';
 
 export default function ListingDetail() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -598,10 +599,10 @@ export default function ListingDetail() {
 
             {/* Meta */}
             <div className="flex flex-wrap gap-4 text-sm text-gray-500 pb-6 border-b">
-              {listing.location && (
+              {getListingLocationLabel(listing) && (
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  {listing.location}
+                  {getListingLocationLabel(listing)}
                 </span>
               )}
               <span className="flex items-center gap-1">

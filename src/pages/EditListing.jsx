@@ -27,10 +27,13 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
+import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function EditListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const activeCountry = useActiveCountry();
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -50,6 +53,9 @@ export default function EditListing() {
     enabled: !!listingId
   });
 
+  const isUsMarket =
+    listing?.country_code === 'US' || activeCountry.countryCode === 'US';
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -57,6 +63,7 @@ export default function EditListing() {
     category: '',
     subcategory: '',
     location: '',
+    state_code: '',
     phone: '',
     kakao_id: '',
     wechat_id: '',
@@ -89,6 +96,7 @@ export default function EditListing() {
         category: listing.category || '',
         subcategory: listing.subcategory || '',
         location: listing.location || '',
+        state_code: listing.state_code || '',
         phone: listing.phone || '',
         kakao_id: listing.kakao_id || '',
         wechat_id: listing.wechat_id || '',
@@ -164,11 +172,16 @@ export default function EditListing() {
     try {
       for (const file of validFiles) {
         const variants = await createImageVariants(file);
+        const uploadBase = {
+          kind: 'listing',
+          countryCode: listing?.country_code || activeCountry.countryCode,
+          listingId,
+        };
         const [r800, r640, r400, r150] = await Promise.all([
-          UploadFile({ file: variants.w800 }),
-          UploadFile({ file: variants.w640 }),
-          UploadFile({ file: variants.w400 }),
-          UploadFile({ file: variants.w150 }),
+          UploadFile({ file: variants.w800, ...uploadBase, variant: 'w800' }),
+          UploadFile({ file: variants.w640, ...uploadBase, variant: 'w640' }),
+          UploadFile({ file: variants.w400, ...uploadBase, variant: 'w400' }),
+          UploadFile({ file: variants.w150, ...uploadBase, variant: 'w150' }),
         ]);
         setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
@@ -186,6 +199,11 @@ export default function EditListing() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (isUsMarket && !formData.state_code) {
+      alert('Муж сонгоно уу.');
+      return;
+    }
     
     const submitData = {
       ...formData,
@@ -198,6 +216,15 @@ export default function EditListing() {
     if (formData.realestate_size) submitData.realestate_size = Number(formData.realestate_size);
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
+
+    if (isUsMarket) {
+      submitData.country_code = listing?.country_code || 'US';
+      submitData.state_code = formData.state_code || '';
+      delete submitData.location;
+    } else {
+      submitData.country_code = listing?.country_code || activeCountry.countryCode;
+      delete submitData.state_code;
+    }
 
     Object.keys(submitData).forEach(key => {
       if ((key.startsWith('vehicle_') || key.startsWith('electronics_') || 
@@ -645,7 +672,7 @@ export default function EditListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({activeCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -670,22 +697,30 @@ export default function EditListing() {
               </>
             )}
 
-            <div>
-              <Label className="text-base font-semibold">Байршил</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
-              >
-                <SelectTrigger className="mt-2 h-12 rounded-xl">
-                  <SelectValue placeholder="Сонгох" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isUsMarket ? (
+              <UsStateSelect
+                value={formData.state_code}
+                onValueChange={(value) => setFormData({ ...formData, state_code: value })}
+                required
+              />
+            ) : (
+              <div>
+                <Label className="text-base font-semibold">Байршил</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger className="mt-2 h-12 rounded-xl">
+                    <SelectValue placeholder="Сонгох" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </motion.div>
 
           {/* Contact */}
