@@ -12,7 +12,7 @@
     "generate-app-store-screenshots": "node scripts/generate-app-store-screenshots.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "node scripts/check-firestore-message-rules.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",
