@@ -13,6 +13,7 @@ import { getUnreadMessagesCount } from '@/services/conversationService';
 import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PLAY_STORE_URL } from '@/constants/appUrls';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData, loading: authLoading } = useAuth();
@@ -221,6 +222,14 @@ export default function Layout({ children, currentPageName }) {
                   QR код уншуулж апп татах
                 </span>
               </button>
+              <a
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 block text-sm text-amber-400 hover:text-amber-300"
+              >
+                Google Play Store (албан ёсны)
+              </a>
             </div>
 
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
@@ -293,6 +302,14 @@ export default function Layout({ children, currentPageName }) {
             <p className="text-center text-sm text-gray-600">
               Утасныхаа камераар QR кодыг уншуулж апп татна уу.
             </p>
+            <a
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-amber-600 hover:text-amber-700"
+            >
+              Эсвэл Google Play Store-оос татах
+            </a>
           </div>
         </DialogContent>
       </Dialog>

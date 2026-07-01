@@ -5,6 +5,20 @@
   "installCommand": "npm install",
   "framework": "vite",
   "cleanUrls": false,
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "koreazar.vercel.app" }],
+      "destination": "https://zarkorea.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path+",
+      "has": [{ "type": "host", "value": "koreazar.vercel.app" }],
+      "destination": "https://zarkorea.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/favicon.ico",
