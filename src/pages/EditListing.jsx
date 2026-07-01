@@ -28,6 +28,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
+import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function EditListing() {
   const navigate = useNavigate();
@@ -52,6 +53,9 @@ export default function EditListing() {
     enabled: !!listingId
   });
 
+  const isUsMarket =
+    listing?.country_code === 'US' || activeCountry.countryCode === 'US';
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -59,6 +63,7 @@ export default function EditListing() {
     category: '',
     subcategory: '',
     location: '',
+    state_code: '',
     phone: '',
     kakao_id: '',
     wechat_id: '',
@@ -91,6 +96,7 @@ export default function EditListing() {
         category: listing.category || '',
         subcategory: listing.subcategory || '',
         location: listing.location || '',
+        state_code: listing.state_code || '',
         phone: listing.phone || '',
         kakao_id: listing.kakao_id || '',
         wechat_id: listing.wechat_id || '',
@@ -188,6 +194,11 @@ export default function EditListing() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (isUsMarket && !formData.state_code) {
+      alert('Муж сонгоно уу.');
+      return;
+    }
     
     const submitData = {
       ...formData,
@@ -201,8 +212,14 @@ export default function EditListing() {
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
-    submitData.country_code = listing?.country_code || activeCountry.countryCode;
-    delete submitData.state_code;
+    if (isUsMarket) {
+      submitData.country_code = listing?.country_code || 'US';
+      submitData.state_code = formData.state_code || '';
+      delete submitData.location;
+    } else {
+      submitData.country_code = listing?.country_code || activeCountry.countryCode;
+      delete submitData.state_code;
+    }
 
     Object.keys(submitData).forEach(key => {
       if ((key.startsWith('vehicle_') || key.startsWith('electronics_') || 
@@ -675,22 +692,30 @@ export default function EditListing() {
               </>
             )}
 
-            <div>
-              <Label className="text-base font-semibold">Байршил</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
-              >
-                <SelectTrigger className="mt-2 h-12 rounded-xl">
-                  <SelectValue placeholder="Сонгох" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isUsMarket ? (
+              <UsStateSelect
+                value={formData.state_code}
+                onValueChange={(value) => setFormData({ ...formData, state_code: value })}
+                required
+              />
+            ) : (
+              <div>
+                <Label className="text-base font-semibold">Байршил</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger className="mt-2 h-12 rounded-xl">
+                    <SelectValue placeholder="Сонгох" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </motion.div>
 
           {/* Contact */}

@@ -20,6 +20,7 @@ import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
+import CountrySelector from '@/components/CountrySelector';
 
 export default function Home() {
   const listingsRef = useRef(null);
@@ -437,20 +438,29 @@ export default function Home() {
             transition={{ delay: 0.2 }}
             className="mb-4"
           >
-            <button
-              type="button"
-              onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-              className="flex items-center justify-between gap-2 mb-6 w-full md:pointer-events-none"
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Ангилалууд</h2>
-                  <p className="text-sm text-gray-500">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+              <button
+                type="button"
+                onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                className="flex items-center justify-between gap-2 w-full sm:w-auto md:pointer-events-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div className="text-left">
+                    <h2 className="text-2xl font-bold text-gray-900">Ангилалууд</h2>
+                    <p className="text-sm text-gray-500">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</p>
+                  </div>
                 </div>
-              </div>
-              <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform md:hidden ${categoriesExpanded ? 'rotate-180' : ''}`} />
-            </button>
+                <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform md:hidden shrink-0 ${categoriesExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <CountrySelector
+                className="flex flex-wrap items-center gap-2 shrink-0"
+                selectedStateCode={filters.state_code}
+                onStateChange={(stateCode) =>
+                  setFilters((prev) => ({ ...prev, state_code: stateCode || '' }))
+                }
+              />
+            </div>
 
             {/* Category Grid */}
             <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 ${categoriesExpanded ? '' : 'hidden md:grid'}`}>

@@ -30,11 +30,13 @@ import { checkBannedListingFields } from '@/utils/bannedContent';
 
 import { locations, conditionOptions } from '@/constants/listings';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
+import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function CreateListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const activeCountry = useActiveCountry();
+  const isUsMarket = activeCountry.countryCode === 'US';
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -45,6 +47,7 @@ export default function CreateListing() {
     category: '',
     subcategory: '',
     location: '',
+    state_code: '',
     phone: '',
     kakao_id: '',
     wechat_id: '',
@@ -164,6 +167,11 @@ export default function CreateListing() {
       return;
     }
 
+    if (isUsMarket && !formData.state_code) {
+      alert('Муж сонгоно уу.');
+      return;
+    }
+
     const autoApprove = await getListingAutoApprove().catch(() => false);
 
     const submitData = {
@@ -182,7 +190,13 @@ export default function CreateListing() {
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
     submitData.country_code = activeCountry.countryCode;
-    delete submitData.state_code;
+
+    if (isUsMarket) {
+      submitData.state_code = formData.state_code || '';
+      delete submitData.location;
+    } else {
+      delete submitData.state_code;
+    }
 
     // Remove empty category-specific fields
     Object.keys(submitData).forEach((key) => {
@@ -421,22 +435,30 @@ export default function CreateListing() {
               </>
             )}
 
-            <div>
-              <Label className="text-base font-semibold">Байршил</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
-              >
-                <SelectTrigger className="mt-2 h-12 rounded-xl">
-                  <SelectValue placeholder="Сонгох" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isUsMarket ? (
+              <UsStateSelect
+                value={formData.state_code}
+                onValueChange={(value) => setFormData({ ...formData, state_code: value })}
+                required
+              />
+            ) : (
+              <div>
+                <Label className="text-base font-semibold">Байршил</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger className="mt-2 h-12 rounded-xl">
+                    <SelectValue placeholder="Сонгох" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </motion.div>
 
           {/* Category-Specific Fields */}

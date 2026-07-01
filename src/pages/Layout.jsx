@@ -15,7 +15,6 @@ import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PLAY_STORE_URL } from '@/constants/appUrls';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
-import CountrySelector from '@/components/CountrySelector';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData, loading: authLoading } = useAuth();
@@ -162,9 +161,6 @@ export default function Layout({ children, currentPageName }) {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 py-8 mt-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 space-y-6">
-          <div className="flex justify-center">
-            <CountrySelector />
-          </div>
           <div className="text-center">
             <h2 className="text-white text-lg font-bold">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</h2>
             <p className="text-xs text-gray-400 mt-1">

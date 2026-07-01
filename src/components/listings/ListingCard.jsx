@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Clock, Heart, Crown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getListingLocationLabel } from '@/utils/listingLocation';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { categoryInfo, conditionLabels } from '@/constants/listings';
@@ -180,10 +181,10 @@ export default function ListingCard({ listing, isAboveFold = false }) {
           )}
           
           <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-            {listing.location && (
+            {getListingLocationLabel(listing) && (
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
-                {listing.location}
+                {getListingLocationLabel(listing)}
               </span>
             )}
             <span className="flex items-center gap-1">
