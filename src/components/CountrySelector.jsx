@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Check } from 'lucide-react';
-import { COUNTRIES, setStoredCountryCode } from '@/config/country';
+import { COUNTRIES, isCountryEnabled, setStoredCountryCode, showAllCountriesInSelector } from '@/config/country';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
 import { US_STATE_CODES, formatUsStateLabel } from '@/constants/usStates';
 import {
@@ -66,6 +66,16 @@ export default function CountrySelector({
     'bg-amber-500 text-white shadow-md hover:shadow-lg border border-amber-600';
   const inactiveButtonClass =
     'bg-white text-gray-800 hover:bg-gray-50 shadow-sm hover:shadow border border-gray-200 hover:border-amber-200';
+  const disabledButtonClass =
+    'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70';
+
+  // US/JP are placeholder markets — hidden from the public selector unless
+  // explicitly revealed for QA (VITE_SHOW_ALL_COUNTRIES=true). The routes
+  // themselves (/us, /jp) keep working when visited directly either way.
+  const showDisabledMarkets = showAllCountriesInSelector();
+  const visibleCountries = Object.values(COUNTRIES).filter(
+    (country) => isCountryEnabled(country.countryCode) || showDisabledMarkets
+  );
 
   return (
     <div
@@ -73,8 +83,22 @@ export default function CountrySelector({
       aria-label="Улс сонгох"
       className={className ?? 'flex flex-wrap items-center gap-2'}
     >
-      {Object.values(COUNTRIES).map((country) => {
+      {visibleCountries.map((country) => {
+        const enabled = isCountryEnabled(country.countryCode);
+
         if (country.countryCode === 'US') {
+          if (!enabled) {
+            return (
+              <span
+                key={country.countryCode}
+                className={`${buttonBase} ${disabledButtonClass}`}
+                title="Тун удахгүй нээгдэнэ"
+              >
+                <span aria-hidden>{COUNTRY_FLAGS.US}</span>
+                <span>Америк (удахгүй)</span>
+              </span>
+            );
+          }
           return (
             <DropdownMenu key={country.countryCode}>
               <DropdownMenuTrigger asChild>
@@ -114,6 +138,19 @@ export default function CountrySelector({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+          );
+        }
+
+        if (!enabled) {
+          return (
+            <span
+              key={country.countryCode}
+              className={`${buttonBase} ${disabledButtonClass}`}
+              title="Тун удахгүй нээгдэнэ"
+            >
+              <span aria-hidden>{COUNTRY_FLAGS[country.countryCode] || ''}</span>
+              <span>{country.countryName} (удахгүй)</span>
+            </span>
           );
         }
 
