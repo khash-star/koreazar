@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl, createPageUrl } from '@/utils';
 import * as entities from '@/api/entities';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -14,13 +14,20 @@ import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PLAY_STORE_URL } from '@/constants/appUrls';
-import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData, loading: authLoading } = useAuth();
   const activeCountry = useActiveCountry();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
+
+  // Only prefix nav links when the URL already has a `/kr`, `/us`, `/jp`
+  // prefix — root `/` and other un-prefixed pages keep exact legacy (KR)
+  // URLs, so navigation from them is unchanged from current production.
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+  const navUrl = (pageName) => createCountryPageUrl(pageName, countryPrefix);
   const [feedbackForm, setFeedbackForm] = useState({
     name: '',
     phone: '',
@@ -33,7 +40,7 @@ export default function Layout({ children, currentPageName }) {
   const handleHomeClick = (e) => {
     e.preventDefault();
     // Navigate to home with clearFilters parameter to reset all filters
-    navigate(`${createPageUrl('Home')}?clearFilters=true`);
+    navigate(`${navUrl('Home')}?clearFilters=true`);
     // Navigate to listings section after a short delay
     setTimeout(() => {
       const listingsSection = document.querySelector('[data-listings-section]');
@@ -237,13 +244,13 @@ export default function Layout({ children, currentPageName }) {
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
               <h3 className="text-white font-semibold">Үйлчилгээ</h3>
               <div className="mt-2 space-y-1 text-sm">
-                <Link to={createPageUrl('CreateListing')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('CreateListing')} className="block text-gray-300 hover:text-amber-400">
                   Зар нэмэх
                 </Link>
-                <Link to={createPageUrl('MyListings')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('MyListings')} className="block text-gray-300 hover:text-amber-400">
                   Миний зарууд
                 </Link>
-                <Link to={createPageUrl('SavedListings')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('SavedListings')} className="block text-gray-300 hover:text-amber-400">
                   Хадгалсан зарууд
                 </Link>
               </div>
@@ -343,7 +350,7 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             <Link
-              to={createPageUrl('SavedListings')}
+              to={navUrl('SavedListings')}
               aria-label="Хадгалсан зарууд"
               aria-current={currentPageName === 'SavedListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
@@ -360,7 +367,7 @@ export default function Layout({ children, currentPageName }) {
             </Link>
 
             <Link
-              to={createPageUrl('Messages')}
+              to={navUrl('Messages')}
               aria-label="Мессеж"
               aria-current={currentPageName === 'Messages' || currentPageName === 'Chat' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
@@ -377,7 +384,7 @@ export default function Layout({ children, currentPageName }) {
             </Link>
 
             <Link
-              to={createPageUrl('CreateListing')}
+              to={navUrl('CreateListing')}
               aria-label="Зар нэмэх"
               aria-current={currentPageName === 'CreateListing' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
@@ -408,7 +415,7 @@ export default function Layout({ children, currentPageName }) {
             )}
 
             <Link
-              to={createPageUrl('MyListings')}
+              to={navUrl('MyListings')}
               aria-label="Миний зарууд"
               aria-current={currentPageName === 'MyListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
