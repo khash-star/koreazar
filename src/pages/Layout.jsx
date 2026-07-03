@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl, createPageUrl } from '@/utils';
 import * as entities from '@/api/entities';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,20 @@ import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PLAY_STORE_URL } from '@/constants/appUrls';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 
 export default function Layout({ children, currentPageName }) {
   const { user, userData, loading: authLoading } = useAuth();
+  const activeCountry = useActiveCountry();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
+
+  // Only prefix nav links when the URL already has a `/kr`, `/us`, `/jp`
+  // prefix — root `/` and other un-prefixed pages keep exact legacy (KR)
+  // URLs, so navigation from them is unchanged from current production.
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+  const navUrl = (pageName) => createCountryPageUrl(pageName, countryPrefix);
   const [feedbackForm, setFeedbackForm] = useState({
     name: '',
     phone: '',
@@ -31,7 +40,7 @@ export default function Layout({ children, currentPageName }) {
   const handleHomeClick = (e) => {
     e.preventDefault();
     // Navigate to home with clearFilters parameter to reset all filters
-    navigate(`${createPageUrl('Home')}?clearFilters=true`);
+    navigate(`${navUrl('Home')}?clearFilters=true`);
     // Navigate to listings section after a short delay
     setTimeout(() => {
       const listingsSection = document.querySelector('[data-listings-section]');
@@ -160,9 +169,9 @@ export default function Layout({ children, currentPageName }) {
       <footer className="bg-gray-900 text-gray-300 py-8 mt-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 space-y-6">
           <div className="text-center">
-            <h2 className="text-white text-lg font-bold">Zarkorea — Солонгос дахь Монголчуудын зарын сайт</h2>
+            <h2 className="text-white text-lg font-bold">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</h2>
             <p className="text-xs text-gray-400 mt-1">
-              Zarkorea · Zarkorea app · Zarkorea Korea Mongolia · Солонгос зар · Заркореа
+              {activeCountry.appName} · {activeCountry.appName} app · {activeCountry.appName} Korea Mongolia · Солонгос зар · Заркореа
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -179,7 +188,7 @@ export default function Layout({ children, currentPageName }) {
                 >
                   Санал хүсэлт илгээх
                 </button>
-                <Link to={createPageUrl('Messages')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('Messages')} className="block text-gray-300 hover:text-amber-400">
                   Админтай холбогдох
                 </Link>
                 <Link to={createPageUrl('Privacy')} className="block text-gray-300 hover:text-amber-400">
@@ -192,7 +201,7 @@ export default function Layout({ children, currentPageName }) {
               <h3 className="text-white font-semibold">Холбоо барих</h3>
               <div className="mt-2 space-y-1 text-sm text-gray-300">
                 <p>И-мэйл: support@zarkorea.com</p>
-                <p>Утас: +82 10-0000-0000</p>
+                <p>Утас: {activeCountry.defaultPhoneCode} 10-0000-0000</p>
                 <p>Ажлын цаг: 09:00 - 18:00</p>
                 <a
                   href="https://www.facebook.com/ZARKOREA"
@@ -235,20 +244,20 @@ export default function Layout({ children, currentPageName }) {
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">
               <h3 className="text-white font-semibold">Үйлчилгээ</h3>
               <div className="mt-2 space-y-1 text-sm">
-                <Link to={createPageUrl('CreateListing')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('CreateListing')} className="block text-gray-300 hover:text-amber-400">
                   Зар нэмэх
                 </Link>
-                <Link to={createPageUrl('MyListings')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('MyListings')} className="block text-gray-300 hover:text-amber-400">
                   Миний зарууд
                 </Link>
-                <Link to={createPageUrl('SavedListings')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('SavedListings')} className="block text-gray-300 hover:text-amber-400">
                   Хадгалсан зарууд
                 </Link>
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-400 text-center">
-            © 2026 <span className="text-amber-500 font-semibold">Zarkorea</span>. All rights reserved.
+            © 2026 <span className="text-amber-500 font-semibold">{activeCountry.appName}</span>. All rights reserved.
             {' · '}
             <Link to={createPageUrl('Privacy')} className="hover:text-amber-500 underline underline-offset-2">
               Нууцлалын бодлого
@@ -341,7 +350,7 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             <Link
-              to={createPageUrl('SavedListings')}
+              to={navUrl('SavedListings')}
               aria-label="Хадгалсан зарууд"
               aria-current={currentPageName === 'SavedListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
@@ -358,7 +367,7 @@ export default function Layout({ children, currentPageName }) {
             </Link>
 
             <Link
-              to={createPageUrl('Messages')}
+              to={navUrl('Messages')}
               aria-label="Мессеж"
               aria-current={currentPageName === 'Messages' || currentPageName === 'Chat' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 relative ${
@@ -375,7 +384,7 @@ export default function Layout({ children, currentPageName }) {
             </Link>
 
             <Link
-              to={createPageUrl('CreateListing')}
+              to={navUrl('CreateListing')}
               aria-label="Зар нэмэх"
               aria-current={currentPageName === 'CreateListing' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${
@@ -406,7 +415,7 @@ export default function Layout({ children, currentPageName }) {
             )}
 
             <Link
-              to={createPageUrl('MyListings')}
+              to={navUrl('MyListings')}
               aria-label="Миний зарууд"
               aria-current={currentPageName === 'MyListings' ? 'page' : undefined}
               className={`flex flex-col items-center justify-center gap-1 flex-1 min-w-0 ${

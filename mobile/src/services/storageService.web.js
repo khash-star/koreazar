@@ -3,6 +3,10 @@
  */
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage, getStorageBucketId } from "../config/firebase";
+import {
+  defaultMobileStorageCountryCode,
+  resolveUploadStoragePathFromParts,
+} from "../utils/storagePaths";
 
 const MAX_IMAGE_UPLOAD_BYTES = 15 * 1024 * 1024;
 
@@ -46,15 +50,25 @@ function assertStorageConfig() {
 
 export async function uploadImageFromUri(uri, options = {}) {
   assertStorageConfig();
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 12);
   const extFromName = extractExtensionFromName(options.fileName);
   const extFromUri = extractExtensionFromName(uri);
   const extFromMime = extensionForMimeType(options.mimeType);
   const ext = extFromName || extFromUri || extFromMime || "jpg";
-  const fileName = `${timestamp}_${random}.${ext}`;
-  const storageRef = ref(storage, `images/${fileName}`);
   const fallbackType = options.mimeType || contentTypeForExtension(ext);
+
+  const countryCode = options.countryCode || defaultMobileStorageCountryCode();
+  const storagePath = resolveUploadStoragePathFromParts({
+    storagePath: options.storagePath,
+    kind: options.kind || "listing",
+    countryCode,
+    listingId: options.listingId,
+    bannerId: options.bannerId,
+    variant: options.variant,
+    extension: ext,
+    userId: options.userId,
+  });
+
+  const storageRef = ref(storage, storagePath);
 
   const blob = await blobFromPickerUri(uri);
   if (blob?.size > MAX_IMAGE_UPLOAD_BYTES) {

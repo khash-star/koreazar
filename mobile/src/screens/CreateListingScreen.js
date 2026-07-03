@@ -19,6 +19,9 @@ import { useAuth } from "../context/AuthContext.js";
 import { getListingAutoApprove } from "../services/appConfigService.js";
 import { createListing, getListingById, updateListing } from "../services/listingService.js";
 import { uploadImageFromUri } from "../services/storageService";
+import {
+  defaultMobileStorageCountryCode,
+} from "../utils/storagePaths";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
 const conditionOptions = _conditionOptions ?? [
@@ -61,6 +64,7 @@ export default function CreateListingScreen({ navigation }) {
 
   const { email, isAuthenticated, userData, user, refreshUserData } = useAuth();
   const submittingRef = useRef(false);
+  const draftListingKeyRef = useRef(`draft-${user?.uid || "anon"}-${Date.now()}`);
   const [loading, setLoading] = useState(false);
   const lockedName = (
     userData?.displayName ||
@@ -191,6 +195,10 @@ export default function CreateListingScreen({ navigation }) {
           const { file_url } = await uploadImageFromUri(asset.uri, {
             mimeType: asset.mimeType,
             fileName: asset.fileName,
+            kind: "listing",
+            countryCode:
+              initialListing?.country_code || defaultMobileStorageCountryCode(),
+            listingId: editListingId || draftListingKeyRef.current,
           });
           return { w800: file_url, w640: file_url, w400: file_url, w150: file_url };
         })

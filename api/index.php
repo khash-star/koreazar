@@ -140,6 +140,8 @@ try {
                 $customerIdFilter = isset($_GET['customer_id']) ? (int) $_GET['customer_id'] : 0;
                 $firebaseUidFilter = isset($_GET['firebase_uid']) ? trim((string) $_GET['firebase_uid']) : '';
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
+                $countryCode = isset($_GET['country_code']) ? normalize_listing_country_code((string) $_GET['country_code']) : '';
+                $stateCode = isset($_GET['state_code']) ? normalize_listing_state_code((string) $_GET['state_code']) : '';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
@@ -168,6 +170,18 @@ try {
                 if ($firebaseUidFilter !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
                     $sql .= ' AND firebase_uid = :firebase_uid';
                     $params[':firebase_uid'] = $firebaseUidFilter;
+                }
+                if ($countryCode !== '' && table_has($pdo, 'listings', 'country_code')) {
+                    if ($countryCode === 'KR') {
+                        $sql .= " AND (country_code = 'KR' OR country_code IS NULL OR country_code = '')";
+                    } else {
+                        $sql .= ' AND country_code = :country_code';
+                        $params[':country_code'] = $countryCode;
+                    }
+                }
+                if ($stateCode !== '' && table_has($pdo, 'listings', 'state_code')) {
+                    $sql .= ' AND state_code = :state_code';
+                    $params[':state_code'] = $stateCode;
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -223,17 +237,29 @@ try {
                 }
 
                 $hasListingCustomerId = table_has($pdo, 'listings', 'customer_id');
+                $hasCountryCode = table_has($pdo, 'listings', 'country_code');
+                $hasStateCode = table_has($pdo, 'listings', 'state_code');
                 if ($hasListingCustomerId) {
                     $payload['customer_id'] = $listingCustomerId;
+                }
+                if ($hasCountryCode) {
+                    $payload['country_code'] = normalize_listing_country_code((string) ($payload['country_code'] ?? 'KR'));
+                } else {
+                    unset($payload['country_code']);
+                }
+                if ($hasStateCode) {
+                    $payload['state_code'] = normalize_listing_state_code((string) ($payload['state_code'] ?? ''));
+                } else {
+                    unset($payload['state_code']);
                 }
 
                 $sql = 'INSERT INTO listings (
                     firebase_uid, ' . ($hasListingCustomerId ? 'customer_id, ' : '') . 'created_by, category, subcategory, title, description, price, is_negotiable,
-                    `condition`, status, listing_type, listing_type_expires, location, phone, kakao_id, wechat_id,
+                    `condition`, status, listing_type, listing_type_expires, location, ' . ($hasCountryCode ? 'country_code, ' : '') . ($hasStateCode ? 'state_code, ' : '') . 'phone, kakao_id, wechat_id,
                     whatsapp, facebook, views, images
                 ) VALUES (
                     :firebase_uid, ' . ($hasListingCustomerId ? ':customer_id, ' : '') . ':created_by, :category, :subcategory, :title, :description, :price, :is_negotiable,
-                    :condition, :status, :listing_type, :listing_type_expires, :location, :phone, :kakao_id, :wechat_id,
+                    :condition, :status, :listing_type, :listing_type_expires, :location, ' . ($hasCountryCode ? ':country_code, ' : '') . ($hasStateCode ? ':state_code, ' : '') . ':phone, :kakao_id, :wechat_id,
                     :whatsapp, :facebook, :views, :images
                 )';
 
@@ -281,6 +307,12 @@ try {
                 $body = read_json_body();
                 $payload = extract_listing_payload($body, true);
                 unset($payload['firebase_uid'], $payload['created_by'], $payload['customer_id']);
+                if (!table_has($pdo, 'listings', 'country_code')) {
+                    unset($payload['country_code']);
+                }
+                if (!table_has($pdo, 'listings', 'state_code')) {
+                    unset($payload['state_code']);
+                }
 
                 // Allow public, view-only increment used by listing detail page.
                 $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
@@ -425,7 +457,7 @@ function extract_listing_payload(array $body, bool $partial = false): array
     $whitelist = [
         'category', 'subcategory', 'title', 'description',
         'price', 'is_negotiable', 'condition', 'status', 'listing_type', 'listing_type_expires',
-        'location', 'phone', 'kakao_id', 'wechat_id', 'whatsapp', 'facebook', 'views', 'images',
+        'location', 'country_code', 'state_code', 'phone', 'kakao_id', 'wechat_id', 'whatsapp', 'facebook', 'views', 'images',
     ];
 
     $payload = [];
@@ -463,6 +495,16 @@ function extract_listing_payload(array $body, bool $partial = false): array
             continue;
         }
 
+        if ($key === 'country_code') {
+            $payload[$key] = normalize_listing_country_code(is_string($val) ? $val : '');
+            continue;
+        }
+
+        if ($key === 'state_code') {
+            $payload[$key] = normalize_listing_state_code(is_string($val) ? $val : '');
+            continue;
+        }
+
         if (is_string($val)) {
             $payload[$key] = trim($val);
             continue;
@@ -482,8 +524,30 @@ function extract_listing_payload(array $body, bool $partial = false): array
         $payload['firebase_uid'] = (string) ($payload['firebase_uid'] ?? '');
         $payload['category'] = (string) ($payload['category'] ?? '');
         $payload['title'] = (string) ($payload['title'] ?? '');
+        if (!isset($payload['country_code']) || $payload['country_code'] === '') {
+            $payload['country_code'] = 'KR';
+        }
     }
     return $payload;
+}
+
+function normalize_listing_country_code(string $code): string
+{
+    $normalized = strtoupper(trim($code));
+    $allowed = ['KR', 'US', 'JP'];
+    return in_array($normalized, $allowed, true) ? $normalized : 'KR';
+}
+
+function normalize_listing_state_code(string $code): ?string
+{
+    $normalized = strtoupper(trim($code));
+    if ($normalized === '') {
+        return null;
+    }
+    if (!preg_match('/^[A-Z]{2}$/', $normalized)) {
+        return null;
+    }
+    return $normalized;
 }
 
 /**

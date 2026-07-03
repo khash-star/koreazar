@@ -2,56 +2,51 @@
 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/firebase/config';
+import {
+  buildUniqueFileName,
+  extensionFromFileName,
+  extensionFromMimeType,
+  buildUserProfileStoragePath,
+  resolveUploadStoragePath,
+} from '@/utils/storagePaths';
 
 /**
  * Зураг upload хийх (Firebase Storage)
  * @param {File} file - Upload хийх файл
- * @param {string} folder - Folder path (optional, default: 'images')
- * @returns {Promise<{file_url: string}>} Upload хийгдсэн файлын URL
+ * @param {Object} [options]
+ * @param {'listing'|'banner'|'profile'|'legacy'} [options.kind='listing']
+ * @param {string} [options.countryCode] - KR | US | JP
+ * @param {string} [options.listingId] - MySQL listing id or draft key
+ * @param {string} [options.bannerId] - banner id or draft key
+ * @param {string} [options.variant] - w800 | w640 | w400 | w150
+ * @param {string} [options.userId] - profile uploads
+ * @param {string} [options.storagePath] - explicit full path override
  */
-export const uploadFile = async (file, folder = 'images') => {
+export const uploadFile = async (file, options = {}) => {
   try {
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const fileExtension = file.name.split('.').pop();
-    const fileName = `${timestamp}_${randomString}.${fileExtension}`;
-    
-    // Create storage reference
-    const storageRef = ref(storage, `${folder}/${fileName}`);
-    
-    // Upload file
+    const storagePath = resolveUploadStoragePath(file, options);
+    const storageRef = ref(storage, storagePath);
     await uploadBytes(storageRef, file);
-    
-    // Get download URL
     const downloadURL = await getDownloadURL(storageRef);
-    
-    return {
-      file_url: downloadURL
-    };
+    return { file_url: downloadURL };
   } catch (error) {
     console.error('Firebase Storage upload error:', error);
-    
-    // Check if Storage is not enabled
+
     if (error.code === 'storage/unauthorized' || error.message?.includes('Storage')) {
       throw new Error('Firebase Storage идэвхжээгүй байна. Firebase Console дээр Storage идэвхжүүлнэ үү.');
     }
-    
+
     throw error;
   }
 };
 
 /**
  * Зураг upload хийх (multiple files)
- * @param {File[]} files - Upload хийх файлууд
- * @param {string} folder - Folder path (optional)
- * @returns {Promise<Array<{file_url: string}>>} Upload хийгдсэн файлуудын URL-ууд
  */
-export const uploadFiles = async (files, folder = 'images') => {
+export const uploadFiles = async (files, options = {}) => {
   try {
-    const uploadPromises = files.map(file => uploadFile(file, folder));
-    const results = await Promise.all(uploadPromises);
-    return results;
+    const uploadPromises = files.map((file) => uploadFile(file, options));
+    return await Promise.all(uploadPromises);
   } catch (error) {
     console.error('Firebase Storage upload error:', error);
     throw error;
@@ -59,29 +54,22 @@ export const uploadFiles = async (files, folder = 'images') => {
 };
 
 /**
- * Private file upload (хэрэгтэй бол)
- * @param {File} file - Upload хийх файл
- * @param {string} userId - User ID
- * @param {string} folder - Folder path (optional)
- * @returns {Promise<{file_url: string}>} Upload хийгдсэн файлын URL
+ * Profile зураг upload — users/{uid}/profile/...
  */
-export const uploadPrivateFile = async (file, userId, folder = 'private') => {
+export const uploadPrivateFile = async (file, userId) => {
   try {
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const fileExtension = file.name.split('.').pop();
-    const fileName = `${userId}/${timestamp}_${randomString}.${fileExtension}`;
-    
-    const storageRef = ref(storage, `${folder}/${fileName}`);
+    const extension =
+      extensionFromFileName(file?.name) || extensionFromMimeType(file?.type);
+    const storagePath = buildUserProfileStoragePath({ userId, extension });
+    const storageRef = ref(storage, storagePath);
     await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(storageRef);
-    
-    return {
-      file_url: downloadURL
-    };
+    return { file_url: downloadURL };
   } catch (error) {
     console.error('Firebase Storage private upload error:', error);
     throw error;
   }
 };
 
+/** @deprecated Use country-scoped paths via uploadFile options. */
+export const legacyImagesPath = (fileName) => `images/${fileName || buildUniqueFileName('jpg')}`;

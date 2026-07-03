@@ -3,7 +3,7 @@ import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { ArrowLeft, X, Loader2, Check, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,18 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
+import { useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { COUNTRIES } from '@/config/country';
+import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function EditListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // Strict, URL-only country — only used as a fallback for the rare case a
+  // listing somehow has no country_code yet. Never falls back to
+  // localStorage, so it can't silently change which market an edit writes to.
+  const routeCountryCode = useRouteCountryCode();
+  const writeCountryCode = routeCountryCode || 'KR';
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -50,6 +58,19 @@ export default function EditListing() {
     enabled: !!listingId
   });
 
+  // The listing's own stored country_code is authoritative — editing never
+  // moves a listing to a different market just because of browsing context.
+  const effectiveCountryCode = listing?.country_code || writeCountryCode;
+  const effectiveCountry = COUNTRIES[effectiveCountryCode] || COUNTRIES.KR;
+  const isUsMarket = effectiveCountryCode === 'US';
+
+  // Only prefix the "back to listing" link when this page was itself
+  // reached via a `/kr`, `/us`, `/jp` URL — legacy `/EditListing?id=..`
+  // keeps navigating to the legacy (KR-compatible) `/ListingDetail`.
+  const countryPrefix = routeCountryCode ? effectiveCountry.defaultRoutePrefix : null;
+  const listingDetailUrl = createCountryPageUrl(`ListingDetail?id=${listingId}`, countryPrefix);
+  const myListingsUrl = createCountryPageUrl('MyListings', countryPrefix);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -57,6 +78,7 @@ export default function EditListing() {
     category: '',
     subcategory: '',
     location: '',
+    state_code: '',
     phone: '',
     kakao_id: '',
     wechat_id: '',
@@ -89,6 +111,7 @@ export default function EditListing() {
         category: listing.category || '',
         subcategory: listing.subcategory || '',
         location: listing.location || '',
+        state_code: listing.state_code || '',
         phone: listing.phone || '',
         kakao_id: listing.kakao_id || '',
         wechat_id: listing.wechat_id || '',
@@ -127,7 +150,7 @@ export default function EditListing() {
       queryClient.invalidateQueries({ queryKey: ['listing', listingId] });
       queryClient.invalidateQueries({ queryKey: ['similarListings'] });
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
-      navigate(createPageUrl(`ListingDetail?id=${listingId}`));
+      navigate(listingDetailUrl);
     }
   });
 
@@ -164,11 +187,16 @@ export default function EditListing() {
     try {
       for (const file of validFiles) {
         const variants = await createImageVariants(file);
+        const uploadBase = {
+          kind: 'listing',
+          countryCode: effectiveCountryCode,
+          listingId,
+        };
         const [r800, r640, r400, r150] = await Promise.all([
-          UploadFile({ file: variants.w800 }),
-          UploadFile({ file: variants.w640 }),
-          UploadFile({ file: variants.w400 }),
-          UploadFile({ file: variants.w150 }),
+          UploadFile({ file: variants.w800, ...uploadBase, variant: 'w800' }),
+          UploadFile({ file: variants.w640, ...uploadBase, variant: 'w640' }),
+          UploadFile({ file: variants.w400, ...uploadBase, variant: 'w400' }),
+          UploadFile({ file: variants.w150, ...uploadBase, variant: 'w150' }),
         ]);
         setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
@@ -186,6 +214,11 @@ export default function EditListing() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (isUsMarket && !formData.state_code) {
+      alert('Муж сонгоно уу.');
+      return;
+    }
     
     const submitData = {
       ...formData,
@@ -198,6 +231,15 @@ export default function EditListing() {
     if (formData.realestate_size) submitData.realestate_size = Number(formData.realestate_size);
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
+
+    if (isUsMarket) {
+      submitData.country_code = effectiveCountryCode;
+      submitData.state_code = formData.state_code || '';
+      delete submitData.location;
+    } else {
+      submitData.country_code = effectiveCountryCode;
+      delete submitData.state_code;
+    }
 
     Object.keys(submitData).forEach(key => {
       if ((key.startsWith('vehicle_') || key.startsWith('electronics_') || 
@@ -222,7 +264,7 @@ export default function EditListing() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h2>
-          <Link to={createPageUrl('MyListings')}>
+          <Link to={myListingsUrl}>
             <Button className="bg-amber-600 hover:bg-amber-700">
               Миний зар руу буцах
             </Button>
@@ -247,7 +289,7 @@ export default function EditListing() {
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Хандах эрхгүй</h2>
           <p className="text-gray-600 mb-4">Та зөвхөн өөрийн зарыг засах боломжтой</p>
-          <Link to={createPageUrl(`ListingDetail?id=${listingId}`)}>
+          <Link to={listingDetailUrl}>
             <Button className="bg-amber-600 hover:bg-amber-700">
               Зарын дэлгэрэнгүй руу буцах
             </Button>
@@ -261,7 +303,7 @@ export default function EditListing() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to={createPageUrl('MyListings')}>
+          <Link to={myListingsUrl}>
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -645,7 +687,7 @@ export default function EditListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ (₩) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({effectiveCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -670,22 +712,30 @@ export default function EditListing() {
               </>
             )}
 
-            <div>
-              <Label className="text-base font-semibold">Байршил</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => setFormData({ ...formData, location: value })}
-              >
-                <SelectTrigger className="mt-2 h-12 rounded-xl">
-                  <SelectValue placeholder="Сонгох" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isUsMarket ? (
+              <UsStateSelect
+                value={formData.state_code}
+                onValueChange={(value) => setFormData({ ...formData, state_code: value })}
+                required
+              />
+            ) : (
+              <div>
+                <Label className="text-base font-semibold">Байршил</Label>
+                <Select
+                  value={formData.location}
+                  onValueChange={(value) => setFormData({ ...formData, location: value })}
+                >
+                  <SelectTrigger className="mt-2 h-12 rounded-xl">
+                    <SelectValue placeholder="Сонгох" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </motion.div>
 
           {/* Contact */}

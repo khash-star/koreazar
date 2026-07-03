@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { ArrowLeft, Send, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +34,11 @@ export default function Chat() {
   
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /Chat keeps linking to the KR-compatible unprefixed route.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const messagesEndRef = useRef(null);
   const blockRedirectRef = useRef(false);
   const { user, userData, loading } = useAuth();
@@ -82,7 +88,7 @@ export default function Chat() {
             description: 'Та энэ хэрэглэгчийг блоклосон.',
             variant: 'destructive',
           });
-          navigate(createPageUrl('Messages'));
+          navigate(createCountryPageUrl('Messages', countryPrefix));
         }
       } catch (e) {
         console.warn('Chat: block check', e?.message);
@@ -132,7 +138,7 @@ export default function Chat() {
               description: 'Та энэ хэрэглэгчийг блоклосон.',
               variant: 'destructive',
             });
-            navigate(createPageUrl('Messages'));
+            navigate(createCountryPageUrl('Messages', countryPrefix));
           }
           return;
         }
@@ -358,7 +364,7 @@ export default function Chat() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-6">
         <p className="text-gray-600 text-center">Та энэ хэрэглэгчийг блоклосон.</p>
-        <Link to={createPageUrl('Messages')}>
+        <Link to={createCountryPageUrl('Messages', countryPrefix)}>
           <Button className="rounded-xl bg-amber-600 hover:bg-amber-700">Мессеж руу буцах</Button>
         </Link>
       </div>
@@ -381,7 +387,7 @@ export default function Chat() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to={createPageUrl('Messages')}>
+          <Link to={createCountryPageUrl('Messages', countryPrefix)}>
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -421,7 +427,7 @@ export default function Chat() {
       {listing && (
         <div className="bg-amber-50 border-b border-amber-100">
           <div className="max-w-4xl mx-auto px-4 py-3">
-            <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+            <Link to={createCountryPageUrl(`ListingDetail?id=${listing.id}`, countryPrefix)}>
               <div className="flex gap-3 items-center hover:bg-amber-100 rounded-lg p-2 -m-2 transition-colors">
                 {listing.images?.[0] && (
                   <img src={getListingImageUrl(listing.images[0], 'w150')} alt="" className="w-12 h-12 rounded-lg object-contain object-top bg-gray-50" loading="lazy" decoding="async" />

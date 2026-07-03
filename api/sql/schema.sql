@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS `listings` (
   `listing_type` VARCHAR(32) DEFAULT NULL,
   `listing_type_expires` DATETIME DEFAULT NULL,
   `location` VARCHAR(255) DEFAULT NULL,
+  `country_code` CHAR(2) NOT NULL DEFAULT 'KR' COMMENT 'KR, US, JP',
+  `state_code` CHAR(2) DEFAULT NULL COMMENT 'US state code e.g. CA, NY',
   `phone` VARCHAR(64) DEFAULT NULL,
   `kakao_id` VARCHAR(128) DEFAULT NULL,
   `wechat_id` VARCHAR(128) DEFAULT NULL,
@@ -54,7 +56,9 @@ CREATE TABLE IF NOT EXISTS `listings` (
   KEY `listings_status_index` (`status`),
   KEY `listings_created_at_index` (`created_at`),
   KEY `listings_firebase_uid_index` (`firebase_uid`),
-  KEY `listings_customer_id_index` (`customer_id`)
+  KEY `listings_customer_id_index` (`customer_id`),
+  KEY `listings_country_code_index` (`country_code`),
+  KEY `listings_state_code_index` (`state_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE `listings`

@@ -3,7 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { updateUserData, redirectToLogin, deleteAccountWithPassword } from '@/services/authService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl, createPageUrl } from '@/utils';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { normalizeProfilePhone } from '@/utils/phoneNormalize';
 import { isSyntheticPhoneAuthEmail } from '@/utils/emailNormalize';
 import { getListingImageUrl } from '@/utils/imageUrl';
@@ -48,6 +49,13 @@ export default function Profile() {
   const { user, userData, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /Profile keeps linking to the KR-compatible unprefixed routes.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+  const listingDetailUrl = (id) => createCountryPageUrl(`ListingDetail?id=${id}`, countryPrefix);
+  const editListingUrl = (id) => createCountryPageUrl(`EditListing?id=${id}`, countryPrefix);
   const [formData, setFormData] = useState({
     displayName: '',
     phone: '',
@@ -140,7 +148,7 @@ export default function Profile() {
       queryClient.invalidateQueries(['userData']);
       // Navigate to home page after a short delay
       setTimeout(() => {
-        navigate(createPageUrl('Home'));
+        navigate(createCountryPageUrl('Home', countryPrefix));
       }, 1500);
     },
     onError: (error) => {
@@ -187,7 +195,7 @@ export default function Profile() {
     try {
       await deleteAccountWithPassword(accountDeletePassword);
       queryClient.clear();
-      navigate(createPageUrl('Home'));
+      navigate(createCountryPageUrl('Home', countryPrefix));
     } catch (err) {
       setAccountDeleteError(err?.message || 'Бүртгэл устгахад алдаа гарлаа.');
     } finally {
@@ -215,7 +223,7 @@ export default function Profile() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Link to={createPageUrl('Home')}>
+            <Link to={createCountryPageUrl('Home', countryPrefix)}>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -403,7 +411,7 @@ export default function Profile() {
                 <h2 className="text-xl font-bold text-gray-900">Миний зарууд</h2>
                 <p className="text-sm text-gray-500 mt-1">Нийт {listings.length} зар</p>
               </div>
-              <Link to={createPageUrl('CreateListing')}>
+              <Link to={createCountryPageUrl('CreateListing', countryPrefix)}>
                 <Button className="bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Зар нэмэх
@@ -441,7 +449,7 @@ export default function Profile() {
                         transition={{ delay: index * 0.05 }}
                         className="bg-white rounded-xl p-4 shadow-sm flex gap-4"
                       >
-                        <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-shrink-0">
+                        <Link to={listingDetailUrl(listing.id)} className="flex-shrink-0">
                           {listing.images && listing.images.length > 0 ? (
                             <img
                               src={getListingImageUrl(listing.images[0], 'w150')}
@@ -459,7 +467,7 @@ export default function Profile() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-1 min-w-0">
+                            <Link to={listingDetailUrl(listing.id)} className="flex-1 min-w-0">
                               <h3 className="font-semibold text-gray-900 truncate hover:text-amber-600 transition-colors">
                                 {listing.title}
                               </h3>
@@ -473,13 +481,13 @@ export default function Profile() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+                                  <Link to={listingDetailUrl(listing.id)}>
                                     <Eye className="w-4 h-4 mr-2" />
                                     Харах
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                  <Link to={createPageUrl(`EditListing?id=${listing.id}`)}>
+                                  <Link to={editListingUrl(listing.id)}>
                                     <Edit2 className="w-4 h-4 mr-2" />
                                     Засах
                                   </Link>
@@ -535,7 +543,7 @@ export default function Profile() {
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Зар байхгүй байна</h3>
                 <p className="text-gray-500 mb-6">Анхны зараа нэмж эхэлцгээе</p>
-                <Link to={createPageUrl('CreateListing')}>
+                <Link to={createCountryPageUrl('CreateListing', countryPrefix)}>
                   <Button className="bg-amber-600 hover:bg-amber-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Зар нэмэх

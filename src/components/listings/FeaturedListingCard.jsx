@@ -1,14 +1,22 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
 import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { MapPin, Clock, Sparkles, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getListingLocationLabel } from '@/utils/listingLocation';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 
 export default function FeaturedListingCard({ listing }) {
+  // Only prefix when the current page itself is under /kr, /us, /jp —
+  // legacy/root pages keep linking to the KR-compatible unprefixed route.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -31,7 +39,7 @@ export default function FeaturedListingCard({ listing }) {
   const BadgeIcon = badge?.icon;
 
   return (
-    <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+    <Link to={createCountryPageUrl(`ListingDetail?id=${listing.id}`, countryPrefix)}>
       <motion.div
         whileHover={{ y: -4 }}
         className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all w-[280px] flex-shrink-0"
@@ -76,10 +84,10 @@ export default function FeaturedListingCard({ listing }) {
           </p>
 
           <div className="flex items-center gap-3 text-xs text-gray-500">
-            {listing.location && (
+            {getListingLocationLabel(listing) && (
               <div className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
-                <span>{listing.location}</span>
+                <span>{getListingLocationLabel(listing)}</span>
               </div>
             )}
             <div className="flex items-center gap-1">

@@ -3,7 +3,8 @@ import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
@@ -59,13 +60,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/components/ui/use-toast';
 import { fetchSavedListingsResolved, sameListingSaveId } from '@/services/savedListingsResolve';
+import { getListingLocationLabel } from '@/utils/listingLocation';
 
 export default function ListingDetail() {
   const urlParams = new URLSearchParams(window.location.search);
   const listingId = urlParams.get('id');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /ListingDetail keeps linking to the KR-compatible unprefixed routes.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
@@ -278,7 +285,7 @@ export default function ListingDetail() {
       queryClient.invalidateQueries({ queryKey: ['allListings'] });
       setDeleteId(null);
       toast({ title: 'Зар устгагдлаа', variant: 'default' });
-      navigate(createPageUrl('Home'));
+      navigate(createCountryPageUrl('Home', countryPrefix));
     },
   });
 
@@ -308,7 +315,7 @@ export default function ListingDetail() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h2>
-          <Link to={createPageUrl('Home')}>
+          <Link to={createCountryPageUrl('Home', countryPrefix)}>
             <Button className="mt-4">Нүүр хуудас руу буцах</Button>
           </Link>
         </div>
@@ -375,7 +382,7 @@ export default function ListingDetail() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to={createPageUrl(`Home?category=${listing.category}&scroll=listings`)}>
+          <Link to={createCountryPageUrl(`Home?category=${listing.category}&scroll=listings`, countryPrefix)}>
             <Button variant="ghost" className="rounded-full gap-2">
               <ArrowLeft className="w-5 h-5" />
               <span className="text-sm font-medium">Буцах</span>
@@ -384,7 +391,7 @@ export default function ListingDetail() {
           <div className="flex items-center gap-2">
             {isOwner && (
               <>
-                <Link to={createPageUrl(`EditListing?id=${listingId}`)}>
+                <Link to={createCountryPageUrl(`EditListing?id=${listingId}`, countryPrefix)}>
                   <Button variant="ghost" size="icon" className="rounded-full" title="Засах">
                     <Edit2 className="w-5 h-5" />
                   </Button>
@@ -598,10 +605,10 @@ export default function ListingDetail() {
 
             {/* Meta */}
             <div className="flex flex-wrap gap-4 text-sm text-gray-500 pb-6 border-b">
-              {listing.location && (
+              {getListingLocationLabel(listing) && (
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" />
-                  {listing.location}
+                  {getListingLocationLabel(listing)}
                 </span>
               )}
               <span className="flex items-center gap-1">
@@ -629,7 +636,7 @@ export default function ListingDetail() {
               <div className="pt-6 border-t">
                 <h3 className="font-semibold text-gray-900 mb-4">Зар удирдах</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <Link to={createPageUrl(`EditListing?id=${listingId}`)}>
+                  <Link to={createCountryPageUrl(`EditListing?id=${listingId}`, countryPrefix)}>
                     <Button className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700">
                       <Edit2 className="w-5 h-5 mr-2" />
                       Засах
@@ -660,7 +667,7 @@ export default function ListingDetail() {
                         redirectToLogin(window.location.href);
                         return;
                       }
-                      window.location.href = createPageUrl(`Chat?otherUserEmail=${encodeURIComponent(listing.created_by)}&listingId=${listing.id}`);
+                      window.location.href = createCountryPageUrl(`Chat?otherUserEmail=${encodeURIComponent(listing.created_by)}&listingId=${listing.id}`, countryPrefix);
                     }}
                     disabled={sellerBlockedEffective}
                     title={
@@ -767,7 +774,7 @@ export default function ListingDetail() {
         <div className="px-4 pb-10 md:pb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">Ижил төстэй зарууд</h2>
-            <Link to={createPageUrl(`Home?category=${listing.category}&scroll=listings`)} className="text-sm text-amber-700 hover:underline">
+            <Link to={createCountryPageUrl(`Home?category=${listing.category}&scroll=listings`, countryPrefix)} className="text-sm text-amber-700 hover:underline">
               Бүгдийг харах
             </Link>
           </div>

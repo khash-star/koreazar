@@ -7,6 +7,16 @@
   "cleanUrls": false,
   "redirects": [
     {
+      "source": "/mn",
+      "destination": "/kr",
+      "permanent": true
+    },
+    {
+      "source": "/mn/:path*",
+      "destination": "/kr/:path*",
+      "permanent": true
+    },
+    {
       "source": "/",
       "has": [{ "type": "host", "value": "koreazar.vercel.app" }],
       "destination": "https://zarkorea.com/",

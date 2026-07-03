@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { compressImage } from '@/components/utils/imageCompressor';
@@ -15,10 +15,13 @@ import { Link } from 'react-router-dom';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function RequestBannerAd() {
   const navigate = useNavigate();
   const { user, userData } = useAuth();
+  const activeCountry = useActiveCountry();
+  const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [formData, setFormData] = useState({
@@ -67,7 +70,12 @@ export default function RequestBannerAd() {
     setUploading(true);
     try {
       const compressed = await compressImage(file, 800, 400, 0.82);
-      const { file_url } = await UploadFile({ file: compressed });
+      const { file_url } = await UploadFile({
+        file: compressed,
+        kind: 'banner',
+        countryCode: activeCountry.countryCode,
+        bannerId: draftBannerKeyRef.current,
+      });
       setImageUrl(file_url);
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа');

@@ -68,6 +68,28 @@ function LayoutWrapper({ children, currentPageName }) {
     return <Layout currentPageName={currentPageName}>{children}</Layout>;
 }
 
+// Country prefixes wired into routing. Only KR is a public/live market
+// (see `ENABLED_COUNTRIES` in `src/config/country.js`) — US/JP routes stay
+// mounted so they can be tested directly by URL without being advertised.
+const COUNTRY_ROUTE_PREFIXES = ['kr', 'us', 'jp'];
+
+// Pages available under a country prefix, e.g. `/us/CreateListing`.
+// Keep in sync with `src/config/country.js` `COUNTRIES` and the pages that
+// read `useActiveCountry()` / `useRouteCountryCode()`. Admin pages are
+// intentionally NOT listed here — one admin panel manages every market via
+// its own country filter (see AdminAllListings), not separate URLs.
+const COUNTRY_PAGES = [
+    { suffix: '', Page: Home, pageName: 'Home' },
+    { suffix: '/CreateListing', Page: CreateListing },
+    { suffix: '/EditListing', Page: EditListing },
+    { suffix: '/ListingDetail', Page: ListingDetail },
+    { suffix: '/Profile', Page: Profile },
+    { suffix: '/MyListings', Page: MyListings },
+    { suffix: '/SavedListings', Page: SavedListings },
+    { suffix: '/Messages', Page: Messages },
+    { suffix: '/Chat', Page: Chat },
+];
+
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
@@ -86,6 +108,25 @@ function PagesContent() {
             
             {/* All other pages with Layout */}
             <Route path="/" element={<LayoutWrapper currentPageName="Home"><Home /></LayoutWrapper>} />
+
+            {/* Country-prefixed pages (/kr, /us, /jp + key sub-routes). Root
+                `/` above is untouched and always resolves to KR — these are
+                additive. Each page reads its own country via
+                `useActiveCountry()` / `useRouteCountryCode()`, which are
+                URL-first (see src/config/country.js). */}
+            {COUNTRY_ROUTE_PREFIXES.flatMap((prefix) =>
+                COUNTRY_PAGES.map(({ suffix, Page, pageName }) => (
+                    <Route
+                        key={`${prefix}${suffix || '/home'}`}
+                        path={`/${prefix}${suffix}`}
+                        element={
+                            <LayoutWrapper currentPageName={pageName || currentPage}>
+                                <Page />
+                            </LayoutWrapper>
+                        }
+                    />
+                ))
+            )}
             
             <Route path="/AdminAllListings" element={<LayoutWrapper currentPageName={currentPage}><AdminAllListings /></LayoutWrapper>} />
             

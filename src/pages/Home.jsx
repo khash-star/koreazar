@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, TrendingUp, Sparkles, ChevronRight, ArrowUp, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronDown, Heart, LogIn, LogOut, User, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl, createPageUrl } from '@/utils';
 import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import CategoryCard, { categoryInfo } from '@/components/listings/CategoryCard';
 import ListingCard from '@/components/listings/ListingCard';
@@ -19,10 +19,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
+import CountrySelector from '@/components/CountrySelector';
+import { isCountryEnabled } from '@/config/country';
+import { isBannerVisibleForCountry } from '@/utils/bannerCountry';
 
 export default function Home() {
   const listingsRef = useRef(null);
   const location = useLocation();
+  const activeCountry = useActiveCountry();
+  const marketCountryCode = activeCountry.countryCode;
+  const routeCountryCode = useRouteCountryCode();
+  // Only prefix outgoing links when the URL already carries a country
+  // prefix — root `/` keeps exact legacy (KR) URLs.
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+  const navUrl = (pageName) => createCountryPageUrl(pageName, countryPrefix);
+  const isMarketEnabled = isCountryEnabled(marketCountryCode);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
@@ -33,6 +45,7 @@ export default function Home() {
     subcategory: '',
     search: '',
     location: '',
+    state_code: '',
     minPrice: '',
     maxPrice: '',
     condition: ''
@@ -58,7 +71,7 @@ export default function Home() {
   }, []);
 
   // Идэвхтэй баннер админаар өөрчлөгдөх хүртэл хэвээр — давтаж Firestore/алдаа шалгахгүй.
-  const { data: bannerAds = [] } = useQuery({
+  const { data: allBannerAds = [] } = useQuery({
     queryKey: ['bannerAds'],
     queryFn: async () => {
       const ads = await entities.BannerAd.filter({ is_active: true }, '-order');
@@ -70,6 +83,14 @@ export default function Home() {
     refetchOnReconnect: false,
     retry: 1,
   });
+
+  // Banners without a country_code are legacy/KR-only; a banner explicitly
+  // tagged GLOBAL shows everywhere. Filtering happens client-side (no
+  // Firestore/schema change) so existing banners are unaffected.
+  const bannerAds = useMemo(
+    () => allBannerAds.filter((banner) => isBannerVisibleForCountry(banner, marketCountryCode)),
+    [allBannerAds, marketCountryCode]
+  );
 
   // Scroll to top when navigating to Home page
   useEffect(() => {
@@ -89,6 +110,7 @@ export default function Home() {
         subcategory: '',
         search: '',
         location: '',
+        state_code: '',
         minPrice: '',
         maxPrice: '',
         condition: ''
@@ -151,13 +173,17 @@ export default function Home() {
   };
 
   const { data: listings = [], isLoading, refetch: refetchListings } = useQuery({
-    queryKey: ['listings', filters],
+    queryKey: ['listings', filters, marketCountryCode],
     queryFn: async () => {
-      let query = { status: 'active' };
+      let query = { status: 'active', country_code: marketCountryCode };
       
       if (filters.category) query.category = filters.category;
       if (filters.subcategory) query.subcategory = filters.subcategory;
-      if (filters.location) query.location = filters.location;
+      if (marketCountryCode === 'US') {
+        if (filters.state_code) query.state_code = filters.state_code;
+      } else if (filters.location) {
+        query.location = filters.location;
+      }
       if (filters.condition) query.condition = filters.condition;
       
       let results = await entities.Listing.filter(query, '-created_date', 100);
@@ -244,8 +270,8 @@ export default function Home() {
   }, [listings.length, visibleListingCount]);
 
   const { data: allListings = [] } = useQuery({
-    queryKey: ['allListings'],
-    queryFn: () => entities.Listing.filter({ status: 'active' }),
+    queryKey: ['allListings', marketCountryCode],
+    queryFn: () => entities.Listing.filter({ status: 'active', country_code: marketCountryCode }),
   });
 
   const savedQueryKey = userData?.uid || user?.uid;
@@ -299,11 +325,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
           <div className="flex-1 text-center">
             <h1 className="text-sm md:text-lg font-bold tracking-wide">
-              <span className="sr-only">Zarkorea — </span>
+              <span className="sr-only">{activeCountry.appName} — </span>
               🇲🇳 СОЛОНГОС ДАХЬ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ
             </h1>
             <p className="sr-only">
-              Zarkorea, Zarkorea app, Zarkorea Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.
+              {activeCountry.appName}, {activeCountry.appName} app, {activeCountry.appName} Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.
             </p>
           </div>
           {!(user || userData) ? (
@@ -319,7 +345,7 @@ export default function Home() {
             </Link>
           ) : (
             <div className="ml-4 flex items-center gap-2 flex-shrink-0 z-50">
-              <Link to={createPageUrl('Profile')}>
+              <Link to={navUrl('Profile')}>
                 <div className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
                     {(userData?.displayName || user?.displayName || userData?.email || user?.email || '?')[0]?.toUpperCase()}
@@ -419,6 +445,18 @@ export default function Home() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 pt-0 pb-24 md:pb-12 mt-0 md:mt-0">
+        {/* Placeholder-market notice: US/JP are not live yet — this must
+            never claim to be a real market until ENABLED_COUNTRIES adds it. */}
+        {!isMarketEnabled && (
+          <div
+            role="status"
+            className="mt-4 mb-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          >
+            ⚠️ {activeCountry.countryName} ({activeCountry.appName}) зах зээл одоогоор <strong>туршилтын горимд</strong> байна.
+            Жинхэнэ зар байршуулагдаагүй бөгөөд энэ хэсэг олон нийтэд нээлттэй болоогүй болно.
+          </div>
+        )}
+
         {/* Categories */}
         {!filters.search && (
           <motion.section
@@ -427,19 +465,29 @@ export default function Home() {
             transition={{ delay: 0.2 }}
             className="mb-4"
           >
-            <button
-              onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-              className="flex items-center justify-between gap-2 mb-6 w-full md:pointer-events-none"
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Ангилалууд</h2>
-                  <p className="text-sm text-gray-500">Zarkorea — Солонгос дахь Монголчуудын зарын сайт</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+              <button
+                type="button"
+                onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+                className="flex items-center justify-between gap-2 w-full sm:w-auto md:pointer-events-none"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+                  <div className="text-left">
+                    <h2 className="text-2xl font-bold text-gray-900">Ангилалууд</h2>
+                    <p className="text-sm text-gray-500">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</p>
+                  </div>
                 </div>
-              </div>
-              <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform md:hidden ${categoriesExpanded ? 'rotate-180' : ''}`} />
-            </button>
+                <ChevronDown className={`w-5 h-5 text-gray-600 transition-transform md:hidden shrink-0 ${categoriesExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <CountrySelector
+                className="flex flex-wrap items-center gap-2 shrink-0"
+                selectedStateCode={filters.state_code}
+                onStateChange={(stateCode) =>
+                  setFilters((prev) => ({ ...prev, state_code: stateCode || '' }))
+                }
+              />
+            </div>
 
             {/* Category Grid */}
             <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6 ${categoriesExpanded ? '' : 'hidden md:grid'}`}>
@@ -590,7 +638,7 @@ export default function Home() {
                 ) : (
                   <Link 
                     key={`vip-${idx}`}
-                    to={createPageUrl(`ListingDetail?id=${item.id}`)}
+                    to={navUrl(`ListingDetail?id=${item.id}`)}
                     className="w-[300px] flex-shrink-0"
                   >
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group bg-gray-50">
@@ -661,7 +709,7 @@ export default function Home() {
         }
         </h2>
         </div>
-        <Link to={createPageUrl('CreateListing')}>
+        <Link to={navUrl('CreateListing')}>
         <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-xl h-12 px-6">
         <Plus className="w-5 h-5 mr-2" aria-hidden />
         Зар нэмэх
@@ -713,7 +761,7 @@ export default function Home() {
               <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Зар олдсонгүй</h3>
                 <p className="text-gray-500 mb-6">Шүүлтүүрээ өөрчилж үзнэ үү</p>
-                <Link to={createPageUrl('CreateListing')}>
+                <Link to={navUrl('CreateListing')}>
                   <Button className="bg-amber-600 hover:bg-amber-700 text-white">
                     <Plus className="w-5 h-5 mr-2" />
                     Эхний зараа нэмэх
@@ -736,7 +784,7 @@ export default function Home() {
                 <h2 className="text-xl font-bold text-gray-900">Хадгалсан зарууд</h2>
                 <span className="text-sm text-gray-500">({savedListingsFull.length})</span>
               </div>
-              <Link to={createPageUrl('SavedListings')}>
+              <Link to={navUrl('SavedListings')}>
                 <Button variant="outline" size="sm" className="text-sm">
                   Бүгдийг харах
                   <ChevronRight className="w-4 h-4 ml-1" />

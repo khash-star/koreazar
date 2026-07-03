@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { getListingImageUrl, getListingImageSrcSet } from '@/utils/imageUrl';
 import { motion } from 'framer-motion';
 import { MapPin, Clock, Heart, Crown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getListingLocationLabel } from '@/utils/listingLocation';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { categoryInfo, conditionLabels } from '@/constants/listings';
@@ -19,6 +21,11 @@ import { toast } from '@/components/ui/use-toast';
 
 export default function ListingCard({ listing, isAboveFold = false }) {
   const queryClient = useQueryClient();
+  // Only prefix when the current page itself is under /kr, /us, /jp —
+  // legacy/root pages keep linking to the KR-compatible unprefixed route.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const info = categoryInfo[listing.category] || categoryInfo.other;
   const isVIP = listing.listing_type === 'vip';
   const isFeatured = listing.listing_type === 'featured';
@@ -72,7 +79,7 @@ export default function ListingCard({ listing, isAboveFold = false }) {
     return '₩' + new Intl.NumberFormat('ko-KR').format(price);
   };
 
-  const listingUrl = listing.id ? createPageUrl(`ListingDetail?id=${listing.id}`) : '#';
+  const listingUrl = listing.id ? createCountryPageUrl(`ListingDetail?id=${listing.id}`, countryPrefix) : '#';
 
   return (
     <Link to={listingUrl}>
@@ -180,10 +187,10 @@ export default function ListingCard({ listing, isAboveFold = false }) {
           )}
           
           <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-            {listing.location && (
+            {getListingLocationLabel(listing) && (
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5" />
-                {listing.location}
+                {getListingLocationLabel(listing)}
               </span>
             )}
             <span className="flex items-center gap-1">

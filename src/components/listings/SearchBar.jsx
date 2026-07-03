@@ -14,14 +14,19 @@ import { categoryInfo } from './CategoryCard';
 import { subcategoryConfig } from './subcategoryConfig';
 
 import { locations, conditionOptions } from '@/constants/listings';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { US_STATE_CODES, formatUsStateLabel } from '@/constants/usStates';
 
 export default function SearchBar({ onSearch, initialFilters = {} }) {
+  const activeCountry = useActiveCountry();
+  const isUsMarket = activeCountry.countryCode === 'US';
   const [searchTerm, setSearchTerm] = useState(initialFilters.search || '');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     category: initialFilters.category || '',
     subcategory: initialFilters.subcategory || '',
     location: initialFilters.location || '',
+    state_code: initialFilters.state_code || '',
     minPrice: initialFilters.minPrice || '',
     maxPrice: initialFilters.maxPrice || '',
     condition: initialFilters.condition || ''
@@ -43,6 +48,7 @@ export default function SearchBar({ onSearch, initialFilters = {} }) {
       category: '',
       subcategory: '',
       location: '',
+      state_code: '',
       minPrice: '',
       maxPrice: '',
       condition: ''
@@ -127,20 +133,39 @@ export default function SearchBar({ onSearch, initialFilters = {} }) {
                 </Select>
               )}
 
-              <Select
-                value={filters.location}
-                onValueChange={(value) => setFilters({ ...filters, location: value })}
-              >
-                <SelectTrigger className="h-12 rounded-lg">
-                  <SelectValue placeholder="Байршил" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Бүгд</SelectItem>
-                  {locations.map(loc => (
-                    <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isUsMarket ? (
+                <Select
+                  value={filters.state_code}
+                  onValueChange={(value) => setFilters({ ...filters, state_code: value })}
+                >
+                  <SelectTrigger className="h-12 rounded-lg">
+                    <SelectValue placeholder="Муж" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value={null}>Бүгд</SelectItem>
+                    {US_STATE_CODES.map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {formatUsStateLabel(code)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select
+                  value={filters.location}
+                  onValueChange={(value) => setFilters({ ...filters, location: value })}
+                >
+                  <SelectTrigger className="h-12 rounded-lg">
+                    <SelectValue placeholder="Байршил" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>Бүгд</SelectItem>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
 
               <Input
                 type="number"
