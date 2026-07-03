@@ -37,7 +37,7 @@ export const DEFAULT_COUNTRY_CODE = 'KR';
  * markets until this list is updated. Update this — and only this — to
  * launch a new market.
  */
-export const ENABLED_COUNTRIES = ['KR'];
+export const ENABLED_COUNTRIES = ['KR', 'US'];
 
 function normalizeCode(value) {
   return String(value || '').trim().toUpperCase();
