@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import * as entities from '@/api/entities';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl, createPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Edit2, Trash2, Eye, MoreVertical, CheckCircle, XCircle, AlertCircle, Settings, ArrowUp, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,13 @@ const statusLabels = {
 export default function MyListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /MyListings keeps linking to the KR-compatible unprefixed routes.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
+  const listingDetailUrl = (id) => createCountryPageUrl(`ListingDetail?id=${id}`, countryPrefix);
+  const editListingUrl = (id) => createCountryPageUrl(`EditListing?id=${id}`, countryPrefix);
   const [deleteId, setDeleteId] = useState(null);
   const [isAuthChecking, setIsAuthChecking] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -130,7 +138,7 @@ export default function MyListings() {
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link to={createPageUrl('Home')}>
+              <Link to={createCountryPageUrl('Home', countryPrefix)}>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -141,7 +149,7 @@ export default function MyListings() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Link to={createPageUrl('CreateListing')}>
+              <Link to={createCountryPageUrl('CreateListing', countryPrefix)}>
                 <Button className="w-full bg-amber-600 hover:bg-amber-700">
                   <Plus className="w-5 h-5 mr-2" />
                   Зар нэмэх
@@ -197,7 +205,7 @@ export default function MyListings() {
                     transition={{ delay: index * 0.05 }}
                     className="bg-white rounded-xl p-4 shadow-sm flex gap-4"
                   >
-                    <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="flex-shrink-0">
+                    <Link to={listingDetailUrl(listing.id)} className="flex-shrink-0">
                       {listing.images && listing.images.length > 0 ? (
                         <img
                           src={getListingImageUrl(listing.images[0], 'w150')}
@@ -215,13 +223,13 @@ export default function MyListings() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                        <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)} className="min-w-0 flex-1">
+                        <Link to={listingDetailUrl(listing.id)} className="min-w-0 flex-1">
                           <h3 className="font-semibold text-gray-900 truncate hover:text-amber-600 transition-colors">
                             {listing.title}
                           </h3>
                         </Link>
                         <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-                          <Link to={createPageUrl(`EditListing?id=${listing.id}`)}>
+                          <Link to={editListingUrl(listing.id)}>
                             <Button variant="outline" size="sm" className="h-9 border-amber-200 text-amber-800 hover:bg-amber-50">
                               <Edit2 className="w-4 h-4 mr-1.5" />
                               Засах
@@ -245,7 +253,7 @@ export default function MyListings() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link to={createPageUrl(`ListingDetail?id=${listing.id}`)}>
+                                <Link to={listingDetailUrl(listing.id)}>
                                   <Eye className="w-4 h-4 mr-2" />
                                   Харах
                                 </Link>
@@ -300,7 +308,7 @@ export default function MyListings() {
             <div className="text-6xl mb-4">📦</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Танд зар байхгүй байна</h3>
             <p className="text-gray-500 mb-6">Эхний зараа нэмээрэй</p>
-            <Link to={createPageUrl('CreateListing')}>
+            <Link to={createCountryPageUrl('CreateListing', countryPrefix)}>
               <Button className="bg-amber-600 hover:bg-amber-700">
                 <Plus className="w-5 h-5 mr-2" />
                 Зар нэмэх

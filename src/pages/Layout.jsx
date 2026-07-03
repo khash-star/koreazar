@@ -188,7 +188,7 @@ export default function Layout({ children, currentPageName }) {
                 >
                   Санал хүсэлт илгээх
                 </button>
-                <Link to={createPageUrl('Messages')} className="block text-gray-300 hover:text-amber-400">
+                <Link to={navUrl('Messages')} className="block text-gray-300 hover:text-amber-400">
                   Админтай холбогдох
                 </Link>
                 <Link to={createPageUrl('Privacy')} className="block text-gray-300 hover:text-amber-400">

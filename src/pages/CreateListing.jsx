@@ -3,7 +3,7 @@ import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Upload, X, Loader2, Check, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,9 @@ export default function CreateListing() {
   const writeCountryCode = routeCountryCode || 'KR';
   const writeCountry = COUNTRIES[writeCountryCode] || COUNTRIES.KR;
   const isUsMarket = writeCountryCode === 'US';
+  // Only prefix "back/cancel to Home" when this page itself is under
+  // /kr, /us, /jp — legacy /CreateListing keeps linking to unprefixed Home.
+  const countryPrefix = routeCountryCode ? writeCountry.defaultRoutePrefix : null;
   const { user, userData } = useAuth();
   const draftListingKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [images, setImages] = useState([]);
@@ -108,7 +111,7 @@ export default function CreateListing() {
       queryClient.invalidateQueries({ queryKey: ['allListings'] });
       queryClient.invalidateQueries({ queryKey: ['myListings'] });
       queryClient.invalidateQueries({ queryKey: ['similarListings'] });
-      navigate(createPageUrl('Home'), { replace: true });
+      navigate(createCountryPageUrl('Home', countryPrefix), { replace: true });
     },
   });
 
@@ -250,7 +253,7 @@ export default function CreateListing() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to={createPageUrl('Home')}>
+          <Link to={createCountryPageUrl('Home', countryPrefix)}>
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>

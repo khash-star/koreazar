@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,11 @@ import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 
 export default function SavedListings() {
   const { user, userData } = useAuth();
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /SavedListings keeps linking to the KR-compatible unprefixed route.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const [isAuthChecking, setIsAuthChecking] = useState(false);
 
   const savedQueryKey = userData?.uid || user?.uid;
@@ -63,7 +69,7 @@ export default function SavedListings() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link to={createPageUrl('Home')}>
+              <Link to={createCountryPageUrl('Home', countryPrefix)}>
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -119,7 +125,7 @@ export default function SavedListings() {
             <Heart className="w-20 h-20 text-gray-200 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Хадгалсан зар байхгүй байна</h3>
             <p className="text-gray-500 mb-6">Таалагдсан зараа хадгалж эхэлцгээе</p>
-            <Link to={createPageUrl('Home')}>
+            <Link to={createCountryPageUrl('Home', countryPrefix)}>
               <Button className="bg-amber-600 hover:bg-amber-700">
                 Зар үзэх
               </Button>

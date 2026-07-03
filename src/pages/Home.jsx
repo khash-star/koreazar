@@ -638,7 +638,7 @@ export default function Home() {
                 ) : (
                   <Link 
                     key={`vip-${idx}`}
-                    to={createPageUrl(`ListingDetail?id=${item.id}`)}
+                    to={navUrl(`ListingDetail?id=${item.id}`)}
                     className="w-[300px] flex-shrink-0"
                   >
                     <div className="relative h-[160px] rounded-2xl overflow-hidden group bg-gray-50">

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '@/utils';
+import { createCountryPageUrl } from '@/utils';
+import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { motion } from 'framer-motion';
 import { MessageCircle, Search, ArrowLeft, Shield, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,11 @@ import { toast } from '@/components/ui/use-toast';
 export default function Messages() {
   const { user, userData, isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  // Only prefix when this page itself is under /kr, /us, /jp — legacy
+  // /Messages keeps linking to the KR-compatible unprefixed route.
+  const activeCountry = useActiveCountry();
+  const routeCountryCode = useRouteCountryCode();
+  const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const [searchQuery, setSearchQuery] = useState('');
   const userEmail = normalizeEmail(userData?.email || user?.email || '');
   const [adminEmail, setAdminEmail] = useState(null);
@@ -189,8 +195,9 @@ export default function Messages() {
       }
       
       // Navigate to chat with admin
-      window.location.href = createPageUrl(
-        `Chat?conversationId=${encodeURIComponent(conversation.id)}&otherUserEmail=${encodeURIComponent(adminEmail)}`
+      window.location.href = createCountryPageUrl(
+        `Chat?conversationId=${encodeURIComponent(conversation.id)}&otherUserEmail=${encodeURIComponent(adminEmail)}`,
+        countryPrefix
       );
     } catch (error) {
       console.error('Error creating conversation with admin:', error);
@@ -215,7 +222,7 @@ export default function Messages() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Link to={createPageUrl('Home')}>
+            <Link to={createCountryPageUrl('Home', countryPrefix)}>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -269,7 +276,7 @@ export default function Messages() {
               >
                 <Link
                   className="flex-1 min-w-0"
-                  to={createPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`)}
+                  to={createCountryPageUrl(`Chat?conversationId=${conv.id}&otherUserEmail=${encodeURIComponent(conv.otherUser?.email || '')}`, countryPrefix)}
                 >
                   <motion.div
                     whileHover={{ scale: 1.005 }}
