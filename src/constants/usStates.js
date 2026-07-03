@@ -56,8 +56,18 @@ export const US_STATES = {
   DC: 'District of Columbia',
 };
 
+/**
+ * Launch subset — only these states are offered in the create-listing /
+ * search / country-selector dropdowns while the US market is a soft
+ * launch. `US_STATES` above stays the full 50-state+DC map so any state
+ * code (existing data, future expansion) still resolves to a real name via
+ * `formatUsStateLabel`/`getUsStateName` — only the *selectable* list is
+ * restricted. Update this array (and only this array) to open more states.
+ */
+export const US_LAUNCH_STATE_CODES = ['LA', 'IL', 'VA', 'NY', 'WA'];
+
 /** State codes sorted by display name (for dropdown order). */
-export const US_STATE_CODES = Object.keys(US_STATES).sort((a, b) =>
+export const US_STATE_CODES = US_LAUNCH_STATE_CODES.slice().sort((a, b) =>
   US_STATES[a].localeCompare(US_STATES[b])
 );
 
