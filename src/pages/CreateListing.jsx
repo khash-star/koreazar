@@ -29,14 +29,20 @@ import { getListingAutoApprove } from '@/services/appConfigService';
 import { checkBannedListingFields } from '@/utils/bannedContent';
 
 import { locations, conditionOptions } from '@/constants/listings';
-import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { COUNTRIES } from '@/config/country';
 import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function CreateListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const activeCountry = useActiveCountry();
-  const isUsMarket = activeCountry.countryCode === 'US';
+  // Strict, URL-only country for anything that WRITES data (never falls
+  // back to a stale localStorage selection). Legacy/un-prefixed
+  // `/CreateListing` always defaults to KR — current production behavior.
+  const routeCountryCode = useRouteCountryCode();
+  const writeCountryCode = routeCountryCode || 'KR';
+  const writeCountry = COUNTRIES[writeCountryCode] || COUNTRIES.KR;
+  const isUsMarket = writeCountryCode === 'US';
   const { user, userData } = useAuth();
   const draftListingKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [images, setImages] = useState([]);
@@ -141,7 +147,7 @@ export default function CreateListing() {
         const variants = await createImageVariants(file);
         const uploadBase = {
           kind: 'listing',
-          countryCode: activeCountry.countryCode,
+          countryCode: writeCountryCode,
           listingId: draftListingKeyRef.current,
         };
         const [r800, r640, r400, r150] = await Promise.all([
@@ -195,7 +201,7 @@ export default function CreateListing() {
     if (formData.realestate_rooms) submitData.realestate_rooms = Number(formData.realestate_rooms);
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
-    submitData.country_code = activeCountry.countryCode;
+    submitData.country_code = writeCountryCode;
 
     if (isUsMarket) {
       submitData.state_code = formData.state_code || '';
@@ -413,7 +419,7 @@ export default function CreateListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({activeCountry.currency.symbol}) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({writeCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"

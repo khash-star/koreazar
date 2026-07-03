@@ -27,13 +27,18 @@ import { createImageVariants } from '@/components/utils/imageCompressor';
 import { getListingImageUrl } from '@/utils/imageUrl';
 
 import { locations, conditionOptions } from '@/constants/listings';
-import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { COUNTRIES } from '@/config/country';
 import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function EditListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const activeCountry = useActiveCountry();
+  // Strict, URL-only country — only used as a fallback for the rare case a
+  // listing somehow has no country_code yet. Never falls back to
+  // localStorage, so it can't silently change which market an edit writes to.
+  const routeCountryCode = useRouteCountryCode();
+  const writeCountryCode = routeCountryCode || 'KR';
   const { user, userData } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -53,8 +58,11 @@ export default function EditListing() {
     enabled: !!listingId
   });
 
-  const isUsMarket =
-    listing?.country_code === 'US' || activeCountry.countryCode === 'US';
+  // The listing's own stored country_code is authoritative — editing never
+  // moves a listing to a different market just because of browsing context.
+  const effectiveCountryCode = listing?.country_code || writeCountryCode;
+  const effectiveCountry = COUNTRIES[effectiveCountryCode] || COUNTRIES.KR;
+  const isUsMarket = effectiveCountryCode === 'US';
 
   const [formData, setFormData] = useState({
     title: '',
@@ -174,7 +182,7 @@ export default function EditListing() {
         const variants = await createImageVariants(file);
         const uploadBase = {
           kind: 'listing',
-          countryCode: listing?.country_code || activeCountry.countryCode,
+          countryCode: effectiveCountryCode,
           listingId,
         };
         const [r800, r640, r400, r150] = await Promise.all([
@@ -218,11 +226,11 @@ export default function EditListing() {
     if (formData.realestate_bathrooms) submitData.realestate_bathrooms = Number(formData.realestate_bathrooms);
 
     if (isUsMarket) {
-      submitData.country_code = listing?.country_code || 'US';
+      submitData.country_code = effectiveCountryCode;
       submitData.state_code = formData.state_code || '';
       delete submitData.location;
     } else {
-      submitData.country_code = listing?.country_code || activeCountry.countryCode;
+      submitData.country_code = effectiveCountryCode;
       delete submitData.state_code;
     }
 
@@ -672,7 +680,7 @@ export default function EditListing() {
             {formData.category !== 'free' && (
               <>
                 <div>
-                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({activeCountry.currency.symbol}) *</Label>
+                  <Label htmlFor="price" className="text-base font-semibold">Үнэ ({effectiveCountry.currency.symbol}) *</Label>
                   <Input
                     id="price"
                     type="number"
