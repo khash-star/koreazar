@@ -24,12 +24,23 @@ import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { COUNTRIES } from '@/config/country';
+
+const COUNTRY_FILTERS = ['ALL', 'KR', 'US', 'JP'];
+const COUNTRY_FILTER_LABELS = { ALL: 'Бүгд', KR: '🇰🇷 KR', US: '🇺🇸 US', JP: '🇯🇵 JP' };
+
+/** Listings created before multi-country support have no country_code — treat as KR. */
+function listingCountryCode(listing) {
+  const code = String(listing?.country_code || 'KR').trim().toUpperCase();
+  return COUNTRIES[code] ? code : 'KR';
+}
 
 export default function AdminAllListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [countryFilter, setCountryFilter] = useState('ALL');
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   React.useEffect(() => {
@@ -106,10 +117,18 @@ export default function AdminAllListings() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const filteredListings = listings.filter(l => 
-    l.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const countryCounts = listings.reduce((acc, l) => {
+    const code = listingCountryCode(l);
+    acc[code] = (acc[code] || 0) + 1;
+    return acc;
+  }, {});
+
+  const filteredListings = listings
+    .filter(l => countryFilter === 'ALL' || listingCountryCode(l) === countryFilter)
+    .filter(l =>
+      l.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.created_by?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   const handleExportCSV = () => {
     const listingsToExport = filteredListings.length > 0 ? filteredListings : listings;
@@ -167,6 +186,25 @@ export default function AdminAllListings() {
               className="pl-10"
             />
           </div>
+          <div role="group" aria-label="Улсаар шүүх" className="flex flex-wrap items-center gap-2 mt-3">
+            {COUNTRY_FILTERS.map((code) => (
+              <button
+                key={code}
+                type="button"
+                aria-pressed={countryFilter === code}
+                onClick={() => setCountryFilter(code)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                  countryFilter === code
+                    ? 'bg-amber-500 text-white border-amber-600'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {COUNTRY_FILTER_LABELS[code]}
+                {' '}
+                ({code === 'ALL' ? listings.length : countryCounts[code] || 0})
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -207,6 +245,9 @@ export default function AdminAllListings() {
                         </h3>
                       </Link>
                       <div className="flex gap-1">
+                        <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">
+                          {listingCountryCode(listing)}
+                        </Badge>
                         {listing.listing_type === 'vip' && (
                           <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                             <Crown className="w-3 h-3 mr-1" />
@@ -243,7 +284,8 @@ export default function AdminAllListings() {
                     </div>
 
                     <p className="text-lg font-bold text-amber-600 mb-2">
-                      ₩{new Intl.NumberFormat('ko-KR').format(listing.price)}
+                      {(COUNTRIES[listingCountryCode(listing)] || COUNTRIES.KR).currency.symbol}
+                      {new Intl.NumberFormat((COUNTRIES[listingCountryCode(listing)] || COUNTRIES.KR).currency.locale).format(listing.price)}
                     </p>
 
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
