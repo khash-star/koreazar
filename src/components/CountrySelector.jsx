@@ -66,8 +66,6 @@ export default function CountrySelector({
     'bg-amber-500 text-white shadow-md hover:shadow-lg border border-amber-600';
   const inactiveButtonClass =
     'bg-white text-gray-800 hover:bg-gray-50 shadow-sm hover:shadow border border-gray-200 hover:border-amber-200';
-  const disabledButtonClass =
-    'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70';
 
   // US/JP are placeholder markets — hidden from the public selector unless
   // explicitly revealed for QA (VITE_SHOW_ALL_COUNTRIES=true). The routes
@@ -85,20 +83,12 @@ export default function CountrySelector({
     >
       {visibleCountries.map((country) => {
         const enabled = isCountryEnabled(country.countryCode);
+        // `visibleCountries` already excludes disabled markets unless
+        // showDisabledMarkets is on — so by the time we get here, a
+        // disabled country only renders because QA explicitly asked to see
+        // it, and it should be fully clickable/testable, not a dead label.
 
         if (country.countryCode === 'US') {
-          if (!enabled) {
-            return (
-              <span
-                key={country.countryCode}
-                className={`${buttonBase} ${disabledButtonClass}`}
-                title="Тун удахгүй нээгдэнэ"
-              >
-                <span aria-hidden>{COUNTRY_FLAGS.US}</span>
-                <span>Америк (удахгүй)</span>
-              </span>
-            );
-          }
           return (
             <DropdownMenu key={country.countryCode}>
               <DropdownMenuTrigger asChild>
@@ -107,10 +97,11 @@ export default function CountrySelector({
                   aria-haspopup="listbox"
                   aria-expanded={undefined}
                   aria-label="Америк муж сонгох"
+                  title={!enabled ? 'QA: одоогоор нийтэд нээлттэй бус' : undefined}
                   className={`${buttonBase} ${isUsActive ? activeButtonClass : inactiveButtonClass}`}
                 >
                   <span aria-hidden>{COUNTRY_FLAGS.US}</span>
-                  <span>{usButtonLabel}</span>
+                  <span>{usButtonLabel}{!enabled ? ' (QA)' : ''}</span>
                   <ChevronDown className="w-4 h-4 opacity-80" aria-hidden />
                 </button>
               </DropdownMenuTrigger>
@@ -141,30 +132,18 @@ export default function CountrySelector({
           );
         }
 
-        if (!enabled) {
-          return (
-            <span
-              key={country.countryCode}
-              className={`${buttonBase} ${disabledButtonClass}`}
-              title="Тун удахгүй нээгдэнэ"
-            >
-              <span aria-hidden>{COUNTRY_FLAGS[country.countryCode] || ''}</span>
-              <span>{country.countryName} (удахгүй)</span>
-            </span>
-          );
-        }
-
         const isActive = activeCountry.countryCode === country.countryCode;
         return (
           <button
             key={country.countryCode}
             type="button"
             aria-pressed={isActive}
+            title={!enabled ? 'QA: одоогоор нийтэд нээлттэй бус' : undefined}
             onClick={() => handleCountrySelect(country.countryCode)}
             className={`${buttonBase} ${isActive ? activeButtonClass : inactiveButtonClass}`}
           >
             <span aria-hidden>{COUNTRY_FLAGS[country.countryCode] || ''}</span>
-            <span>{country.countryName}</span>
+            <span>{country.countryName}{!enabled ? ' (QA)' : ''}</span>
           </button>
         );
       })}
