@@ -18,11 +18,24 @@ import {
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { GLOBAL_BANNER_COUNTRY_CODE, normalizeBannerCountryCode } from '@/utils/bannerCountry';
+import {
+  Select as CountrySelect,
+  SelectContent as CountrySelectContent,
+  SelectItem as CountrySelectItem,
+  SelectTrigger as CountrySelectTrigger,
+  SelectValue as CountrySelectValue,
+} from '@/components/ui/select';
+
+const BANNER_COUNTRY_OPTIONS = [
+  { value: 'KR', label: '🇰🇷 Зөвхөн Солонгос (KR)' },
+  { value: 'US', label: '🇺🇸 Зөвхөн Америк (US) — туршилтын горим' },
+  { value: 'JP', label: '🇯🇵 Зөвхөн Япон (JP) — туршилтын горим' },
+  { value: GLOBAL_BANNER_COUNTRY_CODE, label: '🌐 Бүх зах зээлд (Global)' },
+];
 
 export default function AdminBanners() {
   const { user, userData } = useAuth();
-  const activeCountry = useActiveCountry();
   const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [showDialog, setShowDialog] = useState(false);
   const [editingBannerId, setEditingBannerId] = useState(null);
@@ -32,7 +45,10 @@ export default function AdminBanners() {
     link: '#',
     title: '',
     is_active: true,
-    order: 0
+    order: 0,
+    // Default explicitly to KR (not the admin's current browsing country) so
+    // a stray country-selector click can never silently create a US/JP banner.
+    country_code: 'KR'
   });
 
   const queryClient = useQueryClient();
@@ -47,7 +63,7 @@ export default function AdminBanners() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
       setShowDialog(false);
-      setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0 });
+      setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0, country_code: 'KR' });
     }
   });
 
@@ -57,7 +73,7 @@ export default function AdminBanners() {
       queryClient.invalidateQueries({ queryKey: ['bannerAds'] });
       setShowDialog(false);
       setEditingBannerId(null);
-      setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0 });
+      setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0, country_code: 'KR' });
     }
   });
 
@@ -81,7 +97,7 @@ export default function AdminBanners() {
       const { file_url } = await UploadFile({
         file: compressed,
         kind: 'banner',
-        countryCode: activeCountry.countryCode,
+        countryCode: normalizeBannerCountryCode(formData.country_code),
         bannerId: editingBannerId || draftBannerKeyRef.current,
       });
       setFormData({ ...formData, image_url: file_url });
@@ -101,7 +117,7 @@ export default function AdminBanners() {
 
   const openAddDialog = () => {
     setEditingBannerId(null);
-    setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0 });
+    setFormData({ image_url: '', link: '#', title: '', is_active: true, order: 0, country_code: 'KR' });
     setShowDialog(true);
   };
 
@@ -111,7 +127,10 @@ export default function AdminBanners() {
       link: banner.link || '#',
       title: banner.title || '',
       is_active: banner.is_active ?? true,
-      order: banner.order ?? 0
+      order: banner.order ?? 0,
+      // Existing banners (pre-multi-country) have no country_code — treat
+      // as KR so editing/saving them doesn't silently change their scope.
+      country_code: normalizeBannerCountryCode(banner.country_code)
     });
     setEditingBannerId(banner.id);
     setShowDialog(true);
@@ -239,6 +258,25 @@ export default function AdminBanners() {
                     />
                   </div>
 
+                  <div>
+                    <Label htmlFor="banner-country">Харагдах зах зээл</Label>
+                    <CountrySelect
+                      value={formData.country_code}
+                      onValueChange={(value) => setFormData({ ...formData, country_code: value })}
+                    >
+                      <CountrySelectTrigger id="banner-country" className="mt-2">
+                        <CountrySelectValue placeholder="Сонгох" />
+                      </CountrySelectTrigger>
+                      <CountrySelectContent>
+                        {BANNER_COUNTRY_OPTIONS.map((opt) => (
+                          <CountrySelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </CountrySelectItem>
+                        ))}
+                      </CountrySelectContent>
+                    </CountrySelect>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <Label>Идэвхтэй</Label>
                     <Switch
@@ -299,6 +337,9 @@ export default function AdminBanners() {
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${banner.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                         {banner.is_active ? 'Идэвхтэй' : 'Идэвхгүй'}
+                      </span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                        {normalizeBannerCountryCode(banner.country_code)}
                       </span>
                       <span className="text-xs text-gray-400">Дараалал: {banner.order}</span>
                     </div>
