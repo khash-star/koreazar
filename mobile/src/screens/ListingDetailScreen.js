@@ -25,6 +25,7 @@ import {
 import { findSavedDocId, removeSaved, saveListing } from "../services/savedListingService";
 import { createListingReport } from "../services/listingReportService";
 import { getListingImageUrl } from "../utils/imageUrl";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { toDate } from "../utils/firestoreDates";
 import { conditionLabels } from "../constants/listings";
 import { useAuth } from "../context/AuthContext.js";
@@ -275,11 +276,11 @@ export default function ListingDetailScreen({ route, navigation }) {
     setImageLightboxOpen(false);
   }
 
-  const formatPrice = () => {
-    if (!listing.price) return "Үнэ тохирно";
-    const n = Number(listing.price);
-    return `₩${n.toLocaleString("ko-KR")}${listing.is_negotiable ? " (тохирно)" : ""}`;
-  };
+  const formatPrice = () =>
+    formatListingPrice(listing.price, {
+      negotiable: listing.is_negotiable,
+      countryCode: listing.country_code,
+    });
 
   const created = toDate(listing.created_date);
 
@@ -643,9 +644,7 @@ export default function ListingDetailScreen({ route, navigation }) {
               {relatedListings.map((item) => {
                 const first = item.images?.[0];
                 const uri = first ? getListingImageUrl(first, "w400") : "";
-                const priceText = item.price
-                  ? `₩${Number(item.price).toLocaleString("ko-KR")}`
-                  : "Үнэ тохирно";
+                const priceText = formatListingPrice(item.price, { countryCode: item.country_code });
                 return (
                   <Pressable
                     key={item.id}

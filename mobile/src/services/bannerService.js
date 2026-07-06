@@ -1,15 +1,20 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { getActiveMobileCountryCode } from "../config/country";
+import { isBannerVisibleForCountry } from "../utils/bannerCountry";
 
 /**
  * Идэвхтэй баннерууд — вэбийн BannerAd.filter({ is_active: true })-тай ижил.
  * orderBy-гүй (composite index шаардлагагүй), client-side эрэмбэ.
  */
 export async function getActiveBannerAds() {
+  const marketCode = getActiveMobileCountryCode();
   const ref = collection(db, "banner_ads");
   const q = query(ref, where("is_active", "==", true));
   const snap = await getDocs(q);
-  const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const rows = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((banner) => isBannerVisibleForCountry(banner, marketCode));
   rows.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
   return rows;
 }

@@ -1,4 +1,6 @@
 /** Keep in sync with src/utils/storagePaths.js (web). */
+import { getActiveMobileCountryCode } from "../config/country";
+
 export const STORAGE_COUNTRY_CODES = ["KR", "US", "JP"];
 export const DEFAULT_STORAGE_COUNTRY_CODE = "KR";
 
@@ -71,8 +73,7 @@ export function resolveUploadStoragePathFromParts({
   return buildListingImageStoragePath({ countryCode, listingId, variant, extension });
 }
 
-/** Mobile default market until per-app EXPO_PUBLIC_ACTIVE_COUNTRY is wired. */
+/** Active market for uploads and new listings (EXPO_PUBLIC_ACTIVE_COUNTRY). */
 export function defaultMobileStorageCountryCode() {
-  const envCode = String(process.env.EXPO_PUBLIC_ACTIVE_COUNTRY || "").trim().toUpperCase();
-  return normalizeStorageCountryCode(envCode || DEFAULT_STORAGE_COUNTRY_CODE);
+  return normalizeStorageCountryCode(getActiveMobileCountryCode());
 }

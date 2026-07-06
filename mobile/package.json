@@ -16,7 +16,11 @@
     "release:ios": "npx eas-cli build --profile production --platform ios",
     "release:android": "npx eas-cli build --profile production --platform android",
     "release:submit:ios": "npx eas-cli submit --profile production --platform ios --latest",
-    "release:submit:android": "npx eas-cli submit --profile production --platform android --latest"
+    "release:submit:android": "npx eas-cli submit --profile production --platform android --latest",
+    "release:android:us": "npx eas-cli build --profile production-us --platform android",
+    "release:ios:us": "npx eas-cli build --profile production-us --platform ios",
+    "submit:android:us": "npx eas-cli submit --profile production-us --platform android --latest",
+    "submit:ios:us": "npx eas-cli submit --profile production-us --platform ios --latest"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

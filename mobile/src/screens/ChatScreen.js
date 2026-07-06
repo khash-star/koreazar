@@ -43,6 +43,7 @@ import {
   isSellerBlockedByViewer,
 } from "../services/userProfileService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
 import { normalizeEmail, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
@@ -491,7 +492,9 @@ export default function ChatScreen({ route, navigation }) {
                 {listing.title}
               </Text>
               {listing.price != null ? (
-                <Text style={styles.listingPrice}>₩{Number(listing.price).toLocaleString("ko-KR")}</Text>
+                <Text style={styles.listingPrice}>
+                  {formatListingPrice(listing.price, { countryCode: listing.country_code })}
+                </Text>
               ) : null}
             </View>
           </View>
