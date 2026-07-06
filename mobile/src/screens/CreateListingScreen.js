@@ -22,6 +22,9 @@ import { uploadImageFromUri } from "../services/storageService";
 import {
   defaultMobileStorageCountryCode,
 } from "../utils/storagePaths";
+import { isUsMobileMarket } from "../config/country.js";
+import { activeCurrencySymbol } from "../utils/formatPrice.js";
+import { US_STATE_CODES, formatUsStateLabel } from "../constants/usStates.js";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
 const conditionOptions = _conditionOptions ?? [
@@ -56,6 +59,8 @@ function formatPriceWithGrouping(value) {
 
 export default function CreateListingScreen({ navigation }) {
   const route = useRoute();
+  const isUsMarket = isUsMobileMarket();
+  const currencySymbol = activeCurrencySymbol();
   const editListingId =
     route.params?.listingId != null && String(route.params.listingId).trim() !== ""
       ? String(route.params.listingId).trim()
@@ -84,6 +89,7 @@ export default function CreateListingScreen({ navigation }) {
       price: "",
       is_negotiable: true,
       location: "",
+      state_code: "",
       contact_name: lockedName,
       phone: lockedPhone,
       kakao_id: "",
@@ -144,6 +150,7 @@ export default function CreateListingScreen({ navigation }) {
               : String(listing.price ?? "").replace(/\D/g, ""),
           is_negotiable: listing.is_negotiable === false || listing.is_negotiable === 0 ? false : true,
           location: listing.location || "",
+          state_code: listing.state_code || "",
           contact_name: lockedName || "",
           phone: lockedPhone || listingPhone,
           kakao_id: listing.kakao_id || "",
@@ -240,7 +247,11 @@ export default function CreateListingScreen({ navigation }) {
     const isFreeCategory = form.category === "free";
     const priceNum = isFreeCategory ? 0 : Number(form.price?.replace(/\D/g, "")) || 0;
     if (!isFreeCategory && priceNum <= 0) {
-      showAlert("Алдаа", "Үнэ оруулна уу (₩).");
+      showAlert("Алдаа", `Үнэ оруулна уу (${currencySymbol}).`);
+      return;
+    }
+    if (isUsMarket && !form.state_code) {
+      showAlert("Алдаа", "Муж сонгоно уу.");
       return;
     }
     if (images.length === 0) {
@@ -271,7 +282,8 @@ export default function CreateListingScreen({ navigation }) {
           condition: form.condition,
           price: priceNum,
           is_negotiable: form.is_negotiable,
-          location: form.location || "",
+          location: isUsMarket ? "" : form.location || "",
+          state_code: isUsMarket ? form.state_code || "" : "",
           phone: phoneForListing,
           kakao_id: form.kakao_id || "",
           wechat_id: form.wechat_id || "",
@@ -302,12 +314,16 @@ export default function CreateListingScreen({ navigation }) {
     submittingRef.current = true;
     setLoading(true);
     try {
+      const marketCode = defaultMobileStorageCountryCode();
       const submitData = {
         ...form,
         contact_name: lockedName,
         phone: phoneForListing,
         price: priceNum,
         images,
+        country_code: marketCode,
+        location: isUsMarket ? "" : form.location || "",
+        state_code: isUsMarket ? form.state_code || "" : "",
         status: autoApprove ? "active" : "pending",
       };
       await createListing(submitData, { timeoutMs: 20000 });
@@ -470,7 +486,7 @@ export default function CreateListingScreen({ navigation }) {
         {/* Price - hidden for free category */}
         {form.category !== "free" && (
           <View style={styles.section}>
-            <Text style={styles.label}>Үнэ (₩) *</Text>
+            <Text style={styles.label}>Үнэ ({currencySymbol}) *</Text>
             <TextInput
               style={styles.input}
               value={formatPriceWithGrouping(form.price)}
@@ -486,19 +502,26 @@ export default function CreateListingScreen({ navigation }) {
           </View>
         )}
 
-        {/* Location */}
+        {/* Location / US state */}
         <View style={styles.section}>
-          <Text style={styles.label}>Байршил</Text>
+          <Text style={styles.label}>{isUsMarket ? "Муж *" : "Байршил"}</Text>
           <View style={styles.chipRowWrap}>
-            {locations.map((loc) => (
-              <Pressable
-                key={loc}
-                style={[styles.chip, styles.chipSmall, form.location === loc && styles.chipActive]}
-                onPress={() => update("location", loc)}
-              >
-                <Text style={[styles.chipText, form.location === loc && styles.chipTextActive]}>{loc}</Text>
-              </Pressable>
-            ))}
+            {(isUsMarket ? US_STATE_CODES : locations).map((loc) => {
+              const value = isUsMarket ? loc : loc;
+              const label = isUsMarket ? formatUsStateLabel(loc) : loc;
+              const selected = isUsMarket ? form.state_code === loc : form.location === loc;
+              const onSelect = () =>
+                isUsMarket ? update("state_code", loc) : update("location", loc);
+              return (
+                <Pressable
+                  key={value}
+                  style={[styles.chip, styles.chipSmall, selected && styles.chipActive]}
+                  onPress={onSelect}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Animated, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { getListingImageUrl } from "../../utils/imageUrl";
+import { formatListingPrice } from "../../utils/formatPrice.js";
 import { openExternalUrlSafe } from "../../utils/safeLinking";
 
 const ITEM_W = 300;
@@ -104,7 +105,9 @@ export default function MarqueeStrip({ banners, vipListings, onPressListing }) {
                       {item.data.title}
                     </Text>
                     <Text style={styles.vipPrice}>
-                      {item.data.price != null ? `${Number(item.data.price).toLocaleString("ko-KR")}₩` : ""}
+                      {item.data.price != null
+                        ? formatListingPrice(item.data.price, { countryCode: item.data.country_code })
+                        : ""}
                     </Text>
                   </View>
                 </Pressable>

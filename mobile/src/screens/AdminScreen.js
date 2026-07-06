@@ -29,6 +29,7 @@ import {
 } from "../services/listingService";
 import { getUnreadMessagesCount } from "../services/conversationService";
 import { getListingImageUrl } from "../utils/imageUrl";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { getBottomTabNavigator, navigateToHomeListing } from "../utils/navigationHelpers";
@@ -492,9 +493,8 @@ export default function AdminScreen({ navigation }) {
                   {item.title || "Гарчиггүй"}
                 </Text>
                 <Text style={styles.price}>
-                  {item.price
-                    ? `₩${Number(item.price).toLocaleString("ko-KR")}`
-                    : "Үнэ тохирно"}
+                  {formatListingPrice(item.price, { countryCode: item.country_code })}
+                </Text>
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />

@@ -18,6 +18,7 @@ import {
   updateListing,
 } from "../services/listingService";
 import { getListingImageUrl } from "../utils/imageUrl";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
 import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
@@ -267,7 +268,7 @@ export default function AdminAllListingsScreen({ navigation }) {
                   {badge ? <Text style={styles.typeBadge}>{badge}</Text> : null}
                 </View>
                 <Text style={styles.price}>
-                  {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                  {formatListingPrice(item.price, { countryCode: item.country_code })}
                 </Text>
               </View>
             </Pressable>

@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { useFocusEffect } from "@react-navigation/native";
 import { deleteListing, getPendingListings, updateListing } from "../services/listingService";
 import { getListingImageUrl } from "../utils/imageUrl";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
 import { notifyListingBadgeRefresh } from "../utils/listingBadgeEvents.js";
@@ -91,7 +92,7 @@ export default function AdminNewListingsScreen({ navigation }) {
                   {item.title || "Гарчиггүй"}
                 </Text>
                 <Text style={styles.price}>
-                  {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                  {formatListingPrice(item.price, { countryCode: item.country_code })}
                 </Text>
               </View>
             </Pressable>

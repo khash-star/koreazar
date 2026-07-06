@@ -24,6 +24,7 @@ import {
   syncAppIconBadgeFromUnreadCount,
 } from "../utils/appIconBadge.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
+import { getActiveMobileCountry } from "../config/country.js";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
 import LoginScreen from "../screens/LoginScreen.js";
@@ -185,7 +186,11 @@ function HomeStackNavigator() {
         headerShadowVisible: true,
       }}
     >
-      <HomeStack.Screen name="HomeMain" component={HomeScreen} options={{ title: "ZARKOREA.COM" }} />
+      <HomeStack.Screen
+        name="HomeMain"
+        component={HomeScreen}
+        options={{ title: getActiveMobileCountry().homeHeaderTitle }}
+      />
       <HomeStack.Screen
         name="ListingDetail"
         component={ListingDetailScreen}

@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { getListingImageUrl } from "../../utils/imageUrl";
+import { formatListingPrice } from "../../utils/formatPrice.js";
 
 const CARD_W = 260;
 const IMG_H = 140;
@@ -45,7 +46,7 @@ export default function FeaturedStrip({ listings, onPressListing }) {
                   {item.title}
                 </Text>
                 <Text style={styles.price}>
-                  {item.price != null ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                  {formatListingPrice(item.price, { countryCode: item.country_code })}
                 </Text>
               </View>
             </Pressable>

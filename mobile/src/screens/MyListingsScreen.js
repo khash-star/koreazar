@@ -20,6 +20,7 @@ import {
   updateListing,
 } from "../services/listingService.js";
 import { getListingImageUrl } from "../utils/imageUrl.js";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import {
   navigateToLogin,
   navigateToCreateListing,
@@ -257,7 +258,7 @@ export default function MyListingsScreen({ navigation }) {
                   {item.title || "Гарчиггүй"}
                 </Text>
                 <Text style={styles.price}>
-                  {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                  {formatListingPrice(item.price, { countryCode: item.country_code })}
                 </Text>
                 <View style={[styles.badge, item.status === "pending" && styles.badgePending]}>
                   <Text style={styles.badgeText}>{status}</Text>

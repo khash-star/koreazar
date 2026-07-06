@@ -14,6 +14,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext.js";
 import { getSavedListingsWithDetails, removeSaved } from "../services/savedListingService";
 import { getListingImageUrl } from "../utils/imageUrl";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
 
@@ -119,7 +120,7 @@ export default function SavedListingsScreen({ navigation }) {
                   {listing.title}
                 </Text>
                 <Text style={styles.price}>
-                  {listing.price ? `₩${Number(listing.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+                  {formatListingPrice(listing.price, { countryCode: listing.country_code })}
                 </Text>
               </View>
             </Pressable>

@@ -20,6 +20,12 @@
         "buildType": "app-bundle",
         "credentialsSource": "local"
       }
+    },
+    "production-us": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_ACTIVE_COUNTRY": "US"
+      }
     }
   },
   "submit": {
@@ -29,6 +35,15 @@
       },
       "ios": {
         "bundleIdentifier": "com.zarkorea.twa"
+      }
+    },
+    "production-us": {
+      "android": {
+        "serviceAccountKeyPath": "./play-service-account.json",
+        "applicationId": "com.zarusa.app"
+      },
+      "ios": {
+        "bundleIdentifier": "com.zarusa.app"
       }
     }
   }

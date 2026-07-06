@@ -22,6 +22,7 @@ import { getLatestListings } from "../services/listingService";
 import { logout } from "../services/authService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { useAuth } from "../context/AuthContext.js";
+import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToLogin } from "../utils/navigationHelpers.js";
 
 const GAP = 12;
@@ -66,7 +67,7 @@ const ListingItem = React.memo(function ListingItem({ item, onPress, cardWidth }
         </Text>
         <Text style={styles.cardSub}>{item.location || ""}</Text>
         <Text style={styles.cardPrice}>
-          {item.price ? `₩${Number(item.price).toLocaleString("ko-KR")}` : "Үнэ тохирно"}
+          {formatListingPrice(item.price, { countryCode: item.country_code })}
         </Text>
       </View>
     </Pressable>
