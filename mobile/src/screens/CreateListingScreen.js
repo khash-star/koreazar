@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRoute } from "@react-navigation/native";
 import {
   ActivityIndicator,
@@ -23,8 +23,10 @@ import {
   defaultMobileStorageCountryCode,
 } from "../utils/storagePaths";
 import { isUsMobileMarket } from "../config/country.js";
+import { getActiveMobileRegionCode } from "../config/region.js";
+import { getActiveUsRegionStateCodes } from "../config/regions/us.js";
 import { activeCurrencySymbol } from "../utils/formatPrice.js";
-import { US_STATE_CODES, formatUsStateLabel } from "../constants/usStates.js";
+import { formatUsStateLabel } from "../constants/usStates.js";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
 const conditionOptions = _conditionOptions ?? [
@@ -60,6 +62,12 @@ function formatPriceWithGrouping(value) {
 export default function CreateListingScreen({ navigation }) {
   const route = useRoute();
   const isUsMarket = isUsMobileMarket();
+  const usRegionCode = isUsMarket ? getActiveMobileRegionCode() : null;
+  const usStateCodes = isUsMarket && usRegionCode ? getActiveUsRegionStateCodes(usRegionCode) : [];
+  const sortedUsStateCodes = useMemo(
+    () => [...usStateCodes].sort((a, b) => formatUsStateLabel(a).localeCompare(formatUsStateLabel(b))),
+    [usStateCodes]
+  );
   const currencySymbol = activeCurrencySymbol();
   const editListingId =
     route.params?.listingId != null && String(route.params.listingId).trim() !== ""
@@ -324,6 +332,7 @@ export default function CreateListingScreen({ navigation }) {
         country_code: marketCode,
         location: isUsMarket ? "" : form.location || "",
         state_code: isUsMarket ? form.state_code || "" : "",
+        region_code: isUsMarket ? usRegionCode || "" : "",
         status: autoApprove ? "active" : "pending",
       };
       await createListing(submitData, { timeoutMs: 20000 });
@@ -506,7 +515,7 @@ export default function CreateListingScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.label}>{isUsMarket ? "Муж *" : "Байршил"}</Text>
           <View style={styles.chipRowWrap}>
-            {(isUsMarket ? US_STATE_CODES : locations).map((loc) => {
+            {(isUsMarket ? sortedUsStateCodes : locations).map((loc) => {
               const value = isUsMarket ? loc : loc;
               const label = isUsMarket ? formatUsStateLabel(loc) : loc;
               const selected = isUsMarket ? form.state_code === loc : form.location === loc;

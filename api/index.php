@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/banned_content.php';
+require __DIR__ . '/regions.php';
 
 /**
  * MySQL column names in SET must be quoted when reserved (`condition`, `status`, …).
@@ -142,6 +143,7 @@ try {
                 $status = isset($_GET['status']) ? trim((string) $_GET['status']) : 'active';
                 $countryCode = isset($_GET['country_code']) ? normalize_listing_country_code((string) $_GET['country_code']) : '';
                 $stateCode = isset($_GET['state_code']) ? normalize_listing_state_code((string) $_GET['state_code']) : '';
+                $regionCode = isset($_GET['region_code']) ? normalize_listing_region_code((string) $_GET['region_code']) : '';
                 $limit = isset($_GET['limit']) ? max(1, min(100, (int) $_GET['limit'])) : 50;
 
                 $sql = 'SELECT * FROM listings WHERE 1=1';
@@ -182,6 +184,9 @@ try {
                 if ($stateCode !== '' && table_has($pdo, 'listings', 'state_code')) {
                     $sql .= ' AND state_code = :state_code';
                     $params[':state_code'] = $stateCode;
+                }
+                if ($countryCode === 'US') {
+                    append_us_region_read_filter($pdo, $sql, $params, $countryCode, $regionCode);
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -252,14 +257,16 @@ try {
                 } else {
                     unset($payload['state_code']);
                 }
+                $hasRegionCode = table_has($pdo, 'listings', 'region_code');
+                enforce_us_listing_write_region($pdo, $payload);
 
                 $sql = 'INSERT INTO listings (
                     firebase_uid, ' . ($hasListingCustomerId ? 'customer_id, ' : '') . 'created_by, category, subcategory, title, description, price, is_negotiable,
-                    `condition`, status, listing_type, listing_type_expires, location, ' . ($hasCountryCode ? 'country_code, ' : '') . ($hasStateCode ? 'state_code, ' : '') . 'phone, kakao_id, wechat_id,
+                    `condition`, status, listing_type, listing_type_expires, location, ' . ($hasCountryCode ? 'country_code, ' : '') . ($hasStateCode ? 'state_code, ' : '') . ($hasRegionCode ? 'region_code, ' : '') . 'phone, kakao_id, wechat_id,
                     whatsapp, facebook, views, images
                 ) VALUES (
                     :firebase_uid, ' . ($hasListingCustomerId ? ':customer_id, ' : '') . ':created_by, :category, :subcategory, :title, :description, :price, :is_negotiable,
-                    :condition, :status, :listing_type, :listing_type_expires, :location, ' . ($hasCountryCode ? ':country_code, ' : '') . ($hasStateCode ? ':state_code, ' : '') . ':phone, :kakao_id, :wechat_id,
+                    :condition, :status, :listing_type, :listing_type_expires, :location, ' . ($hasCountryCode ? ':country_code, ' : '') . ($hasStateCode ? ':state_code, ' : '') . ($hasRegionCode ? ':region_code, ' : '') . ':phone, :kakao_id, :wechat_id,
                     :whatsapp, :facebook, :views, :images
                 )';
 
@@ -292,6 +299,7 @@ try {
                     echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
                     break;
                 }
+                enforce_us_listing_row_visible($pdo, $row);
                 echo json_encode(['data' => map_listing_row($row)], JSON_UNESCAPED_UNICODE);
                 break;
             }
@@ -313,9 +321,17 @@ try {
                 if (!table_has($pdo, 'listings', 'state_code')) {
                     unset($payload['state_code']);
                 }
+                unset($payload['region_code']);
+                $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
+                if (!$isViewOnlyPayload) {
+                    $mergedForRegion = array_merge($existing, $payload);
+                    enforce_us_listing_write_region($pdo, $mergedForRegion);
+                    if (table_has($pdo, 'listings', 'region_code') && isset($mergedForRegion['region_code'])) {
+                        $payload['region_code'] = $mergedForRegion['region_code'];
+                    }
+                }
 
                 // Allow public, view-only increment used by listing detail page.
-                $isViewOnlyPayload = count($payload) === 1 && array_key_exists('views', $payload);
                 $existingViews = isset($existing['views']) ? (int) $existing['views'] : 0;
                 $requestedViews = isset($payload['views']) ? (int) $payload['views'] : $existingViews;
                 if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
@@ -385,11 +401,31 @@ try {
             upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body);
             $customerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
             $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
+            $homeMarket = get_user_home_market_by_firebase_uid($pdo, $authUser['uid']);
             echo json_encode([
                 'ok' => true,
                 'uid' => $authUser['uid'],
                 'email' => $resolvedEmail ?? $authUser['email'],
                 'customer_id' => $customerId,
+                'home_country_code' => $homeMarket['home_country_code'],
+                'home_region_code' => $homeMarket['home_region_code'],
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
+        case 'invite_redeem':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=invite_redeem'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $authUser = require_firebase_user();
+            $body = read_json_body();
+            $code = isset($body['code']) ? (string) $body['code'] : '';
+            $home = redeem_invite_code($pdo, $authUser['uid'], $code);
+            echo json_encode([
+                'ok' => true,
+                'home_country_code' => $home['home_country_code'],
+                'home_region_code' => $home['home_region_code'],
             ], JSON_UNESCAPED_UNICODE);
             break;
 
@@ -1083,7 +1119,7 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
         if ($district === '') $district = null;
 
-        upsert_user_best_effort($pdo, $firebaseUid, $emailForDb);
+        upsert_user_best_effort($pdo, $firebaseUid, $email);
 
         if (!table_has($pdo, 'users', 'firebase_uid')) {
             return;
@@ -1096,9 +1132,9 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
 
         $set = [];
         $params = [':id' => $id];
-        if (table_has($pdo, 'users', 'email') && $emailForDb !== null && $emailForDb !== '') {
+        if (table_has($pdo, 'users', 'email') && $email !== null && $email !== '') {
             $set[] = 'email = :email';
-            $params[':email'] = $emailForDb;
+            $params[':email'] = $email;
         }
         if (table_has($pdo, 'users', 'display_name') && $displayName !== null) {
             $set[] = 'display_name = :display_name';

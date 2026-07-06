@@ -1,9 +1,24 @@
 import { auth } from "../config/firebase";
-import { getActiveMobileCountryCode } from "../config/country";
+import { getActiveMobileCountryCode, isUsMobileMarket } from "../config/country";
+import { getActiveMobileRegionCode } from "../config/region.js";
 import { toDate } from "../utils/firestoreDates";
 import { buildApiUrl, requestJson } from "./apiClient";
 
-const TYPE_ORDER = { vip: 0, featured: 1, regular: 2 };
+function buildMarketListingsParams(extra = {}) {
+  const marketCode = getActiveMobileCountryCode();
+  const params = { country_code: marketCode, ...extra };
+  if (isUsMobileMarket()) {
+    const regionCode = getActiveMobileRegionCode();
+    if (regionCode) params.region_code = regionCode;
+  }
+  return params;
+}
+
+function marketListingsCacheKey(suffix) {
+  const marketCode = getActiveMobileCountryCode();
+  const regionCode = isUsMobileMarket() ? getActiveMobileRegionCode() : "";
+  return `${suffix}:${marketCode}:${regionCode || "-"}`;
+}
 
 /** MySQL зарын primary key — буруу/хоосон id-ээр ?action=listing дуудахад API 400 өгнө */
 export function parseMysqlListingId(raw) {
@@ -71,6 +86,7 @@ function normalizeListing(item) {
     customer_id: cid != null && cid !== "" ? Number(cid) : undefined,
     country_code: countryCode,
     state_code: item.state_code ? String(item.state_code).trim().toUpperCase() : null,
+    region_code: item.region_code ? String(item.region_code).trim().toLowerCase() : null,
     images: normalizeImages(item.images),
     created_date: toDate(item.created_date) || item.created_date,
     updated_date: toDate(item.updated_date) || item.updated_date,
@@ -101,8 +117,7 @@ function sortHomeListings(listings) {
 
 export async function getLatestListings(limitCount = 50) {
   const safeLimit = Math.min(limitCount, 100);
-  const marketCode = getActiveMobileCountryCode();
-  const cacheKey = `active:${marketCode}:${safeLimit}`;
+  const cacheKey = marketListingsCacheKey(`active:${safeLimit}`);
   const now = Date.now();
   if (
     latestListingsCache.data &&
@@ -117,7 +132,7 @@ export async function getLatestListings(limitCount = 50) {
   latestListingsCache.key = cacheKey;
   latestListingsCache.pending = (async () => {
     const payload = await requestJson(
-      buildApiUrl("listings", { status: "active", limit: safeLimit, country_code: marketCode }),
+      buildApiUrl("listings", buildMarketListingsParams({ status: "active", limit: safeLimit })),
       { retries: 1 }
     );
     const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
@@ -328,9 +343,8 @@ export async function deleteListing(id) {
 }
 
 export async function getPendingListingsCount() {
-  const marketCode = getActiveMobileCountryCode();
   const payload = await requestJson(
-    buildApiUrl("listings", { status: "pending", limit: 500, country_code: marketCode }),
+    buildApiUrl("listings", buildMarketListingsParams({ status: "pending", limit: 500 })),
     { retries: 1 }
   );
   return (payload?.data || []).length;
@@ -348,13 +362,14 @@ export async function getCreatorPendingListingsCount(email, customerId) {
 }
 
 export async function getPendingListings(limitCount = 100) {
-  const marketCode = getActiveMobileCountryCode();
   const payload = await requestJson(
-    buildApiUrl("listings", {
-      status: "pending",
-      limit: Math.min(limitCount, 200),
-      country_code: marketCode,
-    }),
+    buildApiUrl(
+      "listings",
+      buildMarketListingsParams({
+        status: "pending",
+        limit: Math.min(limitCount, 200),
+      })
+    ),
     { retries: 1 }
   );
   return (payload?.data || []).map(normalizeListing).filter(Boolean);
