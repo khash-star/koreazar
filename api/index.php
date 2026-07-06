@@ -163,13 +163,21 @@ try {
                     $sql .= ' AND LOWER(created_by) = LOWER(:created_by)';
                     $params[':created_by'] = $createdBy;
                 }
-                if ($customerIdFilter > 0 && table_has($pdo, 'listings', 'customer_id')) {
-                    $sql .= ' AND customer_id = :customer_id';
-                    $params[':customer_id'] = $customerIdFilter;
+                if ($customerIdFilter > 0) {
+                    if (table_has($pdo, 'listings', 'customer_id')) {
+                        $sql .= ' AND customer_id = :customer_id';
+                        $params[':customer_id'] = $customerIdFilter;
+                    } else {
+                        $sql .= ' AND 1 = 0';
+                    }
                 }
-                if ($firebaseUidFilter !== '' && table_has($pdo, 'listings', 'firebase_uid')) {
-                    $sql .= ' AND firebase_uid = :firebase_uid';
-                    $params[':firebase_uid'] = $firebaseUidFilter;
+                if ($firebaseUidFilter !== '') {
+                    if (table_has($pdo, 'listings', 'firebase_uid')) {
+                        $sql .= ' AND firebase_uid = :firebase_uid';
+                        $params[':firebase_uid'] = $firebaseUidFilter;
+                    } else {
+                        $sql .= ' AND 1 = 0';
+                    }
                 }
                 if ($countryCode !== '' && table_has($pdo, 'listings', 'country_code')) {
                     if ($countryCode === 'KR') {
@@ -1083,6 +1091,11 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
         if ($district === '') $district = null;
 
+        $emailForDb = resolve_auth_email_for_listing($pdo, [
+            'uid' => $firebaseUid,
+            'email' => $email,
+            'phoneNumber' => $phone,
+        ]);
         upsert_user_best_effort($pdo, $firebaseUid, $emailForDb);
 
         if (!table_has($pdo, 'users', 'firebase_uid')) {
