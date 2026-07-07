@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { fetchSavedListingsResolved, sameListingSaveId } from '@/services/savedListingsResolve';
 import { toast } from '@/components/ui/use-toast';
+import { formatListingPrice } from '@/utils/formatPrice';
 
 export default function ListingCard({ listing, isAboveFold = false }) {
   const queryClient = useQueryClient();
@@ -67,19 +68,15 @@ export default function ListingCard({ listing, isAboveFold = false }) {
     saveMutation.mutate(isSaved ? 'unsave' : 'save');
   };
   
+  const listingCountryCode = listing.country_code || activeCountry.countryCode;
+  const listingUrl = listing.id ? createCountryPageUrl(`ListingDetail?id=${listing.id}`, countryPrefix) : '#';
+
   const getSubcategoryLabel = () => {
     if (!listing.subcategory || !listing.category) return null;
     const subcats = subcategoryConfig[listing.category] || [];
     const subcat = subcats.find(s => s.value === listing.subcategory);
     return subcat?.label;
   };
-  
-  const formatPrice = (price) => {
-    if (!price) return 'Үнэ тохирно';
-    return '₩' + new Intl.NumberFormat('ko-KR').format(price);
-  };
-
-  const listingUrl = listing.id ? createCountryPageUrl(`ListingDetail?id=${listing.id}`, countryPrefix) : '#';
 
   return (
     <Link to={listingUrl}>
@@ -176,7 +173,7 @@ export default function ListingCard({ listing, isAboveFold = false }) {
           </div>
           
           <p className="text-xl font-bold text-amber-600 mt-1 leading-tight">
-            {formatPrice(listing.price)}
+            {formatListingPrice(listing.price, { countryCode: listingCountryCode })}
             {listing.is_negotiable && <span className="text-sm font-normal text-gray-500 ml-1">тохирно</span>}
           </p>
           

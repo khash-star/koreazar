@@ -23,6 +23,7 @@ import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry'
 import CountrySelector from '@/components/CountrySelector';
 import { isCountryEnabled } from '@/config/country';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
+import { formatListingPrice } from '@/utils/formatPrice';
 import { isBannerVisibleForCountry } from '@/utils/bannerCountry';
 
 export default function Home() {
@@ -336,10 +337,10 @@ export default function Home() {
           <div className="flex-1 text-center">
             <h1 className="text-sm md:text-lg font-bold tracking-wide">
               <span className="sr-only">{activeCountry.appName} — </span>
-              🇲🇳 СОЛОНГОС ДАХЬ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ
+              {activeCountry.marketNavbarTitle}
             </h1>
             <p className="sr-only">
-              {activeCountry.appName}, {activeCountry.appName} app, {activeCountry.appName} Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.
+              {activeCountry.marketSeoBlurb}
             </p>
           </div>
           {!(user || userData) ? (
@@ -671,7 +672,9 @@ export default function Home() {
                       </div>
                       <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
                         <h3 className="font-bold text-lg mb-1 line-clamp-1">{item.title}</h3>
-                        <p className="text-xl font-bold">{item.price?.toLocaleString()}₩</p>
+                        <p className="text-xl font-bold">
+                          {formatListingPrice(item.price, { countryCode: item.country_code || marketCountryCode })}
+                        </p>
                       </div>
                     </div>
                   </Link>

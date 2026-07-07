@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { createCountryPageUrl } from '@/utils';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { formatListingPrice } from '@/utils/formatPrice';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { format } from 'date-fns';
 import { mn } from 'date-fns/locale';
@@ -242,10 +243,7 @@ export default function ListingDetail() {
     };
   }, [listing?.id, listing?.title, listing?.description]);
 
-  const formatPrice = (price) => {
-    if (!price) return 'Үнэ тохирно';
-    return '₩' + new Intl.NumberFormat('ko-KR').format(price);
-  };
+  const listingCountryCode = listing?.country_code || activeCountry.countryCode;
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
@@ -600,7 +598,7 @@ export default function ListingDetail() {
             {/* Price */}
             <div className="flex items-baseline gap-2 mb-6">
               <span className="text-3xl md:text-4xl font-bold text-amber-600">
-                {formatPrice(listing.price)}
+                {formatListingPrice(listing.price, { countryCode: listingCountryCode })}
               </span>
               {listing.is_negotiable && (
                 <span className="text-gray-500">тохирно</span>

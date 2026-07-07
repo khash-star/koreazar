@@ -25,6 +25,8 @@ export const jp = {
     address: 'Хаяг',
   },
   defaultRoutePrefix: '/jp',
+  marketNavbarTitle: '🇲🇳 ЯПОН ДАХЬ 🇯🇵 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
+  marketSeoBlurb: 'Zarjapan — Япон дахь Монголчуудын зарын сайт.',
 };
 
 export default jp;

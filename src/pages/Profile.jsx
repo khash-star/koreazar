@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
+import { formatListingPrice } from '@/utils/formatPrice';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -113,10 +114,8 @@ export default function Profile() {
     }
   });
 
-  const formatPrice = (price) => {
-    if (!price) return 'Үнэ тохирно';
-    return '₩' + new Intl.NumberFormat('ko-KR').format(price);
-  };
+  const formatPrice = (price, countryCode) =>
+    formatListingPrice(price, { countryCode: countryCode || activeCountry.countryCode });
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -531,7 +530,7 @@ export default function Profile() {
                           </div>
 
                           <p className="text-xl font-bold text-amber-600 mt-2">
-                            {formatPrice(listing.price)}
+                            {formatPrice(listing.price, listing.country_code)}
                           </p>
 
                           <div className="flex items-center gap-2 mt-2">

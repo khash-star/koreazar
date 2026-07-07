@@ -30,6 +30,7 @@ import { categoryInfo } from '@/components/listings/CategoryCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
+import { formatListingPrice } from '@/utils/formatPrice';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -107,10 +108,8 @@ export default function MyListings() {
     }
   });
 
-  const formatPrice = (price) => {
-    if (!price) return 'Үнэ тохирно';
-    return '₩' + new Intl.NumberFormat('ko-KR').format(price);
-  };
+  const formatPrice = (price, countryCode) =>
+    formatListingPrice(price, { countryCode: countryCode || activeCountry.countryCode });
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -291,7 +290,7 @@ export default function MyListings() {
                       </div>
 
                       <p className="text-lg font-bold text-amber-600 mt-1">
-                        {formatPrice(listing.price)}
+                        {formatPrice(listing.price, listing.country_code)}
                       </p>
 
                       <div className="flex items-center gap-2 mt-2 flex-wrap">

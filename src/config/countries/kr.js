@@ -28,6 +28,9 @@ export const kr = {
     address: 'Хаяг',
   },
   defaultRoutePrefix: '/kr',
+  marketNavbarTitle: '🇲🇳 СОЛОНГОС ДАХЬ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
+  marketSeoBlurb:
+    'Zarkorea, Zarkorea app, Zarkorea Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.',
 };
 
 export default kr;

@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createCountryPageUrl } from '@/utils';
 import { getListingImageUrl } from '@/utils/imageUrl';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { formatListingPrice } from '@/utils/formatPrice';
 import { ArrowLeft, Send, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -435,7 +436,7 @@ export default function Chat() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{listing.title}</p>
                   <p className="text-sm text-amber-600 font-semibold">
-                    ₩{listing.price?.toLocaleString()}
+                    {formatListingPrice(listing.price, { countryCode: listing.country_code || activeCountry.countryCode })}
                   </p>
                 </div>
               </div>

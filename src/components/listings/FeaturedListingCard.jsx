@@ -9,6 +9,7 @@ import { getListingLocationLabel } from '@/utils/listingLocation';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { formatListingPrice } from '@/utils/formatPrice';
 
 export default function FeaturedListingCard({ listing }) {
   // Only prefix when the current page itself is under /kr, /us, /jp —
@@ -16,14 +17,7 @@ export default function FeaturedListingCard({ listing }) {
   const activeCountry = useActiveCountry();
   const routeCountryCode = useRouteCountryCode();
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
-
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      minimumFractionDigits: 0
-    }).format(price);
-  };
+  const listingCountryCode = listing.country_code || activeCountry.countryCode;
 
   const getBadge = () => {
     if (listing.listing_type === 'vip') {
@@ -77,7 +71,7 @@ export default function FeaturedListingCard({ listing }) {
           </h3>
           
           <p className="text-amber-600 font-bold text-lg mb-3">
-            {formatPrice(listing.price)}
+            {formatListingPrice(listing.price, { countryCode: listingCountryCode })}
             {listing.is_negotiable && (
               <span className="text-xs text-gray-500 ml-1 font-normal">тохирно</span>
             )}

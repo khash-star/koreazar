@@ -27,6 +27,9 @@ export const us = {
     address: 'Хаяг',
   },
   defaultRoutePrefix: '/us',
+  marketNavbarTitle: '🇲🇳 АМЕРИК ДАХЬ 🇺🇸 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
+  marketSeoBlurb:
+    'Zarusa, Zarusa app, Zarusa US Mongolia, Америк зар — Америк дахь Монголчуудын зарын сайт.',
 };
 
 export default us;
