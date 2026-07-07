@@ -12,7 +12,9 @@
     "generate-app-store-screenshots": "node scripts/generate-app-store-screenshots.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "echo \"No tests configured\" && exit 0"
+    "test": "echo \"No tests configured\" && exit 0",
+    "verify:zarusa-registry": "node scripts/verify-zarusa-region-registry.mjs",
+    "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",

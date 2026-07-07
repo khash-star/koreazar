@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
-import { navigateToPrivacyPolicy } from "../utils/navigationHelpers.js";
+import { navigateToPrivacyPolicy, navigateAfterRootAuth } from "../utils/navigationHelpers.js";
 import {
   loginWithEmail,
   authErrorMessage,
@@ -33,7 +33,7 @@ const PHONE_COUNTRIES = [
 ];
 
 export default function LoginScreen({ navigation }) {
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, userData } = useAuth();
   const [loginMethod, setLoginMethod] = useState(Platform.OS === "web" ? "email" : "phone");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,10 +65,9 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && !phoneNameSetup && !phoneAuthFlowActive) {
-      if (navigation.canGoBack()) navigation.goBack();
-      else navigation.replace("Main");
+      navigateAfterRootAuth(navigation, userData);
     }
-  }, [isAuthenticated, authLoading, navigation, phoneNameSetup, phoneAuthFlowActive]);
+  }, [isAuthenticated, authLoading, navigation, phoneNameSetup, phoneAuthFlowActive, userData]);
 
   function requireTerms() {
     if (!termsAccepted) {

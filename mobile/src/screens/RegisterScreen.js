@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "react-native";
 import { registerWithEmail, authErrorMessage } from "../services/authService";
+import { navigateAfterRootAuth } from "../utils/navigationHelpers.js";
 import { showAlert } from "../utils/showAlert";
 
 export default function RegisterScreen({ navigation }) {
@@ -66,7 +67,7 @@ export default function RegisterScreen({ navigation }) {
     setBusy(true);
     try {
       await registerWithEmail(email, password, name, phoneDigits, city, district);
-      navigation.replace("Main");
+      navigateAfterRootAuth(navigation, null);
     } catch (e) {
       const msg = authErrorMessage(e?.code) || e?.message || "Бүртгэл амжилтгүй";
       setFormError(msg);

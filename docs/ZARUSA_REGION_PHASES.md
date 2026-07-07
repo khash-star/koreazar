@@ -24,8 +24,9 @@ Washington DC / DMV is the **only active US region** in Phase 1. Chicago, New Yo
 
 1. Run `api/sql/migration_region_dmv_mvp.sql` on **staging** first.
 2. Deploy PHP API (`api/index.php`, `api/regions.php`).
-3. EAS `production-us` build (separate approval — not part of this PR).
-4. Smoke-test invite + listing create/read.
+3. Verify: `npm run verify:zarusa-registry` and `npm run smoke:zarusa-api`
+4. EAS `production-us` build (separate approval — not part of this PR).
+5. Smoke-test invite + listing create/read.
 
 ---
 

@@ -1,5 +1,26 @@
 import { Platform } from "react-native";
 import { blurActiveElementWeb } from "./blurActiveElementWeb.js";
+import { requiresUsRegionGate } from "../config/region.js";
+import { canAccessUsMobileApp } from "../services/authService.js";
+
+/**
+ * After root Login/Register success — US invite gate has no Main screen until home_region is set.
+ */
+export function navigateAfterRootAuth(navigation, userData) {
+  if (requiresUsRegionGate() && !canAccessUsMobileApp(userData)) {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.replace("InviteCode");
+    return;
+  }
+  if (navigation.canGoBack()) {
+    navigation.goBack();
+    return;
+  }
+  navigation.replace("Main");
+}
 
 /**
  * Nested navigator-оос Root stack дээрх дэлгэц рүү шилжих (жишээ нь Login).
