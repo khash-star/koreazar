@@ -26,6 +26,7 @@ import {
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
+import { COUNTRIES, countryCodeFromPath } from '@/config/country';
 
 /** Same-origin path only – prevents open redirect */
 function safeRedirectPath(url) {
@@ -50,6 +51,7 @@ const OTP_RESEND_COOLDOWN_SEC = 60;
 const PHONE_COUNTRIES = [
   { value: '+82', name: 'Солонгос' },
   { value: '+976', name: 'Монгол' },
+  { value: '+1', name: 'Америк' },
 ];
 
 export default function Login() {
@@ -57,13 +59,6 @@ export default function Login() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const activeCountry = useActiveCountry();
-  // Default selected phone prefix comes from the active country config (KR
-  // fallback === '+82', so existing behavior is unchanged). Falls back to
-  // '+82' if the active country isn't one of the supported login options
-  // yet. OTP/auth logic itself (startPhoneLogin/confirmPhoneLogin) is untouched.
-  const defaultPhoneCountryPrefix = PHONE_COUNTRIES.some((c) => c.value === activeCountry.defaultPhoneCode)
-    ? activeCountry.defaultPhoneCode
-    : '+82';
 
   const redirectUrl = useMemo(() => {
     return (
@@ -73,6 +68,28 @@ export default function Login() {
       || createPageUrl('Home')
     );
   }, [location.state, searchParams]);
+
+  const loginMarketCountry = useMemo(() => {
+    const code = countryCodeFromPath(redirectUrl) || activeCountry.countryCode;
+    return COUNTRIES[code] || COUNTRIES.KR;
+  }, [redirectUrl, activeCountry.countryCode]);
+
+  const phoneCountries = useMemo(() => {
+    if (loginMarketCountry.countryCode === 'US') {
+      return [{ value: '+1', name: 'Америк' }];
+    }
+    return PHONE_COUNTRIES.filter((c) => c.value !== '+1');
+  }, [loginMarketCountry.countryCode]);
+
+  const defaultPhoneCountryPrefix =
+    loginMarketCountry.countryCode === 'US'
+      ? '+1'
+      : phoneCountries.some((c) => c.value === loginMarketCountry.defaultPhoneCode)
+        ? loginMarketCountry.defaultPhoneCode
+        : '+82';
+
+  const phoneFormatExample =
+    loginMarketCountry.countryCode === 'US' ? '+12025550100' : '+821012345678';
 
   useEffect(() => {
     let path = safeRedirectPath(searchParams.get('redirect'));
@@ -117,6 +134,10 @@ export default function Login() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const [phoneNameSetup, setPhoneNameSetup] = useState(false);
   const [profileDisplayName, setProfileDisplayName] = useState('');
+
+  useEffect(() => {
+    setPhoneCountryPrefix(defaultPhoneCountryPrefix);
+  }, [defaultPhoneCountryPrefix]);
 
   const startResendCountdown = useCallback(() => {
     setResendCountdown(OTP_RESEND_COOLDOWN_SEC);
@@ -194,6 +215,8 @@ export default function Login() {
       if (d.startsWith('82')) d = d.slice(2);
     } else if (prefix === '+976') {
       if (d.startsWith('976')) d = d.slice(3);
+    } else if (prefix === '+1') {
+      if (d.startsWith('1') && d.length === 11) d = d.slice(1);
     }
     if ((prefix === '+82' || prefix === '+976') && d.startsWith('0')) {
       d = d.replace(/^0+/, '');
@@ -214,6 +237,9 @@ export default function Login() {
     );
     if (normalized.startsWith('+976')) {
       return { prefix: '+976', local: normalized.slice(4) };
+    }
+    if (normalized.startsWith('+1')) {
+      return { prefix: '+1', local: normalized.slice(2) };
     }
     if (normalized.startsWith('+82')) {
       return { prefix: '+82', local: normalized.slice(3) };
@@ -256,7 +282,7 @@ export default function Login() {
     }
     const normalized = buildFullPhoneE164();
     if (!/^\+\d{8,15}$/.test(normalized)) {
-      setError('Утасны дугаараа +821012345678 хэлбэрээр оруулна уу.');
+      setError(`Утасны дугаараа ${phoneFormatExample} хэлбэрээр оруулна уу.`);
       return;
     }
 
@@ -420,7 +446,7 @@ export default function Login() {
       return 'Firebase API key буруу байна. .env файл шалгана уу.';
     }
     if (codeStr.includes('auth/invalid-phone-number')) {
-      return 'Утасны дугаар буруу байна. +821012345678 хэлбэрээр оруулна уу.';
+      return `Утасны дугаар буруу байна. ${phoneFormatExample} хэлбэрээр оруулна уу.`;
     }
     if (codeStr.includes('auth/missing-phone-number')) {
       return 'Утасны дугаар оруулна уу.';
@@ -701,7 +727,7 @@ export default function Login() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {PHONE_COUNTRIES.map(({ value, name }) => (
+                      {phoneCountries.map(({ value, name }) => (
                         <SelectItem key={value} value={value}>
                           <span className="font-medium">{value}</span>
                           <span className="text-muted-foreground ml-2">{name}</span>
@@ -714,7 +740,13 @@ export default function Login() {
                     type="tel"
                     value={phoneLocal}
                     onChange={(e) => handlePhoneLocalChange(e.target.value)}
-                    placeholder={phoneCountryPrefix === '+82' ? '010-9497-0939' : '99112233'}
+                    placeholder={
+                      phoneCountryPrefix === '+1'
+                        ? '202-555-0100'
+                        : phoneCountryPrefix === '+82'
+                          ? '010-9497-0939'
+                          : '99112233'
+                    }
                     required
                     autoComplete="tel"
                     className="flex-1"

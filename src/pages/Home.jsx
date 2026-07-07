@@ -344,7 +344,7 @@ export default function Home() {
             </p>
           </div>
           {!(user || userData) ? (
-            <Link to={createPageUrl('Login')} className="ml-4 flex-shrink-0 z-50">
+            <Link to={createPageUrl('Login')} state={{ from: location.pathname }} className="ml-4 flex-shrink-0 z-50">
               <Button 
                 variant="outline" 
                 size="sm"
