@@ -29,6 +29,7 @@ import {
 import { categoryInfo } from '@/components/listings/CategoryCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
+import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -69,8 +70,18 @@ export default function MyListings() {
   }, []);
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['myListings', user?.email],
-    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
+    queryKey: ['myListings', user?.email, routeCountryCode],
+    queryFn: () =>
+      entities.Listing.filter(
+        appendUsRegionScopeParams(
+          {
+            created_by: userData?.email || user?.email,
+            ...(routeCountryCode ? { country_code: routeCountryCode } : {}),
+          },
+          routeCountryCode
+        ),
+        '-created_date'
+      ),
     enabled: !!user?.email
   });
 

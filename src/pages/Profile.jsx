@@ -36,6 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 
 const statusLabels = {
   active: { label: 'Идэвхтэй', color: 'bg-green-100 text-green-700', icon: CheckCircle },
@@ -75,8 +76,18 @@ export default function Profile() {
   
   // Fetch user's listings
   const { data: listings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['myListings', user?.email],
-    queryFn: () => entities.Listing.filter({ created_by: userData?.email || user?.email }, '-created_date'),
+    queryKey: ['myListings', user?.email, routeCountryCode],
+    queryFn: () =>
+      entities.Listing.filter(
+        appendUsRegionScopeParams(
+          {
+            created_by: userData?.email || user?.email,
+            ...(routeCountryCode ? { country_code: routeCountryCode } : {}),
+          },
+          routeCountryCode
+        ),
+        '-created_date'
+      ),
     enabled: !!(userData?.email || user?.email)
   });
 
