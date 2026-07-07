@@ -6,8 +6,6 @@ export const US_REGIONS = {
     shortLabel: "DC / DMV",
     active: true,
     stateCodes: ["DC", "VA", "MD"],
-    onboarding: "default",
-    browseScope: "region_only",
   },
   chicago: {
     regionCode: "chicago",
@@ -15,8 +13,6 @@ export const US_REGIONS = {
     shortLabel: "Chicago",
     active: false,
     stateCodes: ["IL"],
-    onboarding: "self_select",
-    browseScope: "region_only",
   },
   "new-york": {
     regionCode: "new-york",
@@ -24,8 +20,6 @@ export const US_REGIONS = {
     shortLabel: "New York",
     active: false,
     stateCodes: ["NY"],
-    onboarding: "self_select",
-    browseScope: "region_only",
   },
   seattle: {
     regionCode: "seattle",
@@ -33,8 +27,6 @@ export const US_REGIONS = {
     shortLabel: "Seattle",
     active: false,
     stateCodes: ["WA"],
-    onboarding: "self_select",
-    browseScope: "region_only",
   },
   louisiana: {
     regionCode: "louisiana",
@@ -42,8 +34,6 @@ export const US_REGIONS = {
     shortLabel: "Louisiana",
     active: false,
     stateCodes: ["LA"],
-    onboarding: "self_select",
-    browseScope: "region_only",
   },
 };
 

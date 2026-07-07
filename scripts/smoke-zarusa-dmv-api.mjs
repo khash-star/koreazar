@@ -76,27 +76,10 @@ try {
   if (chicago.status === 200 && (chicago.body?.data || []).length === 0) {
     pass("inactive region chicago returns empty");
   } else if (chicago.status === 200) {
-    warn("chicago returned rows — region lock may not be active yet");
+    warn("chicago returned rows — region lock may not be active yet (migration/API deploy pending)");
   } else {
     fail(`chicago probe status=${chicago.status}`);
   }
-
-  const inviteGet = await probe("invite-get", buildUrl("invite_redeem"));
-  results.push(inviteGet);
-  if (inviteGet.status === 405) pass("invite_redeem deployed (GET → 405)");
-  else if (inviteGet.status === 404) warn("invite_redeem not deployed yet (GET → 404)");
-  else warn(`invite_redeem GET status=${inviteGet.status}`);
-
-  const invitePost = await probe("invite-post", buildUrl("invite_redeem"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: "DMV2026" }),
-  });
-  results.push(invitePost);
-  if (invitePost.status === 401) pass("invite_redeem POST requires auth (401)");
-  else if (invitePost.status === 404) warn("invite_redeem POST → 404 (old API)");
-  else if (invitePost.status === 403) warn("invite_redeem POST blocked by server (403 WAF?)");
-  else warn(`invite_redeem POST status=${invitePost.status}`);
 
   const hardFails = results.filter(
     (r) => r.name === "health" && r.status !== 200

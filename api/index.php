@@ -401,31 +401,11 @@ try {
             upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body);
             $customerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
             $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
-            $homeMarket = get_user_home_market_by_firebase_uid($pdo, $authUser['uid']);
             echo json_encode([
                 'ok' => true,
                 'uid' => $authUser['uid'],
                 'email' => $resolvedEmail ?? $authUser['email'],
                 'customer_id' => $customerId,
-                'home_country_code' => $homeMarket['home_country_code'],
-                'home_region_code' => $homeMarket['home_region_code'],
-            ], JSON_UNESCAPED_UNICODE);
-            break;
-
-        case 'invite_redeem':
-            if ($method !== 'POST') {
-                http_response_code(405);
-                echo json_encode(['error' => 'Method not allowed for action=invite_redeem'], JSON_UNESCAPED_UNICODE);
-                break;
-            }
-            $authUser = require_firebase_user();
-            $body = read_json_body();
-            $code = isset($body['code']) ? (string) $body['code'] : '';
-            $home = redeem_invite_code($pdo, $authUser['uid'], $code);
-            echo json_encode([
-                'ok' => true,
-                'home_country_code' => $home['home_country_code'],
-                'home_region_code' => $home['home_region_code'],
             ], JSON_UNESCAPED_UNICODE);
             break;
 

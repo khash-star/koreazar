@@ -1,60 +1,38 @@
 # Zarusa region rollout — phased plan
 
-Washington DC / DMV is the **only active US region** in Phase 1. Chicago, New York, Seattle, and Louisiana exist in the shared registry with `active: false` and are **not shown in UI**.
+Washington DC / DMV is the **only active US region**. Chicago, New York, Seattle, Louisiana exist in the shared registry with `active: false` and are **not shown in UI**.
 
-## Phase 1 — Washington DC / DMV MVP (this branch)
+## Phase 1 — Washington DC / DMV MVP (current)
 
-**Goal:** Single Zarusa app behaves as DC/DMV-only while schema and API stay multi-region-ready.
+**Goal:** US Zarusa app behaves as DC/DMV-only via **build default region** — no city picker, **no invite code**.
 
 | Layer | Behavior |
 |-------|----------|
 | Registry | `src/config/regions/us.js`, `mobile/src/config/regions/us.js`, `api/regions.php` |
-| DB (SQL only, not run) | `api/sql/migration_region_dmv_mvp.sql` |
-| API reads | `country_code=US` → defaults to `washington-dc`; strict `region_code` filter (NULL/unscoped US rows hidden) |
+| DB (SQL only, not run) | `api/sql/migration_region_dmv_mvp.sql` — `listings.region_code` + index |
+| API reads | `country_code=US` → defaults to `washington-dc`; strict `region_code` filter |
 | API writes | US listings forced to `region_code=washington-dc`; state must be DC/VA/MD |
-| Mobile | `production-us` / `EXPO_PUBLIC_ACTIVE_COUNTRY=US` → **default** `washington-dc`; no region selector; **no invite gate** |
-| Invite | **Phase 1b only** — API + `InviteCodeScreen` kept for future; not required for MVP |
-| Admin | Same admin UX; US listing queries scoped to active region via mobile API params |
-| Banners | **Country-scoped only** (unchanged) — see Phase 2 |
+| Mobile | `production-us` / `EXPO_PUBLIC_ACTIVE_COUNTRY=US` → default `washington-dc` |
 | Web | US **not** enabled publicly (`ENABLED_COUNTRIES` unchanged) |
+| KR | **Unchanged** |
 
-**Critical:** Region filtering is enforced **server-side** on all US listing reads. Do not rely on client-only filters.
+**Critical:** US listing reads are filtered **server-side** by `region_code`. Never rely on client-only filters.
 
 ### Activation checklist (after approval)
 
 1. Run `api/sql/migration_region_dmv_mvp.sql` on **staging** first.
 2. Deploy PHP API (`api/index.php`, `api/regions.php`).
 3. Verify: `npm run verify:zarusa-registry` and `npm run smoke:zarusa-api`
-4. EAS `production-us` build (separate approval — not part of this PR).
-5. Smoke-test invite + listing create/read.
-
----
-
-## Phase 1b — Optional invite code lock
-
-Not required for Washington DC MVP (build default region is enough). Enable later for closed beta or new cities:
-
-- Per-code `max_uses`, expiry, revoke in admin UI
-- Rate-limit `invite_redeem`
-- Firestore rules: reject client writes to `home_*` fields (MySQL remains source of truth)
-- Stricter gate: require invite before any API access (currently: invite gate blocks app UI; API still region-filters public reads)
+4. EAS `production-us` build (separate approval).
+5. Smoke-test US listing read/create on staging.
 
 ---
 
 ## Phase 2 — Region admin scope
 
-**TODO:** Implement scoped roles (not in Phase 1):
+TODO: `super_admin`, `country_admin`, `region_admin` when multiple US regions are active.
 
-| Role | Scope |
-|------|--------|
-| `super_admin` | All countries/regions |
-| `country_admin` | e.g. all US |
-| `region_admin` | e.g. `washington-dc` only |
-
-Also:
-
-- Optional `region_code` on Firestore `banner_ads` (with composite index)
-- Admin UI region filter when multiple US regions are active
+Optional: `region_code` on Firestore banners.
 
 ---
 
@@ -63,36 +41,29 @@ Also:
 Per region:
 
 1. Set `active: true` in registry (web + mobile + PHP)
-2. Choose onboarding: `invite` vs `self_select` per region config
-3. Assign `region_admin` users
-4. Seed region-specific invite codes if needed
-5. No listing schema migration required if Phase 1 SQL already applied
+2. Assign region admins
+3. No listing schema change if Phase 1 SQL already applied
 
 ---
 
 ## Phase 4 — Optional “All Zarusa” browse tab
 
-Cross-region browse within US (e.g. tab showing all active US regions). Requires:
-
-- Product decision on default vs opt-in browse scope
-- API: explicit `region_code=all` or multi-region query (never unscoped US)
-- UI: region labels on cards; still no silent cross-region posting
+Cross-region US browse (explicit opt-in; never unscoped US reads).
 
 ---
 
-## Sync points (keep aligned)
+## Sync points
 
 | File | Purpose |
 |------|---------|
 | `src/config/regions/us.js` | Web/shared registry |
-| `mobile/src/config/regions/us.js` | Mobile registry mirror |
+| `mobile/src/config/regions/us.js` | Mobile mirror |
 | `api/regions.php` | Server registry + enforce helpers |
 
 ---
 
-## Protections (do not change without explicit approval)
+## Protections
 
-- `mobile/app.json`, EAS `production`, `submit.production`
-- `com.zarkorea.twa`, `com.zarusa.app`
-- KR / Zarkorea behavior
-- Production DB migration, deploy, EAS build/submit from this branch
+- Do not change `mobile/app.json`, EAS production, bundle IDs without approval
+- Do not run production migration / deploy / EAS submit from feature work without approval
+- KR / Zarkorea behavior must remain unchanged
