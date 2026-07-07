@@ -17,6 +17,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
+// TODO(Phase 2): super_admin / country_admin / region_admin scopes — US admin reads use region_code=washington-dc via listingService today.
 import { collection, getCountFromServer, query, where } from "firebase/firestore";
 import {
   getListingAutoApprove,

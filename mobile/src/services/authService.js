@@ -15,6 +15,8 @@ import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } 
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
+import { persistHomeMarketToFirestore } from "./regionService";
+import { requiresUsRegionGate, userHasHomeRegion } from "../config/region.js";
 import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
 import {
   clearPendingPhoneOtp,
@@ -30,6 +32,8 @@ const PROTECTED_USER_DOC_FIELDS = new Set([
   "customerId",
   "emailVerified",
   "uid",
+  "home_country_code",
+  "home_region_code",
 ]);
 
 function stripProtectedUserFields(data) {
@@ -123,9 +127,18 @@ async function syncUserToMySql(user, profile = {}) {
       timeoutMs: 10000,
     });
     await persistCustomerIdFromSync(user, data);
+    if (data?.home_country_code && data?.home_region_code) {
+      await persistHomeMarketToFirestore(user.uid, data.home_country_code, data.home_region_code);
+    }
   } catch (e) {
     console.warn("MySQL user sync failed:", e?.message || e);
   }
+}
+
+export function canAccessUsMobileApp(userData) {
+  if (!requiresUsRegionGate()) return true;
+  if (userData?.role === "admin") return true;
+  return userHasHomeRegion(userData);
 }
 
 export function subscribeAuth(callback) {
