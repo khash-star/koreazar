@@ -31,6 +31,7 @@ import { checkBannedListingFields } from '@/utils/bannedContent';
 import { locations, conditionOptions } from '@/constants/listings';
 import { useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { COUNTRIES } from '@/config/country';
+import { getDefaultUsRegionCodeForWeb } from '@/utils/usRegionScope';
 import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function CreateListing() {
@@ -208,9 +209,11 @@ export default function CreateListing() {
 
     if (isUsMarket) {
       submitData.state_code = formData.state_code || '';
+      submitData.region_code = getDefaultUsRegionCodeForWeb();
       delete submitData.location;
     } else {
       delete submitData.state_code;
+      delete submitData.region_code;
     }
 
     // Remove empty category-specific fields

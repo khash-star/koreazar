@@ -29,6 +29,7 @@ import { getListingImageUrl } from '@/utils/imageUrl';
 import { locations, conditionOptions } from '@/constants/listings';
 import { useRouteCountryCode } from '@/hooks/useActiveCountry';
 import { COUNTRIES } from '@/config/country';
+import { getDefaultUsRegionCodeForWeb } from '@/utils/usRegionScope';
 import UsStateSelect from '@/components/listings/UsStateSelect';
 
 export default function EditListing() {
@@ -235,10 +236,12 @@ export default function EditListing() {
     if (isUsMarket) {
       submitData.country_code = effectiveCountryCode;
       submitData.state_code = formData.state_code || '';
+      submitData.region_code = listing?.region_code || getDefaultUsRegionCodeForWeb();
       delete submitData.location;
     } else {
       submitData.country_code = effectiveCountryCode;
       delete submitData.state_code;
+      delete submitData.region_code;
     }
 
     Object.keys(submitData).forEach(key => {

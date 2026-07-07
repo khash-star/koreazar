@@ -104,7 +104,11 @@ export default function ListingDetail() {
       if (!listing?.category) return [];
       const { filterListings } = await import('@/services/listingService');
       const results = await filterListings(
-        { category: listing.category, status: 'active' },
+        {
+          category: listing.category,
+          status: 'active',
+          country_code: listing.country_code,
+        },
         '-created_date',
         24
       );

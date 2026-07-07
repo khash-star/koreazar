@@ -22,6 +22,7 @@ import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 import CountrySelector from '@/components/CountrySelector';
 import { isCountryEnabled } from '@/config/country';
+import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 import { isBannerVisibleForCountry } from '@/utils/bannerCountry';
 
 export default function Home() {
@@ -175,7 +176,10 @@ export default function Home() {
   const { data: listings = [], isLoading, refetch: refetchListings } = useQuery({
     queryKey: ['listings', filters, marketCountryCode],
     queryFn: async () => {
-      let query = { status: 'active', country_code: marketCountryCode };
+      let query = appendUsRegionScopeParams(
+        { status: 'active', country_code: marketCountryCode },
+        marketCountryCode
+      );
       
       if (filters.category) query.category = filters.category;
       if (filters.subcategory) query.subcategory = filters.subcategory;
@@ -271,7 +275,13 @@ export default function Home() {
 
   const { data: allListings = [] } = useQuery({
     queryKey: ['allListings', marketCountryCode],
-    queryFn: () => entities.Listing.filter({ status: 'active', country_code: marketCountryCode }),
+    queryFn: () =>
+      entities.Listing.filter(
+        appendUsRegionScopeParams(
+          { status: 'active', country_code: marketCountryCode },
+          marketCountryCode
+        )
+      ),
   });
 
   const savedQueryKey = userData?.uid || user?.uid;

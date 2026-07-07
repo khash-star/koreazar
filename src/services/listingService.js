@@ -1,5 +1,6 @@
 // Listing Service - PHP MySQL API CRUD operations
 import { auth } from '@/firebase/config';
+import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
@@ -67,6 +68,7 @@ const normalizeListing = (item) => {
     customer_id: cid != null && cid !== '' ? Number(cid) : undefined,
     country_code: countryCode,
     state_code: item.state_code ? String(item.state_code).trim().toUpperCase() : null,
+    region_code: item.region_code ? String(item.region_code).trim().toLowerCase() : null,
     images: Array.isArray(item.images) ? item.images : [],
   };
 };
@@ -106,11 +108,12 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
 export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
   try {
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-    const params = { limit: limitCount };
+    const params = appendUsRegionScopeParams({ limit: limitCount }, filters.country_code);
     if (filters.category) params.category = filters.category;
     if (filters.subcategory) params.subcategory = filters.subcategory;
     if (filters.country_code) params.country_code = filters.country_code;
     if (filters.state_code) params.state_code = filters.state_code;
+    if (filters.region_code) params.region_code = filters.region_code;
     if (filters.customer_id != null && filters.customer_id !== '') {
       params.customer_id = String(filters.customer_id);
     }
@@ -130,6 +133,7 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       'status',
       'country_code',
       'state_code',
+      'region_code',
     ]);
     Object.keys(filters).forEach((key) => {
       const value = filters[key];
