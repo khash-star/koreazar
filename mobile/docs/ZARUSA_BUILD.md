@@ -46,9 +46,17 @@ Uses `submit.production-us` → `com.zarusa.app` (Zarkorea `submit.production` i
 1. Register `com.zarusa.app` in Play Console / App Store Connect (separate listing from Zarkorea).
 2. Add Zarusa app icons/splash if you want different branding (optional — same assets work for first build).
 3. Create US-scoped banners in admin (`country_code: US`) so the home hero shows US ads only.
+4. Complete backend staging: see `docs/ZARUSA_STAGING_DEPLOY.md`.
 
-## Data behavior
+## Data behavior (Washington DC / DMV MVP)
 
-- Home feed: `country_code=US` API filter
-- New listings: `country_code=US`, `state_code` required (launch states: LA, IL, VA, NY, WA)
+- **Default region:** `washington-dc` (no city picker, no invite code)
+- Home feed: `country_code=US&region_code=washington-dc`
+- New listings: `country_code=US`, `region_code=washington-dc`, `state_code` = **DC, VA, or MD**
+- Header: **ZARUSA — DC / DMV**
 - Storage paths: `listings/us/...` (same as web)
+- Other US regions (Chicago, NYC, etc.) exist in config only (`active: false`) — not in UI
+
+## KR / Zarkorea
+
+Default build (no `EXPO_PUBLIC_ACTIVE_COUNTRY=US`) is unchanged — no region filter, no US fields.

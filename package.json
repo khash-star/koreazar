@@ -14,7 +14,8 @@
     "preview": "vite preview",
     "test": "echo \"No tests configured\" && exit 0",
     "verify:zarusa-registry": "node scripts/verify-zarusa-region-registry.mjs",
-    "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs"
+    "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs",
+    "staging:zarusa": "powershell -ExecutionPolicy Bypass -File scripts/staging-zarusa-dmv.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",
