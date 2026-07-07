@@ -6,8 +6,7 @@
  * `state_code`, production DB migration applied). Still hidden from the
  * public country selector via `ENABLED_COUNTRIES` in `../country.js` until
  * launch content (banner, verified listings) is ready — see
- * `US_LAUNCH_STATE_CODES` in `src/constants/usStates.js` for the launch
- * state subset this cityList mirrors.
+ * `US_LAUNCH_STATE_CODES` in `src/constants/usStates.js` (DC, VA, MD for DMV MVP).
  */
 export const us = {
   countryCode: 'US',
@@ -20,11 +19,8 @@ export const us = {
     locale: 'en-US',
   },
   locale: 'en-US',
-  // Mirrors US_LAUNCH_STATE_CODES (LA, IL, VA, NY, WA) — kept in sync so
-  // this doesn't drift into listing a state that isn't actually selectable.
-  // Not yet wired into any UI (CreateListing/SearchBar use the state
-  // dropdown instead), kept for future city-level filtering within a state.
-  cityList: ['New Orleans (LA)', 'Chicago (IL)', 'Annandale (VA)', 'New York (NY)', 'Seattle (WA)', 'Бусад'],
+  // DMV MVP — mirrors US_LAUNCH_STATE_CODES (DC, VA, MD).
+  cityList: ['Washington DC', 'Northern Virginia (VA)', 'Maryland (MD)', 'Бусад'],
   addressLabels: {
     city: 'Хот',
     district: 'Муж',

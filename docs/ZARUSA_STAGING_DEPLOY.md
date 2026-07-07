@@ -19,7 +19,13 @@ SHOW INDEX FROM listings WHERE Key_name = 'listings_country_region_index';
 
 ## 2) PHP upload (cPanel → api.zarkorea.com document root)
 
-Upload **both** files (regions.php is required):
+Generate upload bundle:
+
+```powershell
+npm run package:zarusa-api
+```
+
+Upload from `deploy/zarusa-api-upload/`:
 
 | Local file | Server |
 |------------|--------|

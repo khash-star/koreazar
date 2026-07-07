@@ -57,14 +57,11 @@ export const US_STATES = {
 };
 
 /**
- * Launch subset — only these states are offered in the create-listing /
- * search / country-selector dropdowns while the US market is a soft
- * launch. `US_STATES` above stays the full 50-state+DC map so any state
- * code (existing data, future expansion) still resolves to a real name via
- * `formatUsStateLabel`/`getUsStateName` — only the *selectable* list is
- * restricted. Update this array (and only this array) to open more states.
+ * Launch subset — Washington DC / DMV MVP (washington-dc region).
+ * Mobile create-listing uses `getActiveUsRegionStateCodes()` from region registry;
+ * keep this in sync for web US UI when enabled.
  */
-export const US_LAUNCH_STATE_CODES = ['LA', 'IL', 'VA', 'NY', 'WA'];
+export const US_LAUNCH_STATE_CODES = ['DC', 'VA', 'MD'];
 
 /** State codes sorted by display name (for dropdown order). */
 export const US_STATE_CODES = US_LAUNCH_STATE_CODES.slice().sort((a, b) =>

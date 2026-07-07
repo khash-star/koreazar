@@ -55,7 +55,8 @@ export const US_STATES = {
   DC: "District of Columbia",
 };
 
-export const US_LAUNCH_STATE_CODES = ["LA", "IL", "VA", "NY", "WA"];
+/** Washington DC / DMV MVP — sync with src/config/regions/us.js (washington-dc). */
+export const US_LAUNCH_STATE_CODES = ["DC", "VA", "MD"];
 
 export const US_STATE_CODES = US_LAUNCH_STATE_CODES.slice().sort((a, b) =>
   US_STATES[a].localeCompare(US_STATES[b])
