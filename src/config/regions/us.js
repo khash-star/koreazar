@@ -12,7 +12,7 @@ export const US_REGIONS = {
     active: true,
     /** Listing metadata — allowed state_code values within this region */
     stateCodes: ['DC', 'VA', 'MD'],
-    onboarding: 'invite',
+    onboarding: 'default',
     browseScope: 'region_only',
   },
   chicago: {

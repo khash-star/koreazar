@@ -27,8 +27,9 @@ export function userHasHomeRegion(userData) {
   return isActiveUsRegion(code);
 }
 
+/** @deprecated Phase 1b — MVP uses build default region, no invite gate */
 export function requiresUsRegionGate() {
-  return isUsMobileMarket();
+  return false;
 }
 
 export function getMobileHomeHeaderTitle() {

@@ -12,8 +12,8 @@ Washington DC / DMV is the **only active US region** in Phase 1. Chicago, New Yo
 | DB (SQL only, not run) | `api/sql/migration_region_dmv_mvp.sql` |
 | API reads | `country_code=US` → defaults to `washington-dc`; strict `region_code` filter (NULL/unscoped US rows hidden) |
 | API writes | US listings forced to `region_code=washington-dc`; state must be DC/VA/MD |
-| Mobile | `production-us` / `EXPO_PUBLIC_ACTIVE_COUNTRY=US` → `washington-dc`; no region selector |
-| Invite | `DMV` / `DMV2026` → `home_country_code=US`, `home_region_code=washington-dc` |
+| Mobile | `production-us` / `EXPO_PUBLIC_ACTIVE_COUNTRY=US` → **default** `washington-dc`; no region selector; **no invite gate** |
+| Invite | **Phase 1b only** — API + `InviteCodeScreen` kept for future; not required for MVP |
 | Admin | Same admin UX; US listing queries scoped to active region via mobile API params |
 | Banners | **Country-scoped only** (unchanged) — see Phase 2 |
 | Web | US **not** enabled publicly (`ENABLED_COUNTRIES` unchanged) |
@@ -30,9 +30,9 @@ Washington DC / DMV is the **only active US region** in Phase 1. Chicago, New Yo
 
 ---
 
-## Phase 1b — Invite code lock (extensions)
+## Phase 1b — Optional invite code lock
 
-Optional follow-ups without schema churn:
+Not required for Washington DC MVP (build default region is enough). Enable later for closed beta or new cities:
 
 - Per-code `max_uses`, expiry, revoke in admin UI
 - Rate-limit `invite_redeem`

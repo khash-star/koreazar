@@ -16,7 +16,6 @@ import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
 import { persistHomeMarketToFirestore } from "./regionService";
-import { requiresUsRegionGate, userHasHomeRegion } from "../config/region.js";
 import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
 import {
   clearPendingPhoneOtp,
@@ -133,12 +132,6 @@ async function syncUserToMySql(user, profile = {}) {
   } catch (e) {
     console.warn("MySQL user sync failed:", e?.message || e);
   }
-}
-
-export function canAccessUsMobileApp(userData) {
-  if (!requiresUsRegionGate()) return true;
-  if (userData?.role === "admin") return true;
-  return userHasHomeRegion(userData);
 }
 
 export function subscribeAuth(callback) {

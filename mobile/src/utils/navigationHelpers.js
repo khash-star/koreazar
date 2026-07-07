@@ -1,20 +1,9 @@
 import { Platform } from "react-native";
 import { blurActiveElementWeb } from "./blurActiveElementWeb.js";
-import { requiresUsRegionGate } from "../config/region.js";
-import { canAccessUsMobileApp } from "../services/authService.js";
-
 /**
- * After root Login/Register success — US invite gate has no Main screen until home_region is set.
+ * After root Login/Register success.
  */
-export function navigateAfterRootAuth(navigation, userData) {
-  if (requiresUsRegionGate() && !canAccessUsMobileApp(userData)) {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    navigation.replace("InviteCode");
-    return;
-  }
+export function navigateAfterRootAuth(navigation) {
   if (navigation.canGoBack()) {
     navigation.goBack();
     return;

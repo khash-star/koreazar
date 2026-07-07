@@ -6,9 +6,6 @@ import {
 } from "../services/authService";
 import { getUserByEmail, getUserProfileByUid } from "../services/userProfileService";
 import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
-import { isUsMobileMarket } from "../config/country.js";
-import { userHasHomeRegion } from "../config/region.js";
-import { syncHomeMarketFromUserSync } from "../services/regionService.js";
 
 const AuthContext = createContext(null);
 
@@ -82,20 +79,6 @@ export function AuthProvider({ children }) {
     const em = await getResolvedAuthEmail(user);
     setResolvedEmail(em || null);
   }, [user?.uid, user?.email, user?.phoneNumber]);
-
-  useEffect(() => {
-    if (!user?.uid || !isUsMobileMarket() || userHasHomeRegion(userData)) return;
-    let cancelled = false;
-    (async () => {
-      const home = await syncHomeMarketFromUserSync(user);
-      if (!cancelled && home?.home_region_code) {
-        await refreshUserData();
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid, userData?.home_region_code, refreshUserData]);
 
   const email =
     resolvedEmail ||

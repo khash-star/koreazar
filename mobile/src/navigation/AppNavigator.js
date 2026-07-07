@@ -25,8 +25,7 @@ import {
 } from "../utils/appIconBadge.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 import { getActiveMobileCountry } from "../config/country.js";
-import { getMobileHomeHeaderTitle, requiresUsRegionGate } from "../config/region.js";
-import { canAccessUsMobileApp } from "../services/authService.js";
+import { getMobileHomeHeaderTitle } from "../config/region.js";
 import HomeScreen from "../screens/HomeScreen.js";
 import ListingDetailScreen from "../screens/ListingDetailScreen.js";
 import LoginScreen from "../screens/LoginScreen.js";
@@ -47,7 +46,6 @@ import AdminUsersScreen from "../screens/AdminUsersScreen.js";
 import AdminBroadcastScreen from "../screens/AdminBroadcastScreen.js";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen.js";
 import PhoneAuthSpikeScreen from "../screens/PhoneAuthSpikeScreen.js";
-import InviteCodeScreen from "../screens/InviteCodeScreen.js";
 
 const RootStack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -552,17 +550,11 @@ function handleNavStateChange() {
 }
 
 export default function AppNavigator() {
-  const { userData, loading } = useAuth();
-  const usGate = requiresUsRegionGate();
-  const canAccess = canAccessUsMobileApp(userData);
-  const showInviteGate = usGate && !canAccess;
-
   return (
     <NavigationContainer
-      key={showInviteGate ? "invite-gate" : "main-app"}
       ref={navigationRef}
       theme={navigationTheme}
-      linking={showInviteGate ? undefined : linking}
+      linking={linking}
       onStateChange={handleNavStateChange}
     >
       <RootStack.Navigator
@@ -570,51 +562,15 @@ export default function AppNavigator() {
           contentStyle: { backgroundColor: "#f3f4f6" },
         }}
       >
-        {showInviteGate ? (
-          <>
-            <RootStack.Screen
-              name="InviteCode"
-              component={InviteCodeScreen}
-              options={{ title: "Zarusa Invite", headerShown: true }}
-            />
-            <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Sign in" }} />
-            <RootStack.Screen name="Register" component={RegisterScreen} options={{ title: "Register" }} />
-            <RootStack.Screen
-              name="Privacy"
-              component={PrivacyPolicyScreen}
-              options={{ title: "Privacy Policy" }}
-            />
-          </>
-        ) : (
-          <>
-            <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-            <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Нэвтрэх" }} />
-            <RootStack.Screen name="Register" component={RegisterScreen} options={{ title: "Бүртгүүлэх" }} />
-            <RootStack.Screen
-              name="Privacy"
-              component={PrivacyPolicyScreen}
-              options={{ title: "Нууцлалын бодлого" }}
-            />
-          </>
-        )}
+        <RootStack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
+        <RootStack.Screen name="Login" component={LoginScreen} options={{ title: "Нэвтрэх" }} />
+        <RootStack.Screen name="Register" component={RegisterScreen} options={{ title: "Бүртгүүлэх" }} />
+        <RootStack.Screen
+          name="Privacy"
+          component={PrivacyPolicyScreen}
+          options={{ title: "Нууцлалын бодлого" }}
+        />
       </RootStack.Navigator>
-      {loading && usGate ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(243,244,246,0.6)",
-          }}
-        >
-          <Text style={{ color: "#6b7280" }}>Loading…</Text>
-        </View>
-      ) : null}
     </NavigationContainer>
   );
 }

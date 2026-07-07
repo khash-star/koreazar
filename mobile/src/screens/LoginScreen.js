@@ -33,7 +33,7 @@ const PHONE_COUNTRIES = [
 ];
 
 export default function LoginScreen({ navigation }) {
-  const { isAuthenticated, loading: authLoading, userData } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [loginMethod, setLoginMethod] = useState(Platform.OS === "web" ? "email" : "phone");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,9 +65,9 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && !phoneNameSetup && !phoneAuthFlowActive) {
-      navigateAfterRootAuth(navigation, userData);
+      navigateAfterRootAuth(navigation);
     }
-  }, [isAuthenticated, authLoading, navigation, phoneNameSetup, phoneAuthFlowActive, userData]);
+  }, [isAuthenticated, authLoading, navigation, phoneNameSetup, phoneAuthFlowActive]);
 
   function requireTerms() {
     if (!termsAccepted) {

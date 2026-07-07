@@ -6,7 +6,7 @@ export const US_REGIONS = {
     shortLabel: "DC / DMV",
     active: true,
     stateCodes: ["DC", "VA", "MD"],
-    onboarding: "invite",
+    onboarding: "default",
     browseScope: "region_only",
   },
   chicago: {

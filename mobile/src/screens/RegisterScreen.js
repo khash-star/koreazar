@@ -67,7 +67,7 @@ export default function RegisterScreen({ navigation }) {
     setBusy(true);
     try {
       await registerWithEmail(email, password, name, phoneDigits, city, district);
-      navigateAfterRootAuth(navigation, null);
+      navigateAfterRootAuth(navigation);
     } catch (e) {
       const msg = authErrorMessage(e?.code) || e?.message || "Бүртгэл амжилтгүй";
       setFormError(msg);

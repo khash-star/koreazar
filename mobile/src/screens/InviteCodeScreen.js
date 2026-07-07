@@ -1,3 +1,7 @@
+/**
+ * Phase 1b — not wired in AppNavigator for MVP.
+ * Washington DC uses build default region (no invite required).
+ */
 import { useState } from "react";
 import {
   ActivityIndicator,
