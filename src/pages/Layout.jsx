@@ -172,10 +172,10 @@ export default function Layout({ children, currentPageName }) {
       <footer className="bg-gray-900 text-gray-300 py-8 mt-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 space-y-6">
           <div className="text-center">
-            <h2 className="text-white text-lg font-bold">{activeCountry.appName} — Солонгос дахь Монголчуудын зарын сайт</h2>
-            <p className="text-xs text-gray-400 mt-1">
-              {activeCountry.appName} · {activeCountry.appName} app · {activeCountry.appName} Korea Mongolia · Солонгос зар · Заркореа
-            </p>
+            <h2 className="text-white text-lg font-bold">
+              {activeCountry.appName} — {activeCountry.marketFooterTitle}
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">{activeCountry.marketSeoBlurb}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gray-800/70 border border-gray-700 rounded-2xl p-4">

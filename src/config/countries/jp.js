@@ -26,6 +26,7 @@ export const jp = {
   },
   defaultRoutePrefix: '/jp',
   marketNavbarTitle: '🇲🇳 ЯПОН ДАХЬ 🇯🇵 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
+  marketFooterTitle: 'Япон дахь Монголчуудын зарын сайт',
   marketSeoBlurb: 'Zarjapan — Япон дахь Монголчуудын зарын сайт.',
 };
 
