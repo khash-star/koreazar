@@ -5,7 +5,7 @@ const appJson = require("./app.json");
 
 const COUNTRY_APP_OVERRIDES = {
   US: {
-    name: "Zarusa",
+    name: "ZAR-USA",
     slug: "zarusa-app",
     scheme: "zarusa",
     ios: {
@@ -15,7 +15,7 @@ const COUNTRY_APP_OVERRIDES = {
       package: "com.zarusa.app",
     },
     photosPermission:
-      "Zarusa uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used.",
+      "ZAR-USA uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used.",
   },
 };
 

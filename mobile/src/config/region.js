@@ -1,9 +1,9 @@
 /**
- * Mobile region resolver — US Zarusa builds only.
+ * Mobile region resolver — US ZAR-USA builds only.
  * KR/Zarkorea: no region (returns null).
  * US build default: washington-dc (no user picker, no invite).
  */
-import { getActiveMobileCountryCode, isUsMobileMarket } from "./country";
+import { getActiveMobileCountryCode, getActiveMobileCountry, isUsMobileMarket } from "./country";
 import { getDefaultUsRegionCode, getUsRegion } from "./regions/us";
 
 /** Active region for this build (env US → default launch region washington-dc). */
@@ -18,11 +18,12 @@ export function getActiveMobileRegion() {
 }
 
 export function getMobileHomeHeaderTitle() {
+  const brand = getActiveMobileCountry().appName;
   const region = getActiveMobileRegion();
   if (region) {
-    return `ZARUSA — ${region.shortLabel}`;
+    return `${brand} — ${region.shortLabel}`;
   }
   const country = getActiveMobileCountryCode();
-  if (country === "US") return "ZARUSA";
+  if (country === "US") return brand;
   return null;
 }

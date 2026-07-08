@@ -11,7 +11,7 @@
 export const us = {
   countryCode: 'US',
   countryName: 'Америк',
-  appName: 'Zarusa',
+  appName: 'ZAR-USA',
   defaultPhoneCode: '+1',
   currency: {
     code: 'USD',
@@ -31,7 +31,7 @@ export const us = {
   marketFooterTitle: 'Америк дахь Монголчуудын зарын сайт',
   marketWelcomeFlags: '🇲🇳 🇺🇸',
   marketSeoBlurb:
-    'Zarusa, Zarusa app, Zarusa US Mongolia, Америк зар — Америк дахь Монголчуудын зарын сайт.',
+    'ZAR-USA, ZAR-USA app, ZAR-USA US Mongolia, Америк зар — Америк дахь Монголчуудын зарын сайт.',
 };
 
 export default us;
