@@ -6,7 +6,7 @@ const appJson = require("./app.json");
 const COUNTRY_APP_OVERRIDES = {
   US: {
     name: "ZAR-USA",
-    slug: "zarusa-app",
+    // Keep slug aligned with app.json / EAS project (zarkorea-app) — only display name differs.
     scheme: "zarusa",
     ios: {
       bundleIdentifier: "com.zarusa.app",
@@ -31,12 +31,12 @@ function applyCountryAppOverrides(expo) {
   const next = {
     ...expo,
     name: overrides.name,
-    slug: overrides.slug,
     scheme: overrides.scheme,
     ios: { ...expo.ios, ...overrides.ios },
     android: { ...expo.android, ...overrides.android },
     plugins: Array.isArray(expo.plugins) ? [...expo.plugins] : [],
   };
+  if (overrides.slug) next.slug = overrides.slug;
 
   if (overrides.photosPermission) {
     next.plugins = next.plugins.map((plugin) => {

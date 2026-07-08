@@ -496,7 +496,6 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.price}>
                   {formatListingPrice(item.price, { countryCode: item.country_code })}
                 </Text>
-                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </Pressable>
