@@ -29,6 +29,8 @@ export function parseMysqlListingId(raw) {
 }
 const LATEST_CACHE_TTL_MS = 15000;
 const DETAIL_CACHE_TTL_MS = 120000;
+/** Home feed sort — VIP first, then featured, then regular (matches web Home.jsx). */
+const TYPE_ORDER = { vip: 0, featured: 1, regular: 2 };
 let latestListingsCache = { at: 0, key: "", data: null, pending: null };
 /** @type {Map<string, { at: number, data: object }>} */
 const listingDetailCache = new Map();
