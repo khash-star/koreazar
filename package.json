@@ -17,7 +17,8 @@
     "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs",
     "staging:zarusa": "powershell -ExecutionPolicy Bypass -File scripts/staging-zarusa-dmv.ps1",
     "package:zarusa-api": "powershell -ExecutionPolicy Bypass -File scripts/package-zarusa-api-upload.ps1",
-    "deploy:zarusa-api": "powershell -ExecutionPolicy Bypass -File scripts/deploy-zarusa-api.ps1"
+    "deploy:zarusa-api": "powershell -ExecutionPolicy Bypass -File scripts/deploy-zarusa-api.ps1",
+    "seed:zarusa-test-listings": "node scripts/seed-zarusa-dmv-test-listings.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.2",

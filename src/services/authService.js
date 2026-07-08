@@ -489,12 +489,13 @@ export const getMe = async () => {
     if (!user) return null;
 
     const userData = await getUserData(user.uid);
+    const resolvedEmail = await getResolvedAuthEmail(user);
     if (!userData) {
       // Хэрэв Firestore дээр байхгүй бол үүсгэх (offline байвал skip)
       try {
         await setDoc(doc(db, 'users', user.uid), {
-          email: user.email,
-          displayName: user.displayName || user.email.split('@')[0],
+          email: resolvedEmail || user.email,
+          displayName: user.displayName || user.email?.split('@')[0] || 'Хэрэглэгч',
           role: 'user',
           createdAt: new Date()
         });
@@ -506,16 +507,20 @@ export const getMe = async () => {
       }
       return {
         uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || user.email.split('@')[0],
+        email: resolvedEmail,
+        phone: user.phoneNumber || '',
+        phoneNumber: user.phoneNumber || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Хэрэглэгч',
         role: 'user'
       };
     }
 
     return {
       uid: user.uid,
-      email: user.email,
-      ...userData
+      ...userData,
+      email: resolvedEmail || userData.email || user.email || '',
+      phone: userData.phone || userData.phoneNumber || user.phoneNumber || '',
+      phoneNumber: userData.phoneNumber || userData.phone || user.phoneNumber || '',
     };
   } catch (error) {
     console.error('Error getting current user:', error);

@@ -43,3 +43,24 @@ export function areEmailVariants(a, b) {
   const variants = new Set(emailQueryVariants(left));
   return variants.has(right);
 }
+
+/**
+ * Chat/listings identity for phone OTP users — Firebase token.email is often empty.
+ * @param {object|null|undefined} user - Firebase Auth user
+ * @param {object|null|undefined} userData - Firestore profile from AuthContext
+ */
+export function resolveAuthEmail(user, userData) {
+  const fromProfile = normalizeEmail(userData?.email);
+  if (fromProfile) return fromProfile;
+  const fromToken = normalizeEmail(user?.email);
+  if (fromToken) return fromToken;
+  const phone =
+    userData?.phone ||
+    userData?.phoneNumber ||
+    user?.phoneNumber ||
+    '';
+  if (phone) {
+    return normalizeEmail(phoneToAuthEmail(phone)) || '';
+  }
+  return '';
+}

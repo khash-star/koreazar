@@ -15,7 +15,7 @@ import {
   isSellerBlockedByViewer,
   setSellerBlockedByEmail,
 } from '@/services/authService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
 import {
   ArrowLeft,
   Phone,
@@ -84,6 +84,7 @@ export default function ListingDetail() {
   const [deleteId, setDeleteId] = useState(null);
   const [sellerBlockLocal, setSellerBlockLocal] = useState(null);
   const { user, userData, isAuthenticated, loading } = useAuth();
+  const authEmail = resolveAuthEmail(user, userData);
 
   useEffect(() => {
     setSellerBlockLocal(null);
@@ -173,8 +174,7 @@ export default function ListingDetail() {
 
   const handleSave = () => {
     if (loading) return;
-    const email = userData?.email || user?.email;
-    if (!email) {
+    if (!authEmail) {
       redirectToLogin();
       return;
     }
@@ -183,8 +183,7 @@ export default function ListingDetail() {
 
   const handleReportToAdmin = async () => {
     if (loading) return;
-    const email = userData?.email || user?.email;
-    if (!email) {
+    if (!authEmail) {
       redirectToLogin(window.location.href);
       return;
     }
@@ -192,8 +191,7 @@ export default function ListingDetail() {
   };
 
   const submitReport = () => {
-    const email = userData?.email || user?.email;
-    if (!email) {
+    if (!authEmail) {
       redirectToLogin(window.location.href);
       return;
     }
@@ -208,7 +206,7 @@ export default function ListingDetail() {
       category: listing.category || null,
       reason: reportReason,
       details: reportDetails?.trim() || null,
-      reporter_email: email,
+      reporter_email: authEmail,
       status: 'pending',
     });
   };
@@ -341,7 +339,7 @@ export default function ListingDetail() {
     return subcat?.label;
   };
 
-  const userEmail = userData?.email || user?.email;
+  const userEmail = authEmail;
   const isOwner =
     !!listing?.created_by &&
     !!userEmail &&
@@ -664,11 +662,11 @@ export default function ListingDetail() {
                   <Button
                     onClick={() => {
                       if (loading) return;
-                      const email = userData?.email || user?.email;
-                      if (!email) {
+                      if (!user) {
                         redirectToLogin(window.location.href);
                         return;
                       }
+                      if (!authEmail) return;
                       window.location.href = createCountryPageUrl(`Chat?otherUserEmail=${encodeURIComponent(listing.created_by)}&listingId=${listing.id}`, countryPrefix);
                     }}
                     disabled={sellerBlockedEffective}
@@ -705,11 +703,11 @@ export default function ListingDetail() {
                     <Button
                       onClick={() => {
                         if (loading) return;
-                        const email = userData?.email || user?.email;
-                        if (!email) {
+                        if (!user) {
                           redirectToLogin(window.location.href);
                           return;
                         }
+                        if (!authEmail) return;
                         setShowPhone(true);
                       }}
                       className="w-full h-12 rounded-xl bg-amber-600 hover:bg-amber-700"
@@ -823,11 +821,11 @@ export default function ListingDetail() {
               <Button
                 onClick={() => {
                   if (loading) return;
-                  const email = userData?.email || user?.email;
-                  if (!email) {
+                  if (!user) {
                     redirectToLogin(window.location.href);
                     return;
                   }
+                  if (!authEmail) return;
                   setShowPhone(true);
                 }}
                 className="w-full h-11 rounded-xl bg-amber-600 hover:bg-amber-700"

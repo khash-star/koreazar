@@ -18,7 +18,7 @@ import {
   createConversation,
   deleteConversationAndMessages,
 } from '@/services/conversationService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
@@ -30,7 +30,7 @@ export default function Messages() {
   const routeCountryCode = useRouteCountryCode();
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const [searchQuery, setSearchQuery] = useState('');
-  const userEmail = normalizeEmail(userData?.email || user?.email || '');
+  const userEmail = normalizeEmail(resolveAuthEmail(user, userData));
   const [adminEmail, setAdminEmail] = useState(null);
 
   // Get admin email
@@ -43,10 +43,11 @@ export default function Messages() {
   }, []);
 
   useEffect(() => {
-    if (!user && !userData) {
+    if (authLoading) return;
+    if (!user) {
       redirectToLogin(window.location.href);
     }
-  }, [user, userData]);
+  }, [user, authLoading]);
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ['conversations', userEmail, adminEmail],
@@ -172,13 +173,13 @@ export default function Messages() {
   };
 
   const handleMessageAdmin = async () => {
-    // Check if user is authenticated
-    if (!isAuthenticated || !user || !userData) {
+    if (authLoading) return;
+    if (!isAuthenticated || !user) {
       redirectToLogin(window.location.href);
       return;
     }
-    
-      if (!adminEmail || !userEmail) return;
+
+    if (!adminEmail || !userEmail) return;
 
     try {
       let conversation = await findConversation(userEmail, adminEmail);

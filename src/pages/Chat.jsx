@@ -19,7 +19,7 @@ import {
   getUserByEmail,
   isSellerBlockedByViewer,
 } from '@/services/authService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
 import {
   deleteMessage,
   syncConversationLastMessageFromMessages,
@@ -43,6 +43,8 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const blockRedirectRef = useRef(false);
   const { user, userData, loading } = useAuth();
+  const authEmail = resolveAuthEmail(user, userData);
+  const myEmailNorm = normalizeEmail(authEmail);
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
   const [adminEmail, setAdminEmail] = useState(null);
@@ -63,9 +65,8 @@ export default function Chat() {
   }, [conversationId, otherUserEmail]);
 
   useEffect(() => {
-    if (loading || !userData) return;
-    const myEmail = normalizeEmail(userData?.email || user?.email || '');
-    if (!myEmail || !actualConversationId || otherUserEmail) return;
+    if (loading || !user) return;
+    if (!myEmailNorm || !actualConversationId || otherUserEmail) return;
 
     let cancelled = false;
     (async () => {
@@ -75,12 +76,12 @@ export default function Chat() {
         if (cancelled || !conv) return;
         const p1 = normalizeEmail(conv.participant_1);
         const p2 = normalizeEmail(conv.participant_2);
-        const other = p1 === myEmail ? p2 : p1;
+        const other = p1 === myEmailNorm ? p2 : p1;
         if (!other) return;
         let admin = adminEmail;
         if (!admin) admin = await getAdminEmail();
         if (admin && normalizeEmail(admin) === other) return;
-        const profile = await getUserByEmail(myEmail);
+        const profile = await getUserByEmail(myEmailNorm);
         if (profile && isSellerBlockedByViewer(profile, other) && !blockRedirectRef.current) {
           blockRedirectRef.current = true;
           setChatForbidden(true);
@@ -100,8 +101,8 @@ export default function Chat() {
     };
   }, [
     loading,
-    userData,
     user,
+    myEmailNorm,
     actualConversationId,
     otherUserEmail,
     adminEmail,
@@ -109,22 +110,18 @@ export default function Chat() {
   ]);
 
   useEffect(() => {
-    // Wait for auth to finish loading before checking
     if (loading) return;
-    
-    const email = userData?.email || user?.email;
-    if (!email) {
+    if (!user) {
       redirectToLogin(window.location.href);
     }
-  }, [user, userData, loading]);
+  }, [user, loading]);
 
   // Create conversation if needed
   useEffect(() => {
     const ensureConversation = async () => {
-      const email = userData?.email || user?.email;
-      if (!email || !otherUserEmail || conversationId) return;
+      if (!authEmail || !otherUserEmail || conversationId) return;
 
-      const meN = normalizeEmail(email);
+      const meN = normalizeEmail(authEmail);
       const otherN = normalizeEmail(otherUserEmail);
       let admin = adminEmail;
       if (!admin) admin = await getAdminEmail();
@@ -178,7 +175,7 @@ export default function Chat() {
     };
     
     ensureConversation();
-  }, [userData?.email, user?.email, otherUserEmail, conversationId, listingId, adminEmail, navigate]);
+  }, [authEmail, otherUserEmail, conversationId, listingId, adminEmail, navigate]);
 
   const { data: conversation } = useQuery({
     queryKey: ['conversation', actualConversationId],
@@ -190,12 +187,11 @@ export default function Chat() {
   });
 
   useEffect(() => {
-    const email = userData?.email || user?.email;
-    if (!conversation?.id || !email) return;
-    repairConversationParticipants(conversation, { meEmail: email }).then(() => {
+    if (!conversation?.id || !authEmail) return;
+    repairConversationParticipants(conversation, { meEmail: authEmail }).then(() => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
-  }, [conversation?.id, userData?.email, user?.email, queryClient]);
+  }, [conversation?.id, authEmail, queryClient]);
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['messages', actualConversationId],
@@ -210,9 +206,8 @@ export default function Chat() {
   const { data: otherUser } = useQuery({
     queryKey: ['otherUser', conversation?.id, adminEmail],
     queryFn: async () => {
-      const email = userData?.email || user?.email;
-      if (!conversation || !email) return null;
-      const otherEmail = conversation.participant_1 === email 
+      if (!conversation || !authEmail) return null;
+      const otherEmail = conversation.participant_1 === authEmail 
         ? conversation.participant_2 
         : conversation.participant_1;
       
@@ -240,7 +235,7 @@ export default function Chat() {
         full_name: displayName
       };
     },
-    enabled: !!conversation && !!(userData?.email || user?.email)
+    enabled: !!conversation && !!authEmail
   });
 
   const { data: listing } = useQuery({
@@ -255,11 +250,10 @@ export default function Chat() {
   // Mark messages as read
   useEffect(() => {
     const markAsRead = async () => {
-      const email = userData?.email || user?.email;
-      if (!email || !actualConversationId || !conversation) return;
+      if (!authEmail || !actualConversationId || !conversation) return;
       
       try {
-        const me = normalizeEmail(email);
+        const me = normalizeEmail(authEmail);
         const unreadMessages = messages.filter(
           (m) => normalizeEmail(m.receiver_email) === me && !m.is_read
         );
@@ -270,7 +264,7 @@ export default function Chat() {
         
         if (unreadMessages.length > 0) {
           const isParticipant1 =
-            normalizeEmail(conversation.participant_1) === normalizeEmail(email);
+            normalizeEmail(conversation.participant_1) === normalizeEmail(authEmail);
           await entities.Conversation.update(actualConversationId, {
             [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
           });
@@ -282,7 +276,7 @@ export default function Chat() {
     };
     
     markAsRead();
-  }, [messages, userData?.email, user?.email, actualConversationId, conversation, queryClient]);
+  }, [messages, authEmail, actualConversationId, conversation, queryClient]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -291,10 +285,9 @@ export default function Chat() {
 
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
-      const email = userData?.email || user?.email;
-      if (!email || !actualConversationId || !otherUser?.email) return;
+      if (!authEmail || !actualConversationId || !otherUser?.email) return;
       
-      const senderNorm = normalizeEmail(email);
+      const senderNorm = normalizeEmail(authEmail);
       const receiverNorm = normalizeEmail(otherUser.email);
       const newMessage = await entities.Message.create({
         conversation_id: actualConversationId,
@@ -459,8 +452,7 @@ export default function Chat() {
           ) : messages.length > 0 ? (
             <div className="space-y-4">
               {messages.map((msg, index) => {
-                const email = userData?.email || user?.email;
-                const isOwnMessage = msg.sender_email === email;
+                const isOwnMessage = msg.sender_email === authEmail;
                 const showDate = index === 0 || 
                   format(new Date(messages[index - 1].created_date), 'yyyy-MM-dd') !== 
                   format(new Date(msg.created_date), 'yyyy-MM-dd');

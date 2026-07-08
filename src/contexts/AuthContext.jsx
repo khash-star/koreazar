@@ -1,6 +1,7 @@
 // Auth Context - Authentication state management
 // Firebase Auth is loaded asynchronously (dynamic import) so it doesn't block first paint / LCP
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { resolveAuthEmail } from '@/utils/emailNormalize';
 
 const AuthContext = createContext(null);
 
@@ -31,8 +32,13 @@ export const AuthProvider = ({ children }) => {
         // Immediately set basic user data (don't wait for Firestore)
         const basicUserData = {
           uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+          email: resolveAuthEmail(firebaseUser, null),
+          phone: firebaseUser.phoneNumber || '',
+          phoneNumber: firebaseUser.phoneNumber || '',
+          displayName:
+            firebaseUser.displayName ||
+            resolveAuthEmail(firebaseUser, null)?.split('@')[0] ||
+            'Хэрэглэгч',
           role: 'user' // Default role, will be updated from Firestore if available
         };
         setUserData(basicUserData);
@@ -54,7 +60,7 @@ export const AuthProvider = ({ children }) => {
               const merged = {
                 uid: firebaseUser.uid,
                 ...userDataFromFirestore,
-                email: firebaseUser.email || userDataFromFirestore.email,
+                email: resolveAuthEmail(firebaseUser, userDataFromFirestore),
               };
               setUserData(merged);
               profileForRules = merged;
