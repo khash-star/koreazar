@@ -545,7 +545,6 @@ export default function Chat() {
                   </React.Fragment>
                 );
               })}
-              <div ref={messagesEndRef} />
             </div>
           ) : (
             <div className="text-center py-20">
