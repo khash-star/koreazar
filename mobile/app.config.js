@@ -65,6 +65,7 @@ function resolveGoogleServicesFile(envPath, localRelative) {
 /** Firebase native config — omit when missing (avoids Expo parse errors on Expo Go). */
 function withOptionalGoogleServices(expo) {
   const next = { ...expo, ios: { ...expo.ios }, android: { ...expo.android } };
+  const isUs = normalizeCountryCode(process.env.EXPO_PUBLIC_ACTIVE_COUNTRY) === "US";
 
   const androidGs = resolveGoogleServicesFile(
     process.env.GOOGLE_SERVICES_JSON,
@@ -76,10 +77,11 @@ function withOptionalGoogleServices(expo) {
     delete next.android.googleServicesFile;
   }
 
-  const iosPlist = resolveGoogleServicesFile(
-    process.env.GOOGLE_SERVICE_INFO_PLIST,
-    "GoogleService-Info.plist"
-  );
+  const iosPlistEnv = isUs
+    ? process.env.GOOGLE_SERVICE_INFO_PLIST_US || process.env.GOOGLE_SERVICE_INFO_PLIST
+    : process.env.GOOGLE_SERVICE_INFO_PLIST;
+  const iosPlistLocal = isUs ? "GoogleService-Info.zarusa.plist" : "GoogleService-Info.plist";
+  const iosPlist = resolveGoogleServicesFile(iosPlistEnv, iosPlistLocal);
   if (iosPlist) {
     next.ios.googleServicesFile = iosPlist;
   } else {

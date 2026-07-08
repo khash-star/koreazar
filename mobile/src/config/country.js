@@ -1,6 +1,6 @@
 /**
  * Mobile active-country resolver — mirrors web src/config/country.js (env-only).
- * Set EXPO_PUBLIC_ACTIVE_COUNTRY=US for Zarusa builds; omit or KR for Zarkorea.
+ * Set EXPO_PUBLIC_ACTIVE_COUNTRY=US for ZAR-USA builds; omit or KR for Zarkorea.
  */
 import { kr } from "./countries/kr";
 import { us } from "./countries/us";

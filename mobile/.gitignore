@@ -37,6 +37,7 @@ yarn-error.*
 # Firebase native config (download from Console; use *.example as template)
 google-services.json
 GoogleService-Info.plist
+GoogleService-Info.zarusa.plist
 
 # EAS credentials (keystore, passwords) — git руу хэзээ ч push хийхгүй
 credentials.json
