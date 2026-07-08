@@ -41,10 +41,8 @@ export default function Chat() {
   const activeCountry = useActiveCountry();
   const routeCountryCode = useRouteCountryCode();
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
-  const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const shouldStickToBottomRef = useRef(true);
-  const prevMessageCountRef = useRef(0);
+  const initialScrollDoneRef = useRef(false);
   const blockRedirectRef = useRef(false);
   const emailSyncedConvRef = useRef(null);
   const repairDoneConvRef = useRef(null);
@@ -68,8 +66,7 @@ export default function Chat() {
   useEffect(() => {
     blockRedirectRef.current = false;
     setChatForbidden(false);
-    prevMessageCountRef.current = 0;
-    shouldStickToBottomRef.current = true;
+    initialScrollDoneRef.current = false;
   }, [conversationId, otherUserEmail, actualConversationId]);
 
   useEffect(() => {
@@ -300,29 +297,19 @@ export default function Chat() {
     markAsRead();
   }, [messages, authEmail, actualConversationId, conversation, queryClient, user]);
 
-  // Scroll messages container — only when user is near bottom or new messages arrive
   const scrollMessagesToBottom = (behavior = 'auto') => {
     const el = messagesContainerRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior });
   };
 
+  // Нээхэд нэг удаа доош scroll; нээлттэй үед poll/refetch-ээр хөдлөхгүй
   useEffect(() => {
-    const count = messages.length;
-    const isInitialLoad = prevMessageCountRef.current === 0 && count > 0;
-    const hasNewMessages = count > prevMessageCountRef.current;
-    prevMessageCountRef.current = count;
-
-    if (!isInitialLoad && !hasNewMessages && !shouldStickToBottomRef.current) return;
-    scrollMessagesToBottom(isInitialLoad || hasNewMessages ? 'smooth' : 'auto');
-  }, [messages]);
-
-  const handleMessagesScroll = () => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    shouldStickToBottomRef.current = distanceFromBottom < 96;
-  };
+    if (isLoading || initialScrollDoneRef.current) return;
+    initialScrollDoneRef.current = true;
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => scrollMessagesToBottom('auto'));
+  }, [isLoading, messages.length, actualConversationId]);
 
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
@@ -349,7 +336,6 @@ export default function Chat() {
       return newMessage;
     },
     onSuccess: () => {
-      shouldStickToBottomRef.current = true;
       queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -483,7 +469,6 @@ export default function Chat() {
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        onScroll={handleMessagesScroll}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
       >
         <div className="max-w-4xl mx-auto px-4 py-6">
