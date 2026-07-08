@@ -21,6 +21,8 @@ export default function Layout({ children, currentPageName }) {
   const activeCountry = useActiveCountry();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
+  const isChatPage = currentPageName === 'Chat';
+  const hideFooter = isChatPage || currentPageName === 'Messages';
 
   // Only prefix nav links when the URL already has a `/kr`, `/us`, `/jp`
   // prefix — root `/` and other un-prefixed pages keep exact legacy (KR)
@@ -166,6 +168,7 @@ export default function Layout({ children, currentPageName }) {
       {children}
 
       {/* Footer */}
+      {!hideFooter && (
       <footer className="bg-gray-900 text-gray-300 py-8 mt-8 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 space-y-6">
           <div className="text-center">
@@ -265,6 +268,7 @@ export default function Layout({ children, currentPageName }) {
           </p>
         </div>
       </footer>
+      )}
 
       <Dialog open={isFeedbackOpen} onOpenChange={setIsFeedbackOpen}>
         <DialogContent className="sm:max-w-3xl bg-[#10233f] border border-slate-700 text-slate-100">
@@ -333,8 +337,8 @@ export default function Layout({ children, currentPageName }) {
         </Link>
       )}
       
-      {/* Bottom Navigation (Mobile) - Only on Home */}
-      {showNav && (
+      {/* Bottom Navigation (Mobile) - hidden on Chat for full-screen messaging */}
+      {showNav && !isChatPage && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 shadow-lg" aria-label="Гол цэс">
           <div className="flex items-center justify-around py-2.5 px-2">
             <button

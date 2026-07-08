@@ -42,6 +42,9 @@ export default function Chat() {
   const routeCountryCode = useRouteCountryCode();
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const shouldStickToBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
   const blockRedirectRef = useRef(false);
   const emailSyncedConvRef = useRef(null);
   const repairDoneConvRef = useRef(null);
@@ -65,7 +68,9 @@ export default function Chat() {
   useEffect(() => {
     blockRedirectRef.current = false;
     setChatForbidden(false);
-  }, [conversationId, otherUserEmail]);
+    prevMessageCountRef.current = 0;
+    shouldStickToBottomRef.current = true;
+  }, [conversationId, otherUserEmail, actualConversationId]);
 
   useEffect(() => {
     if (loading || !user) return;
@@ -295,10 +300,29 @@ export default function Chat() {
     markAsRead();
   }, [messages, authEmail, actualConversationId, conversation, queryClient, user]);
 
-  // Scroll to bottom
+  // Scroll messages container — only when user is near bottom or new messages arrive
+  const scrollMessagesToBottom = (behavior = 'auto') => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const count = messages.length;
+    const isInitialLoad = prevMessageCountRef.current === 0 && count > 0;
+    const hasNewMessages = count > prevMessageCountRef.current;
+    prevMessageCountRef.current = count;
+
+    if (!isInitialLoad && !hasNewMessages && !shouldStickToBottomRef.current) return;
+    scrollMessagesToBottom(isInitialLoad || hasNewMessages ? 'smooth' : 'auto');
   }, [messages]);
+
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    shouldStickToBottomRef.current = distanceFromBottom < 96;
+  };
 
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
@@ -325,11 +349,13 @@ export default function Chat() {
       return newMessage;
     },
     onSuccess: () => {
+      shouldStickToBottomRef.current = true;
       queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
       setMessage('');
+      requestAnimationFrame(() => scrollMessagesToBottom('smooth'));
     },
     onError: (err) => {
       toast({ title: 'Алдаа', description: err?.message || 'Мессеж илгээж чадсангүй', variant: 'destructive' });
@@ -393,7 +419,7 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="fixed inset-0 z-30 flex flex-col bg-gray-50 md:static md:z-auto md:min-h-[100dvh] md:max-h-none">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
@@ -455,7 +481,11 @@ export default function Chat() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+      >
         <div className="max-w-4xl mx-auto px-4 py-6">
           {isLoading ? (
             <div className="space-y-4">
@@ -541,7 +571,7 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-gray-200 sticky bottom-0 md:bottom-0 pb-20 md:pb-3 z-30">
+      <div className="bg-white border-t border-gray-200 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
         <div className="max-w-4xl mx-auto px-4 py-3">
           <div className="flex gap-2">
             <Textarea
