@@ -15,7 +15,7 @@ import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } 
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
 import { buildApiUrl, requestJson } from "./apiClient";
-import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from "../utils/emailNormalize.js";
 import {
   clearPendingPhoneOtp,
   getPendingPhoneVerificationId,
@@ -81,8 +81,13 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     em = await getResolvedAuthEmail(user);
   }
   if (!em) return false;
+  const phoneAuthEmails = [...new Set(emailQueryVariants(em))];
   try {
-    await setDoc(doc(db, "users", user.uid), { email: em }, { merge: true });
+    await setDoc(
+      doc(db, "users", user.uid),
+      { email: em, phoneAuthEmails },
+      { merge: true }
+    );
     return true;
   } catch (e) {
     console.warn("ensureUserDocEmailForFirestoreRules:", e?.message || e);

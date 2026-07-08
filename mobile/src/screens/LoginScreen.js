@@ -25,14 +25,24 @@ import {
 import { clearPendingPhoneOtp as clearNativePending } from "../services/phoneAuth";
 import { buildPhoneE164 } from "../utils/phoneNormalize";
 import { showAlert } from "../utils/showAlert";
+import { getActiveMobileCountry, isUsMobileMarket } from "../config/country";
 
-const OTP_RESEND_COOLDOWN_SEC = 60;
-const PHONE_COUNTRIES = [
+const PHONE_COUNTRIES_KR = [
   { value: "+82", label: "🇰🇷 +82" },
   { value: "+976", label: "🇲🇳 +976" },
 ];
+const PHONE_COUNTRIES_US = [{ value: "+1", label: "🇺🇸 +1" }];
+
+function getPhoneCountries() {
+  return isUsMobileMarket() ? PHONE_COUNTRIES_US : PHONE_COUNTRIES_KR;
+}
+
+const OTP_RESEND_COOLDOWN_SEC = 60;
 
 export default function LoginScreen({ navigation }) {
+  const activeCountry = getActiveMobileCountry();
+  const phoneCountries = getPhoneCountries();
+  const defaultPhonePrefix = activeCountry.defaultPhoneCode || "+82";
   const { isAuthenticated, loading: authLoading } = useAuth();
   const [loginMethod, setLoginMethod] = useState(Platform.OS === "web" ? "email" : "phone");
   const [email, setEmail] = useState("");
@@ -42,7 +52,7 @@ export default function LoginScreen({ navigation }) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState("");
 
-  const [phoneCountryPrefix, setPhoneCountryPrefix] = useState("+82");
+  const [phoneCountryPrefix, setPhoneCountryPrefix] = useState(defaultPhonePrefix);
   const [phoneLocal, setPhoneLocal] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -253,7 +263,7 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.label}>Утасны дугаар</Text>
                 <View style={styles.phoneRow}>
                   <View style={styles.prefixCol}>
-                    {PHONE_COUNTRIES.map((c) => (
+                    {phoneCountries.map((c) => (
                       <Pressable
                         key={c.value}
                         style={[styles.prefixBtn, phoneCountryPrefix === c.value && styles.prefixBtnActive]}
@@ -270,7 +280,7 @@ export default function LoginScreen({ navigation }) {
                     value={phoneLocal}
                     onChangeText={setPhoneLocal}
                     keyboardType="phone-pad"
-                    placeholder="010-9497-0939"
+                    placeholder={phoneCountryPrefix === "+1" ? "202-555-0100" : "010-9497-0939"}
                     autoComplete="tel"
                   />
                 </View>

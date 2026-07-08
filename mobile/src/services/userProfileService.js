@@ -12,7 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { normalizeEmail } from "../utils/emailNormalize.js";
+import { normalizeEmail, emailQueryVariants } from "../utils/emailNormalize.js";
 
 /** Одоогийн хэрэглэгчийн профайл дээр зар эзэн (имэйл) блоклогдсон эсэх */
 export function isSellerBlockedByViewer(userDoc, sellerEmail) {
@@ -115,11 +115,21 @@ export async function getUserByEmail(email) {
   try {
     if (!email) return null;
     const usersRef = collection(db, "users");
-    const q = query(usersRef, where("email", "==", email), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const docSnap = snapshot.docs[0];
-    return { id: docSnap.id, ...docSnap.data() };
+    const variants = [...new Set(emailQueryVariants(normalizeEmail(email)))];
+    if (variants.length === 0) {
+      const em = normalizeEmail(email);
+      if (em) variants.push(em);
+    }
+    for (const em of variants) {
+      if (!em) continue;
+      const q = query(usersRef, where("email", "==", em), limit(1));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+    }
+    return null;
   } catch (e) {
     console.warn("getUserByEmail:", e?.message);
     return null;
