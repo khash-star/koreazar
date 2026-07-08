@@ -27,7 +27,10 @@ export const AuthProvider = ({ children }) => {
         );
         unsubRef.current = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
-        await ensureUserDocEmailForFirestoreRules(firebaseUser);
+        await ensureUserDocEmailForFirestoreRules(
+          firebaseUser,
+          resolveAuthEmail(firebaseUser, null)
+        );
         setUser(firebaseUser);
         // Immediately set basic user data (don't wait for Firestore)
         const basicUserData = {

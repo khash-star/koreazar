@@ -36,11 +36,23 @@ service cloud.firestore {
       );
     }
 
+    function isMessageConversationParticipant() {
+      return request.auth != null &&
+        resource.data.conversation_id is string &&
+        resource.data.conversation_id.size() > 0 &&
+        exists(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)) &&
+        get(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)).data.participant_uids is list &&
+        get(/databases/$(database)/documents/conversations/$(resource.data.conversation_id)).data.participant_uids.hasAny([request.auth.uid]);
+    }
+
     function isMessageSenderOrReceiver() {
       let em = authEmailLower();
-      return request.auth != null && em.size() > 0 && (
-        (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
-        (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
+      return request.auth != null && (
+        isMessageConversationParticipant() ||
+        (em.size() > 0 && (
+          (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
+          (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
+        ))
       );
     }
     

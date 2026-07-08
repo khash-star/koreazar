@@ -124,13 +124,21 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     return normalizeEmail(s) || '';
   };
   let em = pick(user.email) || pick(profileEmail);
+  let phone = user.phoneNumber || '';
   if (!em) {
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
-      em = pick(snap.data()?.email);
+      if (snap.exists()) {
+        const d = snap.data();
+        em = pick(d?.email);
+        phone = phone || d?.phone || d?.phoneNumber || '';
+      }
     } catch {
       /* ignore */
     }
+  }
+  if (!em && phone) {
+    em = normalizeEmail(phoneToAuthEmail(phone)) || '';
   }
   if (!em) return;
   try {

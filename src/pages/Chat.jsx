@@ -18,8 +18,9 @@ import {
   getAdminEmail,
   getUserByEmail,
   isSellerBlockedByViewer,
+  ensureUserDocEmailForFirestoreRules,
 } from '@/services/authService';
-import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, resolveAuthEmail, areEmailVariants } from '@/utils/emailNormalize';
 import {
   deleteMessage,
   syncConversationLastMessageFromMessages,
@@ -253,9 +254,12 @@ export default function Chat() {
       if (!authEmail || !actualConversationId || !conversation) return;
       
       try {
+        if (user) {
+          await ensureUserDocEmailForFirestoreRules(user, authEmail);
+        }
         const me = normalizeEmail(authEmail);
         const unreadMessages = messages.filter(
-          (m) => normalizeEmail(m.receiver_email) === me && !m.is_read
+          (m) => areEmailVariants(m.receiver_email, me) && !m.is_read
         );
         
         for (const msg of unreadMessages) {
@@ -263,8 +267,7 @@ export default function Chat() {
         }
         
         if (unreadMessages.length > 0) {
-          const isParticipant1 =
-            normalizeEmail(conversation.participant_1) === normalizeEmail(authEmail);
+          const isParticipant1 = areEmailVariants(conversation.participant_1, authEmail);
           await entities.Conversation.update(actualConversationId, {
             [isParticipant1 ? 'unread_count_p1' : 'unread_count_p2']: 0
           });
@@ -276,7 +279,7 @@ export default function Chat() {
     };
     
     markAsRead();
-  }, [messages, authEmail, actualConversationId, conversation, queryClient]);
+  }, [messages, authEmail, actualConversationId, conversation, queryClient, user]);
 
   // Scroll to bottom
   useEffect(() => {

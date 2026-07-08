@@ -18,7 +18,7 @@ import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
 import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants } from '@/utils/emailNormalize';
-import { getUserByEmail } from '@/services/authService';
+import { getUserByEmail, ensureUserDocEmailForFirestoreRules } from '@/services/authService';
 
 async function resolveUidForChatEmail(email, hintUid = null) {
   if (hintUid) return hintUid;
@@ -383,6 +383,10 @@ export const createMessage = async (data, options = {}) => {
 
 export const updateMessage = async (id, data) => {
   try {
+    const user = auth.currentUser;
+    if (user) {
+      await ensureUserDocEmailForFirestoreRules(user);
+    }
     const messageRef = doc(db, 'messages', id);
     await updateDoc(messageRef, data);
   } catch (error) {
