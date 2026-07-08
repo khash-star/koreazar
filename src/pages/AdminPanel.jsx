@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 export default function AdminPanel() {
   const queryClient = useQueryClient();
-  const { user, userData, loading: authLoading } = useAuth();
+  const { user, userData, loading: authLoading, authEmail } = useAuth();
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [message, setMessage] = useState('');
   const [sendResult, setSendResult] = useState(null);
@@ -127,7 +127,7 @@ export default function AdminPanel() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageText) => {
-      const adminEmail = userData?.email || user?.email;
+      const adminEmail = authEmail;
       if (!adminEmail) throw new Error('Admin email not found');
       return await sendMessageToAllUsers(adminEmail, messageText);
     },
@@ -151,7 +151,7 @@ export default function AdminPanel() {
       await updateDoc(userRef, {
         blocked,
         blockedAt: blocked ? new Date() : null,
-        blockedBy: blocked ? (userData?.email || user?.email || 'admin') : null,
+        blockedBy: blocked ? (authEmail || 'admin') : null,
       });
     },
     onSuccess: async (_data, variables) => {

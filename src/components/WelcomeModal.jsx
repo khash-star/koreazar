@@ -2,8 +2,11 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function WelcomeModal({ isOpen, onClose }) {
+  const activeCountry = useActiveCountry();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -37,10 +40,10 @@ export default function WelcomeModal({ isOpen, onClose }) {
                 </button>
                 
                 <div className="text-center">
-                  <div className="text-6xl mb-4">🇲🇳 🇰🇷</div>
+                  <div className="text-6xl mb-4">{activeCountry.marketWelcomeFlags}</div>
                   <h2 className="text-3xl font-bold mb-2">Тавтай морил!</h2>
                   <p className="text-amber-50 text-lg">
-                    Солонгос дахь Монголчуудын зарын нэгдсэн сайт
+                    {activeCountry.marketFooterTitle}
                   </p>
                 </div>
               </div>

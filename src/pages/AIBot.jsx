@@ -44,7 +44,7 @@ export default function AIBot() {
   const routerLocation = useLocation();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
-  const { user, userData } = useAuth();
+  const { user, userData, authEmail } = useAuth();
   const isLoggedIn = Boolean(user?.uid);
   const [message, setMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
@@ -58,7 +58,7 @@ export default function AIBot() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [apiKeyError, setApiKeyError] = useState(false);
   
-  const userEmail = userData?.email || user?.email;
+  const userEmail = authEmail;
   const DAILY_LIMIT = 20; // Daily request limit
 
   // Бэлэн хариултууд

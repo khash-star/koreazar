@@ -17,7 +17,7 @@ import { PLAY_STORE_URL } from '@/constants/appUrls';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 
 export default function Layout({ children, currentPageName }) {
-  const { user, userData, loading: authLoading } = useAuth();
+  const { user, userData, loading: authLoading, authEmail } = useAuth();
   const activeCountry = useActiveCountry();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
@@ -79,7 +79,7 @@ export default function Layout({ children, currentPageName }) {
 
   const displayName = userData?.name || userData?.displayName || user?.displayName || '';
   const displayPhone = userData?.phone || userData?.phoneNumber || user?.phoneNumber || '';
-  const displayEmail = userData?.email || user?.email || '';
+  const displayEmail = authEmail || '';
 
   useEffect(() => {
     setFeedbackForm((prev) => ({

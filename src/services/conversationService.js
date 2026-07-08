@@ -17,7 +17,7 @@ import {
 import { auth, db } from '@/firebase/config';
 import { convertTimestamp } from '@/utils/firestoreDates';
 import { checkBannedContent } from '@/utils/bannedContent';
-import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail, areEmailVariants, emailQueryVariants, resolveAuthEmail } from '@/utils/emailNormalize';
 import { getUserByEmail, ensureUserDocEmailForFirestoreRules } from '@/services/authService';
 
 async function resolveUidForChatEmail(email, hintUid = null) {
@@ -88,24 +88,14 @@ export async function resolveChatParticipantEmail() {
   }
   const u = auth.currentUser;
   if (!u) return '';
-  const fromAuth = normalizeEmail(u.email);
-  if (fromAuth) return fromAuth;
-  let phone = u.phoneNumber || '';
+  let profile = null;
   try {
     const snap = await getDoc(doc(db, 'users', u.uid));
-    if (snap.exists()) {
-      const d = snap.data();
-      const em = normalizeEmail(d?.email);
-      if (em) return em;
-      phone = phone || d?.phone || d?.phoneNumber || '';
-    }
+    if (snap.exists()) profile = snap.data();
   } catch (e) {
     console.warn('resolveChatParticipantEmail:', e?.message);
   }
-  if (phone) {
-    return normalizeEmail(phoneToAuthEmail(phone)) || '';
-  }
-  return '';
+  return normalizeEmail(resolveAuthEmail(u, profile)) || '';
 }
 
 // Conversations

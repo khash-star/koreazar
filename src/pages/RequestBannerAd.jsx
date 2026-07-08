@@ -19,7 +19,7 @@ import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 export default function RequestBannerAd() {
   const navigate = useNavigate();
-  const { user, userData } = useAuth();
+  const { user, userData, authEmail } = useAuth();
   const activeCountry = useActiveCountry();
   const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [uploading, setUploading] = useState(false);
@@ -39,9 +39,9 @@ export default function RequestBannerAd() {
   const { data: myRequests = [] } = useQuery({
     queryKey: ['myBannerRequests'],
     queryFn: async () => {
-      return entities.BannerRequest.filter({ created_by: userData?.email || user?.email }, '-created_date');
+      return entities.BannerRequest.filter({ created_by: authEmail }, '-created_date');
     },
-    enabled: !!user
+    enabled: !!user && !!authEmail
   });
 
   const createMutation = useMutation({

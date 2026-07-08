@@ -656,14 +656,22 @@ export const getAdminEmail = async () => {
 export const getUserByEmail = async (email) => {
   try {
     if (!email) return null;
-    
+
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('email', '==', email), limit(1));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return { id: doc.id, ...doc.data() };
+    const variants = [...new Set(emailQueryVariants(normalizeEmail(email)))];
+    if (variants.length === 0) {
+      const em = normalizeEmail(email);
+      if (em) variants.push(em);
+    }
+
+    for (const em of variants) {
+      if (!em) continue;
+      const q = query(usersRef, where('email', '==', em), limit(1));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const docSnap = querySnapshot.docs[0];
+        return { id: docSnap.id, ...docSnap.data() };
+      }
     }
     return null;
   } catch (error) {

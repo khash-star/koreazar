@@ -20,7 +20,7 @@ import {
   isSellerBlockedByViewer,
   ensureUserDocEmailForFirestoreRules,
 } from '@/services/authService';
-import { normalizeEmail, resolveAuthEmail, areEmailVariants } from '@/utils/emailNormalize';
+import { normalizeEmail, areEmailVariants } from '@/utils/emailNormalize';
 import {
   deleteMessage,
   syncConversationLastMessageFromMessages,
@@ -46,8 +46,7 @@ export default function Chat() {
   const blockRedirectRef = useRef(false);
   const emailSyncedConvRef = useRef(null);
   const repairDoneConvRef = useRef(null);
-  const { user, userData, loading } = useAuth();
-  const authEmail = resolveAuthEmail(user, userData);
+  const { user, userData, loading, authEmail } = useAuth();
   const myEmailNorm = normalizeEmail(authEmail);
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);

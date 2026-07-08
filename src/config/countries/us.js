@@ -29,6 +29,7 @@ export const us = {
   defaultRoutePrefix: '/us',
   marketNavbarTitle: '🇲🇳 АМЕРИК ДАХЬ 🇺🇸 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
   marketFooterTitle: 'Америк дахь Монголчуудын зарын сайт',
+  marketWelcomeFlags: '🇲🇳 🇺🇸',
   marketSeoBlurb:
     'Zarusa, Zarusa app, Zarusa US Mongolia, Америк зар — Америк дахь Монголчуудын зарын сайт.',
 };

@@ -1,6 +1,6 @@
 // Auth Context - Authentication state management
 // Firebase Auth is loaded asynchronously (dynamic import) so it doesn't block first paint / LCP
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { resolveAuthEmail } from '@/utils/emailNormalize';
 
 const AuthContext = createContext(null);
@@ -94,9 +94,12 @@ export const AuthProvider = ({ children }) => {
     return () => unsubRef.current();
   }, []);
 
+  const authEmail = useMemo(() => resolveAuthEmail(user, userData), [user, userData]);
+
   const value = {
     user,           // Firebase Auth user object
     userData,       // Firestore user data (email, role, etc.)
+    authEmail,      // Resolved identity (email or phone synthetic) for queries/rules
     loading,        // Loading state
     isAuthenticated: !!user  // Boolean - нэвтэрсэн эсэх
   };

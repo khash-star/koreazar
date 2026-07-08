@@ -30,6 +30,7 @@ export const kr = {
   defaultRoutePrefix: '/kr',
   marketNavbarTitle: '🇲🇳 СОЛОНГОС ДАХЬ 🇰🇷 МОНГОЛЧУУДЫН ЗАРЫН САЙТ',
   marketFooterTitle: 'Солонгос дахь Монголчуудын зарын сайт',
+  marketWelcomeFlags: '🇲🇳 🇰🇷',
   marketSeoBlurb:
     'Zarkorea, Zarkorea app, Zarkorea Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.',
 };

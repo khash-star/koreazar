@@ -15,7 +15,7 @@ import {
   isSellerBlockedByViewer,
   setSellerBlockedByEmail,
 } from '@/services/authService';
-import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, areEmailVariants } from '@/utils/emailNormalize';
 import {
   ArrowLeft,
   Phone,
@@ -83,8 +83,7 @@ export default function ListingDetail() {
   const [reportDetails, setReportDetails] = useState('');
   const [deleteId, setDeleteId] = useState(null);
   const [sellerBlockLocal, setSellerBlockLocal] = useState(null);
-  const { user, userData, isAuthenticated, loading } = useAuth();
-  const authEmail = resolveAuthEmail(user, userData);
+  const { user, userData, isAuthenticated, loading, authEmail } = useAuth();
 
   useEffect(() => {
     setSellerBlockLocal(null);
@@ -222,16 +221,16 @@ export default function ListingDetail() {
   }, [listing?.id]);
 
   // Meta / SEO
-  const DEFAULT_TITLE = 'Zarkorea.com - Солонгос дахь Монголчуудын зарын сайт';
-  const DEFAULT_DESC = 'Zarkorea — Солонгос дахь Монголчуудын №1 зарын сайт. Автомашин, орон сууц, ажлын байр, хувцас, бараа, үйлчилгээний зарууд.';
+  const DEFAULT_TITLE = `${activeCountry.appName}.com - ${activeCountry.marketFooterTitle}`;
+  const DEFAULT_DESC = activeCountry.marketSeoBlurb;
   useEffect(() => {
     if (!listing) return;
-    document.title = `${listing.title || 'Зар'} - Zarkorea`;
+    document.title = `${listing.title || 'Зар'} - ${activeCountry.appName}`;
     const descMeta = document.querySelector('meta[name="description"]');
     if (descMeta) {
       const desc = listing.description
         ? (listing.description.slice(0, 155) + (listing.description.length > 155 ? '...' : ''))
-        : `${listing.title} - Zarkorea, Солонгос дахь Монголчуудын зарын сайт`;
+        : `${listing.title} - ${activeCountry.appName}, ${activeCountry.marketFooterTitle}`;
       descMeta.setAttribute('content', desc);
     }
     return () => {
@@ -239,13 +238,13 @@ export default function ListingDetail() {
       const meta = document.querySelector('meta[name="description"]');
       if (meta) meta.setAttribute('content', DEFAULT_DESC);
     };
-  }, [listing?.id, listing?.title, listing?.description]);
+  }, [listing?.id, listing?.title, listing?.description, activeCountry.appName, activeCountry.marketFooterTitle, activeCountry.marketSeoBlurb]);
 
   const listingCountryCode = listing?.country_code || activeCountry.countryCode;
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
-    const shareTitle = listing?.title || 'Зар - Zarkorea';
+    const shareTitle = listing?.title || `Зар - ${activeCountry.appName}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: shareTitle, url: shareUrl, text: shareTitle });
@@ -343,7 +342,7 @@ export default function ListingDetail() {
   const isOwner =
     !!listing?.created_by &&
     !!userEmail &&
-    normalizeEmail(listing.created_by) === normalizeEmail(userEmail);
+    areEmailVariants(listing.created_by, userEmail);
   const sellerBlockedEffective =
     sellerBlockLocal !== null
       ? sellerBlockLocal

@@ -48,7 +48,7 @@ const statusLabels = {
 };
 
 export default function Profile() {
-  const { user, userData, isAuthenticated } = useAuth();
+  const { user, userData, isAuthenticated, authEmail } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   // Only prefix when this page itself is under /kr, /us, /jp — legacy
@@ -77,19 +77,19 @@ export default function Profile() {
   
   // Fetch user's listings
   const { data: listings = [], isLoading: listingsLoading } = useQuery({
-    queryKey: ['myListings', user?.email, routeCountryCode],
+    queryKey: ['myListings', authEmail, routeCountryCode],
     queryFn: () =>
       entities.Listing.filter(
         appendUsRegionScopeParams(
           {
-            created_by: userData?.email || user?.email,
+            created_by: authEmail,
             ...(routeCountryCode ? { country_code: routeCountryCode } : {}),
           },
           routeCountryCode
         ),
         '-created_date'
       ),
-    enabled: !!(userData?.email || user?.email)
+    enabled: !!authEmail
   });
 
   const deleteMutation = useMutation({
@@ -213,7 +213,7 @@ export default function Profile() {
     }
   };
 
-  const profileEmail = userData?.email || user?.email || '';
+  const profileEmail = authEmail || '';
   const showProfileEmail = profileEmail && !isSyntheticPhoneAuthEmail(profileEmail);
 
   if (!isAuthenticated || !user) {

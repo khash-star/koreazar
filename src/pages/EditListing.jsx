@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Link } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
+import { areEmailVariants } from '@/utils/emailNormalize';
 import { redirectToLogin } from '@/services/authService';
 import {
   Select,
@@ -40,7 +41,7 @@ export default function EditListing() {
   // localStorage, so it can't silently change which market an edit writes to.
   const routeCountryCode = useRouteCountryCode();
   const writeCountryCode = routeCountryCode || 'KR';
-  const { user, userData } = useAuth();
+  const { user, userData, authEmail } = useAuth();
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [listingId, setListingId] = useState(null);
@@ -277,9 +278,7 @@ export default function EditListing() {
     );
   }
 
-  // Check if user is the owner of the listing
-  const userEmail = userData?.email || user?.email;
-  const isOwner = listing.created_by === userEmail;
+  const isOwner = !!listing?.created_by && !!authEmail && areEmailVariants(listing.created_by, authEmail);
   
   if (!user || !userData) {
     redirectToLogin(window.location.href);

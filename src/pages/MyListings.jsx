@@ -40,7 +40,7 @@ const statusLabels = {
 
 export default function MyListings() {
   const queryClient = useQueryClient();
-  const { user, userData } = useAuth();
+  const { user, userData, authEmail } = useAuth();
   // Only prefix when this page itself is under /kr, /us, /jp — legacy
   // /MyListings keeps linking to the KR-compatible unprefixed routes.
   const activeCountry = useActiveCountry();
@@ -71,19 +71,19 @@ export default function MyListings() {
   }, []);
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['myListings', user?.email, routeCountryCode],
+    queryKey: ['myListings', authEmail, routeCountryCode],
     queryFn: () =>
       entities.Listing.filter(
         appendUsRegionScopeParams(
           {
-            created_by: userData?.email || user?.email,
+            created_by: authEmail,
             ...(routeCountryCode ? { country_code: routeCountryCode } : {}),
           },
           routeCountryCode
         ),
         '-created_date'
       ),
-    enabled: !!user?.email
+    enabled: !!authEmail
   });
 
   const deleteMutation = useMutation({

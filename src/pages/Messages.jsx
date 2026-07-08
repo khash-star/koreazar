@@ -18,11 +18,11 @@ import {
   createConversation,
   deleteConversationAndMessages,
 } from '@/services/conversationService';
-import { normalizeEmail, resolveAuthEmail } from '@/utils/emailNormalize';
+import { normalizeEmail } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
-  const { user, userData, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, userData, isAuthenticated, loading: authLoading, authEmail } = useAuth();
   const queryClient = useQueryClient();
   // Only prefix when this page itself is under /kr, /us, /jp — legacy
   // /Messages keeps linking to the KR-compatible unprefixed route.
@@ -30,7 +30,7 @@ export default function Messages() {
   const routeCountryCode = useRouteCountryCode();
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const [searchQuery, setSearchQuery] = useState('');
-  const userEmail = normalizeEmail(resolveAuthEmail(user, userData));
+  const userEmail = normalizeEmail(authEmail);
   const [adminEmail, setAdminEmail] = useState(null);
 
   // Get admin email

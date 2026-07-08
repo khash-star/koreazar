@@ -41,7 +41,7 @@ export default function Home() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
-  const { user, userData } = useAuth();
+  const { user, userData, authEmail } = useAuth();
   const [filters, setFilters] = useState({
     category: '',
     subcategory: '',
@@ -359,7 +359,7 @@ export default function Home() {
               <Link to={navUrl('Profile')}>
                 <div className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-semibold text-sm">
-                    {(userData?.displayName || user?.displayName || userData?.email || user?.email || '?')[0]?.toUpperCase()}
+                    {(userData?.displayName || user?.displayName || authEmail || '?')[0]?.toUpperCase()}
                   </div>
                   <span className="text-white font-medium text-sm hidden md:block">
                     {userData?.displayName || user?.displayName || userData?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Хэрэглэгч'}
