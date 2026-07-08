@@ -8,11 +8,20 @@ const COUNTRY_APP_OVERRIDES = {
     name: "ZAR-USA",
     // Keep slug aligned with app.json / EAS project (zarkorea-app) — only display name differs.
     scheme: "zarusa",
+    icon: "./assets/us/icon-ios-1024.png",
+    splash: {
+      image: "./assets/us/splash-icon.png",
+    },
     ios: {
       bundleIdentifier: "com.zarusa.app",
+      icon: "./assets/us/icon-ios-1024.png",
     },
     android: {
       package: "com.zarusa.app",
+      adaptiveIcon: {
+        foregroundImage: "./assets/us/android-icon-foreground.png",
+        monochromeImage: "./assets/us/android-icon-monochrome.png",
+      },
     },
     photosPermission:
       "ZAR-USA uses your photo library only when you add images to a listing—for example, photos of items or services you want to show to buyers on the marketplace. Only the images you pick are used.",
@@ -37,6 +46,17 @@ function applyCountryAppOverrides(expo) {
     plugins: Array.isArray(expo.plugins) ? [...expo.plugins] : [],
   };
   if (overrides.slug) next.slug = overrides.slug;
+  if (overrides.icon) next.icon = overrides.icon;
+  if (overrides.splash) {
+    next.splash = { ...expo.splash, ...overrides.splash };
+  }
+
+  if (overrides.android?.adaptiveIcon) {
+    next.android.adaptiveIcon = {
+      ...expo.android?.adaptiveIcon,
+      ...overrides.android.adaptiveIcon,
+    };
+  }
 
   if (overrides.photosPermission) {
     next.plugins = next.plugins.map((plugin) => {

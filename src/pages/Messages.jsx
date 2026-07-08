@@ -230,8 +230,8 @@ export default function Messages() {
             </Link>
             {userData?.role === 'admin' && (
               <img 
-                src="/icon-180.png" 
-                alt="Zarkorea" 
+                src={activeCountry.marketAppIcon || '/icon-180.png'}
+                alt={activeCountry.appName} 
                 className="w-10 h-10 object-contain rounded-lg"
               />
             )}

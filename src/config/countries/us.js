@@ -32,6 +32,7 @@ export const us = {
   marketWelcomeFlags: '🇲🇳 🇺🇸',
   marketSeoBlurb:
     'ZAR-USA, ZAR-USA app, ZAR-USA US Mongolia, Америк зар — Америк дахь Монголчуудын зарын сайт.',
+  marketAppIcon: '/icon-us-180.png',
 };
 
 export default us;

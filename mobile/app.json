@@ -3,7 +3,7 @@
     "name": "Zarkorea",
     "slug": "zarkorea-app",
     "scheme": "zarkorea",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon-ios-1024.png",
     "userInterfaceStyle": "light",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon-ios-1024.png",
-      "buildNumber": "46",
+      "buildNumber": "47",
       "bundleIdentifier": "com.zarkorea.twa",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -28,7 +28,7 @@
     "android": {
       "package": "com.zarkorea.twa",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 42,
+      "versionCode": 43,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

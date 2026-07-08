@@ -33,6 +33,7 @@ export const kr = {
   marketWelcomeFlags: '🇲🇳 🇰🇷',
   marketSeoBlurb:
     'Zarkorea, Zarkorea app, Zarkorea Korea Mongolia, Солонгос зар, Заркореа — Солонгос дахь Монголчуудын №1 зарын сайт.',
+  marketAppIcon: '/icon-180.png',
 };
 
 export default kr;

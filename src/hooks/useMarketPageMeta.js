@@ -17,14 +17,23 @@ export function useMarketPageMeta() {
     const meta = document.querySelector('meta[name="description"]');
     if (meta) meta.setAttribute('content', activeCountry.marketSeoBlurb);
 
+    const iconHref = activeCountry.marketAppIcon || '/icon-180.png';
+    const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+    if (appleIcon) appleIcon.setAttribute('href', iconHref);
+    const favicon = document.querySelector('link[rel="icon"]');
+    if (favicon && iconHref.endsWith('.png')) favicon.setAttribute('href', iconHref);
+
     return () => {
       document.title = DEFAULT_TITLE;
       const desc = document.querySelector('meta[name="description"]');
       if (desc) desc.setAttribute('content', DEFAULT_DESC);
+      if (appleIcon) appleIcon.setAttribute('href', '/icon-180.png');
+      if (favicon) favicon.setAttribute('href', '/favicon.svg');
     };
   }, [
     activeCountry.appName,
     activeCountry.marketFooterTitle,
     activeCountry.marketSeoBlurb,
+    activeCountry.marketAppIcon,
   ]);
 }
