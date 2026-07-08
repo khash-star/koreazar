@@ -43,6 +43,8 @@ export default function Chat() {
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const messagesEndRef = useRef(null);
   const blockRedirectRef = useRef(false);
+  const emailSyncedConvRef = useRef(null);
+  const repairDoneConvRef = useRef(null);
   const { user, userData, loading } = useAuth();
   const authEmail = resolveAuthEmail(user, userData);
   const myEmailNorm = normalizeEmail(authEmail);
@@ -77,7 +79,7 @@ export default function Chat() {
         if (cancelled || !conv) return;
         const p1 = normalizeEmail(conv.participant_1);
         const p2 = normalizeEmail(conv.participant_2);
-        const other = p1 === myEmailNorm ? p2 : p1;
+        const other = areEmailVariants(p1, myEmailNorm) ? p2 : p1;
         if (!other) return;
         let admin = adminEmail;
         if (!admin) admin = await getAdminEmail();
@@ -189,6 +191,8 @@ export default function Chat() {
 
   useEffect(() => {
     if (!actualConversationId || !authEmail || !user) return;
+    if (emailSyncedConvRef.current === actualConversationId) return;
+    emailSyncedConvRef.current = actualConversationId;
     ensureUserDocEmailForFirestoreRules(user, authEmail).then(() => {
       queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
     });
@@ -196,6 +200,8 @@ export default function Chat() {
 
   useEffect(() => {
     if (!conversation?.id || !authEmail) return;
+    if (repairDoneConvRef.current === conversation.id) return;
+    repairDoneConvRef.current = conversation.id;
     repairConversationParticipants(conversation, { meEmail: authEmail }).then(() => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
@@ -319,12 +325,11 @@ export default function Chat() {
       return newMessage;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
-      queryClient.invalidateQueries({ queryKey: ['conversation'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
       setMessage('');
-      toast({ title: 'Мессеж илгээгдлээ', variant: 'default' });
     },
     onError: (err) => {
       toast({ title: 'Алдаа', description: err?.message || 'Мессеж илгээж чадсангүй', variant: 'destructive' });
@@ -463,7 +468,9 @@ export default function Chat() {
           ) : messages.length > 0 ? (
             <div className="space-y-4">
               {messages.map((msg, index) => {
-                const isOwnMessage = msg.sender_email === authEmail;
+                const isOwnMessage =
+                  areEmailVariants(msg.sender_email, authEmail) ||
+                  normalizeEmail(msg.sender_email) === myEmailNorm;
                 const showDate = index === 0 || 
                   format(new Date(messages[index - 1].created_date), 'yyyy-MM-dd') !== 
                   format(new Date(msg.created_date), 'yyyy-MM-dd');
