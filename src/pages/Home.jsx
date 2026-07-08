@@ -20,6 +20,7 @@ import { logout } from '@/services/authService';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { fetchSavedListingsResolved } from '@/services/savedListingsResolve';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
+import { useMarketPageMeta } from '@/hooks/useMarketPageMeta';
 import CountrySelector from '@/components/CountrySelector';
 import { isCountryEnabled } from '@/config/country';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
@@ -36,6 +37,7 @@ export default function Home() {
   // prefix — root `/` keeps exact legacy (KR) URLs.
   const countryPrefix = routeCountryCode ? activeCountry.defaultRoutePrefix : null;
   const navUrl = (pageName) => createCountryPageUrl(pageName, countryPrefix);
+  useMarketPageMeta();
   const isMarketEnabled = isCountryEnabled(marketCountryCode);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
