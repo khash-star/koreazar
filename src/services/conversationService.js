@@ -248,7 +248,43 @@ export const updateConversation = async (id, data) => {
 
 export const getConversation = async (id) => {
   try {
-    const convRef = doc(db, 'conversations', id);
+    const user = auth.currentUser;
+    if (user) {
+      await ensureUserDocEmailForFirestoreRules(user);
+      try {
+        await user.getIdToken(true);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const cid = String(id ?? '').trim();
+    if (!cid) return null;
+
+    const uid = user?.uid;
+    if (uid) {
+      try {
+        const q = query(
+          collection(db, 'conversations'),
+          where('participant_uids', 'array-contains', uid)
+        );
+        const snap = await getDocs(q);
+        const match = snap.docs.find((d) => d.id === cid);
+        if (match) {
+          const data = match.data();
+          return {
+            id: match.id,
+            ...data,
+            created_date: convertTimestamp(data.created_date),
+            last_message_date: convertTimestamp(data.last_message_date),
+          };
+        }
+      } catch (e) {
+        if (!isFirestorePermissionDenied(e)) throw e;
+      }
+    }
+
+    const convRef = doc(db, 'conversations', cid);
     const convSnap = await getDoc(convRef);
     
     if (convSnap.exists()) {
@@ -286,7 +322,10 @@ export const findConversation = async (email1, email2) => {
           const data = d.data();
           const p1 = normalizeEmail(data.participant_1);
           const p2 = normalizeEmail(data.participant_2);
-          if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+          if (
+            (areEmailVariants(p1, a) && areEmailVariants(p2, b)) ||
+            (areEmailVariants(p1, b) && areEmailVariants(p2, a))
+          ) {
             return { id: d.id, ...data };
           }
         }

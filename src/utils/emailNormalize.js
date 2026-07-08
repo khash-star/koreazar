@@ -16,7 +16,7 @@ export function isSyntheticPhoneAuthEmail(email) {
   return /^phone_\d+@phone\.zarkorea\.com$/.test(e);
 }
 
-/** Phone synthetic email query variants (KR +82 prefix parity). */
+/** Phone synthetic email query variants (KR +82 and US +1 prefix parity). */
 export function emailQueryVariants(email) {
   const em = normalizeEmail(email);
   if (!em) return [];
@@ -27,9 +27,14 @@ export function emailQueryVariants(email) {
     if (digits.startsWith('82') && digits.length > 10) {
       out.add(`phone_${digits.slice(2)}@phone.zarkorea.com`);
       out.add(normalizeEmail(phoneToAuthEmail(`+${digits}`)));
-    } else if (!digits.startsWith('82') && digits.length >= 9) {
+    } else if (!digits.startsWith('82') && !digits.startsWith('1') && (digits.length === 9 || digits.length === 10)) {
       out.add(`phone_82${digits}@phone.zarkorea.com`);
       out.add(normalizeEmail(phoneToAuthEmail(`+82${digits}`)));
+    }
+    if (digits.startsWith('1') && digits.length === 11) {
+      out.add(`phone_${digits.slice(1)}@phone.zarkorea.com`);
+    } else if (digits.length === 10) {
+      out.add(`phone_1${digits}@phone.zarkorea.com`);
     }
   }
   return [...out];

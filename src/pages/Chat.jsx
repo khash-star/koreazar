@@ -188,9 +188,17 @@ export default function Chat() {
   });
 
   useEffect(() => {
+    if (!actualConversationId || !authEmail || !user) return;
+    ensureUserDocEmailForFirestoreRules(user, authEmail).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
+    });
+  }, [actualConversationId, authEmail, user, queryClient]);
+
+  useEffect(() => {
     if (!conversation?.id || !authEmail) return;
     repairConversationParticipants(conversation, { meEmail: authEmail }).then(() => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
     });
   }, [conversation?.id, authEmail, queryClient]);
 
@@ -208,8 +216,8 @@ export default function Chat() {
     queryKey: ['otherUser', conversation?.id, adminEmail],
     queryFn: async () => {
       if (!conversation || !authEmail) return null;
-      const otherEmail = conversation.participant_1 === authEmail 
-        ? conversation.participant_2 
+      const otherEmail = areEmailVariants(conversation.participant_1, authEmail)
+        ? conversation.participant_2
         : conversation.participant_1;
       
       // Get admin email if not already set

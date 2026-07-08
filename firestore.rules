@@ -25,14 +25,32 @@ service cloud.firestore {
     }
 
     // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
-    function isConversationParticipant() {
+    function userChatEmailMatches(participantEmail) {
       let em = authEmailLower();
+      return em.size() > 0 &&
+        participantEmail is string &&
+        participantEmail.size() > 0 &&
+        participantEmail.lower() == em;
+    }
+
+    function userPhoneVariantsMatch(participantEmail) {
+      return request.auth != null &&
+        participantEmail is string &&
+        participantEmail.size() > 0 &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phoneAuthEmails is list &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phoneAuthEmails.hasAny([participantEmail.lower()]);
+    }
+
+    function participantEmailMatchesAuth(participantEmail) {
+      return userChatEmailMatches(participantEmail) || userPhoneVariantsMatch(participantEmail);
+    }
+
+    function isConversationParticipant() {
       return request.auth != null && (
         (resource.data.participant_uids is list && resource.data.participant_uids.hasAny([request.auth.uid])) ||
-        (em.size() > 0 && (
-          (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && resource.data.participant_1.lower() == em) ||
-          (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && resource.data.participant_2.lower() == em)
-        ))
+        (resource.data.participant_1 is string && resource.data.participant_1.size() > 0 && participantEmailMatchesAuth(resource.data.participant_1)) ||
+        (resource.data.participant_2 is string && resource.data.participant_2.size() > 0 && participantEmailMatchesAuth(resource.data.participant_2))
       );
     }
 
@@ -46,13 +64,10 @@ service cloud.firestore {
     }
 
     function isMessageSenderOrReceiver() {
-      let em = authEmailLower();
       return request.auth != null && (
         isMessageConversationParticipant() ||
-        (em.size() > 0 && (
-          (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && resource.data.sender_email.lower() == em) ||
-          (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && resource.data.receiver_email.lower() == em)
-        ))
+        (resource.data.sender_email is string && resource.data.sender_email.size() > 0 && participantEmailMatchesAuth(resource.data.sender_email)) ||
+        (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && participantEmailMatchesAuth(resource.data.receiver_email))
       );
     }
     

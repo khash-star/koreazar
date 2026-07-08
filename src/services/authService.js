@@ -29,7 +29,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
-import { normalizeEmail, phoneToAuthEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from '@/utils/emailNormalize';
 
 /** Client profile updates must never set these (admin / identity fields). */
 const PROTECTED_USER_DOC_FIELDS = new Set([
@@ -141,8 +141,13 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     em = normalizeEmail(phoneToAuthEmail(phone)) || '';
   }
   if (!em) return;
+  const phoneAuthEmails = [...new Set(emailQueryVariants(em))];
   try {
-    await setDoc(doc(db, 'users', user.uid), { email: em }, { merge: true });
+    await setDoc(
+      doc(db, 'users', user.uid),
+      { email: em, phoneAuthEmails },
+      { merge: true }
+    );
   } catch (e) {
     console.warn('ensureUserDocEmailForFirestoreRules:', e?.message || e);
   }
