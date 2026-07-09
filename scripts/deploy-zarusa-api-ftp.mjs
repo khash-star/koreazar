@@ -107,15 +107,30 @@ try {
     } else {
         $steps[] = 'admin_region_code exists';
     }
+    if (col_exists($pdo, 'users', 'role')) {
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN role VARCHAR(32) NOT NULL DEFAULT 'user'");
+        $steps[] = 'role column widened to VARCHAR(32)';
+    }
 
     $uid = '${BAMBAR_UID}';
-    if ($uid !== '') {
+    $email = 'bambar2006@gmail.com';
+    $synced = 0;
+    if ($uid !== '' && col_exists($pdo, 'users', 'firebase_uid')) {
         $stmt = $pdo->prepare(
             "UPDATE users SET role = 'region_admin', admin_country_code = 'US', admin_region_code = 'washington-dc'
              WHERE firebase_uid = :uid"
         );
         $stmt->execute([':uid' => $uid]);
-        $steps[] = 'bambar region_admin rows=' . $stmt->rowCount();
+        $synced = $stmt->rowCount();
+        $steps[] = 'bambar by firebase_uid rows=' . $synced;
+    }
+    if ($synced === 0 && col_exists($pdo, 'users', 'email')) {
+        $stmt = $pdo->prepare(
+            "UPDATE users SET role = 'region_admin', admin_country_code = 'US', admin_region_code = 'washington-dc'
+             WHERE email = :email"
+        );
+        $stmt->execute([':email' => $email]);
+        $steps[] = 'bambar by email rows=' . $stmt->rowCount();
     }
 
     echo json_encode(['ok' => true, 'steps' => $steps], JSON_UNESCAPED_UNICODE);

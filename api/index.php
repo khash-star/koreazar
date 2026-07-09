@@ -981,27 +981,15 @@ function get_app_admin_scope(PDO $pdo, array $authUser): ?array
         return ['role' => 'super_admin', 'country_code' => null, 'region_code' => null];
     }
 
-    if (table_has($pdo, 'users', 'firebase_uid') && table_has($pdo, 'users', 'role')) {
-        $cols = ['role'];
-        $hasCountry = table_has($pdo, 'users', 'admin_country_code');
-        $hasRegion = table_has($pdo, 'users', 'admin_region_code');
-        if ($hasCountry) {
-            $cols[] = 'admin_country_code';
-        }
-        if ($hasRegion) {
-            $cols[] = 'admin_region_code';
-        }
-        try {
-            $stmt = $pdo->prepare('SELECT ' . implode(', ', $cols) . ' FROM users WHERE firebase_uid = :uid LIMIT 1');
-            $stmt->execute([':uid' => $uid]);
-            $row = $stmt->fetch();
-            if (!$row || !isset($row['role'])) {
-                return null;
-            }
+    if (table_has($pdo, 'users', 'role')) {
+        $row = fetch_user_admin_scope_row($pdo, $authUser);
+        if ($row !== null) {
             $role = normalize_admin_role((string) $row['role']);
             if (!in_array($role, ['super_admin', 'country_admin', 'region_admin'], true)) {
                 return null;
             }
+            $hasCountry = table_has($pdo, 'users', 'admin_country_code');
+            $hasRegion = table_has($pdo, 'users', 'admin_region_code');
 
             return [
                 'role' => $role,
@@ -1012,6 +1000,51 @@ function get_app_admin_scope(PDO $pdo, array $authUser): ?array
                     ? strtolower(trim((string) $row['admin_region_code']))
                     : null,
             ];
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param array{uid:string,email:?string} $authUser
+ * @return array<string,mixed>|null
+ */
+function fetch_user_admin_scope_row(PDO $pdo, array $authUser): ?array
+{
+    $cols = ['role'];
+    $hasCountry = table_has($pdo, 'users', 'admin_country_code');
+    $hasRegion = table_has($pdo, 'users', 'admin_region_code');
+    if ($hasCountry) {
+        $cols[] = 'admin_country_code';
+    }
+    if ($hasRegion) {
+        $cols[] = 'admin_region_code';
+    }
+    $select = implode(', ', $cols);
+
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    if ($uid !== '' && table_has($pdo, 'users', 'firebase_uid')) {
+        try {
+            $stmt = $pdo->prepare('SELECT ' . $select . ' FROM users WHERE firebase_uid = :uid LIMIT 1');
+            $stmt->execute([':uid' => $uid]);
+            $row = $stmt->fetch();
+            if ($row && isset($row['role'])) {
+                return $row;
+            }
+        } catch (Throwable $e) {
+        }
+    }
+
+    $email = isset($authUser['email']) ? trim((string) $authUser['email']) : '';
+    if ($email !== '' && table_has($pdo, 'users', 'email')) {
+        try {
+            $stmt = $pdo->prepare('SELECT ' . $select . ' FROM users WHERE email = :email LIMIT 1');
+            $stmt->execute([':email' => $email]);
+            $row = $stmt->fetch();
+            if ($row && isset($row['role'])) {
+                return $row;
+            }
         } catch (Throwable $e) {
         }
     }
