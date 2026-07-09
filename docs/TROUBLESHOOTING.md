@@ -38,7 +38,7 @@
 **Шийдэл:**
 - Vercel → Project → Git → `main` branch
 - Manual redeploy: Deployments → Redeploy
-- Root `VERCEL_GITHUB_CONNECTION_FIX.md` (түүхэн лавлагаа)
+- `docs/archive/historical-fixes/VERCEL_GITHUB_CONNECTION_FIX.md` (түүхэн лавлагаа)
 
 ### Route refresh дээр 404
 
@@ -341,7 +341,7 @@ Repository root дээр 50+ markdown байна. Зарим нь **хуучир
 | `zar-746103b7/` path | Repo root + `mobile/` |
 | `zarmongolia.com` | `zarkorea.com` |
 | `carsmongolia-d410a` | `koreazar-32e7a` |
-| Root `FIRESTORE_INDEXES.md` | `docs/FIRESTORE_INDEXES.md` |
+| `docs/archive/firebase-legacy/FIRESTORE_INDEXES.md` | `docs/FIRESTORE_INDEXES.md` |
 
 Каноник лавлагаа: `docs/` хавтас (энэ файл орно).
 

@@ -94,7 +94,7 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 
 | Decision | Rationale |
 |----------|-----------|
-| **Indexes as code** | `firestore.indexes.json` + CLI deploy; `docs/FIRESTORE_INDEXES.md` is canonical over root `FIRESTORE_INDEXES.md`. |
+| **Indexes as code** | `firestore.indexes.json` + CLI deploy; `docs/FIRESTORE_INDEXES.md` is canonical (root copy archived). |
 | **Firestore-before-images** | Listing/banner documents carry image URLs; no image fetch until Firestore responds. |
 | **Mitigations for LCP** | `preconnect` to `firestore.googleapis.com`; React Query `staleTime` 2–5 min; `loading="eager"` on first two cards. |
 | **PWA via vite-plugin-pwa** | Incremental, non-breaking steps; plugin order after `nonBlockingCss` in `vite.config.js`. |

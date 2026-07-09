@@ -54,6 +54,7 @@ app/build/
 
 # EAS / local build artifacts
 mobile/builds/
+mobile/.expo-test-bundle/
 .github.zip
 
 # Mobile / EAS secrets (if placed at repo root)

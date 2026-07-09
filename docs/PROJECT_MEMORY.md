@@ -192,7 +192,8 @@ Admin role is stored in Firestore `users/{uid}.role == 'admin'`. Grant via Fireb
 | `docs/IMAGE_LOAD_ANALYSIS.md` | Home page LCP analysis |
 | `mobile/docs/*` | Mobile-specific setup (OTP, EAS, push, store) |
 | `project-memory/` | AI agent workflows, checklists, runbooks |
-| `MEMORY_ANALYSIS_REPORT.md` | Full 66-file markdown inventory (2026-05-28) |
+| `project-memory/reports/MEMORY_ANALYSIS_REPORT.md` | Full markdown inventory (2026-05-28; historical) |
+| `docs/archive/` | Archived root guides (`*_FIX.md`, migration snapshots) |
 
 ---
 

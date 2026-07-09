@@ -3,7 +3,7 @@
 ## When required
 
 - Production or user-visible bug fixed in `src/`, `mobile/`, or `api/`
-- Recurring issue documented in root `DEBUG_*.md` or `*_TROUBLESHOOTING.md`
+- Recurring issue documented in `docs/archive/historical-fixes/` (`DEBUG_*.md`, `*_TROUBLESHOOTING.md`)
 - Regression found during self-review (`../reviews/regression-review.md`)
 
 Skip for typos, comment-only, or project-memory-only edits.
@@ -31,7 +31,7 @@ Skip for typos, comment-only, or project-memory-only edits.
 | `../summaries/known_bugs.md` | Add row or short entry; mark resolved if fixed |
 | `../incidents/` | Use `INCIDENT_TEMPLATE.md` if production impact |
 | `../decisions/DECISION_LOG.md` | Only if fix implies a new engineering policy |
-| Root `DEBUG_*.md` | **Do not edit** unless user asks — prefer memory |
+| Root `DEBUG_*.md` | **Do not edit** unless user asks — archived under `docs/archive/historical-fixes/`; prefer memory |
 
 ## Avoid
 
