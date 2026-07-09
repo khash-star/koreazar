@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 import { getAdminRoleLabel, isProtectedAdminAccount, canAssignAdminRole, SUPER_ADMIN_ASSIGNABLE_ROLES, ASSIGNABLE_COUNTRY_CODES, ROLES, normalizeAdminRole } from '@/constants/adminRoles';
 import { getAllUsers, setUserAdminRoleBySuperAdmin } from '@/services/authService';
 import { US_REGIONS } from '@/config/regions/us';
@@ -77,6 +78,7 @@ export default function AdminPanel() {
     filterListings,
     canModerateUser,
   } = useAdminAccess();
+  const homePath = useMarketHomePath();
   const adminOptions = { adminUserData: userData };
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [message, setMessage] = useState('');
@@ -354,7 +356,7 @@ export default function AdminPanel() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Хандах эрхгүй</h1>
           <p className="text-gray-500 mb-4">Зөвхөн админ хэрэглэгч энэ хуудсыг үзэх боломжтой</p>
-          <Link to={createPageUrl('Home')}>
+          <Link to={homePath}>
             <Button>Нүүр хуудас руу буцах</Button>
           </Link>
         </div>
@@ -367,7 +369,7 @@ export default function AdminPanel() {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Link to={createPageUrl('Home')}>
+            <Link to={homePath}>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>

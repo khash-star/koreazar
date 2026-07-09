@@ -25,6 +25,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 import { COUNTRIES } from '@/config/country';
 import { ROLES } from '@/constants/adminRoles';
 
@@ -41,6 +42,7 @@ export default function AdminAllListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
   const { isAdmin, isSuperAdmin, adminScope, adminRoleLabel, filterListings } = useAdminAccess();
+  const homePath = useMarketHomePath();
   const adminOptions = { adminUserData: userData };
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -157,7 +159,7 @@ export default function AdminAllListings() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Хандах эрхгүй</h1>
           <p className="text-gray-500 mb-4">Зөвхөн админ хэрэглэгч энэ хуудсыг үзэх боломжтой</p>
-          <Link to={createPageUrl('Home')}>
+          <Link to={homePath}>
             <Button>Нүүр хуудас руу буцах</Button>
           </Link>
         </div>
@@ -170,7 +172,7 @@ export default function AdminAllListings() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <Link to={createPageUrl('Home')}>
+            <Link to={homePath}>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>

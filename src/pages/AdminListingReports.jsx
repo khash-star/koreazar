@@ -6,11 +6,13 @@ import * as entities from '@/api/entities';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 import { Button } from '@/components/ui/button';
 
 export default function AdminListingReports() {
   const { userData, loading } = useAuth();
   const { isAdmin, isSuperAdmin, adminScope } = useAdminAccess();
+  const homePath = useMarketHomePath();
   const adminOptions = { adminUserData: userData };
   const queryClient = useQueryClient();
 
@@ -45,7 +47,7 @@ export default function AdminListingReports() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="mb-3">Зөвхөн админ хэрэглэгч үзэх боломжтой</p>
-          <Link to={createPageUrl('Home')}><Button>Нүүр рүү буцах</Button></Link>
+          <Link to={homePath}><Button>Нүүр рүү буцах</Button></Link>
         </div>
       </div>
     );

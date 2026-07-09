@@ -27,10 +27,12 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 
 export default function AdminBannerRequests() {
   const { user } = useAuth();
   const { isAdmin } = useAdminAccess();
+  const homePath = useMarketHomePath();
   const [deleteId, setDeleteId] = useState(null);
   const [activeDialog, setActiveDialog] = useState(null);
   const [adminNote, setAdminNote] = useState('');
@@ -103,7 +105,7 @@ export default function AdminBannerRequests() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Хандах эрхгүй</h2>
           <p className="text-gray-600 mb-4">Зөвхөн админ энэ хуудсыг үзэх боломжтой</p>
-          <Link to={createPageUrl('Home')}>
+          <Link to={homePath}>
             <Button>Нүүр хуудас руу буцах</Button>
           </Link>
         </div>

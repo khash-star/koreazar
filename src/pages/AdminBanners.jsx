@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 import { GLOBAL_BANNER_COUNTRY_CODE, normalizeBannerCountryCode } from '@/utils/bannerCountry';
 import {
   Select as CountrySelect,
@@ -38,6 +39,7 @@ const BANNER_COUNTRY_OPTIONS = [
 export default function AdminBanners() {
   const { user } = useAuth();
   const { isAdmin, isSuperAdmin, adminScope, filterBanners } = useAdminAccess();
+  const homePath = useMarketHomePath();
   const defaultBannerCountry = adminScope.countryCode || 'KR';
   const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [showDialog, setShowDialog] = useState(false);
@@ -169,7 +171,7 @@ export default function AdminBanners() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Зөвхөн админ</h1>
           <p className="text-gray-500 mb-4">Та админ эрхгүй байна</p>
-          <Link to={createPageUrl('Home')}>
+          <Link to={homePath}>
             <Button>Нүүр хуудас руу буцах</Button>
           </Link>
         </div>

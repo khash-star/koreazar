@@ -35,6 +35,10 @@ let latestListingsCache = { at: 0, key: "", data: null, pending: null };
 /** @type {Map<string, { at: number, data: object }>} */
 const listingDetailCache = new Map();
 
+export function invalidateLatestListingsCache() {
+  latestListingsCache = { at: 0, key: "", data: null, pending: null };
+}
+
 export function peekListingDetailCache(id) {
   const mysqlId = parseMysqlListingId(id);
   if (!mysqlId) return null;
@@ -342,6 +346,8 @@ export async function deleteListing(id) {
     method: "DELETE",
     headers,
   });
+  invalidateLatestListingsCache();
+  listingDetailCache.delete(mysqlId);
 }
 
 export async function getPendingListingsCount() {
