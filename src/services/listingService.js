@@ -2,6 +2,7 @@
 import { auth } from '@/firebase/config';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 import { appendAdminListingQueryParams } from '@/constants/adminRoles';
+import { filterListingsForMarket } from '@/utils/listingCountry';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
@@ -134,6 +135,10 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     const fetchOptions = options.adminUserData ? { headers: await getAuthHeaders() } : {};
     const payload = await requestJson(buildApiUrl('listings', params), fetchOptions);
     let result = (payload?.data || []).map(normalizeListing);
+
+    if (scopedFilters.country_code) {
+      result = filterListingsForMarket(result, scopedFilters.country_code);
+    }
 
     // Server-side: category/subcategory/status/country_code/state_code. Rest client-side.
     const serverFilterKeys = new Set([

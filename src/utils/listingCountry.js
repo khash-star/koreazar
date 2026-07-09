@@ -1,0 +1,36 @@
+/** Keep in sync with mobile/src/utils/listingCountry.js */
+
+export function normalizeListingCountryCode(countryCode) {
+  const code = String(countryCode || 'KR').trim().toUpperCase();
+  return code || 'KR';
+}
+
+/**
+ * True when a listing belongs in a market home/search feed.
+ * KR excludes US/JP rows and US regional rows mis-tagged during migration.
+ */
+export function isListingVisibleForMarket(listing, marketCountryCode) {
+  if (!listing) return false;
+
+  const market = normalizeListingCountryCode(marketCountryCode);
+  const listingCountry = normalizeListingCountryCode(listing.country_code);
+
+  if (market === 'US') {
+    return listingCountry === 'US';
+  }
+  if (market === 'JP') {
+    return listingCountry === 'JP';
+  }
+
+  if (listingCountry === 'US' || listingCountry === 'JP') return false;
+
+  const region = String(listing.region_code || '').trim().toLowerCase();
+  if (region) return false;
+
+  return listingCountry === 'KR';
+}
+
+export function filterListingsForMarket(listings, marketCountryCode) {
+  if (!Array.isArray(listings)) return [];
+  return listings.filter((listing) => isListingVisibleForMarket(listing, marketCountryCode));
+}

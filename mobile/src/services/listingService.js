@@ -3,6 +3,7 @@ import { getActiveMobileCountryCode, isUsMobileMarket } from "../config/country"
 import { getActiveMobileRegionCode } from "../config/region.js";
 import { toDate } from "../utils/firestoreDates";
 import { buildApiUrl, requestJson } from "./apiClient";
+import { filterListingsForMarket } from "../utils/listingCountry";
 
 function buildMarketListingsParams(extra = {}) {
   const marketCode = getActiveMobileCountryCode();
@@ -142,7 +143,7 @@ export async function getLatestListings(limitCount = 50) {
       { retries: 1 }
     );
     const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
-    const sorted = sortHomeListings(rows);
+    const sorted = sortHomeListings(filterListingsForMarket(rows, getActiveMobileCountryCode()));
     latestListingsCache = { at: Date.now(), key: cacheKey, data: sorted, pending: null };
     return sorted;
   })();
@@ -166,7 +167,11 @@ async function requestListingsQuery(params, options = {}) {
       retries: 1,
       ...fetchOpts,
     });
-    return (payload?.data || []).map(normalizeListing).filter(Boolean);
+    const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
+    if (params.country_code) {
+      return filterListingsForMarket(rows, params.country_code);
+    }
+    return rows;
   }
 
   const seen = new Set();

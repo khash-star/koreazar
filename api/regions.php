@@ -196,6 +196,28 @@ function append_us_region_read_filter(PDO $pdo, string &$sql, array &$params, st
 }
 
 /**
+ * KR home/read feed: legacy NULL country_code rows + explicit KR only.
+ * Excludes US/JP and US regional rows mis-tagged as KR during migration.
+ *
+ * @param array<string, mixed> $params
+ */
+function append_kr_listing_read_filter(PDO $pdo, string &$sql, array &$params, string $countryCode): void
+{
+    if ($countryCode !== 'KR') {
+        return;
+    }
+
+    if (table_has($pdo, 'listings', 'country_code')) {
+        $sql .= " AND (country_code = 'KR' OR country_code IS NULL OR country_code = '')";
+        $sql .= " AND (country_code IS NULL OR country_code NOT IN ('US', 'JP'))";
+    }
+
+    if (table_has($pdo, 'listings', 'region_code')) {
+        $sql .= " AND (region_code IS NULL OR TRIM(region_code) = '')";
+    }
+}
+
+/**
  * Force US listing write scope for MVP (single active region).
  *
  * @param array<string, mixed> $payload

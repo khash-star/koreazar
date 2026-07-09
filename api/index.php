@@ -175,11 +175,13 @@ try {
                 }
                 if ($countryCode !== '' && table_has($pdo, 'listings', 'country_code')) {
                     if ($countryCode === 'KR') {
-                        $sql .= " AND (country_code = 'KR' OR country_code IS NULL OR country_code = '')";
+                        append_kr_listing_read_filter($pdo, $sql, $params, $countryCode);
                     } else {
                         $sql .= ' AND country_code = :country_code';
                         $params[':country_code'] = $countryCode;
                     }
+                } elseif ($countryCode === 'KR') {
+                    append_kr_listing_read_filter($pdo, $sql, $params, $countryCode);
                 }
                 if ($stateCode !== '' && table_has($pdo, 'listings', 'state_code')) {
                     $sql .= ' AND state_code = :state_code';
