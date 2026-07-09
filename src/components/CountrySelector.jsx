@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { COUNTRIES, isCountryEnabled, setStoredCountryCode, showAllCountriesInSelector } from '@/config/country';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { COUNTRIES, isCountryEnabled, setStoredCountryCode, getSelectableCountryCodes } from '@/config/country';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
 
 const COUNTRY_FLAGS = {
@@ -16,7 +16,15 @@ export default function CountrySelector({
   onStateChange,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const activeCountry = useActiveCountry();
+
+  const selectableCodes = getSelectableCountryCodes(location.pathname);
+  if (selectableCodes.length <= 1) {
+    return null;
+  }
+
+  const visibleCountries = selectableCodes.map((code) => COUNTRIES[code]).filter(Boolean);
 
   const handleCountrySelect = (countryCode) => {
     const country = COUNTRIES[countryCode];
@@ -38,11 +46,6 @@ export default function CountrySelector({
     'bg-amber-500 text-white shadow-md hover:shadow-lg border border-amber-600';
   const inactiveButtonClass =
     'bg-white text-gray-800 hover:bg-gray-50 shadow-sm hover:shadow border border-gray-200 hover:border-amber-200';
-
-  const showDisabledMarkets = showAllCountriesInSelector();
-  const visibleCountries = Object.values(COUNTRIES).filter(
-    (country) => isCountryEnabled(country.countryCode) || showDisabledMarkets
-  );
 
   return (
     <div

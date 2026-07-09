@@ -49,6 +49,23 @@ export function isCountryEnabled(code) {
 }
 
 /**
+ * Country codes shown in the selector for the current route.
+ * Locked markets (e.g. ZAR-USA on `/us`) return only that code until
+ * `lockCountrySelector` is cleared on the country config.
+ * @param {string} [pathnameOverride]
+ */
+export function getSelectableCountryCodes(pathnameOverride) {
+  const pathname =
+    pathnameOverride ?? (typeof window !== 'undefined' && window.location ? window.location.pathname : '');
+  const routeCode = countryCodeFromPath(pathname);
+  if (routeCode && COUNTRIES[routeCode]?.lockCountrySelector) {
+    return [routeCode];
+  }
+  const showDisabled = showAllCountriesInSelector();
+  return Object.keys(COUNTRIES).filter((code) => isCountryEnabled(code) || showDisabled);
+}
+
+/**
  * QA/staging escape hatch: when true, disabled markets are still visible in
  * the country selector (still marked as placeholders) so testers don't have
  * to guess/type `/us` or `/jp` by hand. Never enable in production env vars.
