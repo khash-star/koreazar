@@ -5,11 +5,13 @@ import { ArrowLeft, Flag } from 'lucide-react';
 import * as entities from '@/api/entities';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { Button } from '@/components/ui/button';
 
 export default function AdminListingReports() {
-  const { user, userData, loading } = useAuth();
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  const { userData, loading } = useAuth();
+  const { isAdmin, isSuperAdmin, adminScope } = useAdminAccess();
+  const adminOptions = { adminUserData: userData };
   const queryClient = useQueryClient();
 
   const { data: reports = [], isLoading } = useQuery({
@@ -17,6 +19,17 @@ export default function AdminListingReports() {
     queryFn: () => entities.ListingReport.list(),
     enabled: isAdmin,
   });
+
+  const { data: scopedListings = [] } = useQuery({
+    queryKey: ['admin-report-scope-listings', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.list('-created_date', 2000, adminOptions),
+    enabled: isAdmin && !isSuperAdmin,
+  });
+
+  const scopedListingIds = new Set(scopedListings.map((l) => String(l.id)));
+  const visibleReports = isSuperAdmin
+    ? reports
+    : reports.filter((r) => scopedListingIds.has(String(r.listing_id)));
 
   const updateMutation = useMutation({
     mutationFn: ({ id, status }) => entities.ListingReport.update(id, { status, reviewed_at: new Date().toISOString() }),
@@ -38,8 +51,8 @@ export default function AdminListingReports() {
     );
   }
 
-  const pending = reports.filter((r) => r.status === 'pending');
-  const handled = reports.filter((r) => r.status !== 'pending');
+  const pending = visibleReports.filter((r) => r.status === 'pending');
+  const handled = visibleReports.filter((r) => r.status !== 'pending');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -49,7 +62,7 @@ export default function AdminListingReports() {
             <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
           </Link>
           <h1 className="text-xl font-bold">Зарын гомдол</h1>
-          <span className="text-sm text-gray-500">Нийт: {reports.length}</span>
+          <span className="text-sm text-gray-500">Нийт: {visibleReports.length}</span>
         </div>
 
         {isLoading ? (

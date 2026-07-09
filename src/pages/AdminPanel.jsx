@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllUsers } from '@/services/authService';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { getAdminRoleLabel, isProtectedAdminAccount, canAssignAdminRole, SUPER_ADMIN_ASSIGNABLE_ROLES, ASSIGNABLE_COUNTRY_CODES, ROLES, normalizeAdminRole } from '@/constants/adminRoles';
+import { getAllUsers, setUserAdminRoleBySuperAdmin } from '@/services/authService';
+import { US_REGIONS } from '@/config/regions/us';
 import { getUnreadMessagesCount, sendMessageToAllUsers } from '@/services/conversationService';
 import { db } from '@/firebase/config';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
@@ -22,27 +25,80 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const US_REGION_OPTIONS = Object.values(US_REGIONS).map((r) => ({
+  value: r.regionCode,
+  label: `${r.label}${r.active ? '' : ' (удаахгүй)'}`,
+}));
+
+function userToRoleDraft(user) {
+  if (!user) {
+    return { role: ROLES.USER, adminCountryCode: 'US', adminRegionCode: 'washington-dc' };
+  }
+  const normalized = normalizeAdminRole(user.role);
+  if (normalized === ROLES.SUPER_ADMIN) {
+    return { role: ROLES.LEGACY_SUPER, adminCountryCode: 'US', adminRegionCode: 'washington-dc' };
+  }
+  if (normalized === ROLES.COUNTRY_ADMIN) {
+    return {
+      role: ROLES.COUNTRY_ADMIN,
+      adminCountryCode: String(user.admin_country_code || 'US').toUpperCase(),
+      adminRegionCode: String(user.admin_region_code || 'washington-dc').toLowerCase(),
+    };
+  }
+  if (normalized === ROLES.REGION_ADMIN) {
+    return {
+      role: ROLES.REGION_ADMIN,
+      adminCountryCode: 'US',
+      adminRegionCode: String(user.admin_region_code || 'washington-dc').toLowerCase(),
+    };
+  }
+  return { role: ROLES.USER, adminCountryCode: 'US', adminRegionCode: 'washington-dc' };
+}
 
 export default function AdminPanel() {
   const queryClient = useQueryClient();
   const { user, userData, loading: authLoading, authEmail } = useAuth();
+  const {
+    isAdmin,
+    isSuperAdmin,
+    adminScope,
+    adminRoleLabel,
+    canManageUsers,
+    canBroadcast,
+    filterListings,
+    canModerateUser,
+  } = useAdminAccess();
+  const adminOptions = { adminUserData: userData };
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const [message, setMessage] = useState('');
   const [sendResult, setSendResult] = useState(null);
   const [showUserSearch, setShowUserSearch] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  const [roleDraft, setRoleDraft] = useState(() => userToRoleDraft(null));
+
+  React.useEffect(() => {
+    setRoleDraft(userToRoleDraft(selectedUser));
+  }, [selectedUser?.id, selectedUser?.role, selectedUser?.admin_country_code, selectedUser?.admin_region_code]);
 
   const { data: pendingListings = [], isLoading: pendingLoading } = useQuery({
-    queryKey: ['pending-count'],
-    queryFn: () => entities.Listing.filter({ status: 'pending' }),
+    queryKey: ['pending-count', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200, adminOptions),
     enabled: isAdmin,
   });
 
   const { data: vipListings = [], isLoading: vipLoading } = useQuery({
-    queryKey: ['vip-listings-count'],
-    queryFn: () => entities.Listing.filter({ listing_type: 'vip', status: 'active' }),
+    queryKey: ['vip-listings-count', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.filter({ listing_type: 'vip', status: 'active' }, '-created_date', 200, adminOptions),
     enabled: isAdmin,
   });
 
@@ -69,34 +125,38 @@ export default function AdminPanel() {
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ['all-users'],
     queryFn: () => getAllUsers(),
-    enabled: isAdmin,
+    enabled: isAdmin && canManageUsers,
   });
 
   const { data: allListingsForStats = [] } = useQuery({
-    queryKey: ['all-listings-stats'],
-    queryFn: () => entities.Listing.list('-created_date', 1000),
+    queryKey: ['all-listings-stats', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.list('-created_date', 1000, adminOptions),
     enabled: isAdmin,
   });
 
   const { data: allListings = [] } = useQuery({
-    queryKey: ['all-listings-for-user-stats'],
-    queryFn: () => entities.Listing.list('-created_date', 1000),
-    enabled: isAdmin && showUserSearch,
+    queryKey: ['all-listings-for-user-stats', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.list('-created_date', 1000, adminOptions),
+    enabled: isAdmin && showUserSearch && canManageUsers,
   });
 
+  const scopedStatsListings = filterListings(allListingsForStats);
+  const scopedPendingListings = filterListings(pendingListings);
+  const scopedVipListings = filterListings(vipListings);
+
   // Calculate statistics
-  const totalViews = allListingsForStats.reduce((sum, listing) => sum + (listing.views || 0), 0);
-  const loggedInUsers = allUsers.filter(user => user.email).length;
+  const totalViews = scopedStatsListings.reduce((sum, listing) => sum + (listing.views || 0), 0);
+  const loggedInUsers = allUsers.filter(u => u.email).length;
   
   // Category statistics
-  const categoryStats = allListingsForStats.reduce((acc, listing) => {
+  const categoryStats = scopedStatsListings.reduce((acc, listing) => {
     const category = listing.category || 'Бусад';
     acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {});
 
   // Status statistics
-  const statusStats = allListingsForStats.reduce((acc, listing) => {
+  const statusStats = scopedStatsListings.reduce((acc, listing) => {
     const status = listing.status || 'unknown';
     acc[status] = (acc[status] || 0) + 1;
     return acc;
@@ -180,6 +240,62 @@ export default function AdminPanel() {
     },
   });
 
+  const assignAdminRoleMutation = useMutation({
+    mutationFn: async ({ uid, role, adminCountryCode, adminRegionCode }) => {
+      await setUserAdminRoleBySuperAdmin(uid, { role, adminCountryCode, adminRegionCode });
+    },
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['all-users'] });
+      setSelectedUser((prev) => {
+        if (!prev || prev.id !== variables.uid) return prev;
+        const next = { ...prev, role: variables.role };
+        if (variables.role === ROLES.USER) {
+          delete next.admin_country_code;
+          delete next.admin_region_code;
+        } else if (variables.role === ROLES.LEGACY_SUPER) {
+          next.role = ROLES.LEGACY_SUPER;
+          delete next.admin_country_code;
+          delete next.admin_region_code;
+        } else if (variables.role === ROLES.COUNTRY_ADMIN) {
+          next.admin_country_code = variables.adminCountryCode;
+          delete next.admin_region_code;
+        } else if (variables.role === ROLES.REGION_ADMIN) {
+          next.admin_country_code = 'US';
+          next.admin_region_code = variables.adminRegionCode;
+        }
+        return next;
+      });
+      alert('Admin эрх амжилттай шинэчлэгдлээ. Хэрэглэгч logout/login хийх хэрэгтэй.');
+    },
+    onError: (error) => {
+      console.error('Error assigning admin role:', error);
+      alert(error?.message || 'Admin эрх онооход алдаа гарлаа');
+    },
+  });
+
+  const handleSaveAdminRole = () => {
+    if (!selectedUser?.id || !canAssignAdminRole(userData, selectedUser.id)) return;
+
+    const { role, adminCountryCode, adminRegionCode } = roleDraft;
+    if (role === ROLES.LEGACY_SUPER) {
+      const ok = window.confirm(
+        `${selectedUser.email} хэрэглэгчид SUPER ADMIN эрх оноох уу? Бүх KR/US эрх нээгдэнэ.`
+      );
+      if (!ok) return;
+    }
+    if (role === ROLES.USER && isProtectedAdminAccount(selectedUser)) {
+      const ok = window.confirm(`${selectedUser.email} хэрэглэгчийн admin эрхийг авах уу?`);
+      if (!ok) return;
+    }
+
+    assignAdminRoleMutation.mutate({
+      uid: selectedUser.id,
+      role,
+      adminCountryCode,
+      adminRegionCode,
+    });
+  };
+
   const handleSendMessage = () => {
     if (!message.trim()) {
       alert('Мессеж оруулах шаардлагатай.');
@@ -190,8 +306,8 @@ export default function AdminPanel() {
 
   const handleToggleBlockUser = () => {
     if (!selectedUser) return;
-    if (selectedUser.role === 'admin') {
-      alert('Админ хэрэглэгчийг блоклох боломжгүй');
+    if (!canModerateUser(selectedUser)) {
+      alert('Энэ хэрэглэгчийг блоклох эрхгүй');
       return;
     }
     if (selectedUser.id === user?.uid) {
@@ -209,8 +325,8 @@ export default function AdminPanel() {
 
   const handleDeleteUser = () => {
     if (!selectedUser) return;
-    if (selectedUser.role === 'admin') {
-      alert('Админ хэрэглэгчийг устгах боломжгүй');
+    if (!canModerateUser(selectedUser)) {
+      alert('Энэ хэрэглэгчийг устгах эрхгүй');
       return;
     }
     if (selectedUser.id === user?.uid) {
@@ -275,7 +391,7 @@ export default function AdminPanel() {
                     {pendingLoading ? (
                       <Loader2 className="w-6 h-6 text-yellow-600 animate-spin" />
                     ) : (
-                      <p className="text-2xl font-bold text-yellow-600">{pendingListings.length}</p>
+                      <p className="text-2xl font-bold text-yellow-600">{scopedPendingListings.length}</p>
                     )}
                   </div>
                   <Clock className="w-8 h-8 text-yellow-500 opacity-50" />
@@ -294,7 +410,7 @@ export default function AdminPanel() {
                     {vipLoading ? (
                       <Loader2 className="w-6 h-6 text-purple-600 animate-spin" />
                     ) : (
-                      <p className="text-2xl font-bold text-purple-600">{vipListings.length}</p>
+                      <p className="text-2xl font-bold text-purple-600">{scopedVipListings.length}</p>
                     )}
                   </div>
                   <Star className="w-8 h-8 text-purple-500 opacity-50" />
@@ -311,13 +427,16 @@ export default function AdminPanel() {
                   <div>
                     <p className="text-xs text-gray-600 mb-1">Мессеж (хариу бичих)</p>
                     <p className="text-2xl font-bold text-blue-600">{unreadMessagesCount}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Хэрэглэгч: {usersLoading ? '...' : allUsers.length}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {canManageUsers ? `Хэрэглэгч: ${usersLoading ? '...' : allUsers.length}` : adminRoleLabel}
+                    </p>
                   </div>
                   <MessageSquare className="w-8 h-8 text-blue-500 opacity-50" />
                 </div>
               </motion.div>
             </Link>
             
+            {canBroadcast ? (
             <motion.div
               whileHover={{ scale: 1.02 }}
               onClick={() => setShowMessageDialog(true)}
@@ -331,6 +450,7 @@ export default function AdminPanel() {
                 <Send className="w-8 h-8 text-green-500 opacity-50" />
               </div>
             </motion.div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -495,7 +615,7 @@ export default function AdminPanel() {
                   <p className="text-sm text-gray-500">Батлах хүлээгдэж буй зар</p>
                 </div>
               </div>
-              {pendingListings.length > 0 && (
+              {scopedPendingListings.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Батлах хүлээж байна</span>
@@ -625,6 +745,7 @@ export default function AdminPanel() {
             </motion.div>
           </Link>
 
+          {canBroadcast ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -646,7 +767,9 @@ export default function AdminPanel() {
               <p className="text-sm text-gray-600">Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх</p>
             </div>
           </motion.div>
+          ) : null}
 
+          {canManageUsers ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -674,10 +797,13 @@ export default function AdminPanel() {
               </div>
             </div>
           </motion.div>
+          ) : null}
         </div>
       </div>
 
-      {/* User Search Dialog */}
+      {/* User Search + Profile Dialogs */}
+      {canManageUsers ? (
+      <>
       <Dialog open={showUserSearch} onOpenChange={setShowUserSearch}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -726,7 +852,7 @@ export default function AdminPanel() {
                               <h3 className="font-semibold text-gray-900">
                                 {user.displayName || user.email?.split('@')[0] || 'Хэрэглэгч'}
                               </h3>
-                              {user.role === 'admin' && (
+                              {isProtectedAdminAccount(user) && (
                                 <span className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded">Админ</span>
                               )}
                               {user.blocked && (
@@ -825,7 +951,7 @@ export default function AdminPanel() {
                       <h3 className="text-xl font-bold text-gray-900">
                         {selectedUser.displayName || selectedUser.email?.split('@')[0] || 'Хэрэглэгч'}
                       </h3>
-                      {selectedUser.role === 'admin' && (
+                      {isProtectedAdminAccount(selectedUser) && (
                         <span className="px-2 py-0.5 text-xs bg-amber-600 text-white rounded">Админ</span>
                       )}
                     </div>
@@ -865,8 +991,8 @@ export default function AdminPanel() {
                     <div>
                       <p className="text-xs text-gray-500">Эрх</p>
                       <p className="text-sm text-gray-900">
-                        <span className={`px-2 py-0.5 rounded ${selectedUser.role === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {selectedUser.role === 'admin' ? 'Админ' : 'Хэрэглэгч'}
+                        <span className={`px-2 py-0.5 rounded ${isProtectedAdminAccount(selectedUser) ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
+                          {isProtectedAdminAccount(selectedUser) ? getAdminRoleLabel(selectedUser.role) : 'Хэрэглэгч'}
                         </span>
                       </p>
                     </div>
@@ -932,6 +1058,79 @@ export default function AdminPanel() {
                 </div>
               )}
 
+              {isSuperAdmin && selectedUser && canAssignAdminRole(userData, selectedUser.id) && (
+                <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-amber-900">Admin эрх удирдах</h4>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Region admin солих, шинэ DC admin оноох, эсвэл эрх авах (super admin only)
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="admin-role-pick">Эрх</Label>
+                      <Select
+                        value={roleDraft.role}
+                        onValueChange={(value) => setRoleDraft((prev) => ({ ...prev, role: value }))}
+                      >
+                        <SelectTrigger id="admin-role-pick" className="mt-1 bg-white">
+                          <SelectValue placeholder="Сонгох" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPER_ADMIN_ASSIGNABLE_ROLES.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {roleDraft.role === ROLES.COUNTRY_ADMIN && (
+                      <div>
+                        <Label htmlFor="admin-country-pick">Country</Label>
+                        <Select
+                          value={roleDraft.adminCountryCode}
+                          onValueChange={(value) => setRoleDraft((prev) => ({ ...prev, adminCountryCode: value }))}
+                        >
+                          <SelectTrigger id="admin-country-pick" className="mt-1 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ASSIGNABLE_COUNTRY_CODES.map((code) => (
+                              <SelectItem key={code} value={code}>{code}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {roleDraft.role === ROLES.REGION_ADMIN && (
+                      <div>
+                        <Label htmlFor="admin-region-pick">US Region</Label>
+                        <Select
+                          value={roleDraft.adminRegionCode}
+                          onValueChange={(value) => setRoleDraft((prev) => ({ ...prev, adminRegionCode: value }))}
+                        >
+                          <SelectTrigger id="admin-region-pick" className="mt-1 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {US_REGION_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleSaveAdminRole}
+                    disabled={assignAdminRoleMutation.isPending}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    {assignAdminRoleMutation.isPending ? 'Хадгалж байна...' : 'Admin эрх хадгалах'}
+                  </Button>
+                </div>
+              )}
+
               {selectedUser.listings && selectedUser.listings.length > 0 && (
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
                   <h4 className="font-semibold text-gray-900 mb-3">Зарууд ({selectedUser.listings.length})</h4>
@@ -971,7 +1170,7 @@ export default function AdminPanel() {
             </div>
           )}
           <DialogFooter>
-            {selectedUser && selectedUser.role !== 'admin' && (
+            {selectedUser && canModerateUser(selectedUser) && (
               <>
                 <Button
                   variant="outline"
@@ -1000,8 +1199,11 @@ export default function AdminPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      ) : null}
 
       {/* Send Message Dialog */}
+      {canBroadcast ? (
       <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1060,6 +1262,7 @@ export default function AdminPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      ) : null}
     </div>
   );
 }

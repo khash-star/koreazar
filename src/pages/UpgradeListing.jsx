@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { isAppAdmin } from '@/constants/adminRoles';
 
 const LISTING_TYPES = {
   regular: {
@@ -50,7 +51,7 @@ export default function UpgradeListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
+  const isAdmin = isAppAdmin(userData);
   const [listingId, setListingId] = useState(null);
 
   const canApplyListingType = (typeKey) => typeKey === 'regular' || isAdmin;

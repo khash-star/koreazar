@@ -186,7 +186,12 @@ try {
                     $params[':state_code'] = $stateCode;
                 }
                 if ($countryCode === 'US') {
-                    append_us_region_read_filter($pdo, $sql, $params, $countryCode, $regionCode);
+                    $adminScope = null;
+                    $authUser = optional_firebase_user();
+                    if ($authUser !== null) {
+                        $adminScope = get_app_admin_scope($pdo, $authUser);
+                    }
+                    append_us_region_read_filter_scoped($pdo, $sql, $params, $countryCode, $regionCode, $adminScope);
                 }
 
                 $sql .= ' ORDER BY created_at DESC LIMIT ' . (int) $limit;
@@ -631,18 +636,27 @@ function get_authorization_header(): string
 
 function require_firebase_user(): array
 {
+    $verified = verify_firebase_bearer_token();
+    if ($verified === null) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Missing or invalid Authorization Bearer token'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    return $verified;
+}
+
+/** @return array{uid:string,email:?string,phoneNumber:?string}|null */
+function verify_firebase_bearer_token(): ?array
+{
     $authHeader = get_authorization_header();
     if (!is_string($authHeader) || stripos($authHeader, 'Bearer ') !== 0) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Missing Authorization Bearer token'], JSON_UNESCAPED_UNICODE);
-        exit;
+        return null;
     }
 
     $idToken = trim(substr($authHeader, 7));
     if ($idToken === '') {
-        http_response_code(401);
-        echo json_encode(['error' => 'Empty Bearer token'], JSON_UNESCAPED_UNICODE);
-        exit;
+        return null;
     }
 
     $apiKey = getenv('FIREBASE_WEB_API_KEY') ?: '';
@@ -668,22 +682,29 @@ function require_firebase_user(): array
     $ctx = stream_context_create($opts);
     $resp = @file_get_contents($url, false, $ctx);
     if (!is_string($resp) || $resp === '') {
-        http_response_code(401);
-        echo json_encode(['error' => 'Invalid token or auth upstream error'], JSON_UNESCAPED_UNICODE);
-        exit;
+        return null;
     }
 
     $json = json_decode($resp, true);
     if (!is_array($json) || !isset($json['users'][0]['localId'])) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Token verification failed'], JSON_UNESCAPED_UNICODE);
-        exit;
+        return null;
     }
 
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
+
     return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
+}
+
+/** Optional auth for scoped admin listing reads (returns null when no/invalid token). */
+function optional_firebase_user(): ?array
+{
+    try {
+        return verify_firebase_bearer_token();
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 /**
@@ -825,7 +846,7 @@ function enforce_listing_ownership(PDO $pdo, array $existing, array $authUser): 
     if ($ownerUid === $uid) {
         return;
     }
-    if (is_app_admin($pdo, $authUser)) {
+    if (admin_can_moderate_listing($pdo, $authUser, $existing)) {
         return;
     }
 
@@ -847,33 +868,105 @@ function normalize_listing_type_value($v): string
 }
 
 /**
- * App admin: APP_ADMIN_UIDS env and/or MySQL users.role = admin (when schema supports it).
+ * App admin: APP_ADMIN_UIDS env and/or MySQL users.role (+ optional scope columns).
  *
  * @param array{uid:string,email:?string} $authUser
  */
 function is_app_admin(PDO $pdo, array $authUser): bool
 {
+    return get_app_admin_scope($pdo, $authUser) !== null;
+}
+
+function normalize_admin_role(string $role): string
+{
+    $r = strtolower(trim($role));
+    if ($r === 'admin') {
+        return 'super_admin';
+    }
+
+    return $r;
+}
+
+/**
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ * @param array{uid:string,email:?string} $authUser
+ */
+function get_app_admin_scope(PDO $pdo, array $authUser): ?array
+{
     $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
     if ($uid === '') {
-        return false;
+        return null;
     }
 
     $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
     $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
     if (in_array($uid, $adminUids, true)) {
-        return true;
+        return ['role' => 'super_admin', 'country_code' => null, 'region_code' => null];
     }
 
     if (table_has($pdo, 'users', 'firebase_uid') && table_has($pdo, 'users', 'role')) {
+        $cols = ['role'];
+        $hasCountry = table_has($pdo, 'users', 'admin_country_code');
+        $hasRegion = table_has($pdo, 'users', 'admin_region_code');
+        if ($hasCountry) {
+            $cols[] = 'admin_country_code';
+        }
+        if ($hasRegion) {
+            $cols[] = 'admin_region_code';
+        }
         try {
-            $stmt = $pdo->prepare('SELECT role FROM users WHERE firebase_uid = :uid LIMIT 1');
+            $stmt = $pdo->prepare('SELECT ' . implode(', ', $cols) . ' FROM users WHERE firebase_uid = :uid LIMIT 1');
             $stmt->execute([':uid' => $uid]);
             $row = $stmt->fetch();
-            if ($row && isset($row['role']) && normalize_listing_type_value($row['role']) === 'admin') {
-                return true;
+            if (!$row || !isset($row['role'])) {
+                return null;
             }
+            $role = normalize_admin_role((string) $row['role']);
+            if (!in_array($role, ['super_admin', 'country_admin', 'region_admin'], true)) {
+                return null;
+            }
+
+            return [
+                'role' => $role,
+                'country_code' => $hasCountry && isset($row['admin_country_code'])
+                    ? strtoupper(trim((string) $row['admin_country_code']))
+                    : null,
+                'region_code' => $hasRegion && isset($row['admin_region_code'])
+                    ? strtolower(trim((string) $row['admin_region_code']))
+                    : null,
+            ];
         } catch (Throwable $e) {
         }
+    }
+
+    return null;
+}
+
+/**
+ * @param array{uid:string,email:?string} $authUser
+ * @param array<string,mixed> $listing
+ */
+function admin_can_moderate_listing(PDO $pdo, array $authUser, array $listing): bool
+{
+    $scope = get_app_admin_scope($pdo, $authUser);
+    if ($scope === null) {
+        return false;
+    }
+    if ($scope['role'] === 'super_admin') {
+        return true;
+    }
+
+    $country = normalize_listing_country_code((string) ($listing['country_code'] ?? 'KR'));
+    $region = normalize_listing_region_code((string) ($listing['region_code'] ?? ''));
+
+    if ($scope['role'] === 'country_admin') {
+        return $scope['country_code'] !== null && $scope['country_code'] !== '' && $country === $scope['country_code'];
+    }
+    if ($scope['role'] === 'region_admin') {
+        return $country === 'US'
+            && $scope['region_code'] !== null
+            && $scope['region_code'] !== ''
+            && $region === $scope['region_code'];
     }
 
     return false;
@@ -889,6 +982,11 @@ function is_app_admin(PDO $pdo, array $authUser): bool
 function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $payload, ?array $existing, bool $isCreate): void
 {
     if (is_app_admin($pdo, $authUser)) {
+        if (!$isCreate && $existing !== null && !admin_can_moderate_listing($pdo, $authUser, $existing)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Forbidden: admin scope mismatch'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
         return;
     }
 

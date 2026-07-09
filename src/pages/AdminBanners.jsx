@@ -18,6 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { GLOBAL_BANNER_COUNTRY_CODE, normalizeBannerCountryCode } from '@/utils/bannerCountry';
 import {
   Select as CountrySelect,
@@ -35,7 +36,9 @@ const BANNER_COUNTRY_OPTIONS = [
 ];
 
 export default function AdminBanners() {
-  const { user, userData } = useAuth();
+  const { user } = useAuth();
+  const { isAdmin, isSuperAdmin, adminScope, filterBanners } = useAdminAccess();
+  const defaultBannerCountry = adminScope.countryCode || 'KR';
   const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
   const [showDialog, setShowDialog] = useState(false);
   const [editingBannerId, setEditingBannerId] = useState(null);
@@ -48,7 +51,7 @@ export default function AdminBanners() {
     order: 0,
     // Default explicitly to KR (not the admin's current browsing country) so
     // a stray country-selector click can never silently create a US/JP banner.
-    country_code: 'KR'
+    country_code: defaultBannerCountry
   });
 
   const queryClient = useQueryClient();
@@ -138,17 +141,19 @@ export default function AdminBanners() {
 
   const moveUp = (banner, index) => {
     if (index === 0) return;
-    const prevBanner = banners[index - 1];
+    const prevBanner = scopedBanners[index - 1];
     updateMutation.mutate({ id: banner.id, data: { order: prevBanner.order } });
     updateMutation.mutate({ id: prevBanner.id, data: { order: banner.order } });
   };
 
   const moveDown = (banner, index) => {
-    if (index === banners.length - 1) return;
-    const nextBanner = banners[index + 1];
+    if (index === scopedBanners.length - 1) return;
+    const nextBanner = scopedBanners[index + 1];
     updateMutation.mutate({ id: banner.id, data: { order: nextBanner.order } });
     updateMutation.mutate({ id: nextBanner.id, data: { order: banner.order } });
   };
+
+  const scopedBanners = filterBanners(banners);
 
   if (!user) {
     return (
@@ -158,8 +163,6 @@ export default function AdminBanners() {
     );
   }
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -260,6 +263,7 @@ export default function AdminBanners() {
 
                   <div>
                     <Label htmlFor="banner-country">Харагдах зах зээл</Label>
+                    {isSuperAdmin ? (
                     <CountrySelect
                       value={formData.country_code}
                       onValueChange={(value) => setFormData({ ...formData, country_code: value })}
@@ -275,6 +279,9 @@ export default function AdminBanners() {
                         ))}
                       </CountrySelectContent>
                     </CountrySelect>
+                    ) : (
+                      <p className="mt-2 text-sm text-amber-700 font-medium">{defaultBannerCountry} (таны admin scope)</p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -312,7 +319,7 @@ export default function AdminBanners() {
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
           </div>
-        ) : banners.length === 0 ? (
+        ) : scopedBanners.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 mb-4">Баннер зар байхгүй байна</p>
             <Button onClick={openAddDialog} className="bg-amber-600 hover:bg-amber-700">
@@ -322,7 +329,7 @@ export default function AdminBanners() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {banners.map((banner, index) => (
+            {scopedBanners.map((banner, index) => (
               <motion.div
                 key={banner.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -357,7 +364,7 @@ export default function AdminBanners() {
                       variant="ghost"
                       size="icon"
                       onClick={() => moveDown(banner, index)}
-                      disabled={index === banners.length - 1}
+                      disabled={index === scopedBanners.length - 1}
                     >
                       <ArrowDown className="w-4 h-4" />
                     </Button>

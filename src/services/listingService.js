@@ -1,6 +1,7 @@
 // Listing Service - PHP MySQL API CRUD operations
 import { auth } from '@/firebase/config';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
+import { appendAdminListingQueryParams } from '@/constants/adminRoles';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
@@ -79,7 +80,10 @@ const normalizeListing = (item) => {
  * @param {number} limitCount - Limit count (default: 100)
  * @returns {Promise<Array>} Listings array
  */
-export const listListings = async (orderByField = 'created_date', limitCount = 100) => {
+export const listListings = async (orderByField = 'created_date', limitCount = 100, options = {}) => {
+  if (options.adminUserData) {
+    return filterListings({}, `-${orderByField}`, limitCount, options);
+  }
   try {
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
     const payload = await requestJson(buildApiUrl('listings', {
@@ -105,25 +109,30 @@ export const listListings = async (orderByField = 'created_date', limitCount = 1
  * @param {number} limitCount - Limit count (default: 100)
  * @returns {Promise<Array>} Filtered listings
  */
-export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100) => {
+export const filterListings = async (filters = {}, orderByField = '-created_date', limitCount = 100, options = {}) => {
   try {
     const orderDirection = orderByField.startsWith('-') ? 'desc' : 'asc';
-    const params = appendUsRegionScopeParams({ limit: limitCount }, filters.country_code);
-    if (filters.category) params.category = filters.category;
-    if (filters.subcategory) params.subcategory = filters.subcategory;
-    if (filters.country_code) params.country_code = filters.country_code;
-    if (filters.state_code) params.state_code = filters.state_code;
-    if (filters.region_code) params.region_code = filters.region_code;
-    if (filters.customer_id != null && filters.customer_id !== '') {
-      params.customer_id = String(filters.customer_id);
+    let scopedFilters = { ...filters };
+    if (options.adminUserData) {
+      scopedFilters = appendAdminListingQueryParams(options.adminUserData, scopedFilters);
     }
-    if (filters.status !== undefined && filters.status !== null && filters.status !== '') {
-      params.status = filters.status;
-    } else if (!filters.created_by) {
+    const params = appendUsRegionScopeParams({ limit: limitCount }, scopedFilters.country_code);
+    if (scopedFilters.category) params.category = scopedFilters.category;
+    if (scopedFilters.subcategory) params.subcategory = scopedFilters.subcategory;
+    if (scopedFilters.country_code) params.country_code = scopedFilters.country_code;
+    if (scopedFilters.state_code) params.state_code = scopedFilters.state_code;
+    if (scopedFilters.region_code) params.region_code = scopedFilters.region_code;
+    if (scopedFilters.customer_id != null && scopedFilters.customer_id !== '') {
+      params.customer_id = String(scopedFilters.customer_id);
+    }
+    if (scopedFilters.status !== undefined && scopedFilters.status !== null && scopedFilters.status !== '') {
+      params.status = scopedFilters.status;
+    } else if (!scopedFilters.created_by) {
       params.status = 'active';
     }
 
-    const payload = await requestJson(buildApiUrl('listings', params));
+    const fetchOptions = options.adminUserData ? { headers: await getAuthHeaders() } : {};
+    const payload = await requestJson(buildApiUrl('listings', params), fetchOptions);
     let result = (payload?.data || []).map(normalizeListing);
 
     // Server-side: category/subcategory/status/country_code/state_code. Rest client-side.

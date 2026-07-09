@@ -17,7 +17,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
-// TODO(Phase 2): super_admin / country_admin / region_admin scopes — US admin reads use region_code=washington-dc via listingService today.
+// Phase 2: super_admin / country_admin / region_admin — US region admin has full DC scope in ZAR-USA app.
 import { collection, getCountFromServer, query, where } from "firebase/firestore";
 import {
   getListingAutoApprove,
@@ -32,6 +32,7 @@ import { getUnreadMessagesCount } from "../services/conversationService";
 import { getListingImageUrl } from "../utils/imageUrl";
 import { formatListingPrice } from "../utils/formatPrice.js";
 import { db } from "../config/firebase";
+import { getAdminRoleLabel } from "../constants/adminRoles.js";
 import { useAuth } from "../context/AuthContext";
 import { getBottomTabNavigator, navigateToHomeListing } from "../utils/navigationHelpers";
 import { showAlert } from "../utils/showAlert";
@@ -42,7 +43,7 @@ const AUTO_APPROVE_KEY = "admin_auto_approve_listings";
 
 export default function AdminScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
-  const { email } = useAuth();
+  const { email, canManageUsers, isSuperAdmin, adminScope } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
@@ -411,6 +412,7 @@ export default function AdminScreen({ navigation }) {
               </View>
             </Pressable>
 
+            {canManageUsers ? (
             <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminBroadcast")}>
               <View style={styles.menuHead}>
                 <View style={[styles.menuIconWrap, { backgroundColor: "#fce7f3" }]}>
@@ -425,7 +427,9 @@ export default function AdminScreen({ navigation }) {
                 <Text style={styles.menuFooterText}>Бүх бүртгэлтэй хэрэглэгчдэд мессеж илгээх</Text>
               </View>
             </Pressable>
+            ) : null}
 
+            {canManageUsers ? (
             <Pressable style={styles.menuCard} onPress={() => navigation.navigate("AdminUsers")}>
               <View style={styles.menuHead}>
                 <View style={[styles.menuIconWrap, { backgroundColor: "#e0e7ff" }]}>
@@ -444,8 +448,10 @@ export default function AdminScreen({ navigation }) {
                 </View>
               </View>
             </Pressable>
+            ) : null}
           </View>
 
+          {isSuperAdmin ? (
           <View style={styles.autoApproveRow}>
             <Text style={styles.autoApproveLabel}>Автоматаар зөвшөөрөх</Text>
             <Switch
@@ -455,6 +461,12 @@ export default function AdminScreen({ navigation }) {
               thumbColor="#fff"
             />
           </View>
+          ) : adminScope?.role && adminScope.role !== "user" ? (
+            <Text style={styles.scopeHint}>
+              {getAdminRoleLabel(adminScope.role)}
+              {adminScope.regionCode ? ` · ${adminScope.regionCode}` : adminScope.countryCode ? ` · ${adminScope.countryCode}` : ""}
+            </Text>
+          ) : null}
           {rows.length > 0 ? (
             <View style={styles.header}>
               <Ionicons name="shield" size={24} color="#ea580c" />
@@ -614,6 +626,14 @@ const styles = StyleSheet.create({
     borderColor: "#fde68a",
   },
   autoApproveLabel: { fontSize: 15, fontWeight: "600", color: "#92400e" },
+  scopeHint: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#b45309",
+    textAlign: "center",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

@@ -28,11 +28,38 @@ Washington DC / DMV is the **only active US region**. Chicago, New York, Seattle
 
 ---
 
-## Phase 2 — Region admin scope
+## Phase 2 — Region admin scope (implemented)
 
-TODO: `super_admin`, `country_admin`, `region_admin` when multiple US regions are active.
+Roles on Firestore `users/{uid}` (and MySQL `users` for API parity):
 
-Optional: `region_code` on Firestore banners.
+| Role | Fields | Access |
+|------|--------|--------|
+| `super_admin` (legacy: `admin`) | — | Global KR + US + all regions |
+| `country_admin` | `admin_country_code` | One country, all active regions |
+| `region_admin` | `admin_region_code` (+ implicit US) | One region (e.g. `washington-dc`) |
+
+Shared logic: `src/constants/adminRoles.js` → `npm run sync-admin-roles` → mobile.
+
+| Layer | Behavior |
+|-------|----------|
+| Web/mobile admin UI | Scoped listing/banner/report queries |
+| Firestore rules | `adminCanModerateListing`, banner scope, super-only role assignment |
+| PHP API | `get_app_admin_scope()`, `admin_can_moderate_listing()` |
+| MySQL | `api/sql/migration_admin_rbac_phase2.sql` |
+
+**Assign US DC admin (Firebase Console → Firestore `users/{uid}`):**
+
+```json
+{
+  "role": "region_admin",
+  "admin_country_code": "US",
+  "admin_region_code": "washington-dc"
+}
+```
+
+When **Chicago** activates: assign a separate `region_admin` with `admin_region_code: "chicago"`.
+
+Optional: `region_code` on Firestore banners (future).
 
 ---
 

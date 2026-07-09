@@ -24,7 +24,9 @@ import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { COUNTRIES } from '@/config/country';
+import { ROLES } from '@/constants/adminRoles';
 
 const COUNTRY_FILTERS = ['ALL', 'KR', 'US', 'JP'];
 const COUNTRY_FILTER_LABELS = { ALL: 'Бүгд', KR: '🇰🇷 KR', US: '🇺🇸 US', JP: '🇯🇵 JP' };
@@ -38,9 +40,17 @@ function listingCountryCode(listing) {
 export default function AdminAllListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
+  const { isAdmin, isSuperAdmin, adminScope, adminRoleLabel, filterListings } = useAdminAccess();
+  const adminOptions = { adminUserData: userData };
   const [deleteId, setDeleteId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [countryFilter, setCountryFilter] = useState('ALL');
+  const [countryFilter, setCountryFilter] = useState(
+    adminScope.role === ROLES.COUNTRY_ADMIN && adminScope.countryCode
+      ? adminScope.countryCode
+      : adminScope.role === ROLES.REGION_ADMIN
+        ? 'US'
+        : 'ALL'
+  );
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   React.useEffect(() => {
@@ -52,8 +62,9 @@ export default function AdminAllListings() {
   }, []);
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['admin-all-listings'],
-    queryFn: () => entities.Listing.list('-created_date', 500),
+    queryKey: ['admin-all-listings', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.list('-created_date', 500, adminOptions),
+    enabled: isAdmin,
   });
 
   const deleteMutation = useMutation({
@@ -117,13 +128,15 @@ export default function AdminAllListings() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const countryCounts = listings.reduce((acc, l) => {
+  const scopedListings = filterListings(listings);
+
+  const countryCounts = scopedListings.reduce((acc, l) => {
     const code = listingCountryCode(l);
     acc[code] = (acc[code] || 0) + 1;
     return acc;
   }, {});
 
-  const filteredListings = listings
+  const filteredListings = scopedListings
     .filter(l => countryFilter === 'ALL' || listingCountryCode(l) === countryFilter)
     .filter(l =>
       l.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -131,15 +144,13 @@ export default function AdminAllListings() {
     );
 
   const handleExportCSV = () => {
-    const listingsToExport = filteredListings.length > 0 ? filteredListings : listings;
+    const listingsToExport = filteredListings.length > 0 ? filteredListings : scopedListings;
     const filename = searchTerm
       ? `бүх_зарууд_${searchTerm.replace(/[^a-z0-9]/gi, '_')}`
       : 'бүх_зарууд';
     exportListingsToCSV(listingsToExport, filename, { includeListingTypeExpires: true });
   };
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -166,7 +177,12 @@ export default function AdminAllListings() {
             </Link>
             <div className="flex-1">
               <h1 className="text-xl font-bold text-gray-900">Бүх зарууд</h1>
-              <p className="text-sm text-gray-500">{filteredListings.length} зар</p>
+              <p className="text-sm text-gray-500">
+                {filteredListings.length} зар
+                {!isSuperAdmin && (
+                  <span className="text-amber-700"> · {adminRoleLabel}{adminScope.regionCode ? ` (${adminScope.regionCode})` : adminScope.countryCode ? ` (${adminScope.countryCode})` : ''}</span>
+                )}
+              </p>
             </div>
             <Button 
               variant="outline" 
@@ -186,6 +202,7 @@ export default function AdminAllListings() {
               className="pl-10"
             />
           </div>
+          {isSuperAdmin ? (
           <div role="group" aria-label="Улсаар шүүх" className="flex flex-wrap items-center gap-2 mt-3">
             {COUNTRY_FILTERS.map((code) => (
               <button
@@ -201,10 +218,11 @@ export default function AdminAllListings() {
               >
                 {COUNTRY_FILTER_LABELS[code]}
                 {' '}
-                ({code === 'ALL' ? listings.length : countryCounts[code] || 0})
+                ({code === 'ALL' ? scopedListings.length : countryCounts[code] || 0})
               </button>
             ))}
           </div>
+          ) : null}
         </div>
       </div>
 

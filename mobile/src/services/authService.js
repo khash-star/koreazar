@@ -27,6 +27,8 @@ import {
 const PROTECTED_USER_DOC_FIELDS = new Set([
   "role",
   "isAdmin",
+  "admin_country_code",
+  "admin_region_code",
   "customerId",
   "emailVerified",
   "uid",

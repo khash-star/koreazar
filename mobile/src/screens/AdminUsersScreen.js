@@ -13,13 +13,14 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { canModerateUser, getAdminRoleLabel, isProtectedAdminAccount } from "../constants/adminRoles.js";
 import { useAuth } from "../context/AuthContext";
 import { getListingsByCreator } from "../services/listingService";
 import { deleteUserProfile, updateUserBlocked } from "../services/userProfileService";
 import { showAlert } from "../utils/showAlert";
 
 export default function AdminUsersScreen() {
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState("");
@@ -87,8 +88,8 @@ export default function AdminUsersScreen() {
 
   const onToggleBlock = useCallback(() => {
     if (!selectedUser) return;
-    if (selectedUser.role === "admin") {
-      showAlert("Анхаар", "Админ хэрэглэгчийг блоклох боломжгүй.");
+    if (!canModerateUser(userData, selectedUser)) {
+      showAlert("Анхаар", "Энэ хэрэглэгчийг блоклох эрхгүй.");
       return;
     }
     if (selectedUser.id === user?.uid) {
@@ -121,8 +122,8 @@ export default function AdminUsersScreen() {
 
   const onDeleteUser = useCallback(() => {
     if (!selectedUser) return;
-    if (selectedUser.role === "admin") {
-      showAlert("Анхаар", "Админ хэрэглэгчийг устгах боломжгүй.");
+    if (!canModerateUser(userData, selectedUser)) {
+      showAlert("Анхаар", "Энэ хэрэглэгчийг устгах эрхгүй.");
       return;
     }
     if (selectedUser.id === user?.uid) {
@@ -181,7 +182,7 @@ export default function AdminUsersScreen() {
           <Text style={styles.name}>{item.displayName || item.name || item.email?.split("@")[0] || "Хэрэглэгч"}</Text>
           <Text style={styles.meta}>{item.email || "-"}</Text>
           {!!item.phone && <Text style={styles.meta}>📞 {item.phone}</Text>}
-          <Text style={styles.role}>{item.role === "admin" ? "Админ" : "Хэрэглэгч"}</Text>
+          <Text style={styles.role}>{isProtectedAdminAccount(item) ? getAdminRoleLabel(item.role) : "Хэрэглэгч"}</Text>
         </Pressable>
       )}
     >
@@ -240,7 +241,7 @@ export default function AdminUsersScreen() {
               <Text style={styles.k}>Утасны дугаар</Text>
               <Text style={styles.v}>{selectedUser?.phone || "-"}</Text>
               <Text style={styles.k}>Эрх</Text>
-              <Text style={styles.v}>{selectedUser?.role === "admin" ? "Админ" : "Хэрэглэгч"}</Text>
+              <Text style={styles.v}>{isProtectedAdminAccount(selectedUser) ? getAdminRoleLabel(selectedUser?.role) : "Хэрэглэгч"}</Text>
             </View>
             <View style={styles.block}>
               <Text style={styles.blockTitle}>Заруудын статистик</Text>

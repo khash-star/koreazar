@@ -18,6 +18,7 @@ import {
   setDoc,
   getDoc,
   updateDoc,
+  deleteField,
   collection,
   getDocs,
   query,
@@ -30,11 +31,14 @@ import {
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
 import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from '@/utils/emailNormalize';
+import { isAppAdmin, isSuperAdmin, ROLES, validateAdminRoleAssignment } from '@/constants/adminRoles';
 
 /** Client profile updates must never set these (admin / identity fields). */
 const PROTECTED_USER_DOC_FIELDS = new Set([
   'role',
   'isAdmin',
+  'admin_country_code',
+  'admin_region_code',
   'customerId',
   'emailVerified',
   'uid',
@@ -607,7 +611,7 @@ export const isAdmin = async () => {
     if (!user) return false;
     
     const userData = await getUserData(user.uid);
-    return userData?.role === 'admin';
+    return isAppAdmin(userData);
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -640,7 +644,7 @@ export const getAllUsers = async () => {
 export const getAdminEmail = async () => {
   try {
     const users = await getAllUsers();
-    const admin = users.find(user => user.role === 'admin');
+    const admin = users.find((user) => isAppAdmin(user) && isSuperAdmin(user));
     return admin?.email || null;
   } catch (error) {
     console.error('Error getting admin email:', error);
@@ -716,6 +720,59 @@ export const updateUserData = async (uid, data) => {
     console.error('Error updating user data:', error);
     throw error;
   }
+};
+
+/**
+ * Super admin: assign region/country/super role on another user (Firestore rules enforce).
+ * @param {string} targetUid
+ * @param {{ role: string, adminCountryCode?: string, adminRegionCode?: string }} assignment
+ */
+export const setUserAdminRoleBySuperAdmin = async (targetUid, assignment) => {
+  const actor = auth.currentUser;
+  if (!actor) throw new Error('Нэвтрээгүй байна');
+
+  const actorData = await getUserData(actor.uid);
+  if (!isSuperAdmin(actorData)) {
+    throw new Error('Зөвхөн super admin admin эрх оноож чадна');
+  }
+  if (actor.uid === targetUid) {
+    throw new Error('Өөрийн admin эрхийг энд солихгүй');
+  }
+
+  const role = String(assignment?.role || ROLES.USER).trim().toLowerCase();
+  const validation = validateAdminRoleAssignment({
+    role,
+    adminCountryCode: assignment?.adminCountryCode,
+    adminRegionCode: assignment?.adminRegionCode,
+  });
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+
+  const userRef = doc(db, 'users', targetUid);
+  const patch = { updatedAt: new Date() };
+
+  if (role === ROLES.USER) {
+    patch.role = ROLES.USER;
+    patch.admin_country_code = deleteField();
+    patch.admin_region_code = deleteField();
+  } else if (role === ROLES.LEGACY_SUPER || role === ROLES.SUPER_ADMIN) {
+    patch.role = ROLES.LEGACY_SUPER;
+    patch.admin_country_code = deleteField();
+    patch.admin_region_code = deleteField();
+  } else if (role === ROLES.COUNTRY_ADMIN) {
+    patch.role = ROLES.COUNTRY_ADMIN;
+    patch.admin_country_code = String(assignment.adminCountryCode || '').trim().toUpperCase();
+    patch.admin_region_code = deleteField();
+  } else if (role === ROLES.REGION_ADMIN) {
+    patch.role = ROLES.REGION_ADMIN;
+    patch.admin_country_code = 'US';
+    patch.admin_region_code = String(assignment.adminRegionCode || '').trim().toLowerCase();
+  } else {
+    throw new Error('Unknown role');
+  }
+
+  await updateDoc(userRef, patch);
 };
 
 /** Одоогийн хэрэглэгчийн профайл дээр зар эзэн блоклогдсон эсэх */

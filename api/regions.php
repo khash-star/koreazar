@@ -107,6 +107,69 @@ function resolve_us_listing_read_region_code(string $countryCode, string $reques
 }
 
 /**
+ * Active US region codes from registry (for country_admin reads).
+ *
+ * @return array<int, string>
+ */
+function get_active_us_region_codes(): array
+{
+    $out = [];
+    foreach (us_regions_registry() as $code => $meta) {
+        if (!empty($meta['active'])) {
+            $out[] = $code;
+        }
+    }
+
+    return $out;
+}
+
+/**
+ * US region filter with optional admin scope (country_admin → all active US regions).
+ *
+ * @param array<string, mixed> $params
+ * @param array{role:string,country_code:?string,region_code:?string}|null $adminScope
+ */
+function append_us_region_read_filter_scoped(PDO $pdo, string &$sql, array &$params, string $countryCode, string $requestedRegionCode, ?array $adminScope): void
+{
+    if ($countryCode !== 'US' || !table_has($pdo, 'listings', 'region_code')) {
+        return;
+    }
+
+    $requested = normalize_listing_region_code($requestedRegionCode);
+    if ($requested !== '') {
+        append_us_region_read_filter($pdo, $sql, $params, $countryCode, $requestedRegionCode);
+
+        return;
+    }
+
+    if ($adminScope !== null && ($adminScope['role'] ?? '') === 'country_admin' && ($adminScope['country_code'] ?? '') === 'US') {
+        $active = get_active_us_region_codes();
+        if ($active === []) {
+            $sql .= ' AND 1=0';
+
+            return;
+        }
+        if (count($active) === 1) {
+            $sql .= ' AND region_code = :region_code';
+            $params[':region_code'] = $active[0];
+
+            return;
+        }
+        $placeholders = [];
+        foreach ($active as $i => $code) {
+            $key = ':region_code_' . $i;
+            $placeholders[] = $key;
+            $params[$key] = $code;
+        }
+        $sql .= ' AND region_code IN (' . implode(', ', $placeholders) . ')';
+
+        return;
+    }
+
+    append_us_region_read_filter($pdo, $sql, $params, $countryCode, $requestedRegionCode);
+}
+
+/**
  * Append SQL region filter for US reads. Inactive marker yields zero rows.
  *
  * @param array<string, mixed> $params

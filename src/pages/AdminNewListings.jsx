@@ -24,6 +24,7 @@ import { categoryInfo } from '@/components/listings/CategoryCard';
 import { formatDistanceToNow } from 'date-fns';
 import { mn } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { getListingAutoApprove, setListingAutoApprove } from '@/services/appConfigService';
@@ -33,6 +34,8 @@ const AUTO_APPROVE_KEY = 'admin_auto_approve_listings';
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
   const { user, userData } = useAuth();
+  const { isAdmin, canManageGlobalConfig, adminRoleLabel, adminScope } = useAdminAccess();
+  const adminOptions = { adminUserData: userData };
   const [deleteId, setDeleteId] = useState(null);
   const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
   const [checkingListingId, setCheckingListingId] = useState(null);
@@ -63,8 +66,9 @@ export default function AdminNewListings() {
   };
 
   const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['admin-new-listings'],
-    queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200),
+    queryKey: ['admin-new-listings', adminScope.countryCode, adminScope.regionCode, adminScope.role],
+    queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200, adminOptions),
+    enabled: isAdmin,
     refetchInterval: autoApprove ? 10000 : false,
   });
 
@@ -141,8 +145,6 @@ export default function AdminNewListings() {
     exportListingsToCSV(listings, 'шинэ_зарууд');
   };
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
   if (!user || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -169,10 +171,16 @@ export default function AdminNewListings() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Шинэ зарууд</h1>
-              <p className="text-sm text-gray-500">{listings.length} батлах хүлээгдэж буй зар</p>
+              <p className="text-sm text-gray-500">
+                {listings.length} батлах хүлээгдэж буй зар
+                {adminScope.role !== 'super_admin' && (
+                  <span className="text-amber-700"> · {adminRoleLabel}{adminScope.regionCode ? ` (${adminScope.regionCode})` : adminScope.countryCode ? ` (${adminScope.countryCode})` : ''}</span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {canManageGlobalConfig ? (
             <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
               <Switch
                 id="auto-approve"
@@ -184,6 +192,7 @@ export default function AdminNewListings() {
                 Автоматаар зөвшөөрөх
               </Label>
             </div>
+            ) : null}
             <div className="flex gap-2">
               <Button
                 variant="outline"

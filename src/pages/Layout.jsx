@@ -17,7 +17,7 @@ import { PLAY_STORE_URL } from '@/constants/appUrls';
 import { useActiveCountry, useRouteCountryCode } from '@/hooks/useActiveCountry';
 
 export default function Layout({ children, currentPageName }) {
-  const { user, userData, loading: authLoading, authEmail } = useAuth();
+  const { user, userData, loading: authLoading, authEmail, isAdmin } = useAuth();
   const activeCountry = useActiveCountry();
   const navigate = useNavigate();
   const showNav = currentPageName !== 'CreateListing' && currentPageName !== 'ListingDetail';
@@ -65,12 +65,9 @@ export default function Layout({ children, currentPageName }) {
 
   const savedCount = savedListings.length;
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-
-  // Get pending listings count for admin (шинэ зарын хүсэлт)
   const { data: pendingListings = [] } = useQuery({
-    queryKey: ['pending-count'],
-    queryFn: () => entities.Listing.filter({ status: 'pending' }),
+    queryKey: ['pending-count', userData?.role, userData?.admin_country_code, userData?.admin_region_code],
+    queryFn: () => entities.Listing.filter({ status: 'pending' }, '-created_date', 200, { adminUserData: userData }),
     enabled: isAdmin,
     refetchInterval: 5000,
     retry: false
@@ -328,7 +325,7 @@ export default function Layout({ children, currentPageName }) {
       </Dialog>
 
       {/* Admin Button (Desktop) */}
-      {(userData?.role === 'admin' || user?.role === 'admin') && (
+      {isAdmin && (
         <Link to={createPageUrl('AdminPanel')} className="hidden md:block fixed top-4 right-4 z-50">
           <Button className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg">
             <Shield className="w-4 h-4 mr-2" />
@@ -399,7 +396,7 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-[10px] leading-tight font-medium">Нэмэх</span>
             </Link>
 
-            {(userData?.role === 'admin' || user?.role === 'admin') && (
+            {isAdmin && (
               <Link
                 to={createPageUrl('AdminPanel')}
                 aria-label="Админ удирдлага"

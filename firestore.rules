@@ -1,12 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if user is admin
-    function isAdmin() {
-      return request.auth != null && 
+
+    function adminDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function adminRole() {
+      return adminDoc().role;
+    }
+
+    function isSuperAdmin() {
+      return request.auth != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        (adminRole() == 'admin' || adminRole() == 'super_admin');
+    }
+
+    function isAppAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (adminRole() == 'admin' || adminRole() == 'super_admin' ||
+         adminRole() == 'country_admin' || adminRole() == 'region_admin');
+    }
+
+    // Legacy alias — global admin only (user role assignment, config)
+    function isAdmin() {
+      return isSuperAdmin();
+    }
+
+    function listingCountry(listing) {
+      return listing.country_code is string ? listing.country_code.upper() : 'KR';
+    }
+
+    function listingRegion(listing) {
+      return listing.region_code is string ? listing.region_code.lower() : '';
+    }
+
+    function adminCanModerateListing(listing) {
+      return isSuperAdmin() ||
+        (adminRole() == 'country_admin' &&
+          adminDoc().admin_country_code is string &&
+          listingCountry(listing) == adminDoc().admin_country_code.upper()) ||
+        (adminRole() == 'region_admin' &&
+          listingCountry(listing) == 'US' &&
+          adminDoc().admin_region_code is string &&
+          listingRegion(listing) == adminDoc().admin_region_code.lower());
+    }
+
+    function bannerCountry(banner) {
+      return banner.country_code is string ? banner.country_code.upper() : 'KR';
+    }
+
+    function adminCanModerateBanner(banner) {
+      return isSuperAdmin() ||
+        (adminRole() == 'country_admin' &&
+          adminDoc().admin_country_code is string &&
+          bannerCountry(banner) == adminDoc().admin_country_code.upper()) ||
+        (adminRole() == 'region_admin' && bannerCountry(banner) == 'US');
+    }
+
+    function adminCanManageUserProfiles() {
+      return isSuperAdmin() ||
+        (adminRole() == 'country_admin');
+    }
+
+    function protectedAdminFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'isAdmin', 'admin_country_code', 'admin_region_code']);
     }
 
     // Имэйл: token.email заримдаа null биш ч "" байна — энэ үед users/{uid}.email руу шилжих ёстой.
@@ -24,7 +84,6 @@ service cloud.firestore {
         : '';
     }
 
-    // Нэг талын имэйл null/буруу төрөлтэй хуучин баримт query-ийн бүх үр дүнг permission-denied болгоно — тус бүрээр OR шалгана.
     function userChatEmailMatches(participantEmail) {
       let em = authEmailLower();
       return em.size() > 0 &&
@@ -70,56 +129,58 @@ service cloud.firestore {
         (resource.data.receiver_email is string && resource.data.receiver_email.size() > 0 && participantEmailMatchesAuth(resource.data.receiver_email))
       );
     }
-    
-    // Users collection — owners cannot change role/isAdmin (no self-promotion to admin)
+
     match /users/{userId} {
-      allow read: if true; // Anyone can read user profiles
+      allow read: if true;
       allow create: if request.auth != null && request.auth.uid == userId
         && (!('role' in request.resource.data) || request.resource.data.role == 'user');
-      allow update: if isAdmin() || (
+      allow update: if isSuperAdmin() || (
+        adminCanManageUserProfiles() && protectedAdminFieldsUnchanged()
+      ) || (
         request.auth.uid == userId
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isAdmin'])
+        && protectedAdminFieldsUnchanged()
         && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
       );
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
-    
-    // Listings collection
+
     match /listings/{listingId} {
-      allow read: if true; // Anyone can read listings
+      allow read: if true;
       allow create: if request.auth != null;
-      // Allow update if user is owner/admin
-      // Also allow anyone authenticated to update views field (for view count tracking)
       allow update: if request.auth != null && (
-        resource.data.created_by == request.auth.token.email || 
-        isAdmin() ||
-        // Allow view count increment - check if views is being incremented and other fields unchanged
+        resource.data.created_by == request.auth.token.email ||
+        adminCanModerateListing(resource.data) ||
         (request.resource.data.views == resource.data.views + 1 &&
          request.resource.data.created_by == resource.data.created_by &&
          request.resource.data.title == resource.data.title &&
          request.resource.data.category == resource.data.category)
       );
-      allow delete: if request.auth != null && 
-        (resource.data.created_by == request.auth.token.email || isAdmin());
+      allow delete: if request.auth != null &&
+        (resource.data.created_by == request.auth.token.email || adminCanModerateListing(resource.data));
     }
-    
-    // Banner ads - Admin only
+
     match /banner_ads/{bannerId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isSuperAdmin() || (
+        isAppAdmin() && (
+          (adminRole() == 'country_admin' && request.resource.data.country_code is string &&
+            request.resource.data.country_code.upper() == adminDoc().admin_country_code.upper()) ||
+          (adminRole() == 'region_admin' && request.resource.data.country_code is string &&
+            request.resource.data.country_code.upper() == 'US')
+        )
+      );
+      allow update, delete: if isSuperAdmin() || adminCanModerateBanner(resource.data);
     }
-    
-    // Banner requests
+
     match /banner_requests/{requestId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAppAdmin();
     }
 
-    // Listing reports (санал/гомдол) — email эсвэл reporter_uid (phone OTP)
     match /listing_reports/{reportId} {
       allow read: if request.auth != null && (
-        isAdmin() ||
+        isAppAdmin() ||
         (resource.data.reporter_uid == request.auth.uid) ||
         (authEmailLower().size() > 0 &&
           resource.data.reporter_email is string &&
@@ -131,10 +192,9 @@ service cloud.firestore {
           request.resource.data.reporter_email is string &&
           request.resource.data.reporter_email.lower() == authEmailLower())
       );
-      allow update, delete: if isAdmin();
+      allow update, delete: if isAppAdmin();
     }
 
-    // Footer feedback messages — email эсвэл user_uid (phone OTP)
     match /feedback_messages/{feedbackId} {
       allow create: if request.auth != null && (
         (request.resource.data.user_uid == request.auth.uid) ||
@@ -142,10 +202,9 @@ service cloud.firestore {
           request.resource.data.email is string &&
           request.resource.data.email.lower() == authEmailLower())
       );
-      allow read, update, delete: if isAdmin();
+      allow read, update, delete: if isSuperAdmin();
     }
-    
-    // Saved listings — created_by/email эсвэл user_uid (phone OTP)
+
     match /saved_listings/{savedId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && (
@@ -161,60 +220,48 @@ service cloud.firestore {
           resource.data.created_by.lower() == authEmailLower())
       );
     }
-    
-    // Conversations
+
     match /conversations/{conversationId} {
-      allow read: if request.auth != null && 
-        (isConversationParticipant() || isAdmin());
+      allow read: if request.auth != null &&
+        (isConversationParticipant() || isAppAdmin());
       allow create: if request.auth != null;
-      allow update: if request.auth != null && 
-        (isConversationParticipant() || isAdmin());
-      allow delete: if request.auth != null && 
-        (isConversationParticipant() || isAdmin());
+      allow update: if request.auth != null &&
+        (isConversationParticipant() || isAppAdmin());
+      allow delete: if request.auth != null &&
+        (isConversationParticipant() || isAppAdmin());
     }
-    
-    // Messages
+
     match /messages/{messageId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
-      allow delete: if request.auth != null && 
-        (isMessageSenderOrReceiver() || isAdmin());
+      allow update: if request.auth != null &&
+        (isMessageSenderOrReceiver() || isAppAdmin());
+      allow delete: if request.auth != null &&
+        (isMessageSenderOrReceiver() || isAppAdmin());
     }
-    
-    // AI Conversations
+
     match /ai_conversations/{conversationId} {
-      // Allow read if user owns the conversation
-      allow read: if request.auth != null && 
+      allow read: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
-      // Allow list queries with where clause - Firestore will filter results
       allow list: if request.auth != null;
-      // Allow create if user_email matches authenticated user
-      allow create: if request.auth != null && 
+      allow create: if request.auth != null &&
         request.resource.data.user_email == request.auth.token.email;
-      // Allow update if user owns the conversation
-      allow update: if request.auth != null && 
+      allow update: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null && 
+      allow delete: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
     }
-    
-    // AI Messages
+
     match /ai_messages/{messageId} {
-      // Allow read if user owns the message
-      allow read: if request.auth != null && 
+      allow read: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
-      // Allow list queries with where clause - Firestore will filter results
       allow list: if request.auth != null;
-      // Allow create if user_email matches authenticated user
-      allow create: if request.auth != null && 
+      allow create: if request.auth != null &&
         request.resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null && 
+      allow delete: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
     }
-    
-    // Expo push tokens — one doc per device under uid (chat push)
+
     match /user_push_tokens/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       match /devices/{deviceId} {
@@ -222,29 +269,22 @@ service cloud.firestore {
       }
     }
 
-    // App config (e.g. listingAutoApprove) - read by any auth, write by admin only
     match /config/{docId} {
       allow read: if request.auth != null;
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin();
     }
-    
-    // AI Usage Tracking
+
     match /ai_usage/{usageId} {
-      // Allow read if document exists and user owns it or is admin
-      // Also allow read if document doesn't exist (for getDoc checks)
       allow get: if request.auth != null && (
         !exists(/databases/$(database)/documents/ai_usage/$(usageId)) ||
         resource.data.user_email == request.auth.token.email ||
-        isAdmin()
+        isSuperAdmin()
       );
-      // Allow list queries for authenticated users
       allow list: if request.auth != null;
-      // Allow create/update if user_email matches authenticated user
-      allow create, update: if request.auth != null && 
+      allow create, update: if request.auth != null &&
         request.resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null && 
+      allow delete: if request.auth != null &&
         resource.data.user_email == request.auth.token.email;
     }
   }
 }
-

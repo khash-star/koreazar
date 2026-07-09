@@ -26,9 +26,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 
 export default function AdminBannerRequests() {
-  const { user, userData } = useAuth();
+  const { user } = useAuth();
+  const { isAdmin } = useAdminAccess();
   const [deleteId, setDeleteId] = useState(null);
   const [activeDialog, setActiveDialog] = useState(null);
   const [adminNote, setAdminNote] = useState('');
@@ -95,9 +97,7 @@ export default function AdminBannerRequests() {
     );
   }
 
-  const isAdmin = userData?.role === 'admin' || user?.role === 'admin';
-  
-  if (!isAdmin) {
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

@@ -6,6 +6,12 @@ import {
 } from "../services/authService";
 import { getUserByEmail, getUserProfileByUid } from "../services/userProfileService";
 import { normalizeEmail, phoneToAuthEmail } from "../utils/emailNormalize.js";
+import {
+  canManageUsers,
+  getAdminScope,
+  isAppAdmin,
+  isSuperAdmin,
+} from "../constants/adminRoles.js";
 
 const AuthContext = createContext(null);
 
@@ -93,7 +99,10 @@ export function AuthProvider({ children }) {
       loading,
       email,
       isAuthenticated: !!user,
-      isAdmin: userData?.role === "admin",
+      isAdmin: isAppAdmin(userData),
+      isSuperAdmin: isSuperAdmin(userData),
+      adminScope: getAdminScope(userData),
+      canManageUsers: canManageUsers(userData),
       refreshUserData,
     }),
     [user, userData, loading, refreshUserData, email]

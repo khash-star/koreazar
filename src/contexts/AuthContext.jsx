@@ -2,6 +2,11 @@
 // Firebase Auth is loaded asynchronously (dynamic import) so it doesn't block first paint / LCP
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { resolveAuthEmail } from '@/utils/emailNormalize';
+import {
+  getAdminScope,
+  isAppAdmin,
+  isSuperAdmin,
+} from '@/constants/adminRoles';
 
 const AuthContext = createContext(null);
 
@@ -96,12 +101,19 @@ export const AuthProvider = ({ children }) => {
 
   const authEmail = useMemo(() => resolveAuthEmail(user, userData), [user, userData]);
 
+  const adminScope = useMemo(() => getAdminScope(userData), [userData]);
+  const isAdmin = useMemo(() => isAppAdmin(userData), [userData]);
+  const isSuperAdminUser = useMemo(() => isSuperAdmin(userData), [userData]);
+
   const value = {
     user,           // Firebase Auth user object
     userData,       // Firestore user data (email, role, etc.)
     authEmail,      // Resolved identity (email or phone synthetic) for queries/rules
     loading,        // Loading state
-    isAuthenticated: !!user  // Boolean - нэвтэрсэн эсэх
+    isAuthenticated: !!user,  // Boolean - нэвтэрсэн эсэх
+    isAdmin,
+    isSuperAdmin: isSuperAdminUser,
+    adminScope,
   };
 
   return (

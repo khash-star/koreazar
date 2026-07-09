@@ -8,17 +8,15 @@ import * as feedbackService from '@/services/feedbackService';
 
 // Listing entity - Firestore service ашиглах
 export const Listing = {
-  list: (orderBy = '-created_date', limitCount = 100) => 
-    listingService.listListings(orderBy.replace('-', ''), limitCount),
-  
-  filter: async (filters = {}, orderBy = '-created_date', limitCount = 100) => {
-    // Convert filter format to Firestore query
+  list: (orderBy = '-created_date', limitCount = 100, options = {}) =>
+    listingService.listListings(orderBy.replace('-', ''), limitCount, options),
+
+  filter: async (filters = {}, orderBy = '-created_date', limitCount = 100, options = {}) => {
     if (filters.id) {
       const listing = await listingService.getListing(filters.id);
       return listing ? [listing] : [];
     }
-    // Use filterListings for all other filters
-    return listingService.filterListings(filters, orderBy, limitCount);
+    return listingService.filterListings(filters, orderBy, limitCount, options);
   },
   
   create: (data) => listingService.createListing(data),
