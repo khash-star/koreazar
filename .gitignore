@@ -12,6 +12,7 @@ dist
 dist-ssr
 deploy
 *.local
+scripts/deploy-zarusa-api.local.env
 
 # Editor directories and files
 .vscode/*

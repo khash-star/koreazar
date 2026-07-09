@@ -1,7 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { getActiveMobileCountryCode } from "../config/country";
-import { isBannerVisibleForCountry } from "../utils/bannerCountry";
+import { isBannerVisibleForCountry, normalizeBannerCountryCode } from "../utils/bannerCountry";
 
 /**
  * Идэвхтэй баннерууд — вэбийн BannerAd.filter({ is_active: true })-тай ижил.
@@ -29,12 +29,14 @@ export async function listBannerAds() {
 
 export async function createBannerAd(data) {
   const ref = collection(db, "banner_ads");
+  const marketCode = getActiveMobileCountryCode();
   const payload = {
     image_url: data.image_url || "",
     link: data.link || "#",
     title: data.title || "",
     is_active: data.is_active !== false,
     order: Number(data.order) || 0,
+    country_code: normalizeBannerCountryCode(data.country_code || marketCode),
   };
   const created = await addDoc(ref, payload);
   return { id: created.id, ...payload };

@@ -17,9 +17,12 @@ import * as ImagePicker from "expo-image-picker";
 import { uploadImageFromUri } from "../services/storageService";
 import { defaultMobileStorageCountryCode } from "../utils/storagePaths";
 import { createBannerAd, deleteBannerAd, listBannerAds, updateBannerAd } from "../services/bannerService";
+import { filterBannersByAdminScope } from "../constants/adminRoles.js";
+import { useAuth } from "../context/AuthContext";
 import { showAlert } from "../utils/showAlert";
 
 export default function AdminBannersScreen() {
+  const { userData } = useAuth();
   const draftBannerKeyRef = useRef(`draft-banner-${Date.now()}`);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -41,14 +44,14 @@ export default function AdminBannersScreen() {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       const data = await listBannerAds();
-      setRows(data || []);
+      setRows(filterBannersByAdminScope(userData, data || []));
     } catch (e) {
       showAlert("Алдаа", e?.message || "Баннер ачаалахад алдаа гарлаа");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [userData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -125,10 +128,14 @@ export default function AdminBannersScreen() {
     }
     setSaving(true);
     try {
+      const payload = { ...form };
+      if (!editingId) {
+        payload.country_code = userData?.admin_country_code || "US";
+      }
       if (editingId) {
-        await updateBannerAd(editingId, form);
+        await updateBannerAd(editingId, payload);
       } else {
-        await createBannerAd(form);
+        await createBannerAd(payload);
       }
       setDialogOpen(false);
       await load(false);
@@ -137,7 +144,7 @@ export default function AdminBannersScreen() {
     } finally {
       setSaving(false);
     }
-  }, [editingId, form, load]);
+  }, [editingId, form, load, userData]);
 
   const onDelete = useCallback((banner) => {
     showAlert("Баннер устгах уу?", `"${banner.title || "Баннер"}" устгах уу?`, [

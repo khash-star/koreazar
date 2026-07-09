@@ -414,6 +414,83 @@ try {
             ], JSON_UNESCAPED_UNICODE);
             break;
 
+        case 'admin_set_user_role':
+            if ($method !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['error' => 'Method not allowed for action=admin_set_user_role'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $authUser = require_firebase_user();
+            $actorScope = get_app_admin_scope($pdo, $authUser);
+            if ($actorScope === null || $actorScope['role'] !== 'super_admin') {
+                http_response_code(403);
+                echo json_encode(['error' => 'Forbidden: super admin only'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $body = read_json_body();
+            $targetUid = isset($body['target_uid']) ? trim((string) $body['target_uid']) : '';
+            if ($targetUid === '') {
+                http_response_code(400);
+                echo json_encode(['error' => 'target_uid required'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if ($targetUid === $authUser['uid']) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Cannot change own admin role via API'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $role = normalize_admin_role(isset($body['role']) ? (string) $body['role'] : 'user');
+            $countryCode = isset($body['admin_country_code']) ? strtoupper(trim((string) $body['admin_country_code'])) : null;
+            $regionCode = isset($body['admin_region_code']) ? strtolower(trim((string) $body['admin_region_code'])) : null;
+            if ($countryCode === '') {
+                $countryCode = null;
+            }
+            if ($regionCode === '') {
+                $regionCode = null;
+            }
+            if (!in_array($role, ['user', 'super_admin', 'country_admin', 'region_admin'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid role'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            if ($role === 'user') {
+                $countryCode = null;
+                $regionCode = null;
+            } elseif ($role === 'super_admin') {
+                $countryCode = null;
+                $regionCode = null;
+            } elseif ($role === 'country_admin') {
+                if ($countryCode === null || $countryCode === '') {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'admin_country_code required for country_admin'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $regionCode = null;
+            } elseif ($role === 'region_admin') {
+                if ($countryCode === null || $countryCode === '') {
+                    $countryCode = 'US';
+                }
+                if ($regionCode === null || $regionCode === '' || !is_active_us_region($regionCode)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Valid admin_region_code required for region_admin'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+            $ok = upsert_user_admin_role_mysql($pdo, $targetUid, $role, $countryCode, $regionCode);
+            if (!$ok) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to sync admin role to MySQL'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            echo json_encode([
+                'ok' => true,
+                'target_uid' => $targetUid,
+                'role' => $role,
+                'admin_country_code' => $countryCode,
+                'admin_region_code' => $regionCode,
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+
         default:
             http_response_code(404);
             echo json_encode(['error' => 'Unknown action'], JSON_UNESCAPED_UNICODE);
@@ -958,6 +1035,9 @@ function admin_can_moderate_listing(PDO $pdo, array $authUser, array $listing): 
 
     $country = normalize_listing_country_code((string) ($listing['country_code'] ?? 'KR'));
     $region = normalize_listing_region_code((string) ($listing['region_code'] ?? ''));
+    if ($country === 'US' && $region === '') {
+        $region = get_default_us_region_code();
+    }
 
     if ($scope['role'] === 'country_admin') {
         return $scope['country_code'] !== null && $scope['country_code'] !== '' && $country === $scope['country_code'];
@@ -1174,6 +1254,52 @@ function upsert_user_best_effort(PDO $pdo, string $firebaseUid, ?string $email):
         }
     } catch (Throwable $e) {
         // Intentionally swallow: listing creation should still proceed.
+    }
+}
+
+function upsert_user_admin_role_mysql(
+    PDO $pdo,
+    string $firebaseUid,
+    string $role,
+    ?string $countryCode,
+    ?string $regionCode
+): bool {
+    if ($firebaseUid === '' || !table_has($pdo, 'users', 'firebase_uid') || !table_has($pdo, 'users', 'role')) {
+        return false;
+    }
+    try {
+        upsert_user_best_effort($pdo, $firebaseUid, null);
+        $stmt = $pdo->prepare('SELECT id FROM users WHERE firebase_uid = :uid LIMIT 1');
+        $stmt->execute([':uid' => $firebaseUid]);
+        $row = $stmt->fetch();
+        if (!$row || !isset($row['id'])) {
+            return false;
+        }
+
+        $set = ['role = :role'];
+        $params = [
+            ':id' => $row['id'],
+            ':role' => $role === 'super_admin' ? 'super_admin' : $role,
+        ];
+        if (table_has($pdo, 'users', 'admin_country_code')) {
+            $set[] = 'admin_country_code = :admin_country_code';
+            $params[':admin_country_code'] = $countryCode;
+        }
+        if (table_has($pdo, 'users', 'admin_region_code')) {
+            $set[] = 'admin_region_code = :admin_region_code';
+            $params[':admin_region_code'] = $regionCode;
+        }
+        if (table_has($pdo, 'users', 'updated_at')) {
+            $set[] = 'updated_at = NOW()';
+        }
+
+        $sql = 'UPDATE users SET ' . implode(', ', $set) . ' WHERE id = :id';
+        $u = $pdo->prepare($sql);
+        $u->execute($params);
+
+        return true;
+    } catch (Throwable $e) {
+        return false;
     }
 }
 

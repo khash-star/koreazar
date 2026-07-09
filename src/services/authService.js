@@ -63,6 +63,42 @@ const buildUserSyncUrl = () => {
   return url.toString();
 };
 
+const buildAdminRoleSyncUrl = () => {
+  const url = new URL(USER_SYNC_API_BASE_URL);
+  url.searchParams.set('action', 'admin_set_user_role');
+  return url.toString();
+};
+
+const syncAdminRoleToMySql = async (targetUid, assignment) => {
+  const actor = auth.currentUser;
+  if (!actor) return;
+  try {
+    const token = await actor.getIdToken(true);
+    const role = String(assignment?.role || ROLES.USER).trim().toLowerCase();
+    const body = { target_uid: targetUid, role };
+    if (role === ROLES.COUNTRY_ADMIN) {
+      body.admin_country_code = String(assignment.adminCountryCode || '').trim().toUpperCase();
+    } else if (role === ROLES.REGION_ADMIN) {
+      body.admin_country_code = 'US';
+      body.admin_region_code = String(assignment.adminRegionCode || '').trim().toLowerCase();
+    }
+    const res = await fetch(buildAdminRoleSyncUrl(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      console.warn('MySQL admin role sync failed:', payload?.error || res.status);
+    }
+  } catch (e) {
+    console.warn('MySQL admin role sync failed:', e?.message || e);
+  }
+};
+
 const syncUserToMySql = async (user, profile = {}) => {
   if (!user) return;
   try {
@@ -773,6 +809,7 @@ export const setUserAdminRoleBySuperAdmin = async (targetUid, assignment) => {
   }
 
   await updateDoc(userRef, patch);
+  await syncAdminRoleToMySql(targetUid, { role, adminCountryCode: assignment?.adminCountryCode, adminRegionCode: assignment?.adminRegionCode });
 };
 
 /** Одоогийн хэрэглэгчийн профайл дээр зар эзэн блоклогдсон эсэх */

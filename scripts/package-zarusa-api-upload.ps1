@@ -11,6 +11,7 @@ New-Item -ItemType Directory -Force -Path $Out | Out-Null
 Copy-Item (Join-Path $Root "api\index.php") (Join-Path $Out "index.php") -Force
 Copy-Item (Join-Path $Root "api\regions.php") (Join-Path $Out "regions.php") -Force
 Copy-Item (Join-Path $Root "api\sql\migration_region_dmv_mvp.sql") (Join-Path $Out "migration_region_dmv_mvp.sql") -Force
+Copy-Item (Join-Path $Root "api\sql\migration_admin_rbac_phase2.sql") (Join-Path $Out "migration_admin_rbac_phase2.sql") -Force
 
 @"
 Zarusa API upload bundle
@@ -22,6 +23,7 @@ Upload to cPanel (api.zarkorea.com document root):
 
 Run on STAGING MySQL first:
   migration_region_dmv_mvp.sql
+  migration_admin_rbac_phase2.sql
 
 Then verify from repo root:
   npm run staging:zarusa

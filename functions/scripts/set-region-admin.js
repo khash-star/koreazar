@@ -68,7 +68,12 @@ async function main() {
 
   console.log("OK — admin role assigned");
   console.log(JSON.stringify({ uid, email, role: roleArg, admin_country_code: "US", admin_region_code: regionArg }, null, 2));
-  console.log("\nUser must logout + login again. MySQL users table: sync if API deploy uses DB role checks.");
+  console.log("\nUser must logout + login again.");
+  console.log("MySQL sync (after API deploy + migration):");
+  console.log(
+    `UPDATE users SET role = '${roleArg}', admin_country_code = 'US', admin_region_code = '${regionArg}' WHERE firebase_uid = '${uid}';`
+  );
+  console.log("\nOr re-save role from web AdminPanel (super admin) to auto-sync MySQL.");
 }
 
 main().catch((err) => {

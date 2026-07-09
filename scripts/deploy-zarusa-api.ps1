@@ -100,21 +100,31 @@ function Invoke-RemoteMigration {
   $remoteDir = $remoteDir.TrimEnd("/")
   $scp = Get-ScpBaseArgs
   $migrationLocal = Join-Path $BundleDir "migration_region_dmv_mvp.sql"
+  $rbacMigrationLocal = Join-Path $BundleDir "migration_admin_rbac_phase2.sql"
   if (-not (Test-Path $migrationLocal)) { throw "Missing $migrationLocal" }
 
   $remoteSql = "$remoteDir/migration_region_dmv_mvp.sql"
   Write-Host "  Upload migration SQL..." -ForegroundColor Cyan
   if (-not $DryRun) {
     Invoke-ScpUpload $migrationLocal "migration_region_dmv_mvp.sql"
+    if (Test-Path $rbacMigrationLocal) {
+      Invoke-ScpUpload $rbacMigrationLocal "migration_admin_rbac_phase2.sql"
+    }
   }
 
   $escPass = $dbPass.Replace("'", "'\''")
   $mysqlCmd = "mysql -h '$dbHost' -u '$dbUser' -p'$escPass' '$dbName'"
-  Write-Host "  Run migration on server via SSH..." -ForegroundColor Cyan
+  Write-Host "  Run DMV migration on server via SSH..." -ForegroundColor Cyan
   if ($DryRun) { return }
 
   Get-Content -Raw $migrationLocal | & ssh.exe @($scp.Args) "${user}@$($scp.Host)" $mysqlCmd
-  if ($LASTEXITCODE -ne 0) { throw "Remote migration failed (exit $LASTEXITCODE)" }
+  if ($LASTEXITCODE -ne 0) { throw "Remote DMV migration failed (exit $LASTEXITCODE)" }
+
+  if (Test-Path $rbacMigrationLocal) {
+    Write-Host "  Run admin RBAC migration on server via SSH..." -ForegroundColor Cyan
+    Get-Content -Raw $rbacMigrationLocal | & ssh.exe @($scp.Args) "${user}@$($scp.Host)" $mysqlCmd
+    if ($LASTEXITCODE -ne 0) { throw "Remote admin RBAC migration failed (exit $LASTEXITCODE)" }
+  }
 
   if (-not $DryRun) {
     & ssh.exe @($scp.Args) "${user}@$($scp.Host)" "rm -f '$remoteSql'"
