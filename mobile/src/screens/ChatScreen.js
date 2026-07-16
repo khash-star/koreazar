@@ -219,8 +219,9 @@ export default function ChatScreen({ route, navigation }) {
 
       const conv = await getConversation(convId);
       if (!conv) return;
+      const activeConv = await repairConversationParticipants(conv, { meEmail: me });
       const meNorm = normalizeEmail(me);
-      const unread = list.filter((m) => normalizeEmail(m.receiver_email) === meNorm && !m.is_read);
+      const unread = list.filter((m) => areEmailVariants(m.receiver_email, meNorm) && !m.is_read);
       if (unread.length === 0) return;
       for (const m of unread) {
         try {
@@ -229,7 +230,7 @@ export default function ChatScreen({ route, navigation }) {
           /* ignore */
         }
       }
-      const isP1 = normalizeEmail(conv.participant_1) === meNorm;
+      const isP1 = areEmailVariants(activeConv.participant_1, meNorm);
       try {
         await updateConversation(convId, {
           [isP1 ? "unread_count_p1" : "unread_count_p2"]: 0,

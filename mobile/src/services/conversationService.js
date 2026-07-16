@@ -117,6 +117,17 @@ function pickCanonicalParticipantEmail(stored, canonical) {
   return storedNorm;
 }
 
+function participantEmailMatches(stored, expected) {
+  return areEmailVariants(stored, expected);
+}
+
+function participantPairMatches(p1, p2, a, b) {
+  return (
+    (participantEmailMatches(p1, a) && participantEmailMatches(p2, b)) ||
+    (participantEmailMatches(p1, b) && participantEmailMatches(p2, a))
+  );
+}
+
 export async function filterConversations(filters = {}) {
   const convsRef = collection(db, "conversations");
   const conditions = [];
@@ -233,7 +244,7 @@ export async function findConversation(email1, email2) {
         const row = mapConversationDoc(d);
         const p1 = normalizeEmail(row.participant_1);
         const p2 = normalizeEmail(row.participant_2);
-        if ((p1 === a && p2 === b) || (p1 === b && p2 === a)) {
+        if (participantPairMatches(p1, p2, a, b)) {
           return row;
         }
       }
@@ -243,15 +254,29 @@ export async function findConversation(email1, email2) {
   }
 
   const convsRef = collection(db, "conversations");
-  try {
-    const q1 = query(convsRef, where("participant_1", "==", a), where("participant_2", "==", b));
-    const q2 = query(convsRef, where("participant_1", "==", b), where("participant_2", "==", a));
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    if (!snap1.empty) return mapConversationDoc(snap1.docs[0]);
-    if (!snap2.empty) return mapConversationDoc(snap2.docs[0]);
-  } catch (e) {
-    if (isFirestorePermissionDenied(e)) return null;
-    throw e;
+  const seenPairs = new Set();
+  for (const av of emailQueryVariants(a)) {
+    for (const bv of emailQueryVariants(b)) {
+      for (const [left, right] of [
+        [av, bv],
+        [bv, av],
+      ]) {
+        const key = `${left}\u0000${right}`;
+        if (seenPairs.has(key)) continue;
+        seenPairs.add(key);
+        const q = query(
+          convsRef,
+          where("participant_1", "==", left),
+          where("participant_2", "==", right)
+        );
+        try {
+          const snap = await getDocs(q);
+          if (!snap.empty) return mapConversationDoc(snap.docs[0]);
+        } catch (e) {
+          if (!isFirestorePermissionDenied(e)) throw e;
+        }
+      }
+    }
   }
   return null;
 }
