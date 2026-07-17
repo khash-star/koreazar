@@ -24,6 +24,10 @@
 | Auth failures | `docs/archive/historical-fixes/LOGIN_TROUBLESHOOTING.md`, `QUICK_FIX_AUTH.md` | Config, cache, rules |
 | Data missing after project switch | `docs/archive/firebase-legacy/FIREBASE_RESTORE_*.md` | Wrong Firebase project id |
 
+## Resolved critical regressions
+
+- **2026-07-17 — scoped admin listing writes:** Phase 2 RBAC allowed country/region admins to create listings outside their assigned market and to move an existing in-scope listing out of scope. `api/index.php` now checks the resulting listing on both create and update; `npm test`, region-registry verification, and `npm run build` passed.
+
 ## Doc hygiene risks (not runtime bugs)
 
 - Stale path `zar-746103b7/` in archived guides
