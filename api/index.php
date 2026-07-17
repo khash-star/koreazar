@@ -1097,7 +1097,8 @@ function admin_can_moderate_listing(PDO $pdo, array $authUser, array $listing): 
 function enforce_listing_promotion_privileges(PDO $pdo, array $authUser, array $payload, ?array $existing, bool $isCreate): void
 {
     if (is_app_admin($pdo, $authUser)) {
-        if (!$isCreate && $existing !== null && !admin_can_moderate_listing($pdo, $authUser, $existing)) {
+        $targetListing = $isCreate ? $payload : array_merge($existing ?? [], $payload);
+        if (!admin_can_moderate_listing($pdo, $authUser, $targetListing)) {
             http_response_code(403);
             echo json_encode(['error' => 'Forbidden: admin scope mismatch'], JSON_UNESCAPED_UNICODE);
             exit;

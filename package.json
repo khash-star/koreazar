@@ -14,7 +14,7 @@
     "generate-zarusa-store-screenshots": "node scripts/generate-zarusa-store-screenshots.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "echo \"No tests configured\" && exit 0",
+    "test": "node scripts/check-admin-listing-scope.mjs",
     "verify:zarusa-registry": "node scripts/verify-zarusa-region-registry.mjs",
     "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs",
     "staging:zarusa": "powershell -ExecutionPolicy Bypass -File scripts/staging-zarusa-dmv.ps1",
