@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "echo \"No tests configured\" && exit 0",
+    "test:firestore-banner-scope": "npx firebase-tools emulators:exec --project demo-koreazar-banner-scope --only firestore \"node scripts/check-firestore-banner-scope.mjs\"",
     "verify:zarusa-registry": "node scripts/verify-zarusa-region-registry.mjs",
     "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs",
     "staging:zarusa": "powershell -ExecutionPolicy Bypass -File scripts/staging-zarusa-dmv.ps1",

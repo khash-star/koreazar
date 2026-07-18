@@ -169,7 +169,11 @@ service cloud.firestore {
             request.resource.data.country_code.upper() == 'US')
         )
       );
-      allow update, delete: if isSuperAdmin() || adminCanModerateBanner(resource.data);
+      allow update: if isSuperAdmin() || (
+        adminCanModerateBanner(resource.data) &&
+        adminCanModerateBanner(request.resource.data)
+      );
+      allow delete: if isSuperAdmin() || adminCanModerateBanner(resource.data);
     }
 
     match /banner_requests/{requestId} {
