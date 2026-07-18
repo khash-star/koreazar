@@ -26,7 +26,10 @@ const restBase =
 async function seedDocument(path, fields) {
   const response = await fetch(`${restBase}/${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: 'Bearer owner',
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({ fields }),
   });
   if (!response.ok) {
