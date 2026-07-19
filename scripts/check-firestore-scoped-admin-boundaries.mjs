@@ -65,6 +65,7 @@ await Promise.all([
     admin_country_code: { stringValue: 'US' },
     admin_region_code: { stringValue: 'washington-dc' },
     email: { stringValue: 'region@example.com' },
+    phoneAuthEmails: { arrayValue: { values: [] } },
   }),
   seedDocument('users/country-admin', {
     role: { stringValue: 'country_admin' },
