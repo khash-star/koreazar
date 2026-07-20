@@ -172,7 +172,7 @@ Copy from `api/.env.example`:
 | `APP_DEBUG` | `false` in production |
 | `FIREBASE_WEB_API_KEY` | Token verification |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | AI endpoints |
-| `APP_ADMIN_UIDS` | Admin listing overrides |
+| `APP_ADMIN_UIDS` | Local super-admin allowlist; requires matching exact Firestore admin authority |
 
 ### Health check
 

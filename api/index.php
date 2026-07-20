@@ -725,7 +725,7 @@ function require_firebase_user(): array
     return $verified;
 }
 
-/** @return array{uid:string,email:?string,phoneNumber:?string}|null */
+/** @return array{uid:string,email:?string,phoneNumber:?string,idToken:string,projectId:string}|null */
 function verify_firebase_bearer_token(): ?array
 {
     $authHeader = get_authorization_header();
@@ -769,11 +769,65 @@ function verify_firebase_bearer_token(): ?array
         return null;
     }
 
+    // This pre-existing accounts:lookup path accepts or rejects the ID token.
+    // The Firestore-authority change only retains an accepted token; it does
+    // not add application-level validSince/disabled response-field checks.
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
+    $tokenContext = firebase_verified_token_context($idToken, $uid);
+    if ($tokenContext === null) {
+        return null;
+    }
 
-    return ['uid' => $uid, 'email' => $email, 'phoneNumber' => $phoneNumber];
+    return [
+        'uid' => $uid,
+        'email' => $email,
+        'phoneNumber' => $phoneNumber,
+        'idToken' => $tokenContext['idToken'],
+        'projectId' => $tokenContext['projectId'],
+    ];
+}
+
+/**
+ * The token is parsed only after accounts:lookup verifies it. Validate the
+ * Firebase issuer/subject before using aud as the Firestore project id.
+ *
+ * @return array{uid:string,idToken:string,projectId:string}|null
+ */
+function firebase_verified_token_context(string $idToken, string $verifiedUid): ?array
+{
+    $parts = explode('.', $idToken);
+    if (count($parts) !== 3 || $verifiedUid === '') {
+        return null;
+    }
+
+    $encodedPayload = strtr($parts[1], '-_', '+/');
+    $padding = strlen($encodedPayload) % 4;
+    if ($padding !== 0) {
+        $encodedPayload .= str_repeat('=', 4 - $padding);
+    }
+    $decodedPayload = base64_decode($encodedPayload, true);
+    if (!is_string($decodedPayload)) {
+        return null;
+    }
+    $claims = json_decode($decodedPayload, true);
+    if (!is_array($claims)) {
+        return null;
+    }
+
+    $projectId = isset($claims['aud']) && is_string($claims['aud']) ? $claims['aud'] : '';
+    $issuer = isset($claims['iss']) && is_string($claims['iss']) ? $claims['iss'] : '';
+    $subject = isset($claims['sub']) && is_string($claims['sub']) ? $claims['sub'] : '';
+    if (
+        preg_match('/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/', $projectId) !== 1
+        || $issuer !== 'https://securetoken.google.com/' . $projectId
+        || $subject !== $verifiedUid
+    ) {
+        return null;
+    }
+
+    return ['uid' => $verifiedUid, 'idToken' => $idToken, 'projectId' => $projectId];
 }
 
 /** Optional auth for scoped admin listing reads (returns null when no/invalid token). */
@@ -947,9 +1001,12 @@ function normalize_listing_type_value($v): string
 }
 
 /**
- * App admin: APP_ADMIN_UIDS env and/or MySQL users.role (+ optional scope columns).
+ * App admin is the intersection of current Firestore authority and a local
+ * APP_ADMIN_UIDS/MySQL grant. APP_ADMIN_UIDS is not a standalone override;
+ * bootstrap remains the documented exact role assignment in Firebase Console.
+ * Any unavailable/mismatched authority fails closed.
  *
- * @param array{uid:string,email:?string} $authUser
+ * @param array{uid:string,email:?string,idToken:string,projectId:string} $authUser
  */
 function is_app_admin(PDO $pdo, array $authUser): bool
 {
@@ -968,44 +1025,196 @@ function normalize_admin_role(string $role): string
 
 /**
  * @return array{role:string,country_code:?string,region_code:?string}|null
- * @param array{uid:string,email:?string} $authUser
+ * @param array{uid:string,email:?string,idToken:string,projectId:string} $authUser
+ * @param callable(array):(?array)|null $firestoreScopeFetcher
  */
-function get_app_admin_scope(PDO $pdo, array $authUser): ?array
+function get_app_admin_scope(PDO $pdo, array $authUser, ?callable $firestoreScopeFetcher = null): ?array
 {
-    $uid = isset($authUser['uid']) ? (string) $authUser['uid'] : '';
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
     if ($uid === '') {
         return null;
     }
 
+    $localScope = null;
     $adminUidsRaw = getenv('APP_ADMIN_UIDS') ?: '';
     $adminUids = array_values(array_filter(array_map('trim', explode(',', $adminUidsRaw))));
     if (in_array($uid, $adminUids, true)) {
-        return ['role' => 'super_admin', 'country_code' => null, 'region_code' => null];
-    }
-
-    if (table_has($pdo, 'users', 'role')) {
+        $localScope = ['role' => 'super_admin', 'country_code' => null, 'region_code' => null];
+    } elseif (table_has($pdo, 'users', 'role')) {
         $row = fetch_user_admin_scope_row($pdo, $authUser);
         if ($row !== null) {
-            $role = normalize_admin_role((string) $row['role']);
-            if (!in_array($role, ['super_admin', 'country_admin', 'region_admin'], true)) {
-                return null;
-            }
             $hasCountry = table_has($pdo, 'users', 'admin_country_code');
             $hasRegion = table_has($pdo, 'users', 'admin_region_code');
-
-            return [
-                'role' => $role,
+            $localScope = normalize_admin_scope([
+                'role' => (string) $row['role'],
                 'country_code' => $hasCountry && isset($row['admin_country_code'])
                     ? strtoupper(trim((string) $row['admin_country_code']))
                     : null,
                 'region_code' => $hasRegion && isset($row['admin_region_code'])
                     ? strtolower(trim((string) $row['admin_region_code']))
                     : null,
-            ];
+            ]);
         }
+    }
+    if ($localScope === null) {
+        return null;
+    }
+
+    $firestoreScope = $firestoreScopeFetcher !== null
+        ? $firestoreScopeFetcher($authUser)
+        : fetch_firestore_user_admin_scope($authUser);
+    $currentScope = is_array($firestoreScope) ? normalize_firestore_admin_scope($firestoreScope) : null;
+
+    return $currentScope !== null && admin_scopes_match($currentScope, $localScope)
+        ? $currentScope
+        : null;
+}
+
+/**
+ * @param array<string,mixed> $scope
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ */
+function normalize_admin_scope(array $scope): ?array
+{
+    $role = normalize_admin_role(isset($scope['role']) ? (string) $scope['role'] : '');
+    if ($role === 'super_admin') {
+        return ['role' => $role, 'country_code' => null, 'region_code' => null];
+    }
+
+    $countryCode = isset($scope['country_code'])
+        ? strtoupper(trim((string) $scope['country_code']))
+        : '';
+    $regionCode = isset($scope['region_code'])
+        ? strtolower(trim((string) $scope['region_code']))
+        : '';
+    if ($role === 'country_admin' && $countryCode !== '') {
+        return ['role' => $role, 'country_code' => $countryCode, 'region_code' => null];
+    }
+    if ($role === 'region_admin' && $regionCode !== '') {
+        return ['role' => $role, 'country_code' => 'US', 'region_code' => $regionCode];
     }
 
     return null;
+}
+
+/**
+ * Firestore rules compare role strings exactly, so accept only the same
+ * canonical values here. Preserve the exact legacy "admin" role.
+ *
+ * @param array<string,mixed> $scope
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ */
+function normalize_firestore_admin_scope(array $scope): ?array
+{
+    $role = isset($scope['role']) && is_string($scope['role']) ? $scope['role'] : '';
+    if (!in_array($role, ['admin', 'super_admin', 'country_admin', 'region_admin'], true)) {
+        return null;
+    }
+
+    $scope['role'] = $role === 'admin' ? 'super_admin' : $role;
+    return normalize_admin_scope($scope);
+}
+
+/**
+ * @param array{role:string,country_code:?string,region_code:?string} $currentScope
+ * @param array{role:string,country_code:?string,region_code:?string} $localScope
+ */
+function admin_scopes_match(array $currentScope, array $localScope): bool
+{
+    return $currentScope['role'] === $localScope['role']
+        && $currentScope['country_code'] === $localScope['country_code']
+        && $currentScope['region_code'] === $localScope['region_code'];
+}
+
+/**
+ * Fetch the authenticated actor's current Firestore users/{uid} authority with
+ * the already-verified Firebase ID token. The JWT aud selects the project, so
+ * no additional Firebase environment configuration is required.
+ *
+ * @param array{uid:string,idToken:string,projectId:string} $authUser
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ */
+function fetch_firestore_user_admin_scope(array $authUser): ?array
+{
+    static $cache = [];
+
+    $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
+    $idToken = isset($authUser['idToken']) ? trim((string) $authUser['idToken']) : '';
+    $projectId = isset($authUser['projectId']) ? trim((string) $authUser['projectId']) : '';
+    if ($uid === '' || $idToken === '' || preg_match('/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/', $projectId) !== 1) {
+        return null;
+    }
+
+    $cacheKey = $uid . ':' . hash('sha256', $idToken);
+    if (array_key_exists($cacheKey, $cache)) {
+        return $cache[$cacheKey];
+    }
+
+    $url = 'https://firestore.googleapis.com/v1/projects/'
+        . rawurlencode($projectId)
+        . '/databases/(default)/documents/users/'
+        . rawurlencode($uid)
+        . '?mask.fieldPaths=role&mask.fieldPaths=admin_country_code&mask.fieldPaths=admin_region_code';
+    $opts = [
+        'http' => [
+            'method' => 'GET',
+            'header' => "Authorization: Bearer {$idToken}\r\nAccept: application/json\r\n",
+            'timeout' => 8,
+            'ignore_errors' => true,
+        ],
+    ];
+    $ctx = stream_context_create($opts);
+    $resp = @file_get_contents($url, false, $ctx);
+    $statusCode = 0;
+    if (isset($http_response_header) && is_array($http_response_header)) {
+        foreach ($http_response_header as $headerLine) {
+            if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', (string) $headerLine, $matches) === 1) {
+                $statusCode = (int) $matches[1];
+            }
+        }
+    }
+    if ($statusCode !== 200 || !is_string($resp) || $resp === '') {
+        $cache[$cacheKey] = null;
+        return null;
+    }
+
+    $document = json_decode($resp, true);
+    if (!is_array($document)) {
+        $cache[$cacheKey] = null;
+        return null;
+    }
+
+    $cache[$cacheKey] = firestore_admin_scope_from_document($document);
+    return $cache[$cacheKey];
+}
+
+/**
+ * @param array<string,mixed> $document
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ */
+function firestore_admin_scope_from_document(array $document): ?array
+{
+    if (!isset($document['fields']) || !is_array($document['fields'])) {
+        return null;
+    }
+    $fields = $document['fields'];
+    $role = isset($fields['role']['stringValue']) && is_string($fields['role']['stringValue'])
+        ? $fields['role']['stringValue']
+        : 'user';
+    $countryCode = isset($fields['admin_country_code']['stringValue'])
+        && is_string($fields['admin_country_code']['stringValue'])
+        ? $fields['admin_country_code']['stringValue']
+        : null;
+    $regionCode = isset($fields['admin_region_code']['stringValue'])
+        && is_string($fields['admin_region_code']['stringValue'])
+        ? $fields['admin_region_code']['stringValue']
+        : null;
+
+    return [
+        'role' => $role,
+        'country_code' => $countryCode,
+        'region_code' => $regionCode,
+    ];
 }
 
 /**
@@ -1088,7 +1297,7 @@ function admin_can_moderate_listing(PDO $pdo, array $authUser, array $listing): 
 }
 
 /**
- * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use admin panel / APP_ADMIN_UIDS).
+ * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use the admin panel).
  *
  * @param array<string,mixed> $payload
  * @param array<string,mixed>|null $existing
