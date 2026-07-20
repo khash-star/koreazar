@@ -209,13 +209,6 @@ if ($supportsFirestoreAuthority) {
 }
 putenv('APP_ADMIN_UIDS');
 
-// #region agent log
-file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'E,F', 'location' => 'scripts/check-api-admin-authority.php:firestore-role-results', 'message' => 'Firestore role normalization outcomes', 'data' => ['malformedAuthorizedRole' => $malformedFirestoreRoleResult['role'] ?? null, 'legacyAuthorizedRole' => $legacyFirestoreRoleResult['role'] ?? null, 'canonicalAuthorizedRole' => $matchingResult['role'] ?? null], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
-// #endregion
-// #region agent log
-file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'G', 'location' => 'scripts/check-api-admin-authority.php:env-authority-results', 'message' => 'Environment allowlist Firestore agreement outcomes', 'data' => ['demotedAuthorizedRole' => $envDemotedResult['role'] ?? null, 'matchingAuthorizedRole' => $envMatchingResult['role'] ?? null], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
-// #endregion
-
 $tokenContext = null;
 $wrongSubjectContext = null;
 $invalidAudienceContext = null;
@@ -249,9 +242,6 @@ if (function_exists('firebase_verified_token_context')) {
         && $lookupCheckPos < $contextPos
         && strpos($verifySource, "'idToken'") !== false
         && strpos($verifySource, "'projectId'") !== false;
-    // #region agent log
-    file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'H', 'location' => 'scripts/check-api-admin-authority.php:token-verification-delta', 'message' => 'Token verification source behavior', 'data' => ['retainsVerifiedToken' => $verificationRetainsToken, 'checksValidSince' => strpos($verifySource, "\$json['users'][0]['validSince']") !== false, 'checksDisabled' => strpos($verifySource, "\$json['users'][0]['disabled']") !== false], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
-    // #endregion
 }
 if (function_exists('firestore_admin_scope_from_document')) {
     $parsedFirestoreScope = firestore_admin_scope_from_document([
