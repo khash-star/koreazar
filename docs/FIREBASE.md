@@ -110,9 +110,9 @@ Native Firebase files (gitignored, supplied via EAS or local):
 
 | Collection | Access pattern | Rules summary |
 |------------|----------------|---------------|
-| `users/{userId}` | Profile read (public); owner/admin write | Owners cannot self-promote `role` to admin |
-| `listings/{listingId}` | Legacy Firestore listings if any | Public read; owner/admin write |
-| `banner_ads/{id}` | Homepage banners | Public read; admin write |
+| `users/{userId}` | Profile read (public); owner/scoped-admin write | Protected role/scope fields require super admin |
+| `listings/{listingId}` | Legacy Firestore listings if any | Public read; owner or matching admin scope write |
+| `banner_ads/{id}` | Homepage banners | Public read; matching admin country scope write |
 | `banner_requests/{id}` | User banner requests | Auth create/read; admin update |
 | `listing_reports/{id}` | Listing reports | Owner or admin read |
 | `feedback_messages/{id}` | Footer feedback | Auth create; admin read |
@@ -123,13 +123,16 @@ Native Firebase files (gitignored, supplied via EAS or local):
 | `ai_messages/{id}` | AI messages | Owner by `user_email` |
 | `ai_usage/{id}` | AI quota tracking | Owner by `user_email` |
 | `user_push_tokens/{uid}/devices/{id}` | Expo push tokens | Owner read/write only |
-| `config/{docId}` | App config (e.g. listing auto-approve) | Auth read; admin write |
+| `config/{docId}` | App config (e.g. listing auto-approve) | Auth read; super-admin write |
 
 Rules file: `firestore.rules` (version `2`).
 
 ### Helper functions in rules
 
-- `isAdmin()` — `users/{uid}.role == 'admin'`
+- `isSuperAdmin()` — `admin` (legacy) or `super_admin`
+- `isAppAdmin()` — global, country, or region admin role
+- `adminCanModerateListing()` / `adminCanModerateBanner()` — compare
+  `admin_country_code` / `admin_region_code` with document scope
 - `authEmailLower()` — token email or `users/{uid}.email` (supports phone OTP users)
 - `isConversationParticipant()` — match by `participant_uids` or `participant_1` / `participant_2` email
 - `isMessageSenderOrReceiver()` — match `sender_email` / `receiver_email`
@@ -229,16 +232,20 @@ After auth, `authService` ensures `users/{uid}` exists with email for Firestore 
 
 ---
 
-## Admin role
+## Admin roles
 
-Set in Firestore Console:
+Stored in Firestore `users/{firebaseUid}`:
 
-```
-users/{firebaseUid}
-  role: "admin"
-```
+| Role | Required scope | Access |
+|------|----------------|--------|
+| `admin` / `super_admin` | — | Global; role assignment and config |
+| `country_admin` | `admin_country_code` | One country |
+| `region_admin` | `admin_country_code: "US"` + `admin_region_code` | One active US region |
 
-Checked by `isAdmin()` in `firestore.rules` and admin UI gates. See root `ADMIN_SETUP_GUIDE.md`.
+Roles are checked in `firestore.rules`, admin UI gates, and the PHP/MySQL API.
+Only a super admin can assign roles through the web `AdminPanel`; users
+cannot modify their own protected role/scope fields. See
+[ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ---
 

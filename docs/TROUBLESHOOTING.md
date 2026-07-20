@@ -271,10 +271,20 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 ### Admin хуудас харагдахгүй
 
-**Шалтгаан:** `users/{uid}.role` != `admin`.
+**Шалтгаан:** `users/{uid}.role` танигдсан admin role биш, эсвэл scoped
+role-ийн талбар дутуу.
 
-**Шийдэл:** Firebase Console → Firestore → `users` → `role: "admin"`.  
-`ADMIN_SETUP_GUIDE.md`
+**Шийдэл:**
+
+- Global: `role` нь `super_admin` (legacy `admin` бас дэмжинэ)
+- Country: `country_admin` + `admin_country_code`
+- US region: `region_admin` + `admin_country_code: "US"` +
+  `admin_region_code: "washington-dc"`
+- Web `AdminPanel`-ийн role assignment зөвхөн super admin-д харагдана
+- PHP API parity-д MySQL `users` scope баганууд migration хийгдсэн эсэхийг
+  шалгана
+
+Дэлгэрэнгүй: [ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ### Admin зар батлахад нүүр дээр харагдахгүй
 
