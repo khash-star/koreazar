@@ -1,7 +1,7 @@
 # API Summary
 
-> No OpenAPI/generated SDK exists.  
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> No OpenAPI/generated SDK exists.
+> **Quick load:** `../PROJECT_MEMORY.md`
 > **Canonical detail:** `../../docs/ARCHITECTURE.md`,
 > `../../docs/FIRESTORE_SCHEMA.md`
 

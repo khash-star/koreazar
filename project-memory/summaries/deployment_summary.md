@@ -1,6 +1,6 @@
 # Deployment Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > **Canonical detail:** `../../docs/DEPLOYMENT.md`
 
 ## Web and API

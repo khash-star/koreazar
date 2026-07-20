@@ -1,7 +1,7 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.  
-> **Updated:** 2026-07-20 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
+> **Updated:** 2026-07-20 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
 > **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
@@ -130,7 +130,7 @@ Template: `.env.example` at repo root. Firebase init template: `src/firebase/con
 
 EAS file env (not `EXPO_PUBLIC_`): `GOOGLE_SERVICES_JSON`,
 `GOOGLE_SERVICE_INFO_PLIST`, and optional US iOS
-`GOOGLE_SERVICE_INFO_PLIST_US`.  
+`GOOGLE_SERVICE_INFO_PLIST_US`.
 See `mobile/docs/EAS_PRODUCTION_ENV.md`.
 
 ### PHP API (`api/.env`)

@@ -1,6 +1,6 @@
 # Architecture Summary
 
-> **Quick load:** `../PROJECT_MEMORY.md`  
+> **Quick load:** `../PROJECT_MEMORY.md`
 > **Canonical detail:** `../../docs/ARCHITECTURE.md`
 
 ## Runtime shape
