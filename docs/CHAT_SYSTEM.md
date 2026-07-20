@@ -179,9 +179,16 @@ Chat.jsx useEffect on messages
 
 Phone users may not have `auth.token.email`. The system:
 
-1. Uses `resolveChatParticipantEmail()` — checks Auth email, then `users/{uid}.email`, then synthetic email from phone (`phoneToAuthEmail`).
-2. Maintains `participant_uids` via `buildParticipantUids()` for UID-based inbox queries.
-3. Firestore rules use `authEmailLower()` and `participant_uids.hasAny([request.auth.uid])`.
+1. `AuthContext` exposes `authEmail` through `resolveAuthEmail()` — profile
+   email, then Auth email, then synthetic phone email.
+2. `resolveChatParticipantEmail()` applies the same canonical value before
+   conversation queries.
+3. `emailQueryVariants()` and `areEmailVariants()` match legacy/current phone
+   synthetic emails with or without the KR `82` or US `1` country prefix.
+4. `buildParticipantUids()` maintains `participant_uids` for UID-based inbox
+   queries.
+5. Firestore rules use `authEmailLower()` and
+   `participant_uids.hasAny([request.auth.uid])`.
 
 Indexes required: see `firestore.indexes.json` (`conversations` × 3, `messages` × 1).
 
@@ -231,10 +238,14 @@ Full checklist: `mobile/docs/CHAT_PUSH_SETUP.md`.
 
 ## Admin messaging
 
-Admins (`users.role == 'admin'`) can:
+All app-admin roles (`admin`/`super_admin`, `country_admin`, `region_admin`)
+can read/update conversations under Firestore rules. Broadcast capability is
+narrower:
 
-- Read/update any conversation (rules allow `isAdmin()`)
-- Call `sendMessageToAllUsers()` in `conversationService.js` — creates conversations/messages for all users (batch operation)
+- `super_admin` and `country_admin` can call `sendMessageToAllUsers()` in
+  `conversationService.js` (batch conversation/message creation).
+- `region_admin` cannot broadcast or manage users (`canBroadcast()` in
+  `src/constants/adminRoles.js`).
 
 Operational walkthrough: root `ADMIN_MESSAGE_REPLY_FLOW.md`.
 

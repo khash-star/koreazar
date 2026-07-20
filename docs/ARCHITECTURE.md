@@ -76,6 +76,27 @@ Client-side routes (path = component):
 
 Vercel SPA fallback: all non-file paths rewrite to `/index.html` (`vercel.json`).
 
+#### Market-aware routes
+
+`src/pages/index.jsx` mounts the main listing workflow at `/kr`, `/us`, and
+`/jp` (for example, `/us/CreateListing` and `/us/ListingDetail`). Root `/`
+remains the KR home page. Admin routes stay unprefixed because one admin
+surface applies its own country/region scope.
+
+`src/config/country.js` is the country registry and resolver:
+
+- `ENABLED_COUNTRIES` controls which markets are publicly selectable. KR and
+  US are enabled; JP remains directly testable by URL but disabled in the
+  selector unless `VITE_SHOW_ALL_COUNTRIES=true`.
+- `/us` is locked to US by `src/config/countries/us.js`; the selector cannot
+  switch away from ZAR-USA on that route.
+- `resolveActiveCountryCode()` is for display/read context. It resolves an
+  explicit build env, then route prefix, then non-root stored preference, and
+  finally KR.
+- `resolveRouteCountryCode()` is URL-only and must be used for writes.
+  Unprefixed writes fall back to the legacy KR behavior; a stale
+  `localStorage` selection must never tag data.
+
 ### Service layer (`src/services/`)
 
 | Service | Backend | Responsibility |
@@ -102,13 +123,37 @@ Hosted separately at `https://api.zarkorea.com/index.php`. Actions (from `api/in
 | Action | Method | Auth | Purpose |
 |--------|--------|------|---------|
 | `health` | GET | No | DB connectivity check |
-| `listings` | GET | No | List/filter listings |
+| `listings` | GET | No | List/filter listings; accepts `country_code`, `state_code`, and `region_code` |
 | `listing` | GET/PATCH/DELETE | Bearer for writes | Single listing |
 | `user_sync` | POST | Bearer | Sync Firebase user to MySQL |
+| `admin_set_user_role` | POST | Super admin | Sync a scoped role to MySQL |
 | `ai_chat` | POST | Bearer | OpenAI proxy |
 | `ai_moderate` | POST | Bearer | Content moderation proxy |
 
 Listings use numeric MySQL IDs (`parseMysqlListingId` in `listingService.js`).
+`api/regions.php` supplies the server-side US region registry and the
+country/region read and write guards used by `api/index.php`.
+
+### Market-scoped listings
+
+The clients and API apply complementary scope checks:
+
+1. Web and mobile send `country_code`. US requests also send
+   `region_code=washington-dc`.
+2. `api/index.php` filters by country. `api/regions.php` defaults US reads and
+   writes to the only active region, rejects US states outside DC/VA/MD, and
+   returns no rows for inactive regions.
+3. KR reads exclude rows with a non-empty `region_code`, including legacy rows
+   that were accidentally tagged KR.
+4. `src/utils/listingCountry.js` and its mobile mirror filter the response
+   again before a market feed is rendered. This is defense in depth; the
+   server-side filter is authoritative.
+
+The US region registry is deliberately duplicated across
+`src/config/regions/us.js`, `mobile/src/config/regions/us.js`, and
+`api/regions.php`. Run `npm run verify:zarusa-registry` after changing any
+copy. Database prerequisites and rollout order are in
+[`ZARUSA_STAGING_DEPLOY.md`](./ZARUSA_STAGING_DEPLOY.md).
 
 ### PWA (`vite.config.js`)
 
@@ -117,7 +162,8 @@ Listings use numeric MySQL IDs (`parseMysqlListingId` in `listingService.js`).
 - **Workbox:** precache JS/CSS/HTML; `navigateFallback: /index.html`; runtime cache for Firebase Storage URLs
 - **Performance:** `nonBlockingCss()` plugin defers CSS for LCP
 
-Build script: `npm run build` → `sync-listings` + `generate-pwa-icons` + `vite build` → `dist/`.
+Build script: `npm run build` → `sync-listings` + `sync-admin-roles` +
+`generate-pwa-icons` + `vite build` → `dist/`.
 
 ---
 
@@ -131,13 +177,19 @@ Build script: `npm run build` → `sync-listings` + `generate-pwa-icons` + `vite
 | `mobile/src/config/firebase.web.js` | Firebase init (Expo web) |
 | `mobile/src/services/` | Parallel services to web (listings via `apiClient.js`) |
 | `mobile/app.config.js` | Resolves `GOOGLE_SERVICES_JSON` / `GOOGLE_SERVICE_INFO_PLIST` for EAS |
-| `mobile/app.json` | Expo config: slug `zarkorea-app`, scheme `zarkorea`, version `1.0.4` |
+| `mobile/app.json` | Expo config: slug `zarkorea-app`, scheme `zarkorea`, version `1.0.5` |
 
 ### Platform split
 
 - **Native:** `@react-native-firebase/auth` for phone OTP; `storageService.native.js`; Reanimated in `CategoryStrip.native.js`
 - **Web (Expo):** `firebase.web.js`; `storageService.web.js`; `CategoryStrip.web.js`
 - **Push:** `pushTokenService.js` → `user_push_tokens/{uid}/devices/{tokenId}`
+
+`mobile/eas.json` keeps the KR `production` profile and adds
+`production-us`, which sets `EXPO_PUBLIC_ACTIVE_COUNTRY=US`.
+`mobile/app.config.js` then applies the ZAR-USA display name, `zarusa` scheme,
+US icons, and `com.zarusa.app` identifiers without changing the shared Expo
+project slug. See [`mobile/docs/ZARUSA_BUILD.md`](../mobile/docs/ZARUSA_BUILD.md).
 
 ### Constants sync
 
@@ -188,9 +240,15 @@ Phone OTP users get synthetic emails (`phoneToAuthEmail`) so Firestore chat rule
 | Step | Location |
 |------|----------|
 | Client compression | `src/components/utils/imageCompressor.jsx` |
-| Upload | `storageService.js` → paths `listings/{id}/`, `images/`, `banners/` |
+| Listing upload | `storageService.js` → `listings/{kr\|us\|jp}/{year}/{listingId\|draft}/{file}` |
+| Banner upload | `storageService.js` → `banners/{kr\|us\|jp}/{bannerId\|draft}/{file}` |
+| Profile upload | `storageService.js` → `users/{uid}/profile/{file}` |
+| Legacy fallback | Unclassified uploads continue under `images/{file}` |
 | URL helpers | `src/utils/imageUrl.js` |
 | Storage rules | `storage.rules` — public read, auth write |
+
+Web path builders live in `src/utils/storagePaths.js` and are mirrored under
+`mobile/src/utils/storagePaths.js`. Existing legacy URLs remain valid.
 
 ---
 
@@ -211,9 +269,23 @@ Phone OTP users get synthetic emails (`phoneToAuthEmail`) so Firestore chat rule
 | Auth | Firebase ID tokens; Bearer on API writes |
 | Data | `firestore.rules`, `storage.rules` |
 | Input | `src/utils/security.js`, `bannedContent.js` |
-| RBAC | Firestore `users.role == 'admin'` |
+| RBAC | Firestore `users.role` + scope fields; mirrored to MySQL for API checks |
 
-Details: root `SECURITY.md`.
+Admin roles are defined in `src/constants/adminRoles.js` and synced to mobile
+with `npm run sync-admin-roles`:
+
+- `admin` (legacy alias) and `super_admin`: global access.
+- `country_admin` + `admin_country_code`: one country.
+- `region_admin` + `admin_region_code`: one US region.
+
+Only super admins assign roles or manage global config. Country admins can
+manage users and broadcasts within the supported admin workflow; region
+admins cannot manage users or broadcast. Listing and banner moderation is
+checked in the UI, Firestore rules, and the PHP API rather than relying on a
+route guard alone.
+
+Details: [`SECURITY.md`](./SECURITY.md) and
+[`ZARUSA_REGION_PHASES.md`](./ZARUSA_REGION_PHASES.md).
 
 ---
 

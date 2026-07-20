@@ -1,7 +1,7 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.  
-> **Updated:** 2026-06-15 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.  
+> **Updated:** 2026-07-20 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
 > **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ---
@@ -10,7 +10,7 @@
 
 | Item | Value |
 |------|--------|
-| **Product** | Koreazar / Zarkorea — Mongolian-language classified ads for users in South Korea |
+| **Product** | Mongolian-language classifieds: Zarkorea (KR) and ZAR-USA (Washington DC / DMV); JP is scaffolded but not enabled |
 | **Public web** | https://zarkorea.com (Vercel) |
 | **API** | https://api.zarkorea.com/index.php (PHP + MySQL) |
 | **Privacy policy** | https://zarkorea.com/Privacy |
@@ -42,8 +42,8 @@
 | React Native | react-native | 0.83.6 |
 | React | react | 19.2.0 |
 | Firebase | firebase + @react-native-firebase/* | ^12.10.0 / ^24.0.0 |
-| Builds | EAS CLI | `eas.json` profiles: development, preview, production |
-| App ID | `com.zarkorea.twa` | iOS + Android (`mobile/app.json`) |
+| Builds | EAS CLI | `eas.json` profiles: development, preview, production, production-us |
+| App IDs | `com.zarkorea.twa` / `com.zarusa.app` | KR base config / US build override |
 
 ### Backend services
 
@@ -84,9 +84,9 @@ koreazar/
 
 The platform uses a **hybrid backend**:
 
-1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes.
-2. **Banners, chat, saved listings, AI, config** — **Firestore** (`bannerService.js`, `conversationService.js`, etc.).
-3. **Images** — **Firebase Storage** (`storageService.js`, paths under `images/`, `listings/`, `banners/`, `public/`).
+1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes. `country_code`, `state_code`, and `region_code` scope KR/US/JP data.
+2. **Banners, chat, saved listings, AI, config** — **Firestore** (`bannerService.js`, `conversationService.js`, etc.). Banners use `country_code`; missing/blank remains KR.
+3. **Images** — **Firebase Storage** (`storageService.js`): new listing paths use `listings/{country}/{year}/{listingId}/...`, banners use `banners/{country}/{bannerId}/...`, and legacy `images/` URLs remain valid.
 4. **Auth** — **Firebase Authentication** (email/password, phone OTP on mobile, Facebook on web).
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for request flows and [FIREBASE.md](./FIREBASE.md) for collections and rules.
@@ -108,6 +108,8 @@ Never commit secrets. Use `.env` locally and platform dashboards in production.
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | FCM sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
 | `VITE_API_BASE_URL` | PHP API entry (default `https://api.zarkorea.com/index.php`) |
+| `VITE_ACTIVE_COUNTRY` | Optional fixed market override |
+| `VITE_SHOW_ALL_COUNTRIES` | QA only: show disabled markets in selector |
 | `VITE_OPENAI_API_KEY` | Optional client-side OpenAI (prefer server proxy) |
 | `VITE_FIREBASE_PHONE_TEST_MODE` | Dev only — skip SMS reCAPTCHA with Console test numbers |
 
@@ -124,8 +126,11 @@ Template: `.env.example` at repo root. Firebase init template: `src/firebase/con
 | `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID |
 | `EXPO_PUBLIC_FIREBASE_APP_ID` | App ID |
 | `EXPO_PUBLIC_API_BASE_URL` | PHP API base URL |
+| `EXPO_PUBLIC_ACTIVE_COUNTRY` | Build market; `production-us` sets `US` |
 
-EAS file env (not `EXPO_PUBLIC_`): `GOOGLE_SERVICES_JSON`, `GOOGLE_SERVICE_INFO_PLIST`.  
+EAS file env (not `EXPO_PUBLIC_`): `GOOGLE_SERVICES_JSON`,
+`GOOGLE_SERVICE_INFO_PLIST`, and optional US iOS
+`GOOGLE_SERVICE_INFO_PLIST_US`.
 See `mobile/docs/EAS_PRODUCTION_ENV.md`.
 
 ### PHP API (`api/.env`)
@@ -151,6 +156,9 @@ Template: `api/.env.example`.
 | **PWA via vite-plugin-pwa** | `manifest.json`, Workbox SW, `registerType: 'autoUpdate'`; prerequisite for Play/TWA path |
 | **Indexes as code** | `firestore.indexes.json` deployed with `firebase deploy --only firestore:indexes` |
 | **Mobile in `mobile/`** | Separate Expo app; constants synced via `npm run sync-listings` from web `src/constants/listings.js` |
+| **URL-first market scope** | `/`, `/kr`, `/us`, `/jp`; route-only resolution tags writes so stored preferences cannot change data ownership |
+| **US region lock** | Web, mobile, and PHP registries default ZAR-USA to `washington-dc`; API enforces DC/VA/MD and strict region reads |
+| **Scoped admin roles** | `super_admin`, `country_admin`, and `region_admin` are shared via `npm run sync-admin-roles`; Firestore and MySQL checks mirror scope |
 | **Chat push via Cloud Function** | `onChatMessageCreatedPush` on `messages/{messageId}` create → Expo Push API |
 | **Security headers on Vercel** | CSP, HSTS, X-Frame-Options in `vercel.json` |
 
@@ -158,7 +166,16 @@ Template: `api/.env.example`.
 
 ## Admin access
 
-Admin role is stored in Firestore `users/{uid}.role == 'admin'`. Grant via Firebase Console (see root `ADMIN_SETUP_GUIDE.md`). Admin pages: `/AdminPanel`, `/AdminAllListings`, `/AdminNewListings`, `/AdminBanners`, `/AdminBannerRequests`, `/AdminListingReports`.
+Admin access is stored in Firestore `users/{uid}` and mirrored to MySQL for
+API checks. `admin` remains a legacy global alias; current roles are
+`super_admin`, `country_admin` + `admin_country_code`, and `region_admin` +
+`admin_region_code`. Only super admins assign roles or change global config.
+Region admins cannot manage users or broadcast. Admin pages remain
+unprefixed: `/AdminPanel`, `/AdminAllListings`, `/AdminNewListings`,
+`/AdminBanners`, `/AdminBannerRequests`, `/AdminListingReports`.
+
+See [ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md) for the access matrix
+and migration caveat.
 
 ---
 
@@ -170,6 +187,8 @@ Admin role is stored in Firestore `users/{uid}.role == 'admin'`. Grant via Fireb
 | Wrong `EXPO_PUBLIC_FIREBASE_*` on EAS | Match Firebase Console exactly; `eas env:push` from `mobile/.env` |
 | `google-services.json` missing on EAS build | Upload via `GOOGLE_SERVICES_JSON` file env |
 | Android push without FCM V1 on Expo | Configure in `eas credentials` — see `mobile/docs/CHAT_PUSH_SETUP.md` |
+| US rows leak into KR feed after a data migration | Keep API `append_kr_listing_read_filter` and client `filterListingsForMarket`; back up and review `fix_us_listings_country_code.sql` before correction |
+| Region/RBAC columns missing or migration syntax differs by MySQL engine | Verify target columns/indexes on staging; follow `ZARUSA_STAGING_DEPLOY.md` and the MySQL compatibility note in `ZARUSA_REGION_PHASES.md` |
 | Stale root-level markdown (52 files) | Prefer `docs/*` and this file; many root docs reference obsolete paths/domains |
 | `storage.rules` not in `firebase.json` | Deploy storage rules separately: `firebase deploy --only storage` |
 
