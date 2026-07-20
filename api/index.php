@@ -769,6 +769,9 @@ function verify_firebase_bearer_token(): ?array
         return null;
     }
 
+    // This pre-existing accounts:lookup path accepts or rejects the ID token.
+    // The Firestore-authority change only retains an accepted token; it does
+    // not add application-level validSince/disabled response-field checks.
     $uid = (string) $json['users'][0]['localId'];
     $email = isset($json['users'][0]['email']) ? (string) $json['users'][0]['email'] : null;
     $phoneNumber = isset($json['users'][0]['phoneNumber']) ? (string) $json['users'][0]['phoneNumber'] : null;
@@ -998,9 +1001,10 @@ function normalize_listing_type_value($v): string
 }
 
 /**
- * App admin requires current Firestore authority to match APP_ADMIN_UIDS or
- * MySQL users.role (+ optional scope columns). Any unavailable/mismatched
- * authority fails closed.
+ * App admin is the intersection of current Firestore authority and a local
+ * APP_ADMIN_UIDS/MySQL grant. APP_ADMIN_UIDS is not a standalone override;
+ * bootstrap remains the documented exact role assignment in Firebase Console.
+ * Any unavailable/mismatched authority fails closed.
  *
  * @param array{uid:string,email:?string,idToken:string,projectId:string} $authUser
  */
@@ -1059,7 +1063,7 @@ function get_app_admin_scope(PDO $pdo, array $authUser, ?callable $firestoreScop
     $firestoreScope = $firestoreScopeFetcher !== null
         ? $firestoreScopeFetcher($authUser)
         : fetch_firestore_user_admin_scope($authUser);
-    $currentScope = is_array($firestoreScope) ? normalize_admin_scope($firestoreScope) : null;
+    $currentScope = is_array($firestoreScope) ? normalize_firestore_admin_scope($firestoreScope) : null;
 
     return $currentScope !== null && admin_scopes_match($currentScope, $localScope)
         ? $currentScope
@@ -1091,6 +1095,24 @@ function normalize_admin_scope(array $scope): ?array
     }
 
     return null;
+}
+
+/**
+ * Firestore rules compare role strings exactly, so accept only the same
+ * canonical values here. Preserve the exact legacy "admin" role.
+ *
+ * @param array<string,mixed> $scope
+ * @return array{role:string,country_code:?string,region_code:?string}|null
+ */
+function normalize_firestore_admin_scope(array $scope): ?array
+{
+    $role = isset($scope['role']) && is_string($scope['role']) ? $scope['role'] : '';
+    if (!in_array($role, ['admin', 'super_admin', 'country_admin', 'region_admin'], true)) {
+        return null;
+    }
+
+    $scope['role'] = $role === 'admin' ? 'super_admin' : $role;
+    return normalize_admin_scope($scope);
 }
 
 /**
@@ -1275,7 +1297,7 @@ function admin_can_moderate_listing(PDO $pdo, array $authUser, array $listing): 
 }
 
 /**
- * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use admin panel / APP_ADMIN_UIDS).
+ * Non-admins cannot self-assign VIP/Featured or extend VIP expiry (use the admin panel).
  *
  * @param array<string,mixed> $payload
  * @param array<string,mixed>|null $existing

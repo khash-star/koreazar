@@ -114,7 +114,7 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 ### Admin эрх
 
 - Firestore: `users/{uid}.role == 'admin'` (`firestore.rules` → `isAdmin()`)
-- PHP: `APP_ADMIN_UIDS` (comma-separated Firebase UID) — зарын admin override
+- PHP: `APP_ADMIN_UIDS` (comma-separated Firebase UID) — local super-admin allowlist; Firestore дээр яг `admin` эсвэл `super_admin` эрх давхар таарах шаардлагатай
 - Admin өөрөө `role` талбарыг өөрчлөхгүй (rules хориглоно)
 
 Тохируулах: root `ADMIN_SETUP_GUIDE.md`.

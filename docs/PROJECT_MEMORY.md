@@ -136,7 +136,7 @@ See `mobile/docs/EAS_PRODUCTION_ENV.md`.
 | `APP_DEBUG` | Error detail in JSON responses |
 | `FIREBASE_WEB_API_KEY` | Verify Firebase ID tokens on write endpoints |
 | `OPENAI_API_KEY`, `OPENAI_MODEL` | AI chat/moderation proxy |
-| `APP_ADMIN_UIDS` | Comma-separated Firebase UIDs with listing admin rights |
+| `APP_ADMIN_UIDS` | Local super-admin allowlist; matching exact Firestore admin authority is also required |
 
 Template: `api/.env.example`.
 

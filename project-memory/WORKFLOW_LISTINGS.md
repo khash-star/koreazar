@@ -25,7 +25,7 @@
 | Images | `src/services/storageService.js`, `imageCompressor.jsx` | `storageService.native.js` / `.web.js` | Firebase Storage |
 | Constants | `src/constants/listings.js` | `mobile/src/constants/listings.js` (sync) | — |
 | Saved | `src/api/entities.js` → `SavedListing` | `savedListingService.js` | Firestore `saved_listings` |
-| Admin | `AdminNewListings.jsx`, `AdminAllListings.jsx` | Admin screens | `APP_ADMIN_UIDS` (PHP) |
+| Admin | `AdminNewListings.jsx`, `AdminAllListings.jsx` | Admin screens | PHP local grant + matching Firestore role |
 | Auto-approve | `appConfigService.js` | `appConfigService.js` | Firestore `config/app` |
 
 **API base:** `VITE_API_BASE_URL` / `EXPO_PUBLIC_API_BASE_URL` (default `https://api.zarkorea.com/index.php`)
@@ -78,7 +78,7 @@ CreateListing.jsx
 
 - Bearer token: `getAuthHeaders()` — `auth.currentUser.getIdToken()`  
 - View count: зөвхөн `views` bump — authгүй PATCH зөвшөөрнө (`listingService.isViewCountOnlyBump`)  
-- Admin: PHP `APP_ADMIN_UIDS` эсвэл Firestore `role=admin`  
+- Admin: PHP `APP_ADMIN_UIDS`/MySQL local grant болон Firestore exact admin role хоёулаа таарах ёстой
 - `parseMysqlListingId` — зөвхөн positive integer MySQL ID
 
 ### 3. Web

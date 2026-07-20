@@ -85,6 +85,7 @@ $requiredFunctions = [
 ];
 $optionalFunctions = [
     'normalize_admin_scope',
+    'normalize_firestore_admin_scope',
     'admin_scopes_match',
     'firebase_verified_token_context',
     'firestore_admin_scope_from_document',
@@ -137,6 +138,16 @@ if ($supportsFirestoreAuthority) {
         'country_code' => null,
         'region_code' => null,
     ]);
+    $malformedFirestoreRoleResult = get_app_admin_scope($pdo, $authUser, static fn(array $user): array => [
+        'role' => ' ADMIN ',
+        'country_code' => null,
+        'region_code' => null,
+    ]);
+    $legacyFirestoreRoleResult = get_app_admin_scope($pdo, $authUser, static fn(array $user): array => [
+        'role' => 'admin',
+        'country_code' => null,
+        'region_code' => null,
+    ]);
     $pdo->exec(
         "UPDATE users
          SET role = 'country_admin', admin_country_code = 'US'
@@ -171,6 +182,8 @@ if ($supportsFirestoreAuthority) {
     $staleResult = get_app_admin_scope($pdo, $authUser);
     $unavailableResult = null;
     $matchingResult = null;
+    $malformedFirestoreRoleResult = null;
+    $legacyFirestoreRoleResult = null;
     $scopeMismatchResult = null;
     $matchingCountryResult = null;
     $matchingRegionResult = null;
@@ -195,6 +208,13 @@ if ($supportsFirestoreAuthority) {
     $envMatchingResult = null;
 }
 putenv('APP_ADMIN_UIDS');
+
+// #region agent log
+file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'E,F', 'location' => 'scripts/check-api-admin-authority.php:firestore-role-results', 'message' => 'Firestore role normalization outcomes', 'data' => ['malformedAuthorizedRole' => $malformedFirestoreRoleResult['role'] ?? null, 'legacyAuthorizedRole' => $legacyFirestoreRoleResult['role'] ?? null, 'canonicalAuthorizedRole' => $matchingResult['role'] ?? null], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
+// #endregion
+// #region agent log
+file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'G', 'location' => 'scripts/check-api-admin-authority.php:env-authority-results', 'message' => 'Environment allowlist Firestore agreement outcomes', 'data' => ['demotedAuthorizedRole' => $envDemotedResult['role'] ?? null, 'matchingAuthorizedRole' => $envMatchingResult['role'] ?? null], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
+// #endregion
 
 $tokenContext = null;
 $wrongSubjectContext = null;
@@ -229,6 +249,9 @@ if (function_exists('firebase_verified_token_context')) {
         && $lookupCheckPos < $contextPos
         && strpos($verifySource, "'idToken'") !== false
         && strpos($verifySource, "'projectId'") !== false;
+    // #region agent log
+    file_put_contents('/opt/cursor/logs/debug.log', json_encode(['hypothesisId' => 'H', 'location' => 'scripts/check-api-admin-authority.php:token-verification-delta', 'message' => 'Token verification source behavior', 'data' => ['retainsVerifiedToken' => $verificationRetainsToken, 'checksValidSince' => strpos($verifySource, "\$json['users'][0]['validSince']") !== false, 'checksDisabled' => strpos($verifySource, "\$json['users'][0]['disabled']") !== false], 'timestamp' => (int) round(microtime(true) * 1000)]) . "\n", FILE_APPEND);
+    // #endregion
 }
 if (function_exists('firestore_admin_scope_from_document')) {
     $parsedFirestoreScope = firestore_admin_scope_from_document([
@@ -251,6 +274,8 @@ $checks = $expectVulnerable
         'stale_mysql_is_denied' => $staleResult === null,
         'firestore_unavailable_is_denied' => $unavailableResult === null,
         'matching_super_admin_is_allowed' => ($matchingResult['role'] ?? null) === 'super_admin',
+        'malformed_firestore_role_is_denied' => $malformedFirestoreRoleResult === null,
+        'exact_legacy_firestore_admin_is_allowed' => ($legacyFirestoreRoleResult['role'] ?? null) === 'super_admin',
         'scope_mismatch_is_denied' => $scopeMismatchResult === null,
         'matching_country_scope_is_allowed' => ($matchingCountryResult['country_code'] ?? null) === 'US',
         'matching_region_scope_is_allowed' => ($matchingRegionResult['region_code'] ?? null) === 'washington-dc',
