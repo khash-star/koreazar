@@ -265,9 +265,14 @@ npx eas env:push production --path .env --force
 cd mobile
 eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production
 eas env:create --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --environment production
+# If ZAR-USA uses a separate iOS Firebase app:
+eas env:create --name GOOGLE_SERVICE_INFO_PLIST_US --type file --value ./GoogleService-Info.zarusa.plist --environment production
 ```
 
-`mobile/app.config.js` resolves these paths on the EAS builder.
+`mobile/app.config.js` resolves these paths on the EAS builder. For a US
+build, `GOOGLE_SERVICE_INFO_PLIST_US` takes precedence and falls back to
+`GOOGLE_SERVICE_INFO_PLIST`; Android uses `GOOGLE_SERVICES_JSON` for both
+profiles.
 
 ### Android push (FCM V1)
 
