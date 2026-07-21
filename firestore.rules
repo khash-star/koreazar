@@ -92,13 +92,26 @@ service cloud.firestore {
         participantEmail.lower() == em;
     }
 
-    function userPhoneVariantsMatch(participantEmail) {
+    function authPhoneNumber() {
       return request.auth != null &&
+        request.auth.token.phone_number != null &&
+        request.auth.token.phone_number is string
+        ? request.auth.token.phone_number
+        : '';
+    }
+
+    function userPhoneVariantsMatch(participantEmail) {
+      let phone = authPhoneNumber();
+      let email = participantEmail is string ? participantEmail.lower() : '';
+      return phone.matches('^[+][0-9]+$') &&
         participantEmail is string &&
-        participantEmail.size() > 0 &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phoneAuthEmails is list &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phoneAuthEmails.hasAny([participantEmail.lower()]);
+        participantEmail.size() > 0 && (
+          email == 'phone_' + phone.replace('^[+]', '') + '@phone.zarkorea.com' ||
+          (phone.matches('^[+]82[0-9]{9,10}$') &&
+            email == 'phone_' + phone.replace('^[+]82', '') + '@phone.zarkorea.com') ||
+          (phone.matches('^[+]1[0-9]{10}$') &&
+            email == 'phone_' + phone.replace('^[+]1', '') + '@phone.zarkorea.com')
+        );
     }
 
     function participantEmailMatchesAuth(participantEmail) {
