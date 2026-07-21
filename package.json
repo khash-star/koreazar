@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "echo \"No tests configured\" && exit 0",
+    "test:firestore:phone-alias": "firebase emulators:exec --only firestore \"node tests/firestore/phone-auth-alias-regression.mjs\"",
     "verify:zarusa-registry": "node scripts/verify-zarusa-region-registry.mjs",
     "smoke:zarusa-api": "node scripts/smoke-zarusa-dmv-api.mjs",
     "staging:zarusa": "powershell -ExecutionPolicy Bypass -File scripts/staging-zarusa-dmv.ps1",
@@ -78,6 +79,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@flydotio/dockerfile": "^0.7.8",
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
@@ -88,6 +90,7 @@
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
+    "firebase-tools": "^15.24.0",
     "globals": "^15.14.0",
     "postcss": "^8.5.3",
     "sharp": "^0.34.5",
