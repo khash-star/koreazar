@@ -3,50 +3,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { filterListingsForMarket } from "../mobile/src/utils/listingCountry.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const serviceSource = readFileSync(
   join(root, "mobile/src/services/listingService.js"),
   "utf8"
 );
-
-const myListingsStart = serviceSource.indexOf("export async function getMyListings");
-const myListingsEnd = serviceSource.indexOf("\n/**", myListingsStart);
-assert.ok(myListingsStart >= 0 && myListingsEnd > myListingsStart, "getMyListings not found");
-
-const myListingsSource = serviceSource.slice(myListingsStart, myListingsEnd);
-assert.match(
-  myListingsSource,
-  /const marketScope = buildMarketListingsParams\(\);/,
-  "My Listings must resolve the active mobile market"
+const listingCountrySource = readFileSync(
+  join(root, "mobile/src/utils/listingCountry.js"),
+  "utf8"
 );
-
-for (const identityField of ["firebase_uid", "customer_id", "created_by"]) {
-  assert.match(
-    myListingsSource,
-    new RegExp(`\\{ \\.\\.\\.marketScope, ${identityField}:`),
-    `My Listings ${identityField} query must include the active market`
-  );
-}
-
-const allStatusStart = serviceSource.indexOf("async function requestListingsQuery");
-const allStatusEnd = serviceSource.indexOf(
-  "\nexport async function getListingsByCreator",
-  allStatusStart
+const listingCountryModule = await import(
+  `data:text/javascript;base64,${Buffer.from(listingCountrySource).toString("base64")}`
 );
-const allStatusSource = serviceSource.slice(allStatusStart, allStatusEnd);
-assert.ok(
-  allStatusSource
-    .match(/filterListingsForMarket\(rows, params\.country_code, params\.region_code\)/g)
-    ?.length >= 1,
-  "status=all responses must be filtered to the requested market"
-);
-assert.match(
-  allStatusSource,
-  /filterListingsForMarket\(merged, params\.country_code, params\.region_code\)/,
-  "legacy multi-status responses must be filtered to the requested market"
-);
+const { filterListingsForMarket } = listingCountryModule;
 
 const rows = [
   { id: "kr", country_code: "KR" },
@@ -67,5 +37,88 @@ assert.deepEqual(
   ["us"],
   "US My Listings must exclude non-US and out-of-region rows"
 );
+
+function replaceRequired(source, search, replacement) {
+  assert.ok(source.includes(search), `Expected import not found: ${search}`);
+  return source.replace(search, replacement);
+}
+
+async function loadListingServiceForMarket(countryCode, regionCode) {
+  let source = serviceSource;
+  source = replaceRequired(
+    source,
+    'import { auth } from "../config/firebase";',
+    'const auth = { currentUser: { uid: "uid-1" } };'
+  );
+  source = replaceRequired(
+    source,
+    'import { getActiveMobileCountryCode, isUsMobileMarket } from "../config/country";',
+    `const getActiveMobileCountryCode = () => ${JSON.stringify(countryCode)};
+const isUsMobileMarket = () => getActiveMobileCountryCode() === "US";`
+  );
+  source = replaceRequired(
+    source,
+    'import { getActiveMobileRegionCode } from "../config/region.js";',
+    `const getActiveMobileRegionCode = () => ${JSON.stringify(regionCode || null)};`
+  );
+  source = replaceRequired(
+    source,
+    'import { toDate } from "../utils/firestoreDates";',
+    "const toDate = () => null;"
+  );
+  source = replaceRequired(
+    source,
+    'import { buildApiUrl, requestJson } from "./apiClient";',
+    `const capturedRequests = [];
+const mockRows = ${JSON.stringify(rows)};
+const buildApiUrl = (action, params) => ({ action, params });
+const requestJson = async (url) => {
+  capturedRequests.push(url);
+  return { data: mockRows };
+};`
+  );
+  source = replaceRequired(
+    source,
+    'import { filterListingsForMarket } from "../utils/listingCountry";',
+    listingCountrySource.replace(/^export /gm, "")
+  );
+  source += "\nexport { capturedRequests as __capturedRequests };\n";
+
+  return import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+}
+
+async function assertMyListingsScope(countryCode, regionCode, expectedIds) {
+  const service = await loadListingServiceForMarket(countryCode, regionCode);
+  const result = await service.getMyListings("owner@example.com", 42, 20, {
+    firebaseUid: "uid-1",
+  });
+
+  assert.deepEqual(
+    result.map(({ id }) => id),
+    expectedIds,
+    `${countryCode} My Listings returned rows outside its market`
+  );
+  assert.equal(service.__capturedRequests.length, 3, "all owner identity queries must run");
+
+  const expectedIdentities = [
+    ["firebase_uid", "uid-1"],
+    ["customer_id", "42"],
+    ["created_by", "owner@example.com"],
+  ];
+  service.__capturedRequests.forEach(({ action, params }, index) => {
+    assert.equal(action, "listings");
+    assert.equal(params.country_code, countryCode);
+    assert.equal(params.status, "all");
+    assert.equal(params[expectedIdentities[index][0]], expectedIdentities[index][1]);
+    if (regionCode) {
+      assert.equal(params.region_code, regionCode);
+    } else {
+      assert.equal("region_code" in params, false);
+    }
+  });
+}
+
+await assertMyListingsScope("US", "washington-dc", ["us"]);
+await assertMyListingsScope("KR", null, ["kr", "legacy-kr"]);
 
 console.log("OK: mobile My Listings queries and fallbacks are market-scoped");
