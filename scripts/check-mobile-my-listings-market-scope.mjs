@@ -43,7 +43,7 @@ function replaceRequired(source, search, replacement) {
   return source.replace(search, replacement);
 }
 
-async function loadListingServiceForMarket(countryCode, regionCode) {
+async function loadListingServiceForMarket(countryCode, regionCode, legacyFallback) {
   let source = serviceSource;
   source = replaceRequired(
     source,
@@ -71,9 +71,11 @@ const isUsMobileMarket = () => getActiveMobileCountryCode() === "US";`
     'import { buildApiUrl, requestJson } from "./apiClient";',
     `const capturedRequests = [];
 const mockRows = ${JSON.stringify(rows)};
+const useLegacyFallback = ${JSON.stringify(Boolean(legacyFallback))};
 const buildApiUrl = (action, params) => ({ action, params });
 const requestJson = async (url) => {
   capturedRequests.push(url);
+  if (useLegacyFallback && url.params.status === "all") return { data: [] };
   return { data: mockRows };
 };`
   );
@@ -87,8 +89,8 @@ const requestJson = async (url) => {
   return import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 }
 
-async function assertMyListingsScope(countryCode, regionCode, expectedIds) {
-  const service = await loadListingServiceForMarket(countryCode, regionCode);
+async function assertMyListingsScope(countryCode, regionCode, expectedIds, legacyFallback = false) {
+  const service = await loadListingServiceForMarket(countryCode, regionCode, legacyFallback);
   const result = await service.getMyListings("owner@example.com", 42, 20, {
     firebaseUid: "uid-1",
   });
@@ -98,7 +100,12 @@ async function assertMyListingsScope(countryCode, regionCode, expectedIds) {
     expectedIds,
     `${countryCode} My Listings returned rows outside its market`
   );
-  assert.equal(service.__capturedRequests.length, 3, "all owner identity queries must run");
+  const requestsPerIdentity = legacyFallback ? 4 : 1;
+  assert.equal(
+    service.__capturedRequests.length,
+    requestsPerIdentity * 3,
+    "all owner identity queries must run"
+  );
 
   const expectedIdentities = [
     ["firebase_uid", "uid-1"],
@@ -106,10 +113,13 @@ async function assertMyListingsScope(countryCode, regionCode, expectedIds) {
     ["created_by", "owner@example.com"],
   ];
   service.__capturedRequests.forEach(({ action, params }, index) => {
+    const identityIndex = Math.floor(index / requestsPerIdentity);
     assert.equal(action, "listings");
     assert.equal(params.country_code, countryCode);
-    assert.equal(params.status, "all");
-    assert.equal(params[expectedIdentities[index][0]], expectedIdentities[index][1]);
+    assert.equal(
+      params[expectedIdentities[identityIndex][0]],
+      expectedIdentities[identityIndex][1]
+    );
     if (regionCode) {
       assert.equal(params.region_code, regionCode);
     } else {
@@ -120,5 +130,6 @@ async function assertMyListingsScope(countryCode, regionCode, expectedIds) {
 
 await assertMyListingsScope("US", "washington-dc", ["us"]);
 await assertMyListingsScope("KR", null, ["kr", "legacy-kr"]);
+await assertMyListingsScope("US", "washington-dc", ["us"], true);
 
 console.log("OK: mobile My Listings queries and fallbacks are market-scoped");
