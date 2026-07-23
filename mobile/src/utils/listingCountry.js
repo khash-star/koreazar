@@ -5,14 +5,18 @@ export function normalizeListingCountryCode(countryCode) {
   return code || "KR";
 }
 
-export function isListingVisibleForMarket(listing, marketCountryCode) {
+export function isListingVisibleForMarket(listing, marketCountryCode, marketRegionCode = "") {
   if (!listing) return false;
 
   const market = normalizeListingCountryCode(marketCountryCode);
   const listingCountry = normalizeListingCountryCode(listing.country_code);
 
   if (market === "US") {
-    return listingCountry === "US";
+    if (listingCountry !== "US") return false;
+    const marketRegion = String(marketRegionCode || "").trim().toLowerCase();
+    if (!marketRegion) return true;
+    const listingRegion = String(listing.region_code || "").trim().toLowerCase();
+    return listingRegion === marketRegion;
   }
   if (market === "JP") {
     return listingCountry === "JP";
@@ -26,7 +30,9 @@ export function isListingVisibleForMarket(listing, marketCountryCode) {
   return listingCountry === "KR";
 }
 
-export function filterListingsForMarket(listings, marketCountryCode) {
+export function filterListingsForMarket(listings, marketCountryCode, marketRegionCode = "") {
   if (!Array.isArray(listings)) return [];
-  return listings.filter((listing) => isListingVisibleForMarket(listing, marketCountryCode));
+  return listings.filter((listing) =>
+    isListingVisibleForMarket(listing, marketCountryCode, marketRegionCode)
+  );
 }

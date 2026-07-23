@@ -143,7 +143,13 @@ export async function getLatestListings(limitCount = 50) {
       { retries: 1 }
     );
     const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
-    const sorted = sortHomeListings(filterListingsForMarket(rows, getActiveMobileCountryCode()));
+    const sorted = sortHomeListings(
+      filterListingsForMarket(
+        rows,
+        getActiveMobileCountryCode(),
+        isUsMobileMarket() ? getActiveMobileRegionCode() : ""
+      )
+    );
     latestListingsCache = { at: Date.now(), key: cacheKey, data: sorted, pending: null };
     return sorted;
   })();
@@ -169,7 +175,7 @@ async function requestListingsQuery(params, options = {}) {
     });
     const rows = (payload?.data || []).map(normalizeListing).filter(Boolean);
     if (params.country_code) {
-      return filterListingsForMarket(rows, params.country_code);
+      return filterListingsForMarket(rows, params.country_code, params.region_code);
     }
     return rows;
   }
@@ -191,7 +197,11 @@ async function requestListingsQuery(params, options = {}) {
       { retries: 1, ...fetchOpts }
     );
     const rows = (all?.data || []).map(normalizeListing).filter(Boolean);
-    if (rows.length > 0) return rows;
+    if (rows.length > 0) {
+      return params.country_code
+        ? filterListingsForMarket(rows, params.country_code, params.region_code)
+        : rows;
+    }
   } catch {
     /* хуучин API: status=all гэж бичихээр 0 мөр буцаадаг */
   }
@@ -207,7 +217,9 @@ async function requestListingsQuery(params, options = {}) {
       /* ignore */
     }
   }
-  return merged;
+  return params.country_code
+    ? filterListingsForMarket(merged, params.country_code, params.region_code)
+    : merged;
 }
 
 export async function getListingsByCreator(email, limitCount = 50, options = {}) {
@@ -234,6 +246,7 @@ export async function getListingsByFirebaseUid(firebaseUid, limitCount = 50, opt
 export async function getMyListings(email, customerId, limitCount = 50, options = {}) {
   const opts = { includeAllStatuses: true, ...options };
   const firebaseUid = options.firebaseUid || auth.currentUser?.uid || "";
+  const marketScope = buildMarketListingsParams();
   const seen = new Set();
   const rows = [];
   let lastError = null;
@@ -258,16 +271,31 @@ export async function getMyListings(email, customerId, limitCount = 50, options 
   };
 
   if (firebaseUid) {
-    await tryMerge("firebase_uid", () => getListingsByFirebaseUid(firebaseUid, limitCount, opts));
+    await tryMerge("firebase_uid", () =>
+      requestListingsQuery(
+        { ...marketScope, firebase_uid: String(firebaseUid), limit: limitCount },
+        opts
+      )
+    );
   }
 
   const cid = customerId != null && customerId !== "" ? Number(customerId) : NaN;
   if (Number.isFinite(cid) && cid > 0) {
-    await tryMerge("customer_id", () => getListingsByCustomerId(cid, limitCount, opts));
+    await tryMerge("customer_id", () =>
+      requestListingsQuery(
+        { ...marketScope, customer_id: String(cid), limit: limitCount },
+        opts
+      )
+    );
   }
 
   if (email) {
-    await tryMerge("created_by", () => getListingsByCreator(email, limitCount, opts));
+    await tryMerge("created_by", () =>
+      requestListingsQuery(
+        { ...marketScope, created_by: email, limit: limitCount },
+        opts
+      )
+    );
   }
 
   if (rows.length === 0 && lastError) {
