@@ -148,9 +148,12 @@ export function canManageUsers(userData) {
   return scope.role === ROLES.SUPER_ADMIN || scope.role === ROLES.COUNTRY_ADMIN;
 }
 
-/** Super + country admins can broadcast; region admins cannot. */
+/**
+ * Broadcast reaches every Firestore user with no market filter.
+ * Fail closed to super-admin until recipients can be country/region scoped.
+ */
 export function canBroadcast(userData) {
-  return canManageUsers(userData);
+  return isSuperAdmin(userData);
 }
 
 /** Global config (auto-approve, etc.) — super admin only. */
