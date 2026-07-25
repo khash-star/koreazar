@@ -345,6 +345,11 @@ try {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
+                    // Owners must not retag market (KR↔US). Admins keep country/region writes
+                    // so scoped moderation can still correct mis-tagged rows.
+                    if (!is_app_admin($pdo, $authUser)) {
+                        unset($payload['country_code'], $payload['region_code']);
+                    }
                     if (api_find_banned_in_listing_payload($payload) !== null) {
                         api_respond_prohibited_listing();
                         break;

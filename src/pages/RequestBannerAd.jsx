@@ -93,7 +93,9 @@ export default function RequestBannerAd() {
     createMutation.mutate({
       ...formData,
       image_url: imageUrl,
-      status: 'pending'
+      status: 'pending',
+      // Persist market so approve can publish into the correct banner feed.
+      country_code: String(activeCountry?.countryCode || 'KR').trim().toUpperCase() || 'KR',
     });
   };
 

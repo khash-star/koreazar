@@ -18,6 +18,7 @@ import { uploadImageFromUri } from "../services/storageService";
 import { defaultMobileStorageCountryCode } from "../utils/storagePaths";
 import { createBannerAd, deleteBannerAd, listBannerAds, updateBannerAd } from "../services/bannerService";
 import { filterBannersByAdminScope } from "../constants/adminRoles.js";
+import { getActiveMobileCountryCode } from "../config/country.js";
 import { useAuth } from "../context/AuthContext";
 import { showAlert } from "../utils/showAlert";
 
@@ -130,7 +131,10 @@ export default function AdminBannersScreen() {
     try {
       const payload = { ...form };
       if (!editingId) {
-        payload.country_code = userData?.admin_country_code || "US";
+        // Prefer scoped admin country; otherwise stamp the active app market
+        // (never hardcode US — that mis-publishes KR super-admin banners).
+        payload.country_code =
+          userData?.admin_country_code || getActiveMobileCountryCode() || "KR";
       }
       if (editingId) {
         await updateBannerAd(editingId, payload);
