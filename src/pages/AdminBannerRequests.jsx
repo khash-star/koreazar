@@ -28,6 +28,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { useMarketHomePath } from '@/hooks/useMarketHomePath';
+import { normalizeBannerCountryCode } from '@/utils/bannerCountry';
 
 export default function AdminBannerRequests() {
   const { user } = useAuth();
@@ -66,13 +67,15 @@ export default function AdminBannerRequests() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ request }) => {
-      // Create banner ad
+      const countryCode = normalizeBannerCountryCode(request.country_code);
+      // Create banner ad in the request's market (missing → KR for legacy rows).
       await entities.BannerAd.create({
         image_url: request.image_url,
         link: request.link,
         title: request.title,
         is_active: true,
-        order: 0
+        order: 0,
+        country_code: countryCode,
       });
       // Update request status
       await entities.BannerRequest.update(request.id, { 
