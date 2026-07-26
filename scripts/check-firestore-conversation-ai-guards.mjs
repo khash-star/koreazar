@@ -15,13 +15,17 @@ const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const rules = read('firestore.rules');
 
 assert.match(rules, /function isCreatingAsConversationParticipant\(\)/);
+const conversationsBlock = rules.match(
+  /match \/conversations\/\{conversationId\} \{[\s\S]*?\n    \}/,
+)?.[0];
+assert.ok(conversationsBlock, 'missing conversations rules block');
 assert.match(
-  rules,
-  /match \/conversations\/\{conversationId\}[\s\S]*?allow create:\s*if isCreatingAsConversationParticipant\(\);/,
+  conversationsBlock,
+  /allow create:\s*if isCreatingAsConversationParticipant\(\);/,
 );
 assert.doesNotMatch(
-  rules,
-  /match \/conversations\/\{conversationId\}[\s\S]*?allow create:\s*if request\.auth != null;/,
+  conversationsBlock,
+  /allow create:\s*if request\.auth != null;/,
 );
 
 assert.match(rules, /function ownsAiResource\(\)/);
