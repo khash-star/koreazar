@@ -8,7 +8,6 @@ import {
   updateDoc, 
   query, 
   where, 
-  orderBy,
   limit,
   Timestamp,
   onSnapshot
@@ -101,58 +100,40 @@ export const getAIConversation = async (conversationId) => {
 /**
  * List AI messages for a conversation
  * @param {string} conversationId - Conversation ID
+ * @param {string} userEmail - Owner email (required by Firestore ownership rules)
  * @param {number} limitCount - Maximum number of messages to fetch
  * @returns {Promise<Array>} Array of messages
  */
-export const listAIMessages = async (conversationId, limitCount = 100) => {
+export const listAIMessages = async (conversationId, userEmail, limitCount = 100) => {
   try {
-    const messagesRef = collection(db, 'ai_messages');
-    // Try with orderBy first, fallback to without if index missing
-    let q = query(
-      messagesRef,
-      where('conversation_id', '==', conversationId),
-      orderBy('created_date', 'desc'),
-      limit(limitCount)
-    );
-    
-    let querySnapshot;
-    try {
-      querySnapshot = await getDocs(q);
-    } catch (error) {
-      // If index missing, query without orderBy and sort in memory
-      if (error.code === 'failed-precondition') {
-        q = query(
-          messagesRef,
-          where('conversation_id', '==', conversationId),
-          limit(limitCount)
-        );
-        querySnapshot = await getDocs(q);
-        // Sort in memory
-        const messages = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            created_date: convertTimestamp(data.created_date)
-          };
-        }).sort((a, b) => {
-          const dateA = a.created_date || new Date(0);
-          const dateB = b.created_date || new Date(0);
-          return dateB - dateA;
-        });
-        return messages.reverse(); // Oldest first
-      }
-      throw error;
+    if (!userEmail) {
+      throw new Error('userEmail is required to list AI messages');
     }
-    
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date)
-      };
-    }).reverse(); // Oldest first
+    const messagesRef = collection(db, 'ai_messages');
+    // Ownership-scoped query (rules deny unscoped collection scans).
+    // Prefer user_email-only to avoid requiring a new composite index; filter in memory.
+    const q = query(
+      messagesRef,
+      where('user_email', '==', userEmail),
+      limit(Math.max(limitCount * 5, 100))
+    );
+    const querySnapshot = await getDocs(q);
+    const messages = querySnapshot.docs
+      .map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          created_date: convertTimestamp(data.created_date),
+        };
+      })
+      .filter((msg) => msg.conversation_id === conversationId)
+      .sort((a, b) => {
+        const dateA = a.created_date || new Date(0);
+        const dateB = b.created_date || new Date(0);
+        return dateA - dateB; // Oldest first
+      });
+    return messages.slice(-limitCount);
   } catch (error) {
     console.error('Error listing AI messages:', error);
     throw error;
@@ -197,30 +178,35 @@ export const createAIMessage = async (data) => {
 /**
  * Subscribe to real-time AI messages
  * @param {string} conversationId - Conversation ID
+ * @param {string} userEmail - Owner email (required by Firestore ownership rules)
  * @param {Function} callback - Callback function
  * @returns {Function} Unsubscribe function
  */
-export const subscribeToAIMessages = (conversationId, callback) => {
+export const subscribeToAIMessages = (conversationId, userEmail, callback) => {
+  if (!userEmail) {
+    callback([]);
+    return () => {};
+  }
   const messagesRef = collection(db, 'ai_messages');
-  // Query without orderBy to avoid index requirement, sort in memory
-  const q = query(
-    messagesRef,
-    where('conversation_id', '==', conversationId)
-  );
-  
+  // Ownership-scoped listener; filter conversation in memory (no composite index).
+  const q = query(messagesRef, where('user_email', '==', userEmail));
+
   return onSnapshot(q, (snapshot) => {
-    const messages = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        created_date: convertTimestamp(data.created_date)
-      };
-    }).sort((a, b) => {
-      const dateA = a.created_date || new Date(0);
-      const dateB = b.created_date || new Date(0);
-      return dateA - dateB; // Ascending order (oldest first)
-    });
+    const messages = snapshot.docs
+      .map((docSnap) => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          created_date: convertTimestamp(data.created_date),
+        };
+      })
+      .filter((msg) => msg.conversation_id === conversationId)
+      .sort((a, b) => {
+        const dateA = a.created_date || new Date(0);
+        const dateB = b.created_date || new Date(0);
+        return dateA - dateB; // Ascending order (oldest first)
+      });
     callback(messages);
   }, (error) => {
     console.error('Error subscribing to AI messages:', error);

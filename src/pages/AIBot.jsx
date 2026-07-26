@@ -148,14 +148,14 @@ export default function AIBot() {
   // Load messages
   useEffect(() => {
     const loadMessages = async () => {
-      if (!conversationId) {
+      if (!conversationId || !userEmail) {
         setIsLoadingMessages(false);
         return;
       }
 
       try {
         setIsLoadingMessages(true);
-        const msgs = await listAIMessages(conversationId);
+        const msgs = await listAIMessages(conversationId, userEmail);
         setMessages(msgs);
       } catch (error) {
         console.error('Error loading messages:', error);
@@ -165,19 +165,19 @@ export default function AIBot() {
     };
 
     loadMessages();
-  }, [conversationId]);
+  }, [conversationId, userEmail]);
 
   // Real-time listener for messages
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !userEmail) return;
 
-    const unsubscribe = subscribeToAIMessages(conversationId, (msgs) => {
+    const unsubscribe = subscribeToAIMessages(conversationId, userEmail, (msgs) => {
       setMessages(msgs);
       setIsLoadingMessages(false);
     });
 
     return () => unsubscribe();
-  }, [conversationId]);
+  }, [conversationId, userEmail]);
 
   // Scroll to bottom when messages change
   useEffect(() => {

@@ -113,6 +113,38 @@ service cloud.firestore {
       );
     }
 
+    // Create-time check: creator must be a named participant (blocks forged victim↔admin threads).
+    function isCreatingAsConversationParticipant() {
+      return request.auth != null && (
+        (request.resource.data.participant_uids is list &&
+          request.resource.data.participant_uids.hasAny([request.auth.uid])) ||
+        (request.resource.data.participant_1 is string &&
+          request.resource.data.participant_1.size() > 0 &&
+          participantEmailMatchesAuth(request.resource.data.participant_1)) ||
+        (request.resource.data.participant_2 is string &&
+          request.resource.data.participant_2.size() > 0 &&
+          participantEmailMatchesAuth(request.resource.data.participant_2))
+      );
+    }
+
+    function ownsAiResource() {
+      return request.auth != null &&
+        request.auth.token.email != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() > 0 &&
+        resource.data.user_email is string &&
+        resource.data.user_email == request.auth.token.email;
+    }
+
+    function createsOwnAiResource() {
+      return request.auth != null &&
+        request.auth.token.email != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() > 0 &&
+        request.resource.data.user_email is string &&
+        request.resource.data.user_email == request.auth.token.email;
+    }
+
     function isMessageConversationParticipant() {
       return request.auth != null &&
         resource.data.conversation_id is string &&
@@ -224,7 +256,7 @@ service cloud.firestore {
     match /conversations/{conversationId} {
       allow read: if request.auth != null &&
         (isConversationParticipant() || isAppAdmin());
-      allow create: if request.auth != null;
+      allow create: if isCreatingAsConversationParticipant();
       allow update: if request.auth != null &&
         (isConversationParticipant() || isAppAdmin());
       allow delete: if request.auth != null &&
@@ -241,25 +273,18 @@ service cloud.firestore {
     }
 
     match /ai_conversations/{conversationId} {
-      allow read: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
-      allow list: if request.auth != null;
-      allow create: if request.auth != null &&
-        request.resource.data.user_email == request.auth.token.email;
-      allow update: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
+      // Ownership only — do not open list to all auth users (Firestore does not
+      // auto-filter collection scans; open list leaked every AI thread).
+      allow read: if ownsAiResource();
+      allow create: if createsOwnAiResource();
+      allow update: if ownsAiResource();
+      allow delete: if ownsAiResource();
     }
 
     match /ai_messages/{messageId} {
-      allow read: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
-      allow list: if request.auth != null;
-      allow create: if request.auth != null &&
-        request.resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
+      allow read: if ownsAiResource();
+      allow create: if createsOwnAiResource();
+      allow delete: if ownsAiResource();
     }
 
     match /user_push_tokens/{userId} {
@@ -277,14 +302,12 @@ service cloud.firestore {
     match /ai_usage/{usageId} {
       allow get: if request.auth != null && (
         !exists(/databases/$(database)/documents/ai_usage/$(usageId)) ||
-        resource.data.user_email == request.auth.token.email ||
+        ownsAiResource() ||
         isSuperAdmin()
       );
-      allow list: if request.auth != null;
-      allow create, update: if request.auth != null &&
-        request.resource.data.user_email == request.auth.token.email;
-      allow delete: if request.auth != null &&
-        resource.data.user_email == request.auth.token.email;
+      allow list: if ownsAiResource() || isSuperAdmin();
+      allow create, update: if createsOwnAiResource();
+      allow delete: if ownsAiResource();
     }
   }
 }
