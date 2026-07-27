@@ -405,7 +405,7 @@ try {
             }
             $authUser = require_firebase_user();
             $body = read_json_body();
-            upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body);
+            upsert_user_profile_best_effort($pdo, $authUser['uid'], $authUser['email'], $body, $authUser);
             $customerId = get_user_customer_id_by_firebase_uid($pdo, $authUser['uid']);
             $resolvedEmail = resolve_auth_email_for_listing($pdo, $authUser);
             echo json_encode([
@@ -800,6 +800,7 @@ function phone_to_auth_email(?string $phoneE164): ?string
 
 /**
  * Listing created_by — server only; never trust client body (phone users often have empty token email).
+ * Prefer Firebase ID-token email/phone over client-writable MySQL profile fields.
  *
  * @param array{uid:string,email:?string,phoneNumber:?string} $authUser
  */
@@ -808,6 +809,15 @@ function resolve_auth_email_for_listing(PDO $pdo, array $authUser): ?string
     $email = isset($authUser['email']) ? trim((string) $authUser['email']) : '';
     if ($email !== '') {
         return strtolower($email);
+    }
+
+    // Verified Firebase phone claim beats any client-supplied MySQL phone.
+    $phone = isset($authUser['phoneNumber']) ? trim((string) $authUser['phoneNumber']) : '';
+    if ($phone !== '') {
+        $synthetic = phone_to_auth_email($phone);
+        if ($synthetic !== null) {
+            return strtolower($synthetic);
+        }
     }
 
     $uid = isset($authUser['uid']) ? trim((string) $authUser['uid']) : '';
@@ -830,14 +840,8 @@ function resolve_auth_email_for_listing(PDO $pdo, array $authUser): ?string
                 }
             }
         } catch (Throwable $e) {
-            // fall through to token phone
+            // fall through
         }
-    }
-
-    $phone = isset($authUser['phoneNumber']) ? trim((string) $authUser['phoneNumber']) : '';
-    if ($phone !== '') {
-        $synthetic = phone_to_auth_email($phone);
-        return $synthetic !== null ? strtolower($synthetic) : null;
     }
 
     return null;
@@ -1340,8 +1344,9 @@ function upsert_user_admin_role_mysql(
 
 /**
  * @param array<string,mixed> $body
+ * @param array{uid:string,email:?string,phoneNumber:?string}|null $authUser
  */
-function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string $email, array $body): void
+function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string $email, array $body, ?array $authUser = null): void
 {
     if ($firebaseUid === '') return;
     try {
@@ -1353,6 +1358,13 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
         }
         $phone = isset($body['phone']) ? trim((string) $body['phone']) : null;
         if ($phone === '') $phone = null;
+        // Prefer verified Firebase phone claim; never persist a conflicting client phone.
+        $tokenPhone = ($authUser !== null && isset($authUser['phoneNumber']))
+            ? trim((string) $authUser['phoneNumber'])
+            : '';
+        if ($tokenPhone !== '') {
+            $phone = $tokenPhone;
+        }
         $city = isset($body['city']) ? trim((string) $body['city']) : null;
         if ($city === '') $city = null;
         $district = isset($body['district']) ? trim((string) $body['district']) : null;
@@ -1379,15 +1391,16 @@ function upsert_user_profile_best_effort(PDO $pdo, string $firebaseUid, ?string 
             $set[] = 'display_name = :display_name';
             $params[':display_name'] = $displayName;
         }
-        if (table_has($pdo, 'users', 'phone')) {
+        // Only write phone when we have a value — empty sync must not wipe existing phone.
+        if (table_has($pdo, 'users', 'phone') && $phone !== null) {
             $set[] = 'phone = :phone';
             $params[':phone'] = $phone;
         }
-        if (table_has($pdo, 'users', 'city')) {
+        if (table_has($pdo, 'users', 'city') && $city !== null) {
             $set[] = 'city = :city';
             $params[':city'] = $city;
         }
-        if (table_has($pdo, 'users', 'district')) {
+        if (table_has($pdo, 'users', 'district') && $district !== null) {
             $set[] = 'district = :district';
             $params[':district'] = $district;
         }
