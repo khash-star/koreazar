@@ -1,6 +1,6 @@
 # Zarkorea — Security
 
-> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.  
+> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.
 > **Эх сурвалж:** `vercel.json`, `firestore.rules`, `storage.rules`, `src/utils/security.js`, `api/bootstrap.php`
 
 ---
@@ -113,11 +113,20 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 
 ### Admin эрх
 
-- Firestore: `users/{uid}.role == 'admin'` (`firestore.rules` → `isAdmin()`)
-- PHP: `APP_ADMIN_UIDS` (comma-separated Firebase UID) — зарын admin override
-- Admin өөрөө `role` талбарыг өөрчлөхгүй (rules хориглоно)
+- Firestore global admin: `admin` (legacy alias) эсвэл `super_admin`
+- Scoped roles: `country_admin` + `admin_country_code`; `region_admin` +
+  `admin_region_code`
+- PHP: MySQL `users.role` + scope баганууд; `APP_ADMIN_UIDS` нь
+  super-admin override
+- PHP scope lookup: `APP_ADMIN_UIDS` → `users.firebase_uid` → fallback
+  `users.email` (legacy rows without Firebase UID)
+- Зөвхөн super admin role/scope assign хийнэ. Хэрэглэгч өөрийн `role`,
+  `isAdmin`, `admin_country_code`, `admin_region_code`-ийг өөрчилж болохгүй.
+- Region admin хэрэглэгч удирдах, broadcast хийх, global config өөрчлөх
+  эрхгүй.
 
-Тохируулах: root `ADMIN_SETUP_GUIDE.md`.
+Тохируулах ба scope matrix:
+[ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ---
 
