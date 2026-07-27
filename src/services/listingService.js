@@ -118,21 +118,32 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       scopedFilters = appendAdminListingQueryParams(options.adminUserData, scopedFilters);
     }
     const params = appendUsRegionScopeParams({ limit: limitCount }, scopedFilters.country_code);
+    const hasOwnerFilter = Boolean(
+      scopedFilters.created_by ||
+        scopedFilters.firebase_uid ||
+        (scopedFilters.customer_id != null && scopedFilters.customer_id !== '')
+    );
     if (scopedFilters.category) params.category = scopedFilters.category;
     if (scopedFilters.subcategory) params.subcategory = scopedFilters.subcategory;
     if (scopedFilters.country_code) params.country_code = scopedFilters.country_code;
     if (scopedFilters.state_code) params.state_code = scopedFilters.state_code;
     if (scopedFilters.region_code) params.region_code = scopedFilters.region_code;
+    if (scopedFilters.created_by) params.created_by = String(scopedFilters.created_by);
+    if (scopedFilters.firebase_uid) params.firebase_uid = String(scopedFilters.firebase_uid);
     if (scopedFilters.customer_id != null && scopedFilters.customer_id !== '') {
       params.customer_id = String(scopedFilters.customer_id);
     }
     if (scopedFilters.status !== undefined && scopedFilters.status !== null && scopedFilters.status !== '') {
       params.status = scopedFilters.status;
-    } else if (!scopedFilters.created_by) {
+    } else if (hasOwnerFilter) {
+      // Owner management views must include pending/sold/rejected, not only active.
+      params.status = 'all';
+    } else {
       params.status = 'active';
     }
 
-    const fetchOptions = options.adminUserData ? { headers: await getAuthHeaders() } : {};
+    const needsAuth = Boolean(options.adminUserData) || hasOwnerFilter || params.status !== 'active';
+    const fetchOptions = needsAuth ? { headers: await getAuthHeaders() } : {};
     const payload = await requestJson(buildApiUrl('listings', params), fetchOptions);
     let result = (payload?.data || []).map(normalizeListing);
 
@@ -140,7 +151,8 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       result = filterListingsForMarket(result, scopedFilters.country_code);
     }
 
-    // Server-side: category/subcategory/status/country_code/state_code. Rest client-side.
+    // Server-side: category/subcategory/status/country_code/state_code/owner keys.
+    // Keep client-side filtering as a compatibility guard for older API deployments.
     const serverFilterKeys = new Set([
       'category',
       'subcategory',
@@ -148,6 +160,9 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
       'country_code',
       'state_code',
       'region_code',
+      'created_by',
+      'firebase_uid',
+      'customer_id',
     ]);
     Object.keys(filters).forEach((key) => {
       const value = filters[key];

@@ -2,45 +2,69 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isImageUpload() {
+      return request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Shared public media: allow create of new unique objects only.
+    // Deny update/delete so any authenticated user cannot overwrite or erase
+    // existing listing/banner/legacy images by reusing a known object path.
+    function canCreatePublicImage() {
+      return isSignedIn() && isImageUpload();
+    }
+
     // Legacy flat folder — existing production URLs keep working.
     match /images/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     match /public/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     // users/{uid}/profile/...
     match /users/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if isSignedIn()
+        && request.auth.uid == userId
+        && isImageUpload();
     }
 
     // listings/{kr|us|jp}/{year}/{listingId}/...
     match /listings/{country}/{year}/{listingId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     // Legacy listings path (pre country/year structure)
     match /listings/{listingId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     // banners/{kr|us|jp}/{bannerId}/...
     match /banners/{country}/{bannerId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     // Legacy flat banners path
     match /banners/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if canCreatePublicImage();
+      allow update, delete: if false;
     }
 
     match /{allPaths=**} {

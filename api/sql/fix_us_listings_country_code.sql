@@ -4,8 +4,9 @@
 
 SET NAMES utf8mb4;
 
+-- Note: SQL NULL is never matched by IN (...), so include an explicit IS NULL clause.
 UPDATE `listings`
 SET `country_code` = 'US'
-WHERE `country_code` IN ('KR', '', NULL)
+WHERE (`country_code` IS NULL OR `country_code` IN ('KR', ''))
   AND `region_code` IS NOT NULL
   AND TRIM(`region_code`) <> '';
