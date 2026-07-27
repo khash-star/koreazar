@@ -1,4 +1,4 @@
-# Zarusa staging deploy — Washington DC / DMV MVP
+# ZAR-USA staging deploy — Washington DC / DMV MVP
 
 **Order matters.** Do not skip steps.
 
@@ -42,8 +42,8 @@ npm run smoke:zarusa-api
 
 After successful deploy + migration, expect:
 
-- KR listings OK
-- US listings include `region_code` (or empty until US rows exist)
+- KR listings exclude US/JP rows and every row with a non-empty `region_code`
+- US listings include `region_code=washington-dc` (or the result is empty until scoped US rows exist)
 - `GET ...&country_code=US&region_code=chicago` → empty array
 
 ## 4) Mobile staging build (optional — not store submit)
@@ -56,7 +56,7 @@ npx eas build --platform android --profile production-us
 Checklist on device:
 
 - [ ] App opens **Main** directly (no invite screen)
-- [ ] Header: **ZARUSA — DC / DMV**
+- [ ] Header: **ZAR-USA — DC / DMV**
 - [ ] Home feed: US listings only, washington-dc scoped
 - [ ] Create listing: state picker **DC, VA, MD only**
 - [ ] KR `production` build unchanged (no region param)

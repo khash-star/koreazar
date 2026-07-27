@@ -202,11 +202,15 @@ Default fallback in code: `https://api.zarkorea.com/index.php`
 | Name | Zarkorea |
 | Slug | `zarkorea-app` |
 | Scheme | `zarkorea` |
-| Version | `1.0.4` |
-| iOS buildNumber | `46` |
-| Android versionCode | `41` |
+| Version | `1.0.5` |
+| iOS buildNumber | `47` |
+| Android versionCode | `43` |
 | Bundle ID / package | `com.zarkorea.twa` |
 | EAS projectId | `96d89595-cf78-48c8-9695-5c2cc7af53f4` |
+
+`production-us` applies `mobile/app.config.js` overrides at build time:
+display name `ZAR-USA`, scheme `zarusa`, and bundle/package
+`com.zarusa.app`. The Expo slug and EAS project remain shared.
 
 ### Build profiles (`mobile/eas.json`)
 
@@ -215,6 +219,7 @@ Default fallback in code: `https://api.zarkorea.com/index.php`
 | `development` | Dev client, internal distribution |
 | `preview` | Internal APK (Android `buildType: apk`) |
 | `production` | Store release; `autoIncrement: true`; Android AAB with local credentials |
+| `production-us` | Extends `production`; sets `EXPO_PUBLIC_ACTIVE_COUNTRY=US` for the separate ZAR-USA store apps |
 
 ### NPM scripts (`mobile/package.json`)
 
@@ -224,7 +229,14 @@ npm run release:ios          # eas build --profile production --platform ios
 npm run release:android      # eas build --profile production --platform android
 npm run release:submit:ios   # eas submit --latest
 npm run release:submit:android
+npm run release:ios:us       # eas build --profile production-us --platform ios
+npm run release:android:us   # eas build --profile production-us --platform android
+npm run submit:ios:us        # eas submit --profile production-us --latest
+npm run submit:android:us
 ```
+
+ZAR-USA build identity, native Firebase file resolution, and staging gates:
+[`mobile/docs/ZARUSA_BUILD.md`](../mobile/docs/ZARUSA_BUILD.md).
 
 ### Production environment variables
 
@@ -253,9 +265,14 @@ npx eas env:push production --path .env --force
 cd mobile
 eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production
 eas env:create --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --environment production
+# If ZAR-USA uses a separate iOS Firebase app:
+eas env:create --name GOOGLE_SERVICE_INFO_PLIST_US --type file --value ./GoogleService-Info.zarusa.plist --environment production
 ```
 
-`mobile/app.config.js` resolves these paths on the EAS builder.
+`mobile/app.config.js` resolves these paths on the EAS builder. For a US
+build, `GOOGLE_SERVICE_INFO_PLIST_US` takes precedence and falls back to
+`GOOGLE_SERVICE_INFO_PLIST`; Android uses `GOOGLE_SERVICES_JSON` for both
+profiles.
 
 ### Android push (FCM V1)
 
