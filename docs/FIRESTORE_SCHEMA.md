@@ -1,7 +1,7 @@
 # Zarkorea — Firestore Schema
 
-> Firestore өгөгдлийн загвар, collection-ууд, талбарууд, индекс, холбоосууд.  
-> **Төсөл:** `koreazar-32e7a` · **Бүс:** `asia-northeast3`  
+> Firestore өгөгдлийн загвар, collection-ууд, талбарууд, индекс, холбоосууд.
+> **Төсөл:** `koreazar-32e7a` · **Бүс:** `asia-northeast3`
 > **Холбоотой:** [FIREBASE.md](./FIREBASE.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
@@ -48,7 +48,9 @@ Firestore дээр `listings` collection **хуучин/legacy** зориула�
 |--------|-------|--------|---------|
 | `email` | string | Тийм* | Имэйл (утасны OTP: синтетик имэйл) |
 | `displayName` | string | Үгүй | Харуулах нэр |
-| `role` | string | Үгүй | `user` (default) эсвэл `admin` |
+| `role` | string | Үгүй | `user` (default), `admin` (legacy super), `super_admin`, `country_admin`, эсвэл `region_admin` |
+| `admin_country_code` | string | Scope үед | `country_admin`-ийн `KR` / `US` / `JP` scope; US region admin дээр `US` |
+| `admin_region_code` | string | Scope үед | `region_admin`-ийн жижиг үсгийн region key, жишээ нь `washington-dc` |
 | `phone` / `phoneNumber` | string | Үгүй | E.164 утас |
 | `customerId` | number | Үгүй | MySQL `users.id` (API sync) |
 | `authProvider` | string | Үгүй | `phone`, гэх мэт |
@@ -62,7 +64,11 @@ Firestore дээр `listings` collection **хуучин/legacy** зориула�
 
 \* Firestore rules (`authEmailLower()`) ажиллахын тулд утасны хэрэглэгчид `email` талбар заавал бөглөгдөнө (`ensureUserDocEmailForFirestoreRules`).
 
-**Rules:** Нийтэд уншигдана; өөрчлөлт — өөрийн doc эсвэл admin; `role`/`isAdmin` өөрөө өөрчлөхгүй.
+**Rules:** Нийтэд уншигдана. Хэрэглэгч өөрийн doc-ийг өөрчилж болох ч
+`role`, `isAdmin`, `admin_country_code`, `admin_region_code` талбарыг өөрчилж
+болохгүй. Role assignment болон хэрэглэгч устгах эрх зөвхөн super admin-д
+байна; country admin protected admin талбарыг өөрчлөхгүйгээр хэрэглэгчийн
+profile-ийг удирдаж болно.
 
 ---
 
@@ -73,7 +79,14 @@ Firestore дээр `listings` collection **хуучин/legacy** зориула�
 | `created_by` | Зарлагчийн имэйл |
 | `title`, `category`, `status`, `views`, … | Хуучин Firestore зар |
 
-**Одоогийн зарууд:** MySQL `listings` хүснэгт (`api/sql/schema.sql`). Талбарууд: `id`, `firebase_uid`, `customer_id`, `category`, `title`, `description`, `price`, `status`, `images` (JSON), `views`, гэх мэт.
+**Одоогийн зарууд:** MySQL `listings` хүснэгт (`api/sql/schema.sql`).
+Үндсэн талбарууд: `id`, `firebase_uid`, `customer_id`, `category`, `title`,
+`description`, `price`, `status`, `images` (JSON), `views`, мөн market scope
+талбарууд `country_code`, `state_code`, `region_code`.
+
+- `country_code`: `KR`, `US`, `JP`; хуучин/хоосон утгыг runtime KR гэж үзнэ.
+- `state_code`: US мужийн 2 тэмдэгт code.
+- `region_code`: US community scope; одоогоор зөвхөн `washington-dc` active.
 
 ---
 
@@ -88,11 +101,17 @@ Firestore дээр `listings` collection **хуучин/legacy** зориула�
 | `title` | string | — | Гарчиг |
 | `is_active` | boolean | `true` | Идэвхтэй эсэх |
 | `order` | number | `0` | Эрэмбэ (бага = эхэнд) |
+| `country_code` | string | legacy = `KR` | `KR`, `US`, `JP`, эсвэл бүх market-д `GLOBAL` |
 | `created_date` | timestamp | auto | Үүсгэсэн огноо |
 
 **Query:** `is_active == true`, `orderBy('order')` — индекс: `banner_ads`: `is_active` ASC, `order` ASC.
 
-**Rules:** Унших — бүгд; бичих — зөвхөн admin.
+`country_code` байхгүй эсвэл хоосон хуучин banner-ийг KR гэж үзнэ
+(`src/utils/bannerCountry.js`). Home нь тухайн market-ийн banner болон
+`GLOBAL` banner-ийг харуулна.
+
+**Rules:** Унших — бүгд; бичих — scope таарсан app admin. Super admin бүх
+market, country admin өөрийн улс, region admin US banner удирдана.
 
 ---
 
@@ -308,17 +327,40 @@ erDiagram
 
 ---
 
-## MySQL schema (зарууд)
+## MySQL schema (зарууд ба admin scope)
 
-Файл: `api/sql/schema.sql`
+Base schema: `api/sql/schema.sql`. Existing орчны нэмэлт баганууд migration
+script-ээр орно.
 
-| Хүснэгт | Түлхүүр талбарууд |
-|---------|-------------------|
-| `users` | `id`, `firebase_uid`, `email`, `role` |
-| `listings` | `id`, `firebase_uid`, `customer_id`, `category`, `title`, `status`, `images` (JSON) |
-| `listing_images` | `listing_id`, `storage_url`, `sort_order` |
+| Хүснэгт | Түлхүүр талбарууд | Нэмэлт migration |
+|---------|-------------------|------------------|
+| `users` | `id`, `firebase_uid`, `email`, `role`, `admin_country_code`, `admin_region_code` | `migration_admin_rbac_phase2.sql` |
+| `listings` | `id`, `firebase_uid`, `customer_id`, `category`, `title`, `status`, `images` (JSON), `country_code`, `state_code`, `region_code` | `migration_listings_country_code.sql`, `migration_region_dmv_mvp.sql` |
+| `listing_images` | `listing_id`, `storage_url`, `sort_order` | Base schema |
 
-API: `GET ?action=listings`, `GET ?action=listing&id=`, `POST/PATCH` (Bearer token).
+API:
+
+- `GET ?action=listings&country_code=US&region_code=washington-dc`
+- optional listing filters: `country_code`, `state_code`, `region_code`
+- `GET ?action=listing&id=...`; `POST/PATCH/DELETE` writes require Bearer token
+- `POST ?action=admin_set_user_role` requires a super-admin token and mirrors
+  the role/scope into MySQL
+- PHP admin scope reads MySQL `users` by `firebase_uid`, then falls back to
+  `email` for legacy rows (`fetch_user_admin_scope_row`)
+
+### Migration constraints
+
+- `api/index.php` checks whether optional columns exist before using them, but
+  strict US region scoping requires `listings.region_code`.
+- Run market and region migrations on staging first and verify columns/indexes
+  before deploying the matching client flow. See
+  [MULTI_COUNTRY_DB_MIGRATION_PLAN.md](./MULTI_COUNTRY_DB_MIGRATION_PLAN.md)
+  and [ZARUSA_STAGING_DEPLOY.md](./ZARUSA_STAGING_DEPLOY.md).
+- `migration_admin_rbac_phase2.sql` currently uses
+  `ADD COLUMN IF NOT EXISTS`. Confirm the target database supports that
+  syntax; Oracle MySQL does not. For MySQL, use the same
+  `INFORMATION_SCHEMA` + prepared-statement guard pattern as
+  `migration_listings_country_code.sql`.
 
 ---
 
