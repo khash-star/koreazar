@@ -32,6 +32,9 @@ const PROTECTED_USER_DOC_FIELDS = new Set([
   "customerId",
   "emailVerified",
   "uid",
+  // Chat auth derives identity from the ID token; never let profile forms rewrite email.
+  "email",
+  "phoneAuthEmails",
 ]);
 
 function stripProtectedUserFields(data) {
@@ -67,7 +70,7 @@ async function ensureTermsAcceptanceIfMissing(user) {
 }
 
 /**
- * Firestore conversations/saved_listings дүрэм authEmailLower() — users/{uid}.email-тэй таарах ёстой.
+ * Firestore conversations/saved_listings дүрэм authEmailLower() — token identity-тай таарах ёстой.
  * @returns {Promise<boolean>} users/{uid}.email амжилттай бичигдсэн эсэх
  */
 export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = null) {
@@ -78,7 +81,14 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     if (!s) return "";
     return normalizeEmail(s) || "";
   };
-  let em = pick(profileEmail);
+  // Prefer verified token identity over mutable profile email.
+  let em = pick(user.email);
+  if (!em && user.phoneNumber) {
+    em = normalizeEmail(phoneToAuthEmail(user.phoneNumber)) || "";
+  }
+  if (!em) {
+    em = pick(profileEmail);
+  }
   if (!em) {
     em = await getResolvedAuthEmail(user);
   }
@@ -276,22 +286,26 @@ export async function getResolvedAuthEmail(user = auth.currentUser) {
   };
 
   let em = pick(user.email);
-  let phone = user.phoneNumber || "";
+  if (!em && user.phoneNumber) {
+    em = normalizeEmail(phoneToAuthEmail(user.phoneNumber)) || "";
+  }
 
-  try {
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      const d = snap.data();
-      em = em || pick(d?.email);
-      phone = phone || d?.phone || d?.phoneNumber || "";
+  if (!em) {
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        em = pick(d?.email);
+        if (!em) {
+          const phone = d?.phone || d?.phoneNumber || "";
+          if (phone) em = normalizeEmail(phoneToAuthEmail(phone)) || "";
+        }
+      }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 
-  if (!em && phone) {
-    em = normalizeEmail(phoneToAuthEmail(phone)) || "";
-  }
   return em;
 }
 

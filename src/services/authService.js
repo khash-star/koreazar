@@ -42,6 +42,9 @@ const PROTECTED_USER_DOC_FIELDS = new Set([
   'customerId',
   'emailVerified',
   'uid',
+  // Chat auth derives identity from the ID token; never let profile forms rewrite email.
+  'email',
+  'phoneAuthEmails',
 ]);
 
 const stripProtectedUserFields = (data) => {
@@ -154,7 +157,7 @@ export async function ensureTermsAcceptanceIfMissing(user) {
   }
 }
 
-/** conversations дүрэм authEmailLower() — token.email хоосон үед users/{uid}.email ашиглана */
+/** conversations дүрэм authEmailLower() — token.email/phone_number-аас гаралтай синтетик имэйл. */
 export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = null) {
   if (!user?.uid) return;
   const pick = (raw) => {
@@ -163,22 +166,29 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
     if (!s) return '';
     return normalizeEmail(s) || '';
   };
-  let em = pick(user.email) || pick(profileEmail);
-  let phone = user.phoneNumber || '';
+  // Prefer verified token identity over mutable profile email.
+  let em = pick(user.email);
+  const phone = user.phoneNumber || '';
+  if (!em && phone) {
+    em = normalizeEmail(phoneToAuthEmail(phone)) || '';
+  }
+  if (!em) {
+    em = pick(profileEmail);
+  }
   if (!em) {
     try {
       const snap = await getDoc(doc(db, 'users', user.uid));
       if (snap.exists()) {
         const d = snap.data();
         em = pick(d?.email);
-        phone = phone || d?.phone || d?.phoneNumber || '';
+        if (!em) {
+          const docPhone = d?.phone || d?.phoneNumber || '';
+          if (docPhone) em = normalizeEmail(phoneToAuthEmail(docPhone)) || '';
+        }
       }
     } catch {
       /* ignore */
     }
-  }
-  if (!em && phone) {
-    em = normalizeEmail(phoneToAuthEmail(phone)) || '';
   }
   if (!em) return;
   const phoneAuthEmails = [...new Set(emailQueryVariants(em))];
@@ -194,7 +204,7 @@ export async function ensureUserDocEmailForFirestoreRules(user, profileEmail = n
 }
 
 /**
- * Firestore rules / saved_listings created_by — token.email хоосон үед users doc + phone synthetic.
+ * Firestore rules / saved_listings created_by — token.email хоосон үед token phone synthetic.
  * @param {import('firebase/auth').User | null} [user]
  * @returns {Promise<string>}
  */
@@ -207,22 +217,26 @@ export async function getResolvedAuthEmail(user = auth.currentUser) {
   };
 
   let em = pick(user.email);
-  let phone = user.phoneNumber || '';
+  if (!em && user.phoneNumber) {
+    em = normalizeEmail(phoneToAuthEmail(user.phoneNumber)) || '';
+  }
 
-  try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (snap.exists()) {
-      const d = snap.data();
-      em = em || pick(d?.email);
-      phone = phone || d?.phone || d?.phoneNumber || '';
+  if (!em) {
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        em = pick(d?.email);
+        if (!em) {
+          const phone = d?.phone || d?.phoneNumber || '';
+          if (phone) em = normalizeEmail(phoneToAuthEmail(phone)) || '';
+        }
+      }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
   }
 
-  if (!em && phone) {
-    em = normalizeEmail(phoneToAuthEmail(phone)) || '';
-  }
   return em;
 }
 

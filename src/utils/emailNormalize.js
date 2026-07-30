@@ -51,19 +51,20 @@ export function areEmailVariants(a, b) {
 
 /**
  * Chat/listings identity for phone OTP users — Firebase token.email is often empty.
+ * Prefer verified Auth token identity over mutable Firestore profile email.
  * @param {object|null|undefined} user - Firebase Auth user
  * @param {object|null|undefined} userData - Firestore profile from AuthContext
  */
 export function resolveAuthEmail(user, userData) {
-  const fromProfile = normalizeEmail(userData?.email);
-  if (fromProfile) return fromProfile;
   const fromToken = normalizeEmail(user?.email);
   if (fromToken) return fromToken;
-  const phone =
-    userData?.phone ||
-    userData?.phoneNumber ||
-    user?.phoneNumber ||
-    '';
+  const tokenPhone = user?.phoneNumber || '';
+  if (tokenPhone) {
+    return normalizeEmail(phoneToAuthEmail(tokenPhone)) || '';
+  }
+  const fromProfile = normalizeEmail(userData?.email);
+  if (fromProfile) return fromProfile;
+  const phone = userData?.phone || userData?.phoneNumber || '';
   if (phone) {
     return normalizeEmail(phoneToAuthEmail(phone)) || '';
   }

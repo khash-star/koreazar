@@ -69,19 +69,62 @@ service cloud.firestore {
         .hasAny(['role', 'isAdmin', 'admin_country_code', 'admin_region_code']);
     }
 
-    // Имэйл: token.email заримдаа null биш ч "" байна — энэ үед users/{uid}.email руу шилжих ёстой.
-    function authEmailLower() {
+    // Trusted chat identity must come from the ID token only — never from mutable
+    // users/{uid}.email (phone OTP tokens often have empty email).
+    function authPhoneNumber() {
+      return request.auth != null &&
+        request.auth.token.phone_number != null &&
+        request.auth.token.phone_number is string
+        ? request.auth.token.phone_number
+        : '';
+    }
+
+    function tokenDerivedAuthEmailLower() {
       return request.auth != null &&
         request.auth.token.email != null &&
         request.auth.token.email is string &&
         request.auth.token.email.size() > 0
         ? request.auth.token.email.lower()
-        : request.auth != null &&
-            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email is string &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.size() > 0
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower()
-        : '';
+        : (
+          authPhoneNumber().matches('^[+][0-9]+$')
+            ? ('phone_' + authPhoneNumber().replace('^[+]', '') + '@phone.zarkorea.com')
+            : ''
+        );
+    }
+
+    function authEmailLower() {
+      return tokenDerivedAuthEmailLower();
+    }
+
+    // Allow only token.email or synthetic emails derived from token.phone_number
+    // (E.164 + KR/US local aliases). Never arbitrary profile emails.
+    function isTokenPhoneAliasEmail(email) {
+      let e = email is string ? email.lower() : '';
+      let phone = authPhoneNumber();
+      return phone.matches('^[+][0-9]+$') && e.size() > 0 && (
+        e == 'phone_' + phone.replace('^[+]', '') + '@phone.zarkorea.com' ||
+        (phone.matches('^[+]82[0-9]{9,10}$') &&
+          e == 'phone_' + phone.replace('^[+]82', '') + '@phone.zarkorea.com') ||
+        (phone.matches('^[+]1[0-9]{10}$') &&
+          e == 'phone_' + phone.replace('^[+]1', '') + '@phone.zarkorea.com')
+      );
+    }
+
+    function emailFieldAllowedOnWrite() {
+      return !('email' in request.resource.data) ||
+        (
+          request.resource.data.email is string &&
+          request.resource.data.email.size() > 0 &&
+          (
+            request.resource.data.email.lower() == tokenDerivedAuthEmailLower() ||
+            isTokenPhoneAliasEmail(request.resource.data.email)
+          )
+        );
+    }
+
+    function emailFieldAllowedOnUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['email']) ||
+        emailFieldAllowedOnWrite();
     }
 
     function userChatEmailMatches(participantEmail) {
@@ -133,12 +176,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if request.auth != null && request.auth.uid == userId
-        && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+        && (!('role' in request.resource.data) || request.resource.data.role == 'user')
+        && emailFieldAllowedOnWrite();
       allow update: if isSuperAdmin() || (
-        adminCanManageUserProfiles() && protectedAdminFieldsUnchanged()
+        adminCanManageUserProfiles() && protectedAdminFieldsUnchanged() && emailFieldAllowedOnUpdate()
       ) || (
         request.auth.uid == userId
         && protectedAdminFieldsUnchanged()
+        && emailFieldAllowedOnUpdate()
         && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)
       );
       allow delete: if isSuperAdmin();

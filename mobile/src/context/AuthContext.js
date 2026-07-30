@@ -88,8 +88,9 @@ export function AuthProvider({ children }) {
 
   const email =
     resolvedEmail ||
-    normalizeEmail(user?.email || userData?.email || "") ||
+    normalizeEmail(user?.email || "") ||
     (user?.phoneNumber ? normalizeEmail(phoneToAuthEmail(user.phoneNumber)) : null) ||
+    normalizeEmail(userData?.email || "") ||
     null;
 
   const value = useMemo(
