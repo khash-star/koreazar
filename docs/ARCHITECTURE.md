@@ -119,6 +119,18 @@ Listings use numeric MySQL IDs (`parseMysqlListingId` in `listingService.js`).
 
 Build script: `npm run build` → `sync-listings` + `generate-pwa-icons` + `vite build` → `dist/`.
 
+### SEO and app distribution
+
+| Source | Owns |
+|--------|------|
+| `index.html` | Canonical URL, primary meta tags, Open Graph/Twitter tags, and JSON-LD (`Organization`, `WebSite`, Android `MobileApplication`) |
+| `public/robots.txt` | Crawl policy for public, auth-only, admin, and duplicate query routes |
+| `public/sitemap.xml` | Static public route sitemap for `zarkorea.com` |
+| `src/constants/appUrls.js` | Official Play Store URL and package ID constants |
+| `src/pages/Layout.jsx` | Footer app-download QR/modal links that consume `PLAY_STORE_URL` |
+
+When the store listing URL or package ID changes, update `src/constants/appUrls.js`, `index.html` JSON-LD, and any UI that imports `PLAY_STORE_URL` together. The current structured data advertises the Android app only; do not add an iOS App Store URL until a real public listing exists.
+
 ---
 
 ## Mobile application (`mobile/`)

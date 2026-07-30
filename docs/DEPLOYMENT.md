@@ -56,6 +56,17 @@ flowchart TB
 | `installCommand` | `npm install` |
 | `devCommand` | `npm run dev` |
 
+### Host-based redirects
+
+`zarkorea.com` is the only public/canonical web host. The Vercel default host redirects permanently:
+
+| Source host | Path match | Destination |
+|-------------|------------|-------------|
+| `koreazar.vercel.app` | `/` | `https://zarkorea.com/` |
+| `koreazar.vercel.app` | `/:path+` | `https://zarkorea.com/:path*` |
+
+Keep the root rule separate from the path rule: Vercel's `/:path+` rule does not match `/`.
+
 ### Build pipeline
 
 ```bash
@@ -110,6 +121,8 @@ After deploy, confirm:
 - https://zarkorea.com/manifest.json
 - Service worker registered (DevTools → Application)
 - Icons at `/icon-192.png`, `/icon-512.png`
+- `curl -I https://koreazar.vercel.app/` returns `301` with `Location: https://zarkorea.com/`
+- `curl -I https://koreazar.vercel.app/CreateListing` returns `301` with `Location: https://zarkorea.com/CreateListing`
 
 ---
 
@@ -305,9 +318,10 @@ Documented in `docs/PLAY_STORE_SETUP.md`:
 
 ## DNS and domains
 
-| Domain | Host |
+| Domain | Role |
 |--------|------|
-| `zarkorea.com` | Vercel (web SPA) |
+| `zarkorea.com` | Canonical production SPA on Vercel |
+| `koreazar.vercel.app` | Vercel default host; permanent redirect to `zarkorea.com` |
 | `api.zarkorea.com` | PHP API server |
 
 DNS guides at repo root: `DOMAIN_SETUP_GUIDE.md`, `CLOUDFLARE_VERCEL_DNS.md`.

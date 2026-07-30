@@ -308,6 +308,15 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 - Cloudflare ашиглавал proxy + SSL mode  
 Root: `DOMAIN_SETUP_GUIDE.md`, `CLOUDFLARE_VERCEL_DNS.md`
 
+### koreazar.vercel.app дээр орж байна
+
+**Хүлээгдэж буй байдал:** `koreazar.vercel.app` бол Vercel default host бөгөөд `zarkorea.com` руу `301` redirect хийнэ.
+
+**Шийдэл:**
+- `curl -I https://koreazar.vercel.app/` → `Location: https://zarkorea.com/`
+- Дэд зам шалгах: `curl -I https://koreazar.vercel.app/CreateListing`
+- Redirect алга бол `vercel.json` дээр `/` болон `/:path+` host redirect хоёулаа байгаа эсэх шалгах
+
 ### API CORS алдаа
 
 PHP `Access-Control-Allow-Origin: *` тохируулагдсан. Хэрэв алдаа гарвал:
