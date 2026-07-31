@@ -24,16 +24,22 @@ export function emailQueryVariants(email) {
   const m = em.match(/^phone_(\d+)@phone\.zarkorea\.com$/);
   if (m) {
     const digits = m[1];
+    // US E.164 (+1 + 10 NANP digits). KR mobile locals are 10xxxxxxxx and must not
+    // be excluded from the KR branch via a broad startsWith('1') check.
+    const isUsE164 = digits.startsWith('1') && digits.length === 11;
+    const isKrMobileLocal = digits.startsWith('10') && digits.length === 10;
+
     if (digits.startsWith('82') && digits.length > 10) {
       out.add(`phone_${digits.slice(2)}@phone.zarkorea.com`);
       out.add(normalizeEmail(phoneToAuthEmail(`+${digits}`)));
-    } else if (!digits.startsWith('82') && !digits.startsWith('1') && (digits.length === 9 || digits.length === 10)) {
+    } else if (!digits.startsWith('82') && !isUsE164 && (digits.length === 9 || digits.length === 10)) {
       out.add(`phone_82${digits}@phone.zarkorea.com`);
       out.add(normalizeEmail(phoneToAuthEmail(`+82${digits}`)));
     }
-    if (digits.startsWith('1') && digits.length === 11) {
+
+    if (isUsE164) {
       out.add(`phone_${digits.slice(1)}@phone.zarkorea.com`);
-    } else if (digits.length === 10) {
+    } else if (digits.length === 10 && !isKrMobileLocal) {
       out.add(`phone_1${digits}@phone.zarkorea.com`);
     }
   }
@@ -45,8 +51,10 @@ export function areEmailVariants(a, b) {
   const right = normalizeEmail(b);
   if (!left || !right) return false;
   if (left === right) return true;
-  const variants = new Set(emailQueryVariants(left));
-  return variants.has(right);
+  const leftVariants = new Set(emailQueryVariants(left));
+  if (leftVariants.has(right)) return true;
+  // Symmetric: legacy local→canonical must match even if one side's expansion is incomplete.
+  return new Set(emailQueryVariants(right)).has(left);
 }
 
 /**
