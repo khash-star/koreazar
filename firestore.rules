@@ -234,8 +234,14 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
+      // Participants may only flip is_read (mark-as-read). Unrestricted
+      // updates let a sender rewrite conversation_id / body into another thread.
       allow update: if request.auth != null &&
-        (isMessageSenderOrReceiver() || isAppAdmin());
+        (isMessageSenderOrReceiver() || isAppAdmin()) &&
+        (
+          isAppAdmin() ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read'])
+        );
       allow delete: if request.auth != null &&
         (isMessageSenderOrReceiver() || isAppAdmin());
     }

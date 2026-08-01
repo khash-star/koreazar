@@ -266,6 +266,10 @@ try {
                 }
                 $hasRegionCode = table_has($pdo, 'listings', 'region_code');
                 enforce_us_listing_write_region($pdo, $payload);
+                // Native prepares require every named placeholder to be present.
+                if ($hasRegionCode && !array_key_exists('region_code', $payload)) {
+                    $payload['region_code'] = null;
+                }
 
                 $sql = 'INSERT INTO listings (
                     firebase_uid, ' . ($hasListingCustomerId ? 'customer_id, ' : '') . 'created_by, category, subcategory, title, description, price, is_negotiable,
