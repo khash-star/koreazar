@@ -230,7 +230,9 @@ function enforce_us_listing_write_region(PDO $pdo, array &$payload): void
 
     $country = normalize_listing_country_code((string) ($payload['country_code'] ?? 'KR'));
     if ($country !== 'US') {
-        unset($payload['region_code']);
+        // Keep the key so CREATE INSERT :region_code binds under
+        // PDO::ATTR_EMULATE_PREPARES=false (unset → HY093 / lost write).
+        $payload['region_code'] = null;
 
         return;
     }
