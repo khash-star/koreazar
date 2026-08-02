@@ -715,15 +715,11 @@ export async function updateConversationAfterMessage({
   const now = Timestamp.now();
   const iso = new Date().toISOString();
 
+  // Only canonicalize the sender's own slot. Rewriting the counterparty email is
+  // blocked by Firestore rules (inbox phishing / fake-admin injection).
   const patch = {
-    participant_1: pickCanonicalParticipantEmail(
-      p1,
-      senderIsP1 ? sender : areEmailVariants(p1, receiver) ? receiver : ''
-    ),
-    participant_2: pickCanonicalParticipantEmail(
-      p2,
-      !senderIsP1 ? sender : areEmailVariants(p2, receiver) ? receiver : ''
-    ),
+    participant_1: senderIsP1 ? pickCanonicalParticipantEmail(p1, sender) : p1,
+    participant_2: !senderIsP1 ? pickCanonicalParticipantEmail(p2, sender) : p2,
     participant_uids: [...new Set(participant_uids)],
     last_message: String(messageText ?? ''),
     last_message_date: now,
