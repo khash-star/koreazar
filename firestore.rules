@@ -113,6 +113,66 @@ service cloud.firestore {
       );
     }
 
+    // Token-only identity for participant slot rematch on update.
+    // Do not use mutable users/{uid}.email / phoneAuthEmails here — that would
+    // let an attacker rename their own slot to a victim/admin address.
+    function authPhoneNumber() {
+      return request.auth != null &&
+        request.auth.token.phone_number != null &&
+        request.auth.token.phone_number is string
+        ? request.auth.token.phone_number
+        : '';
+    }
+
+    function tokenDerivedChatEmailLower() {
+      return request.auth != null &&
+        request.auth.token.email != null &&
+        request.auth.token.email is string &&
+        request.auth.token.email.size() > 0
+        ? request.auth.token.email.lower()
+        : (
+          authPhoneNumber().matches('^[+][0-9]+$')
+            ? ('phone_' + authPhoneNumber().replace('^[+]', '') + '@phone.zarkorea.com')
+            : ''
+        );
+    }
+
+    function isTokenPhoneAliasEmail(email) {
+      let e = email is string ? email.lower() : '';
+      let phone = authPhoneNumber();
+      return phone.matches('^[+][0-9]+$') && e.size() > 0 && (
+        e == 'phone_' + phone.replace('^[+]', '') + '@phone.zarkorea.com' ||
+        (phone.matches('^[+]82[0-9]{9,10}$') &&
+          e == 'phone_' + phone.replace('^[+]82', '') + '@phone.zarkorea.com') ||
+        (phone.matches('^[+]1[0-9]{10}$') &&
+          e == 'phone_' + phone.replace('^[+]1', '') + '@phone.zarkorea.com')
+      );
+    }
+
+    function participantEmailMatchesToken(participantEmail) {
+      let em = tokenDerivedChatEmailLower();
+      return participantEmail is string &&
+        participantEmail.size() > 0 && (
+          (em.size() > 0 && participantEmail.lower() == em) ||
+          isTokenPhoneAliasEmail(participantEmail)
+        );
+    }
+
+    function conversationParticipantSlotAllowed(oldEmail, newEmail) {
+      return (oldEmail is string && newEmail is string && oldEmail.lower() == newEmail.lower()) ||
+        (participantEmailMatchesToken(oldEmail) && participantEmailMatchesToken(newEmail));
+    }
+
+    // Participants may update metadata (last_message, unread, uids) but cannot
+    // swap the other party to an unrelated email (inbox phishing / fake admin).
+    // Own-slot phone/email variant canonicalization remains allowed via token.
+    function conversationParticipantsUpdateAllowed() {
+      return conversationParticipantSlotAllowed(
+          resource.data.participant_1, request.resource.data.participant_1) &&
+        conversationParticipantSlotAllowed(
+          resource.data.participant_2, request.resource.data.participant_2);
+    }
+
     function isMessageConversationParticipant() {
       return request.auth != null &&
         resource.data.conversation_id is string &&
@@ -226,7 +286,10 @@ service cloud.firestore {
         (isConversationParticipant() || isAppAdmin());
       allow create: if request.auth != null;
       allow update: if request.auth != null &&
-        (isConversationParticipant() || isAppAdmin());
+        (
+          (isConversationParticipant() && conversationParticipantsUpdateAllowed()) ||
+          isSuperAdmin()
+        );
       allow delete: if request.auth != null &&
         (isConversationParticipant() || isAppAdmin());
     }
