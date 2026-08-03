@@ -8,7 +8,7 @@ Phase 2 scoped roles (`src/constants/adminRoles.js` → `npm run sync-admin-role
 | `country_admin` | `admin_country_code` | One country, all active regions |
 | `region_admin` | `admin_region_code` (+ US) | One region (e.g. `washington-dc`) |
 
-Canonical plan: `docs/ZARUSA_REGION_PHASES.md` Phase 2.  
+Canonical plan: `docs/ZARUSA_REGION_PHASES.md` Phase 2.
 PHP scope lookup: `APP_ADMIN_UIDS` → MySQL `firebase_uid` → legacy `email`.
 
 ---
