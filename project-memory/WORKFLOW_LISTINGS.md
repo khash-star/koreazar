@@ -1,17 +1,17 @@
 # Workflow: Listings (Зарын систем)
 
-> **Хэзээ ашиглах:** Зар үүсгэх/засах/харуулах, Home filter, My Listings, Saved, admin moderation, категори/constants, PHP API listings endpoint.  
-> **Каноник баримт:** `docs/ARCHITECTURE.md` · `docs/FIRESTORE_SCHEMA.md` (MySQL хэсэг) · `docs/TROUBLESHOOTING.md`  
+> **Хэзээ ашиглах:** Зар үүсгэх/засах/харуулах, Home filter, My Listings, Saved, admin moderation, категори/constants, PHP API listings endpoint.
+> **Каноник баримт:** `docs/ARCHITECTURE.md` · `docs/FIRESTORE_SCHEMA.md` (MySQL хэсэг) · `docs/TROUBLESHOOTING.md`
 > **Ерөнхий дараалал:** `AGENT_TASK_WORKFLOW.md` → энэ playbook
 
 ---
 
 ## Урьдчилсан нөхцөл
 
-- [ ] Зарууд **MySQL + PHP API** дээр байгааг ойлгосон (Firestore `listings` = legacy)  
-- [ ] `api/sql/schema.sql` — `listings`, `listing_images`, `users`  
-- [ ] `src/services/listingService.js` уншсан  
-- [ ] Web/mobile аль аль нь эсэхийг тодорхойлсон  
+- [ ] Зарууд **MySQL + PHP API** дээр байгааг ойлгосон (Firestore `listings` = legacy)
+- [ ] `api/sql/schema.sql` — `listings`, `listing_images`, `users`
+- [ ] `src/services/listingService.js` уншсан
+- [ ] Web/mobile аль аль нь эсэхийг тодорхойлсон
 
 ---
 
@@ -73,8 +73,8 @@ CreateListing.jsx
 
 ### Зураг
 
-- Client compression: `createImageVariants` / `imageCompressor`  
-- Storage paths: `listings/{kr|us|jp}/{year}/{listingId}/…` (`storagePaths.js`); legacy `images/` still valid  
+- Client compression: `createImageVariants` / `imageCompressor`
+- Storage paths: `listings/{kr|us|jp}/{year}/{listingId}/…` (`storagePaths.js`); legacy `images/` still valid
 - Limits: `src/utils/limits.js` — 10 зураг, 5MB
 
 ---
@@ -92,16 +92,16 @@ CreateListing.jsx
 
 ### 2. API өөрчлөлт
 
-- Bearer token: `getAuthHeaders()` — `auth.currentUser.getIdToken()`  
-- View count: зөвхөн `views` bump — authгүй PATCH зөвшөөрнө (`listingService.isViewCountOnlyBump`)  
-- Admin: PHP `APP_ADMIN_UIDS` → MySQL `firebase_uid` → legacy `email`; roles `super_admin` / `country_admin` / `region_admin` (`admin_can_moderate_listing`)  
-- Write country: `resolveRouteCountryCode()` — URL path only  
+- Bearer token: `getAuthHeaders()` — `auth.currentUser.getIdToken()`
+- View count: зөвхөн `views` bump — authгүй PATCH зөвшөөрнө (`listingService.isViewCountOnlyBump`)
+- Admin: PHP `APP_ADMIN_UIDS` → MySQL `firebase_uid` → legacy `email`; roles `super_admin` / `country_admin` / `region_admin` (`admin_can_moderate_listing`)
+- Write country: `resolveRouteCountryCode()` — URL path only
 - `parseMysqlListingId` — зөвхөн positive integer MySQL ID
 
 ### 3. Web
 
-- React Query cache: `queryClient.invalidateQueries` after create/update  
-- SEO: `ListingDetail.jsx` meta title/description  
+- React Query cache: `queryClient.invalidateQueries` after create/update
+- SEO: `ListingDetail.jsx` meta title/description
 - Banned content: `checkBannedListingFields` before submit
 
 ### 4. Mobile parity
@@ -115,13 +115,13 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 
 ### 5. Saved listings (Firestore)
 
-- Collection: `saved_listings` — `listing_id` (MySQL ID string), `user_uid`, `created_by`  
+- Collection: `saved_listings` — `listing_id` (MySQL ID string), `user_uid`, `created_by`
 - Rules: owner by uid or email
 
 ### 6. Admin moderation
 
-- `config/app.listingAutoApprove` — шинэ зар шууд `active`  
-- Admin pages: status өөрчлөх → API PATCH (scope-д багтсан listing л)  
+- `config/app.listingAutoApprove` — шинэ зар шууд `active`
+- Admin pages: status өөрчлөх → API PATCH (scope-д багтсан listing л)
 - US admin back-link: `useMarketHomePath` → `/us` (KR root `/` руу бүү унагаа)
 
 ---
@@ -161,18 +161,18 @@ QA: `qa/image-upload-tests.md`, `qa/web-regression-tests.md`, `qa/mobile-regress
 
 ## Зогсох ёстой нөхцөл
 
-- Шинэ зарыг Firestore руу шилжүүлэх (одоогийн архитектур MySQL)  
-- `VITE_API_BASE_URL` / production API-г кодонд hardcode хийх  
-- Категори зөвхөн mobile дээр засах (`sync-listings` алгасах)  
-- `customer_id` / `firebase_uid` sync эвдэх (`user_sync` flow)  
-- Write country-г `localStorage` preference-ээс авах (`resolveRouteCountryCode` л)  
+- Шинэ зарыг Firestore руу шилжүүлэх (одоогийн архитектур MySQL)
+- `VITE_API_BASE_URL` / production API-г кодонд hardcode хийх
+- Категори зөвхөн mobile дээр засах (`sync-listings` алгасах)
+- `customer_id` / `firebase_uid` sync эвдэх (`user_sync` flow)
+- Write country-г `localStorage` preference-ээс авах (`resolveRouteCountryCode` л)
 - KR feed-д client-only шүүлтээр найдах (API `append_kr_listing_read_filter` заавал)
 
 ---
 
 ## Холбоотой
 
-- `WORKFLOW_AUTH.md` — Bearer token, `user_sync`, `customerId`  
-- `summaries/api_summary.md` — PHP action жагсаалт  
-- `docs/DEPLOYMENT.md` — API hosting  
+- `WORKFLOW_AUTH.md` — Bearer token, `user_sync`, `customerId`
+- `summaries/api_summary.md` — PHP action жагсаалт
+- `docs/DEPLOYMENT.md` — API hosting
 - Root `TESTING_FLOW.md` — гараар regression
