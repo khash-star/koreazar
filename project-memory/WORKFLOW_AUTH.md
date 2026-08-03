@@ -1,17 +1,17 @@
 # Workflow: Auth (Нэвтрэлт, бүртгэл, профайл)
 
-> **Хэзээ ашиглах:** Login/Register/Profile, утас OTP, Facebook, `users` collection, `user_sync`, session, бүртгэл устгах, admin role.  
-> **Каноник баримт:** `docs/SECURITY.md` · `docs/FIREBASE.md` · `docs/TROUBLESHOOTING.md`  
+> **Хэзээ ашиглах:** Login/Register/Profile, утас OTP, Facebook, `users` collection, `user_sync`, session, бүртгэл устгах, admin role.
+> **Каноник баримт:** `docs/SECURITY.md` · `docs/FIREBASE.md` · `docs/TROUBLESHOOTING.md`
 > **Ерөнхий дараалал:** `AGENT_TASK_WORKFLOW.md` → энэ playbook
 
 ---
 
 ## Урьдчилсан нөхцөл
 
-- [ ] Firebase Auth + Firestore `users` + PHP `user_sync` гурвалсан урсгалыг ойлгосон  
-- [ ] Web: `VITE_FIREBASE_*` · Mobile: `EXPO_PUBLIC_FIREBASE_*` (нэр л, утга биш)  
-- [ ] `CODING_SAFETY_CHECKLIST.md`  
-- [ ] Native OTP бол EAS build шаардлагатай  
+- [ ] Firebase Auth + Firestore `users` + PHP `user_sync` гурвалсан урсгалыг ойлгосон
+- [ ] Web: `VITE_FIREBASE_*` · Mobile: `EXPO_PUBLIC_FIREBASE_*` (нэр л, утга биш)
+- [ ] `CODING_SAFETY_CHECKLIST.md`
+- [ ] Native OTP бол EAS build шаардлагатай
 
 ---
 
@@ -79,8 +79,8 @@ Chat / listings / mark-read must use `areEmailVariants`, not raw string equality
 
 ### Session
 
-- Web: Firebase Auth persistence (default)  
-- Mobile: Firebase JS Auth + `AsyncStorage` (README)  
+- Web: Firebase Auth persistence (default)
+- Mobile: Firebase JS Auth + `AsyncStorage` (README)
 - AuthContext: `loading` false болгохоос өмнө basic `userData` set — LCP/blocking бүү нэм
 
 ---
@@ -98,7 +98,7 @@ Chat / listings / mark-read must use `areEmailVariants`, not raw string equality
 | `profileCompleted` | OTP дараах нэр бөглөлт |
 | `termsAcceptedAt` | Compliance |
 
-**Protected fields (client):** `role`, `admin_*`, `isAdmin`, `customerId` — `PROTECTED_USER_DOC_FIELDS` in `authService.js`.  
+**Protected fields (client):** `role`, `admin_*`, `isAdmin`, `customerId` — `PROTECTED_USER_DOC_FIELDS` in `authService.js`.
 **Assign roles:** Console / super-admin UI + MySQL parity (`admin_set_user_role` / `sync-admin-roles`). Client self-elevate бүү зөвшөөр.
 
 ---
@@ -117,13 +117,13 @@ Chat / listings / mark-read must use `areEmailVariants`, not raw string equality
 
 ### 2. Firestore rules
 
-- `users`: read public; update — owner without `role` / `admin_*` change  
-- Role assign: `super_admin` only (legacy `admin` = super). See `docs/ZARUSA_REGION_PHASES.md` Phase 2  
+- `users`: read public; update — owner without `role` / `admin_*` change
+- Role assign: `super_admin` only (legacy `admin` = super). See `docs/ZARUSA_REGION_PHASES.md` Phase 2
 - PHP API scope: `APP_ADMIN_UIDS` → `firebase_uid` → legacy `email` (`fetch_user_admin_scope_row`)
 
 ### 3. PHP sync
 
-- `user_sync` дуудах газар өөрчлөгдвөл MySQL `users` мөр таарна  
+- `user_sync` дуудах газар өөрчлөгдвөл MySQL `users` мөр таарна
 - `customer_id` listings API-д ашиглагдана
 
 ### 4. Env
@@ -136,8 +136,8 @@ Chat / listings / mark-read must use `areEmailVariants`, not raw string equality
 
 ### 5. Security
 
-- Нууц үг: `validatePassword` (min 6)  
-- Reauth before delete: `reauthenticateWithCredential`  
+- Нууц үг: `validatePassword` (min 6)
+- Reauth before delete: `reauthenticateWithCredential`
 - Secrets commit хийхгүй
 
 ---
@@ -174,19 +174,19 @@ QA: `qa/admin-rbac-tests.md`, `qa/firebase-tests.md`
 
 ## Зогсох ёстой нөхцөл
 
-- Client-ээс `role` / `admin_*` self-elevate хийх  
-- `firebase/config.js` дотор key hardcode  
-- Expo Go дээр native phone OTP «ажиллана» гэж таамаглах  
-- Auth flow өөрчилж `ensureUserDocEmailForFirestoreRules` / `resolveAuthEmail` алгасах (чат эвдэнэ)  
-- Phone identity-д raw email `===` ашиглах (`areEmailVariants` хэрэгтэй)  
+- Client-ээс `role` / `admin_*` self-elevate хийх
+- `firebase/config.js` дотор key hardcode
+- Expo Go дээр native phone OTP «ажиллана» гэж таамаглах
+- Auth flow өөрчилж `ensureUserDocEmailForFirestoreRules` / `resolveAuthEmail` алгасах (чат эвдэнэ)
+- Phone identity-д raw email `===` ашиглах (`areEmailVariants` хэрэгтэй)
 - Production `VITE_FIREBASE_PHONE_TEST_MODE=true`
 
 ---
 
 ## Холбоотой
 
-- `WORKFLOW_CHAT.md` — `resolveChatParticipantEmail`, synthetic email  
-- `WORKFLOW_LISTINGS.md` — Bearer token, `customerId`  
-- `WORKFLOW_PUSH.md` — login дараах token бүртгэл  
-- `mobile/docs/PHONE_OTP_NATIVE_SETUP.md`  
+- `WORKFLOW_CHAT.md` — `resolveChatParticipantEmail`, synthetic email
+- `WORKFLOW_LISTINGS.md` — Bearer token, `customerId`
+- `WORKFLOW_PUSH.md` — login дараах token бүртгэл
+- `mobile/docs/PHONE_OTP_NATIVE_SETUP.md`
 - Root `FACEBOOK_LOGIN_SETUP.md`, `KAKAO_LOGIN_SETUP.md`
