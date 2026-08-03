@@ -29,7 +29,10 @@
 | Listing/category constants | `src/constants/listings.js` → `npm run sync-listings` |
 | Admin roles/scope helpers | `src/constants/adminRoles.js` → `npm run sync-admin-roles` |
 | Admin market home links | `src/hooks/useMarketHomePath.js` (scoped US → `/us`) |
+| Home title / SEO / icons | `src/hooks/useMarketPageMeta.js` + country config |
 | Storage paths | `src/utils/storagePaths.js` + mobile mirror |
+| Phone auth email identity | `src/utils/emailNormalize.js` (`resolveAuthEmail`, KR/US variants) |
+| Agent listing/auth/chat playbooks | `WORKFLOW_LISTINGS.md`, `WORKFLOW_AUTH.md`, `WORKFLOW_CHAT.md` |
 | Firestore/MySQL fields | `docs/FIRESTORE_SCHEMA.md` |
 | ZAR-USA rollout | `docs/ZARUSA_REGION_PHASES.md` |
 | Chat and push | `docs/CHAT_SYSTEM.md`, `mobile/docs/CHAT_PUSH_SETUP.md` |
