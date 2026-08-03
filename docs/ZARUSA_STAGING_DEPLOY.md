@@ -17,9 +17,38 @@ SHOW COLUMNS FROM listings LIKE 'region_code';
 SHOW INDEX FROM listings WHERE Key_name = 'listings_country_region_index';
 ```
 
-## 2) PHP upload (cPanel → api.zarkorea.com document root)
+## 2) PHP upload (api.zarkorea.com document root)
 
-Generate upload bundle:
+Uploads `api/index.php` + `api/regions.php` only. Do **not** delete
+`bootstrap.php`, `banned_content.php`, `.env`, or `.htaccess` on the server.
+
+### Preferred — SSH/SCP (Windows PowerShell)
+
+```powershell
+# once: copy scripts/deploy-zarusa-api.env.example → scripts/deploy-zarusa-api.local.env
+# fill ZARUSA_DEPLOY_HOST / USER / REMOTE_DIR / SSH_KEY (and optional DB_*)
+npm run deploy:zarusa-api
+```
+
+| Flag / env | Effect |
+|------------|--------|
+| `-SkipMigration` | Upload PHP only; do not run SQL over SSH |
+| `-SkipVerify` | Skip post-deploy `smoke:zarusa-api` |
+| `-DryRun` | Print planned actions only |
+
+`*.local.env` is gitignored — never commit credentials.
+
+### Fallback — FTP
+
+```powershell
+# same local.env (or ZARUSA_FTP_* env vars)
+npm run deploy:zarusa-api:ftp
+```
+
+Optional one-time MySQL RBAC runner can be skipped with `ZARUSA_SKIP_MIGRATION=1`.
+Requires `curl` available as `curl.exe` on Windows.
+
+### Manual — package then cPanel upload
 
 ```powershell
 npm run package:zarusa-api
@@ -31,8 +60,6 @@ Upload from `deploy/zarusa-api-upload/`:
 |------------|--------|
 | `api/index.php` | `index.php` |
 | `api/regions.php` | `regions.php` |
-
-Do **not** delete `bootstrap.php`, `banned_content.php`, `.env`, `.htaccess`.
 
 ## 3) Verify API (from repo root)
 
