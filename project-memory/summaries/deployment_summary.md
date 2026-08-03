@@ -10,6 +10,9 @@
   host redirects there.
 - PHP is deployed separately to `api.zarkorea.com`; do not assume a Vercel
   deploy updates `api/index.php` or `api/regions.php`.
+- Preferred API upload: `npm run deploy:zarusa-api` (SCP). Fallback:
+  `deploy:zarusa-api:ftp` or `package:zarusa-api` + manual cPanel.
+  Credentials live in gitignored `scripts/deploy-zarusa-api.local.env`.
 - Keep environment values in Vercel/cPanel/EAS; docs list names only.
 
 ## Database gates
