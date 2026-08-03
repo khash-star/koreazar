@@ -101,6 +101,21 @@ surface applies its own country/region scope.
   `resolveMarketHomePath` so US `country_admin` / `region_admin` return to
   `/us` instead of the KR root `/`.
 
+#### Market page meta (Home)
+
+`Home.jsx` calls `useMarketPageMeta()` (`src/hooks/useMarketPageMeta.js`).
+On `/us` (and other country routes) it syncs:
+
+| Surface | Source field (country config) |
+|---------|-------------------------------|
+| `document.title` | `appName` + `marketFooterTitle` |
+| `<meta name="description">` | `marketSeoBlurb` |
+| Apple touch icon / favicon | `marketAppIcon` (US: `/icon-us-180.png`) |
+
+Unmount restores KR defaults from `src/config/countries/kr.js` (matches
+`index.html`). Navbar/footer copy is separate — `Layout.jsx` via
+`useActiveCountry()` (`marketNavbarTitle`, `marketFooterTitle`).
+
 ### Service layer (`src/services/`)
 
 | Service | Backend | Responsibility |
@@ -232,8 +247,10 @@ Phone OTP users get synthetic emails (`phoneToAuthEmail`) so Firestore chat rule
 ## Home page data path (performance-critical)
 
 1. Browser loads `index.html` → Vite bundle → `Home` mounts.
-2. React Query fetches **banners** (Firestore) and **listings** (PHP API).
-3. Image URLs from responses trigger Firebase Storage / CDN fetches.
+2. `useMarketPageMeta()` applies country title/description/icons for the active route.
+3. React Query fetches **banners** (Firestore) and **listings** (PHP API with market filters).
+4. Client applies `filterListingsForMarket` as a second KR/US isolation layer.
+5. Image URLs from responses trigger Firebase Storage / CDN fetches.
 
 **Bottleneck:** Images cannot load until listing/banner API responses return. Mitigations documented in `docs/IMAGE_LOAD_ANALYSIS.md` (preconnect, `staleTime`, eager loading on first cards).
 

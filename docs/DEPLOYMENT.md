@@ -61,7 +61,7 @@ flowchart TB
 ```bash
 npm install
 npm run build
-# Runs: sync-listings → generate-pwa-icons → vite build
+# Runs: sync-listings → sync-admin-roles → generate-pwa-icons → vite build
 ```
 
 Output: `dist/index.html`, hashed assets, `manifest.json`, service worker (`sw.js` / Workbox).
@@ -157,10 +157,22 @@ Composite indexes may take minutes to build in Firebase Console. Query errors in
 | File | Role |
 |------|------|
 | `index.php` | Router (`action=` parameter) |
+| `regions.php` | US region registry + listing read/write scope helpers |
 | `bootstrap.php` | DB connection, auth helpers |
 | `banned_content.php` | Content filter |
 | `.htaccess` | Apache rewrite |
 | `sql/schema.sql` | MySQL schema |
+
+### Deploying PHP (`index.php` + `regions.php`)
+
+| Command | When |
+|---------|------|
+| `npm run deploy:zarusa-api` | Preferred SSH/SCP (Windows); needs `scripts/deploy-zarusa-api.local.env` |
+| `npm run deploy:zarusa-api:ftp` | FTP fallback (`ZARUSA_FTP_*` or same local.env) |
+| `npm run package:zarusa-api` | Manual cPanel bundle under `deploy/zarusa-api-upload/` |
+
+Staging order, flags (`-SkipMigration`, `-SkipVerify`, `-DryRun`), and smoke checks:
+[`docs/ZARUSA_STAGING_DEPLOY.md`](./ZARUSA_STAGING_DEPLOY.md). Never commit `*.local.env`.
 
 ### Server environment (`api/.env`)
 
