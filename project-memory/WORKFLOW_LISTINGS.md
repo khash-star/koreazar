@@ -22,10 +22,12 @@
 | List CRUD | `src/services/listingService.js` | `mobile/src/services/listingService.js` | `api/index.php` (`action=listings`, `listing`) |
 | Entity wrapper | `src/api/entities.js` → `Listing` | API client | — |
 | UI | `Home.jsx`, `ListingDetail.jsx`, `CreateListing.jsx`, `EditListing.jsx`, `MyListings.jsx` | Home, detail, create screens | — |
-| Images | `src/services/storageService.js`, `imageCompressor.jsx` | `storageService.native.js` / `.web.js` | Firebase Storage |
+| Images | `src/services/storageService.js`, `storagePaths.js` | `storageService.native.js` / `.web.js`, `storagePaths.js` | Firebase Storage |
+| Market filter | `src/utils/listingCountry.js` | `mobile/src/utils/listingCountry.js` | `api/regions.php` |
+| Country/region | `src/config/country.js`, `regions/` | `mobile/src/config/country.js`, `regions/` | `api/regions.php` |
 | Constants | `src/constants/listings.js` | `mobile/src/constants/listings.js` (sync) | — |
 | Saved | `src/api/entities.js` → `SavedListing` | `savedListingService.js` | Firestore `saved_listings` |
-| Admin | `AdminNewListings.jsx`, `AdminAllListings.jsx` | Admin screens | `APP_ADMIN_UIDS` (PHP) |
+| Admin | Admin pages + `adminRoles.js` | Admin screens + `adminRoles.js` | `get_app_admin_scope` / `admin_can_moderate_listing` |
 | Auto-approve | `appConfigService.js` | `appConfigService.js` | Firestore `config/app` |
 
 **API base:** `VITE_API_BASE_URL` / `EXPO_PUBLIC_API_BASE_URL` (default `https://api.zarkorea.com/index.php`)
@@ -39,18 +41,32 @@
 ```
 Home.jsx → entities.Listing.filter / list
   → listingService.filterListings / listListings
-  → GET api/index.php?action=listings&status=active&category=...
-  → MySQL listings
+  → GET api/index.php?action=listings&status=active&country_code=KR|US&...
+  → MySQL + api/regions.php filters
+  → client filterListingsForMarket (listingCountry.js)
   → normalizeListing (id string, images array)
 ```
+
+**KR isolation (хоёр давхарга):**
+
+| Давхарга | Функц | Зан төлөв |
+|----------|-------|-----------|
+| API | `append_kr_listing_read_filter` | Зөвхөн KR / legacy NULL `country_code`; `US`/`JP` болон `region_code`тай мөрийг хасна |
+| Client | `filterListingsForMarket` | Ижил дүрэм — mis-tagged US regional мөр KR feed-д орохгүй |
+
+**US reads:** `country_code=US` → default `region_code=washington-dc` (server-side). Client-only filter-д бүү найд.
+
+Mis-tagged rows: `api/sql/fix_us_listings_country_code.sql` (ops; production run = explicit approval).
 
 ### Үүсгэх
 
 ```
 CreateListing.jsx
-  → image upload → Storage (storageService)
+  → resolveRouteCountryCode (URL-only — localStorage биш)
+  → image upload → Storage (country-aware path)
   → entities.Listing.create
   → listingService.createListing (POST + Bearer token)
+  → enforce_us_listing_write_region (US → washington-dc, DC/VA/MD)
   → MySQL insert
   → [optional] getListingAutoApprove() → status active/pending
 ```
@@ -58,7 +74,7 @@ CreateListing.jsx
 ### Зураг
 
 - Client compression: `createImageVariants` / `imageCompressor`  
-- Storage paths: `listings/{id}/`, `images/` (`storage.rules`)  
+- Storage paths: `listings/{kr|us|jp}/{year}/{listingId}/…` (`storagePaths.js`); legacy `images/` still valid  
 - Limits: `src/utils/limits.js` — 10 зураг, 5MB
 
 ---
@@ -78,7 +94,8 @@ CreateListing.jsx
 
 - Bearer token: `getAuthHeaders()` — `auth.currentUser.getIdToken()`  
 - View count: зөвхөн `views` bump — authгүй PATCH зөвшөөрнө (`listingService.isViewCountOnlyBump`)  
-- Admin: PHP `APP_ADMIN_UIDS` эсвэл Firestore `role=admin`  
+- Admin: PHP `APP_ADMIN_UIDS` → MySQL `firebase_uid` → legacy `email`; roles `super_admin` / `country_admin` / `region_admin` (`admin_can_moderate_listing`)  
+- Write country: `resolveRouteCountryCode()` — URL path only  
 - `parseMysqlListingId` — зөвхөн positive integer MySQL ID
 
 ### 3. Web
@@ -104,7 +121,8 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 ### 6. Admin moderation
 
 - `config/app.listingAutoApprove` — шинэ зар шууд `active`  
-- Admin pages: status өөрчлөх → API PATCH
+- Admin pages: status өөрчлөх → API PATCH (scope-д багтсан listing л)  
+- US admin back-link: `useMarketHomePath` → `/us` (KR root `/` руу бүү унагаа)
 
 ---
 
@@ -113,14 +131,15 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 | # | Шалгах |
 |---|--------|
 | 1 | `GET ?action=health` → `ok: true` |
-| 2 | Home — идэвхтэй зарууд харагдана |
-| 3 | Категори/shүүлт |
-| 4 | Зар үүсгэх (зурагтай), My Listings дээр гарна |
-| 5 | ListingDetail — view count нэмэгдэнэ |
-| 6 | Хадгалах (saved_listings) |
-| 7 | Засах / устгах — зөвхөн эзэн |
-| 8 | Admin approve (хэрэв scope-д орсон) |
-| 9 | Mobile — ижил зар ID-аар detail нээгдэнэ |
+| 2 | KR Home — US/JP/`region_code`тай зар **харагдахгүй** |
+| 3 | `/us` Home — зөвхөн US `washington-dc` |
+| 4 | Категори/шүүлт (market scope-той) |
+| 5 | Зар үүсгэх (зурагтай), My Listings дээр гарна |
+| 6 | ListingDetail — view count нэмэгдэнэ |
+| 7 | Хадгалах (saved_listings) |
+| 8 | Засах / устгах — зөвхөн эзэн |
+| 9 | Scoped admin approve (region/country) — scope-оос гадуур 403 |
+| 10 | Mobile — ижил зар ID-аар detail нээгдэнэ |
 
 QA: `qa/image-upload-tests.md`, `qa/web-regression-tests.md`, `qa/mobile-regression-tests.md`
 
@@ -132,7 +151,7 @@ QA: `qa/image-upload-tests.md`, `qa/web-regression-tests.md`, `qa/mobile-regress
 |----------|--------|
 | Web UI/service | Vercel |
 | Mobile | EAS build |
-| `api/index.php`, SQL | PHP сервер (`api.zarkorea.com`) — DB migration гараар |
+| `api/index.php` / `regions.php`, SQL | `docs/ZARUSA_STAGING_DEPLOY.md` — `deploy:zarusa-api` / `:ftp` эсвэл `package:zarusa-api` |
 | Storage rules | `firebase deploy --only storage` |
 | Constants only | Web Vercel + mobile rebuild after sync |
 
@@ -145,7 +164,9 @@ QA: `qa/image-upload-tests.md`, `qa/web-regression-tests.md`, `qa/mobile-regress
 - Шинэ зарыг Firestore руу шилжүүлэх (одоогийн архитектур MySQL)  
 - `VITE_API_BASE_URL` / production API-г кодонд hardcode хийх  
 - Категори зөвхөн mobile дээр засах (`sync-listings` алгасах)  
-- `customer_id` / `firebase_uid` sync эвдэх (`user_sync` flow)
+- `customer_id` / `firebase_uid` sync эвдэх (`user_sync` flow)  
+- Write country-г `localStorage` preference-ээс авах (`resolveRouteCountryCode` л)  
+- KR feed-д client-only шүүлтээр найдах (API `append_kr_listing_read_filter` заавал)
 
 ---
 
