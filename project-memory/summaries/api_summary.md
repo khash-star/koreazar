@@ -37,6 +37,10 @@ Admin API authority (`get_app_admin_scope`): `APP_ADMIN_UIDS` override, then
 MySQL `users.firebase_uid`, then legacy `users.email`. Keep Firestore and
 MySQL role/scope mirrored via `admin_set_user_role` / `user_sync`.
 
+KR feed isolation: `append_kr_listing_read_filter` (API) plus client
+`filterListingsForMarket`. Deploy helpers and smoke order:
+`docs/ZARUSA_STAGING_DEPLOY.md`.
+
 ## Client configuration
 
 - Web API base: `VITE_API_BASE_URL`
