@@ -69,12 +69,14 @@ export default function ChatScreen({ route, navigation }) {
   const normalizedOtherEmail = typeof paramOther === "string" ? paramOther.trim().toLowerCase() : "";
   const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value);
 
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const currentUserUid = user?.uid || "";
 
   const [chatEmail, setChatEmail] = useState("");
   const [convId, setConvId] = useState(paramConvId || null);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [sessionOwnerUid, setSessionOwnerUid] = useState("");
   const [otherUser, setOtherUser] = useState(null);
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -86,8 +88,27 @@ export default function ChatScreen({ route, navigation }) {
   const mountedRef = useRef(true);
   const scrollTimerRef = useRef(null);
   const sendingRef = useRef(false);
+  const sessionOwnerUidRef = useRef("");
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+
+  const clearChatSession = useCallback(() => {
+    setChatEmail("");
+    setConvId(null);
+    setConversation(null);
+    setMessages([]);
+    setSessionOwnerUid("");
+    setOtherUser(null);
+    setListing(null);
+    setDraft("");
+    setSending(false);
+    sendingRef.current = false;
+  }, []);
+
+  const visibleMessages = useMemo(
+    () => (sessionOwnerUid && sessionOwnerUid === currentUserUid ? messages : []),
+    [currentUserUid, messages, sessionOwnerUid]
+  );
 
   const resolvedOtherEmail = useMemo(() => {
     if (otherUser?.email) return otherUser.email;
@@ -124,20 +145,42 @@ export default function ChatScreen({ route, navigation }) {
     };
   }, []);
 
+  // Auth switch / logout must wipe in-memory chat and leave the previous user's
+  // Chat route. Otherwise User B can see User A's loaded message bodies (and with
+  // open message reads, re-fetch the leftover conversation_id).
   useEffect(() => {
-    if (!auth.currentUser?.uid) {
-      setChatEmail("");
+    const uid = currentUserUid;
+    const prev = sessionOwnerUidRef.current;
+
+    if (!uid) {
+      sessionOwnerUidRef.current = "";
+      clearChatSession();
+      if (prev) {
+        navigation.replace("MsgMain");
+      }
       return;
     }
+
+    if (prev && prev !== uid) {
+      sessionOwnerUidRef.current = uid;
+      clearChatSession();
+      navigation.replace("MsgMain");
+      return;
+    }
+
+    sessionOwnerUidRef.current = uid;
+
     let cancelled = false;
     (async () => {
       const em = await resolveChatParticipantEmail();
-      if (!cancelled && em) setChatEmail(em);
+      if (!cancelled && auth.currentUser?.uid === uid && em) {
+        setChatEmail(em);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [auth.currentUser?.uid]);
+  }, [currentUserUid, clearChatSession, navigation]);
 
   const scrollToEnd = () => {
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
@@ -148,16 +191,19 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const resolveConversation = useCallback(async () => {
-    if (!auth.currentUser) return;
+    const loadUid = auth.currentUser?.uid || "";
+    if (!loadUid) return;
     try {
       const me = await resolveChatParticipantEmail();
       if (!me) {
         showAlert("Чат", "Профайл имэйл тохируулагдаагүй байна. Дахин нэвтэрнэ үү.");
         return;
       }
-      if (mountedRef.current) setChatEmail(me);
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
+      setChatEmail(me);
       if (paramConvId) {
         setConvId(paramConvId);
+        setSessionOwnerUid(loadUid);
         return;
       }
       if (!normalizedOtherEmail) {
@@ -198,7 +244,9 @@ export default function ChatScreen({ route, navigation }) {
           unread_count_p2: 0,
         });
       }
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
       setConvId(existing.id);
+      setSessionOwnerUid(loadUid);
     } catch (e) {
       console.warn("resolveConversation:", e?.message);
       showAlert("Чат", e?.message || "Яриа эхлүүлж чадсангүй. Дахин оролдоно уу.");
@@ -208,17 +256,22 @@ export default function ChatScreen({ route, navigation }) {
 
   const fetchMessages = useCallback(async () => {
     if (!convId) return;
+    const loadUid = auth.currentUser?.uid || "";
+    if (!loadUid) return;
     const me = chatEmail || (await resolveChatParticipantEmail());
     if (!me) return;
-    if (!chatEmail && me && mountedRef.current) setChatEmail(me);
+    if (!chatEmail && me && mountedRef.current && auth.currentUser?.uid === loadUid) {
+      setChatEmail(me);
+    }
     try {
       const list = await listMessages(convId, 120);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
       setMessages(list);
+      setSessionOwnerUid(loadUid);
       scrollToEnd();
 
       const conv = await getConversation(convId);
-      if (!conv) return;
+      if (!conv || auth.currentUser?.uid !== loadUid) return;
       const meNorm = normalizeEmail(me);
       const unread = list.filter((m) => normalizeEmail(m.receiver_email) === meNorm && !m.is_read);
       if (unread.length === 0) return;
@@ -229,6 +282,7 @@ export default function ChatScreen({ route, navigation }) {
           /* ignore */
         }
       }
+      if (auth.currentUser?.uid !== loadUid) return;
       const isP1 = normalizeEmail(conv.participant_1) === meNorm;
       try {
         await updateConversation(convId, {
@@ -245,18 +299,24 @@ export default function ChatScreen({ route, navigation }) {
 
   const loadMeta = useCallback(async () => {
     if (!convId) return;
+    const loadUid = auth.currentUser?.uid || "";
+    if (!loadUid) return;
     const me = chatEmail || (await resolveChatParticipantEmail());
     if (!me) return;
-    if (!chatEmail && me && mountedRef.current) setChatEmail(me);
+    if (!chatEmail && me && mountedRef.current && auth.currentUser?.uid === loadUid) {
+      setChatEmail(me);
+    }
     try {
       if (auth.currentUser) {
         await ensureUserDocEmailForFirestoreRules(auth.currentUser, me);
       }
       const conv = await getConversation(convId);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
       if (!conv) return;
       const repaired = await repairConversationParticipants(conv, { meEmail: me });
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
       setConversation(repaired || conv);
+      setSessionOwnerUid(loadUid);
       const activeConv = repaired || conv;
       notifyMessagesListRefresh();
 
@@ -273,13 +333,13 @@ export default function ChatScreen({ route, navigation }) {
         const u = await getUserByEmail(other);
         displayName = u?.displayName || other.split("@")[0];
       }
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
       setOtherUser({ email: other, displayName });
 
       if (!(admin && normalizeEmail(admin) === normalizeEmail(other))) {
         const myProfile = await getUserByEmail(meNorm);
         if (myProfile && isSellerBlockedByViewer(myProfile, other)) {
-          if (!mountedRef.current) return;
+          if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
           showAlert("Чат", "Та энэ хэрэглэгчийг блоклосон.", [
             { text: "OK", onPress: () => navigation.goBack() },
           ]);
@@ -287,13 +347,14 @@ export default function ChatScreen({ route, navigation }) {
         }
       }
 
+      if (auth.currentUser?.uid !== loadUid) return;
       navigation.setOptions({ title: displayName || "Чат" });
 
       if (listingId) {
         const l = await getListingById(listingId);
-        if (!mountedRef.current) return;
+        if (!mountedRef.current || auth.currentUser?.uid !== loadUid) return;
         setListing(l);
-      } else {
+      } else if (auth.currentUser?.uid === loadUid) {
         setListing(null);
       }
     } catch (e) {
@@ -356,7 +417,7 @@ export default function ChatScreen({ route, navigation }) {
 
   useEffect(() => {
     scrollToEnd();
-  }, [messages.length]);
+  }, [visibleMessages.length]);
 
   const confirmDeleteMessage = useCallback(
     (m) => {
@@ -386,6 +447,11 @@ export default function ChatScreen({ route, navigation }) {
   async function handleSend() {
     const text = draft.trim();
     if (!text || sending || sendingRef.current) return;
+    const loadUid = auth.currentUser?.uid || "";
+    if (!loadUid || !sessionOwnerUid || sessionOwnerUid !== loadUid) {
+      showAlert("Чат", "Нэвтрэлтийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.");
+      return;
+    }
     const recipient = resolvedOtherEmail;
     if (!convId || !recipient) {
       showAlert("Чат", "Харилцагчийн мэдээлэл ачаалагдаагүй байна. Дахин оролдоно уу.");
@@ -395,14 +461,16 @@ export default function ChatScreen({ route, navigation }) {
     setSending(true);
     try {
       const meEmail = await resolveChatParticipantEmail();
-      if (!meEmail) {
+      if (!meEmail || auth.currentUser?.uid !== loadUid) {
         showAlert("Алдаа", "Нэвтрэлтийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.");
         return;
       }
       let conv = conversation;
       if (!conv) {
         conv = await getConversation(convId);
-        if (conv && mountedRef.current) setConversation(conv);
+        if (conv && mountedRef.current && auth.currentUser?.uid === loadUid) {
+          setConversation(conv);
+        }
       }
       if (!conv) {
         showAlert(
@@ -411,6 +479,7 @@ export default function ChatScreen({ route, navigation }) {
         );
         return;
       }
+      if (auth.currentUser?.uid !== loadUid) return;
       await createMessage({
         conversation_id: convId,
         sender_email: normalizeEmail(meEmail),
@@ -418,6 +487,7 @@ export default function ChatScreen({ route, navigation }) {
         message: text,
         is_read: false,
       });
+      if (auth.currentUser?.uid !== loadUid) return;
       const updated = await updateConversationAfterMessage({
         conversationId: convId,
         conversation: conv,
@@ -425,6 +495,7 @@ export default function ChatScreen({ route, navigation }) {
         receiverEmail: recipient,
         messageText: text,
       });
+      if (auth.currentUser?.uid !== loadUid) return;
       setDraft("");
       setConversation(updated);
       await fetchMessages();
@@ -451,7 +522,10 @@ export default function ChatScreen({ route, navigation }) {
     );
   }
 
-  if (loading && !convId) {
+  if (
+    loading &&
+    (!convId || !sessionOwnerUid || sessionOwnerUid !== currentUserUid)
+  ) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#ea580c" />
@@ -459,7 +533,7 @@ export default function ChatScreen({ route, navigation }) {
     );
   }
 
-  if (!convId) {
+  if (!convId || !sessionOwnerUid || sessionOwnerUid !== currentUserUid) {
     return (
       <View style={styles.center}>
         <Text style={styles.muted}>Яриа эхлүүлэх мэдээлэл байхгүй.</Text>
@@ -509,7 +583,7 @@ export default function ChatScreen({ route, navigation }) {
         keyboardDismissMode="on-drag"
         nestedScrollEnabled
       >
-        {messages.map((m) => {
+        {visibleMessages.map((m) => {
           const meNorm = normalizeEmail(chatEmail);
           const mine = meNorm && normalizeEmail(m.sender_email) === meNorm;
           const delBtn = isAdmin ? (
