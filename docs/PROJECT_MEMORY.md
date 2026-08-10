@@ -1,8 +1,8 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.
-> **Updated:** 2026-07-20 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
-> **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
+> **Updated:** 2026-08-10 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
+> **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · root [README.md](../README.md)
 
 ---
 
