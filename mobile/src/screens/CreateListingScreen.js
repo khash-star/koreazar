@@ -78,6 +78,7 @@ export default function CreateListingScreen({ navigation }) {
   const { email, isAuthenticated, userData, user, refreshUserData } = useAuth();
   const submittingRef = useRef(false);
   const draftListingKeyRef = useRef(`draft-${user?.uid || "anon"}-${Date.now()}`);
+  const formOwnerUidRef = useRef("");
   const [loading, setLoading] = useState(false);
   const lockedName = (
     userData?.displayName ||
@@ -107,20 +108,59 @@ export default function CreateListingScreen({ navigation }) {
     [lockedName, lockedPhone]
   );
 
-  /** Профайл ирэхэд бөглөнө; профайл хоосон бол (засах) зар дээрх утас хэвээр үлдэнэ. */
-  useEffect(() => {
-    setForm((f) => ({
-      ...f,
-      contact_name: lockedName ? lockedName : f.contact_name,
-      phone: lockedPhone ? lockedPhone : f.phone,
-    }));
-  }, [lockedName, lockedPhone]);
   const [uploading, setUploading] = useState(false);
   const [images, setImages] = useState([]);
   const [form, setForm] = useState(createInitialForm);
   const [initialListing, setInitialListing] = useState(null);
   const [loadingListing, setLoadingListing] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
+  const currentUserUid = user?.uid || "";
+
+  const clearListingFormSession = useCallback(() => {
+    setInitialListing(null);
+    setImages([]);
+    setForm(createInitialForm());
+    setLoadingListing(false);
+    setLoading(false);
+    setUploading(false);
+    submittingRef.current = false;
+    draftListingKeyRef.current = `draft-${user?.uid || "anon"}-${Date.now()}`;
+    if (editListingId) {
+      navigation.setParams({ listingId: undefined });
+    }
+  }, [createInitialForm, editListingId, navigation, user?.uid]);
+
+  // Auth switch / logout: Create tab stays mounted under Login. Wipe edit/create
+  // form (title, description, phone, kakao/wechat, images) and clear listingId
+  // so the next account cannot see or submit against the prior owner's draft.
+  useEffect(() => {
+    const uid = currentUserUid;
+    const prev = formOwnerUidRef.current;
+
+    if (!uid) {
+      formOwnerUidRef.current = "";
+      if (prev) clearListingFormSession();
+      return;
+    }
+
+    if (prev && prev !== uid) {
+      formOwnerUidRef.current = uid;
+      clearListingFormSession();
+      return;
+    }
+
+    formOwnerUidRef.current = uid;
+  }, [currentUserUid, clearListingFormSession]);
+
+  /** Профайл ирэхэд бөглөнө; профайл хоосон бол (засах) зар дээрх утас хэвээр үлдэнэ. */
+  useEffect(() => {
+    if (!currentUserUid) return;
+    setForm((f) => ({
+      ...f,
+      contact_name: lockedName ? lockedName : f.contact_name,
+      phone: lockedPhone ? lockedPhone : f.phone,
+    }));
+  }, [lockedName, lockedPhone, currentUserUid]);
 
   useEffect(() => {
     if (!editListingId) {
@@ -132,13 +172,15 @@ export default function CreateListingScreen({ navigation }) {
       prevEditIdRef.current = null;
       return;
     }
+    const loadUid = user?.uid || "";
+    if (!loadUid) return;
     prevEditIdRef.current = editListingId;
     let cancelled = false;
     (async () => {
       setLoadingListing(true);
       try {
         const listing = await getListingById(editListingId);
-        if (cancelled) return;
+        if (cancelled || user?.uid !== loadUid) return;
         if (!listing) {
           showAlert("Алдаа", "Зар олдсонгүй.");
           navigation.setParams({ listingId: undefined });
@@ -167,16 +209,17 @@ export default function CreateListingScreen({ navigation }) {
         });
         setImages(Array.isArray(listing.images) ? listing.images : []);
       } catch (e) {
+        if (cancelled || user?.uid !== loadUid) return;
         showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
         navigation.setParams({ listingId: undefined });
       } finally {
-        if (!cancelled) setLoadingListing(false);
+        if (!cancelled && user?.uid === loadUid) setLoadingListing(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [editListingId, navigation]);
+  }, [editListingId, navigation, user?.uid, createInitialForm, lockedName, lockedPhone]);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +275,11 @@ export default function CreateListingScreen({ navigation }) {
 
   const handleSubmit = async () => {
     if (submittingRef.current) return;
+    const submitUid = user?.uid || "";
+    if (!submitUid || formOwnerUidRef.current !== submitUid) {
+      showAlert("Алдаа", "Нэвтрэлтийн мэдээлэл олдсонгүй. Дахин нэвтэрнэ үү.");
+      return;
+    }
     if (!isAuthenticated || !email) {
       showAlert("Нэвтрэх", "Зар нэмэхийн тулд нэвтэрнэ үү", [
         { text: "Цуцлах", style: "cancel" },
