@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -42,13 +42,35 @@ export default function MyListingsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [rowsOwnerUid, setRowsOwnerUid] = useState("");
   const [loadError, setLoadError] = useState("");
   const [menuItem, setMenuItem] = useState(null);
+  const currentUserUid = user?.uid || "";
+  const visibleRows = useMemo(
+    () => (rowsOwnerUid && rowsOwnerUid === currentUserUid ? rows : []),
+    [currentUserUid, rows, rowsOwnerUid]
+  );
+
+  // Auth switch / logout: Main stays mounted under Login, so wipe prior owner's
+  // private inventory (including pending) before the next account can see it.
+  useEffect(() => {
+    if (!currentUserUid || (rowsOwnerUid && rowsOwnerUid !== currentUserUid)) {
+      setRows([]);
+      setRowsOwnerUid("");
+      setLoadError("");
+      setMenuItem(null);
+      setLoading(!!currentUserUid);
+      setRefreshing(false);
+    }
+  }, [currentUserUid, rowsOwnerUid]);
 
   const load = useCallback(async (isRefresh) => {
-    if (!user?.uid && !email) {
+    const loadUid = user?.uid || "";
+    if (!loadUid && !email) {
       setRows([]);
+      setRowsOwnerUid("");
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {
@@ -58,8 +80,8 @@ export default function MyListingsScreen({ navigation }) {
       const customerIdRaw = userData?.customerId ?? userData?.customer_id;
       const customerId =
         customerIdRaw != null && customerIdRaw !== "" ? Number(customerIdRaw) : null;
-      const cacheKey = user?.uid
-        ? `uid:${user.uid}`
+      const cacheKey = loadUid
+        ? `uid:${loadUid}`
         : Number.isFinite(customerId) && customerId > 0
           ? `cid:${customerId}`
           : `email:${email}`;
@@ -71,29 +93,37 @@ export default function MyListingsScreen({ navigation }) {
         Array.isArray(cached.data)
       ) {
         // Эхлээд кэшээ шууд үзүүлээд, ард нь шинэ өгөгдөл татна.
-        setRows(cached.data);
-        setLoading(false);
+        if (user?.uid === loadUid) {
+          setRows(cached.data);
+          setRowsOwnerUid(loadUid);
+          setLoading(false);
+        }
       }
       let data = [];
       data = await getMyListings(email, customerId, 20, {
-        firebaseUid: user?.uid,
+        firebaseUid: loadUid || user?.uid,
         timeoutMs: 12000,
         retries: 1,
         retryDelayMs: 300,
       });
+      if (loadUid && user?.uid !== loadUid) return;
       setRows(data);
+      if (loadUid) setRowsOwnerUid(loadUid);
       if (data.length > 0) {
         myListingsCache.set(cacheKey, { at: Date.now(), data });
       } else {
         myListingsCache.delete(cacheKey);
       }
     } catch (e) {
+      if (loadUid && user?.uid !== loadUid) return;
       const msg = e?.message || "Ачаалахад алдаа гарлаа";
       setLoadError(msg);
       if (rows.length === 0) showAlert("Алдаа", msg);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!loadUid || user?.uid === loadUid) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [user?.uid, email, userData?.customerId, userData?.customer_id, rows.length]);
 
@@ -199,7 +229,7 @@ export default function MyListingsScreen({ navigation }) {
     );
   }
 
-  if (loading && !refreshing && rows.length === 0) {
+  if (loading && !refreshing && visibleRows.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#ea580c" />
@@ -211,7 +241,7 @@ export default function MyListingsScreen({ navigation }) {
     <>
     <FlatList
       scrollEventThrottle={16}
-      data={rows}
+      data={visibleRows}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[styles.list, { paddingBottom: 24 + tabBarHeight }]}
       refreshControl={
@@ -288,7 +318,7 @@ export default function MyListingsScreen({ navigation }) {
         );
       }}
     />
-    {rows.length > 0 && loadError ? (
+    {visibleRows.length > 0 && loadError ? (
       <View style={styles.inlineErrorWrap}>
         <Text style={styles.inlineErrorText}>{loadError}</Text>
         <Pressable onPress={() => load(true)} hitSlop={8}>

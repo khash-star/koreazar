@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -22,29 +22,54 @@ const IMG_H = 140;
 
 export default function SavedListingsScreen({ navigation }) {
   const tabBarHeight = useBottomTabBarHeight();
-  const { email, isAuthenticated } = useAuth();
+  const { user, email, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [rowsOwnerUid, setRowsOwnerUid] = useState("");
+  const currentUserUid = user?.uid || "";
+  const visibleRows = useMemo(
+    () => (rowsOwnerUid && rowsOwnerUid === currentUserUid ? rows : []),
+    [currentUserUid, rows, rowsOwnerUid]
+  );
+
+  // Auth switch / logout: Main stays mounted under Login — wipe prior owner's
+  // saved list so the next account cannot see it on focus restore.
+  useEffect(() => {
+    if (!currentUserUid || (rowsOwnerUid && rowsOwnerUid !== currentUserUid)) {
+      setRows([]);
+      setRowsOwnerUid("");
+      setLoading(!!currentUserUid);
+      setRefreshing(false);
+    }
+  }, [currentUserUid, rowsOwnerUid]);
 
   const load = useCallback(async (isRefresh) => {
-    if (!email) {
+    const loadUid = user?.uid || "";
+    if (!email || !loadUid) {
       setRows([]);
+      setRowsOwnerUid("");
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       const data = await getSavedListingsWithDetails(email);
+      if (user?.uid !== loadUid) return;
       setRows(data);
+      setRowsOwnerUid(loadUid);
     } catch (e) {
+      if (user?.uid !== loadUid) return;
       showAlert("Алдаа", e?.message || "Ачаалахад алдаа гарлаа");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (user?.uid === loadUid) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [email]);
+  }, [email, user?.uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,7 +86,9 @@ export default function SavedListingsScreen({ navigation }) {
         onPress: async () => {
           try {
             await removeSaved(savedId);
-            setRows((prev) => prev.filter((r) => r.savedId !== savedId));
+            if (rowsOwnerUid && rowsOwnerUid === (user?.uid || "")) {
+              setRows((prev) => prev.filter((r) => r.savedId !== savedId));
+            }
           } catch (e) {
             showAlert("Алдаа", e?.message);
           }
@@ -92,7 +119,7 @@ export default function SavedListingsScreen({ navigation }) {
   return (
     <FlatList
       scrollEventThrottle={16}
-      data={rows}
+      data={visibleRows}
       keyExtractor={(item) => item.savedId}
       contentContainerStyle={[styles.list, { paddingBottom: 24 + tabBarHeight }]}
       refreshControl={
