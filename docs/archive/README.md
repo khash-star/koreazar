@@ -12,7 +12,8 @@ Historical incident notes, migration snapshots, and superseded guides moved from
 | Firestore indexes | `docs/FIRESTORE_INDEXES.md` |
 | Multi-market / ZAR-USA | `docs/ZARUSA_REGION_PHASES.md`, `docs/ZARUSA_STAGING_DEPLOY.md` |
 | Admin setup | `docs/ZARUSA_REGION_PHASES.md` (scoped RBAC); root `ADMIN_SETUP_GUIDE.md` is secondary |
-| Doc inventory | `project-memory/reports/MEMORY_ANALYSIS_REPORT.md` |
+| Repo entry / setup | root `README.md` → then `docs/PROJECT_MEMORY.md` |
+| Doc inventory | `project-memory/reports/MEMORY_ANALYSIS_REPORT.md` (paths may predate this archive) |
 
 Subfolders:
 
