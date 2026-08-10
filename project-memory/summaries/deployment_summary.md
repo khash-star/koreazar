@@ -1,40 +1,48 @@
 # Deployment Summary
 
-> AI memory placeholder — expand from repo sources over time.  
 > **Quick load:** `../PROJECT_MEMORY.md`
+> **Canonical detail:** `../../docs/DEPLOYMENT.md`
 
-## Web hosting
+## Web and API
 
-- **Platform:** Vercel
-- **Build:** `npm run build` → `dist/`
-- **Canonical deploy guides (pick 1–2):** `VERCEL_DEPLOYMENT_GUIDE.md`, `VERCEL_ENV_SETUP.md`
-- **Env vars:** `VITE_FIREBASE_*` on Vercel (see `FIREBASE_VERCEL_SETUP.md`)
+- Vercel builds the web root with `npm run build` and serves `dist/`.
+- Production canonical domain is `https://zarkorea.com`; the Vercel default
+  host redirects there.
+- PHP is deployed separately to `api.zarkorea.com`; do not assume a Vercel
+  deploy updates `api/index.php` or `api/regions.php`.
+- Preferred API upload: `npm run deploy:zarusa-api` (SCP). Fallback:
+  `deploy:zarusa-api:ftp` or `package:zarusa-api` + manual cPanel.
+  Credentials live in gitignored `scripts/deploy-zarusa-api.local.env`.
+- Keep environment values in Vercel/cPanel/EAS; docs list names only.
+
+## Database gates
+
+| Change | Runbook |
+|--------|---------|
+| Listing `country_code` / `state_code` | `docs/MULTI_COUNTRY_DB_MIGRATION_PLAN.md` |
+| US `region_code` + index | `docs/ZARUSA_STAGING_DEPLOY.md` |
+| Scoped admin columns | `docs/ZARUSA_REGION_PHASES.md` (includes MySQL syntax warning) |
+
+Always back up and verify the target database on staging. Repository state
+does not prove that a production migration ran.
 
 ## Firebase ops
 
 | Asset | Deploy / config |
 |-------|-----------------|
 | Firestore indexes | `firebase deploy --only firestore:indexes` · `docs/FIRESTORE_INDEXES.md` |
-| Firestore rules | `firestore.rules` · `SECURITY.md` summary |
-| Storage rules | Publish via Console · `STORAGE_RULES_GUIDE.md` |
-
-## DNS / domain
-
-- Production domain documented as **zarkorea.com**
-- Cloudflare + Vercel: `CLOUDFLARE_VERCEL_DNS.md`, `DOMAIN_SETUP_GUIDE.md`
-- **Risk:** older docs mention `zarmongolia.com` — verify live DNS
+| Firestore rules | `firebase deploy --only firestore:rules` · `firestore.rules` |
+| Storage rules | `firebase deploy --only storage` · `storage.rules` |
+| Functions | `firebase deploy --only functions` · chat push pipeline |
 
 ## Mobile release
 
-| Path | Doc |
-|------|-----|
-| Play Store TWA | `docs/PLAY_STORE_SETUP.md` |
-| RN replaces TWA | `mobile/docs/PLAY_STORE_RN_REPLACE_TWA.md` |
-| EAS production env | `mobile/docs/EAS_PRODUCTION_ENV.md` |
-| Store QA checklist | `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md` |
+| Profile | Identity | Guide |
+|---------|----------|-------|
+| `production` | Zarkorea, `com.zarkorea.twa` | `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md` |
+| `production-us` | ZAR-USA, `com.zarusa.app` | `mobile/docs/ZARUSA_BUILD.md` |
 
-## Placeholder slots
-
-- [ ] Single Vercel project settings snapshot (root dir, build cmd)
-- [ ] EAS profile names and bundle IDs
-- [ ] Production Firebase project ID (confirm `koreazar-32e7a` vs stale docs)
+Both profiles share the Expo project slug. `production-us` selects US at
+build time with `EXPO_PUBLIC_ACTIVE_COUNTRY=US`; it is not an in-app toggle.
+Native Firebase file env resolution is documented in
+`mobile/docs/ZARUSA_BUILD.md`.
