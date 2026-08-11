@@ -49,6 +49,7 @@ export default function AIBot() {
   const [message, setMessage] = useState('');
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [messagesOwnerKey, setMessagesOwnerKey] = useState(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [remainingRequests, setRemainingRequests] = useState(null);
@@ -59,7 +60,23 @@ export default function AIBot() {
   const [apiKeyError, setApiKeyError] = useState(false);
   
   const userEmail = authEmail;
+  const authUid = user?.uid || null;
+  /** Stable per-auth session key — wipe private AI state when this changes. */
+  const authSessionKey = authUid || (userEmail ? `email:${userEmail}` : null);
   const DAILY_LIMIT = 20; // Daily request limit
+
+  // Auth switch / logout: do not leave User A's AI thread in useState for User B
+  // (AIBot stays mounted across Firebase auth broadcasts, e.g. multi-tab logout).
+  useEffect(() => {
+    setConversationId(null);
+    setMessages([]);
+    setMessagesOwnerKey(authSessionKey);
+    setRemainingRequests(null);
+    setDailyUsage(null);
+    setLimitExceeded(false);
+    setApiKeyError(false);
+    setIsLoadingMessages(Boolean(authSessionKey && userEmail));
+  }, [authSessionKey, userEmail]);
 
   // Бэлэн хариултууд
   const quickAnswers = {
@@ -135,59 +152,81 @@ export default function AIBot() {
 
   // Get or create conversation
   const { data: conversation, isLoading: isLoadingConversation } = useQuery({
-    queryKey: ['aiConversation', userEmail],
+    queryKey: ['aiConversation', authSessionKey, userEmail],
     queryFn: async () => {
       if (!userEmail) return null;
-      const conv = await getOrCreateAIConversation(userEmail);
-      setConversationId(conv.id);
-      return conv;
+      return getOrCreateAIConversation(userEmail);
     },
-    enabled: !!userEmail
+    enabled: !!userEmail && !!authSessionKey
   });
+
+  useEffect(() => {
+    if (!authSessionKey || !userEmail) {
+      setConversationId(null);
+      return;
+    }
+    setConversationId(conversation?.id || null);
+  }, [authSessionKey, userEmail, conversation?.id]);
 
   // Load messages
   useEffect(() => {
+    let cancelled = false;
     const loadMessages = async () => {
-      if (!conversationId) {
-        setIsLoadingMessages(false);
+      if (!conversationId || !userEmail || !authSessionKey) {
+        if (!cancelled) setIsLoadingMessages(false);
         return;
       }
 
       try {
-        setIsLoadingMessages(true);
+        if (!cancelled) setIsLoadingMessages(true);
         const msgs = await listAIMessages(conversationId);
+        if (cancelled) return;
         setMessages(msgs);
+        setMessagesOwnerKey(authSessionKey);
       } catch (error) {
         console.error('Error loading messages:', error);
       } finally {
-        setIsLoadingMessages(false);
+        if (!cancelled) setIsLoadingMessages(false);
       }
     };
 
     loadMessages();
-  }, [conversationId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, userEmail, authSessionKey]);
 
   // Real-time listener for messages
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !userEmail || !authSessionKey) return;
+    const ownerKey = authSessionKey;
 
     const unsubscribe = subscribeToAIMessages(conversationId, (msgs) => {
       setMessages(msgs);
+      setMessagesOwnerKey(ownerKey);
       setIsLoadingMessages(false);
     });
 
     return () => unsubscribe();
-  }, [conversationId]);
+  }, [conversationId, userEmail, authSessionKey]);
+
+  // Only render thread rows owned by the current auth session (auth-switch safe).
+  const visibleMessages = messagesOwnerKey === authSessionKey ? messages : [];
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [visibleMessages]);
 
   // Load usage information
   useEffect(() => {
     const loadUsage = async () => {
-      if (!userEmail) return;
+      if (!userEmail || !authSessionKey) {
+        setRemainingRequests(null);
+        setDailyUsage(null);
+        setLimitExceeded(false);
+        return;
+      }
       
       try {
         const remaining = await getRemainingRequests(userEmail, DAILY_LIMIT);
@@ -216,12 +255,15 @@ export default function AIBot() {
     };
     
     loadUsage();
-  }, [userEmail]);
+  }, [userEmail, authSessionKey]);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage) => {
-      if (!conversationId || !userEmail) {
+      if (!conversationId || !userEmail || !authSessionKey) {
+        throw new Error('Conversation not initialized');
+      }
+      if (messagesOwnerKey != null && messagesOwnerKey !== authSessionKey) {
         throw new Error('Conversation not initialized');
       }
 
@@ -444,7 +486,7 @@ export default function AIBot() {
                 </div>
               ))}
             </div>
-          ) : messages.length === 0 ? (
+          ) : visibleMessages.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mx-auto mb-4">
                 <Bot className="h-10 w-10 text-white" />
@@ -484,7 +526,7 @@ export default function AIBot() {
               ) : null}
             </div>
           ) : (
-            messages.map((msg, index) => {
+            visibleMessages.map((msg, index) => {
               const isUser = msg.sender === 'user';
               return (
                 <motion.div
