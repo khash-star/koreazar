@@ -123,6 +123,8 @@ export default function CreateListing() {
   // Auth switch / logout: CreateListing can stay mounted across Firebase
   // multi-tab A→B broadcasts (no null gap). Wipe draft title/description/
   // phone/kakao/images so User B never sees or submits User A's private form.
+  // Always wipe to empty contacts — never seed from userData here (it can lag
+  // the uid switch); the autofill effect below applies the new owner's profile.
   useEffect(() => {
     const prev = formOwnerUidRef.current;
     formOwnerUidRef.current = authSessionKey;
@@ -133,9 +135,9 @@ export default function CreateListing() {
     }
 
     if (prev && prev !== authSessionKey) {
-      clearListingFormSession(userData);
+      clearListingFormSession(null);
     }
-  }, [authSessionKey, clearListingFormSession, userData]);
+  }, [authSessionKey, clearListingFormSession]);
 
   useEffect(() => {
     if (!user && !userData) {
