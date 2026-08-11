@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { compressImage } from '@/components/utils/imageCompressor';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { motion } from 'framer-motion';
@@ -17,40 +17,71 @@ import { useAuth } from '@/contexts/AuthContext';
 import { redirectToLogin } from '@/services/authService';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
 
+const EMPTY_BANNER_FORM = { title: '', link: '', message: '' };
+
 export default function RequestBannerAd() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, userData, authEmail } = useAuth();
   const activeCountry = useActiveCountry();
+  const authSessionKey = user?.uid || null;
   const draftBannerKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
+  const formOwnerUidRef = useRef(authSessionKey);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
-  const [formData, setFormData] = useState({
-    title: '',
-    link: '',
-    message: ''
-  });
+  const [formData, setFormData] = useState({ ...EMPTY_BANNER_FORM });
 
-  React.useEffect(() => {
+  const clearBannerFormSession = useCallback(() => {
+    setFormData({ ...EMPTY_BANNER_FORM });
+    setImageUrl('');
+    setUploading(false);
+    draftBannerKeyRef.current = `draft-${user?.uid || 'anon'}-${Date.now()}`;
+  }, [user?.uid]);
+
+  // Auth switch: shared queryKey ['myBannerRequests'] + staleTime would otherwise
+  // show User A's private request history to User B; also wipe in-progress draft.
+  useEffect(() => {
+    const prev = formOwnerUidRef.current;
+    formOwnerUidRef.current = authSessionKey;
+
+    if (!authSessionKey) {
+      if (prev) {
+        clearBannerFormSession();
+        queryClient.removeQueries({ queryKey: ['myBannerRequests'] });
+      }
+      return;
+    }
+
+    if (prev && prev !== authSessionKey) {
+      clearBannerFormSession();
+      queryClient.removeQueries({ queryKey: ['myBannerRequests'] });
+    }
+  }, [authSessionKey, clearBannerFormSession, queryClient]);
+
+  useEffect(() => {
     if (!user && !userData) {
       redirectToLogin(window.location.href);
     }
   }, [user, userData]);
 
   const { data: myRequests = [] } = useQuery({
-    queryKey: ['myBannerRequests'],
+    queryKey: ['myBannerRequests', authSessionKey, authEmail],
     queryFn: async () => {
       return entities.BannerRequest.filter({ created_by: authEmail }, '-created_date');
     },
-    enabled: !!user && !!authEmail
+    enabled: !!authSessionKey && !!authEmail
   });
+  // Query key is scoped by uid; hide list entirely while logged out.
+  const visibleRequests = authSessionKey ? myRequests : [];
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
       return entities.BannerRequest.create(data);
     },
     onSuccess: () => {
-      setFormData({ title: '', link: '', message: '' });
+      setFormData({ ...EMPTY_BANNER_FORM });
       setImageUrl('');
+      queryClient.invalidateQueries({ queryKey: ['myBannerRequests'] });
       // Show success message and navigate to home
       alert('Таны хүсэлт амжилттай илгээгдлээ! Админ баталгаажуулна.');
       navigate(createPageUrl('Home'));
@@ -67,6 +98,9 @@ export default function RequestBannerAd() {
       return;
     }
 
+    const uploadUid = user?.uid || null;
+    if (!uploadUid || formOwnerUidRef.current !== uploadUid) return;
+
     setUploading(true);
     try {
       const compressed = await compressImage(file, 800, 400, 0.82);
@@ -76,16 +110,24 @@ export default function RequestBannerAd() {
         countryCode: activeCountry.countryCode,
         bannerId: draftBannerKeyRef.current,
       });
+      if (formOwnerUidRef.current !== uploadUid) return;
       setImageUrl(file_url);
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа');
     } finally {
-      setUploading(false);
+      if (formOwnerUidRef.current === uploadUid) {
+        setUploading(false);
+      }
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const submitUid = user?.uid || null;
+    if (!submitUid || formOwnerUidRef.current !== submitUid) {
+      alert('Нэвтрэлт солигдсон байна. Дахин оролдоно уу.');
+      return;
+    }
     if (!imageUrl) {
       alert('Баннер зураг оруулна уу');
       return;
@@ -288,7 +330,7 @@ export default function RequestBannerAd() {
         </motion.div>
 
         {/* My Requests */}
-        {myRequests.length > 0 && (
+        {visibleRequests.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -297,7 +339,7 @@ export default function RequestBannerAd() {
           >
             <h2 className="text-lg font-semibold mb-4">Миний хүсэлтүүд</h2>
             <div className="space-y-4">
-              {myRequests.map((request) => {
+              {visibleRequests.map((request) => {
                 const status = statusLabels[request.status];
                 const Icon = status.icon;
                 

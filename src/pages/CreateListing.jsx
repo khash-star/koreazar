@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import * as entities from '@/api/entities';
 import { UploadFile } from '@/api/integrations';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +34,56 @@ import { COUNTRIES } from '@/config/country';
 import { getDefaultUsRegionCodeForWeb } from '@/utils/usRegionScope';
 import UsStateSelect from '@/components/listings/UsStateSelect';
 
+const EMPTY_LISTING_FORM = {
+  title: '',
+  description: '',
+  price: '',
+  category: '',
+  subcategory: '',
+  location: '',
+  state_code: '',
+  phone: '',
+  kakao_id: '',
+  wechat_id: '',
+  whatsapp: '',
+  facebook: '',
+  condition: 'used',
+  is_negotiable: true,
+  vehicle_make: '',
+  vehicle_model: '',
+  vehicle_year: '',
+  vehicle_mileage: '',
+  vehicle_fuel_type: '',
+  vehicle_transmission: '',
+  electronics_brand: '',
+  electronics_model: '',
+  realestate_size: '',
+  realestate_rooms: '',
+  realestate_bathrooms: '',
+  realestate_floor: '',
+  job_type: '',
+  job_salary: '',
+};
+
+function contactFieldsFromUserData(userData) {
+  if (!userData) {
+    return {
+      phone: '',
+      kakao_id: '',
+      wechat_id: '',
+      whatsapp: '',
+      facebook: '',
+    };
+  }
+  return {
+    phone: userData.phone || '',
+    kakao_id: userData.kakao_id || '',
+    wechat_id: userData.wechat_id || '',
+    whatsapp: userData.whatsapp || '',
+    facebook: userData.facebook || '',
+  };
+}
+
 export default function CreateListing() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -48,60 +98,77 @@ export default function CreateListing() {
   // /kr, /us, /jp — legacy /CreateListing keeps linking to unprefixed Home.
   const countryPrefix = routeCountryCode ? writeCountry.defaultRoutePrefix : null;
   const { user, userData } = useAuth();
+  const authSessionKey = user?.uid || null;
   const draftListingKeyRef = useRef(`draft-${user?.uid || 'anon'}-${Date.now()}`);
+  const formOwnerUidRef = useRef(authSessionKey);
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: '',
-    subcategory: '',
-    location: '',
-    state_code: '',
-    phone: '',
-    kakao_id: '',
-    wechat_id: '',
-    whatsapp: '',
-    facebook: '',
-    condition: 'used',
-    is_negotiable: true,
-    vehicle_make: '',
-    vehicle_model: '',
-    vehicle_year: '',
-    vehicle_mileage: '',
-    vehicle_fuel_type: '',
-    vehicle_transmission: '',
-    electronics_brand: '',
-    electronics_model: '',
-    realestate_size: '',
-    realestate_rooms: '',
-    realestate_bathrooms: '',
-    realestate_floor: '',
-    job_type: '',
-    job_salary: ''
-  });
+  const [formData, setFormData] = useState(() => ({
+    ...EMPTY_LISTING_FORM,
+    ...contactFieldsFromUserData(userData),
+  }));
 
   const availableSubcategories = formData.category ? subcategoryConfig[formData.category] || [] : [];
 
-  React.useEffect(() => {
+  const clearListingFormSession = useCallback((nextUserData) => {
+    setImages([]);
+    setUploading(false);
+    draftListingKeyRef.current = `draft-${user?.uid || 'anon'}-${Date.now()}`;
+    setFormData({
+      ...EMPTY_LISTING_FORM,
+      ...contactFieldsFromUserData(nextUserData),
+    });
+  }, [user?.uid]);
+
+  // Auth switch / logout: CreateListing can stay mounted across Firebase
+  // multi-tab A→B broadcasts (no null gap). Wipe draft title/description/
+  // phone/kakao/images so User B never sees or submits User A's private form.
+  useEffect(() => {
+    const prev = formOwnerUidRef.current;
+    formOwnerUidRef.current = authSessionKey;
+
+    if (!authSessionKey) {
+      if (prev) clearListingFormSession(null);
+      return;
+    }
+
+    if (prev && prev !== authSessionKey) {
+      clearListingFormSession(userData);
+    }
+  }, [authSessionKey, clearListingFormSession, userData]);
+
+  useEffect(() => {
     if (!user && !userData) {
       redirectToLogin(window.location.href);
       return;
     }
-    
-    // Auto-fill contact info from user profile
-    if (userData && (userData.phone || userData.kakao_id || userData.wechat_id || userData.whatsapp || userData.facebook)) {
-      setFormData(prev => ({
-        ...prev,
-        phone: userData.phone || prev.phone,
-        kakao_id: userData.kakao_id || prev.kakao_id,
-        wechat_id: userData.wechat_id || prev.wechat_id,
-        whatsapp: userData.whatsapp || prev.whatsapp,
-        facebook: userData.facebook || prev.facebook
-      }));
+
+    if (!authSessionKey || !userData) return;
+    // Skip while auth-switch wipe owns the transition (owner ref already updated).
+    if (formOwnerUidRef.current !== authSessionKey) return;
+    if (
+      !(
+        userData.phone ||
+        userData.kakao_id ||
+        userData.wechat_id ||
+        userData.whatsapp ||
+        userData.facebook
+      )
+    ) {
+      return;
     }
-  }, [user, userData]);
+
+    // Same-session profile autofill only. Auth-switch wipe already replaced the
+    // whole form, so prev.* cannot retain another account's contacts here.
+    setFormData((prev) => ({
+      ...prev,
+      phone: userData.phone || prev.phone,
+      kakao_id: userData.kakao_id || prev.kakao_id,
+      wechat_id: userData.wechat_id || prev.wechat_id,
+      whatsapp: userData.whatsapp || prev.whatsapp,
+      facebook: userData.facebook || prev.facebook,
+    }));
+  }, [user, userData, authSessionKey]);
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
@@ -143,6 +210,9 @@ export default function CreateListing() {
     }
     
     if (validFiles.length === 0) return;
+
+    const uploadUid = user?.uid || null;
+    if (!uploadUid || formOwnerUidRef.current !== uploadUid) return;
     
     setUploading(true);
 
@@ -160,13 +230,16 @@ export default function CreateListing() {
           UploadFile({ file: variants.w400, ...uploadBase, variant: 'w400' }),
           UploadFile({ file: variants.w150, ...uploadBase, variant: 'w150' }),
         ]);
+        if (formOwnerUidRef.current !== uploadUid) return;
         setImages(prev => [...prev, { w800: r800.file_url, w640: r640.file_url, w400: r400.file_url, w150: r150.file_url }]);
       }
     } catch (error) {
       alert('Зураг upload хийхэд алдаа гарлаа. Дахин оролдоно уу.');
       console.error('Upload error:', error);
     } finally {
-      setUploading(false);
+      if (formOwnerUidRef.current === uploadUid) {
+        setUploading(false);
+      }
     }
   };
 
@@ -176,6 +249,12 @@ export default function CreateListing() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const submitUid = user?.uid || null;
+    if (!submitUid || formOwnerUidRef.current !== submitUid) {
+      alert('Нэвтрэлт солигдсон байна. Дахин оролдоно уу.');
+      return;
+    }
 
     const bannedListing = checkBannedListingFields(formData);
     if (bannedListing.blocked) {
