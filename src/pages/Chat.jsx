@@ -46,8 +46,11 @@ export default function Chat() {
   const blockRedirectRef = useRef(false);
   const emailSyncedConvRef = useRef(null);
   const repairDoneConvRef = useRef(null);
+  const prevAuthSessionKeyRef = useRef(null);
   const { user, userData, loading, authEmail } = useAuth();
   const myEmailNorm = normalizeEmail(authEmail);
+  /** Stable per-auth session — wipe private chat bind when this changes. */
+  const authSessionKey = user?.uid || null;
   const [message, setMessage] = useState('');
   const [actualConversationId, setActualConversationId] = useState(conversationId);
   const [adminEmail, setAdminEmail] = useState(null);
@@ -61,6 +64,37 @@ export default function Chat() {
     };
     fetchAdminEmail();
   }, []);
+
+  // Auth switch / logout: do not leave User A's conversation_id + cached messages
+  // bound for User B (Chat can stay mounted across Firebase auth broadcasts).
+  useEffect(() => {
+    const prev = prevAuthSessionKeyRef.current;
+    prevAuthSessionKeyRef.current = authSessionKey;
+
+    setMessage('');
+    emailSyncedConvRef.current = null;
+    repairDoneConvRef.current = null;
+    initialScrollDoneRef.current = false;
+    blockRedirectRef.current = false;
+    setChatForbidden(false);
+
+    if (!authSessionKey) {
+      setActualConversationId(null);
+      return;
+    }
+
+    if (prev && prev !== authSessionKey) {
+      setActualConversationId(null);
+      queryClient.removeQueries({ queryKey: ['messages'] });
+      queryClient.removeQueries({ queryKey: ['conversation'] });
+      navigate(createCountryPageUrl('Messages', countryPrefix), { replace: true });
+      return;
+    }
+
+    if (conversationId) {
+      setActualConversationId(conversationId);
+    }
+  }, [authSessionKey, conversationId, navigate, countryPrefix, queryClient]);
 
   useEffect(() => {
     blockRedirectRef.current = false;
@@ -123,7 +157,7 @@ export default function Chat() {
   // Create conversation if needed
   useEffect(() => {
     const ensureConversation = async () => {
-      if (!authEmail || !otherUserEmail || conversationId) return;
+      if (!authSessionKey || !authEmail || !otherUserEmail || conversationId) return;
 
       const meN = normalizeEmail(authEmail);
       const otherN = normalizeEmail(otherUserEmail);
@@ -179,45 +213,49 @@ export default function Chat() {
     };
     
     ensureConversation();
-  }, [authEmail, otherUserEmail, conversationId, listingId, adminEmail, navigate]);
+  }, [authSessionKey, authEmail, otherUserEmail, conversationId, listingId, adminEmail, navigate, countryPrefix]);
 
   const { data: conversation } = useQuery({
-    queryKey: ['conversation', actualConversationId],
+    queryKey: ['conversation', authSessionKey, actualConversationId],
     queryFn: async () => {
       const convs = await entities.Conversation.filter({ id: actualConversationId });
       return convs[0];
     },
-    enabled: !!actualConversationId
+    enabled: !!authSessionKey && !!actualConversationId
   });
 
   useEffect(() => {
-    if (!actualConversationId || !authEmail || !user) return;
+    if (!authSessionKey || !actualConversationId || !authEmail || !user) return;
     if (emailSyncedConvRef.current === actualConversationId) return;
     emailSyncedConvRef.current = actualConversationId;
     ensureUserDocEmailForFirestoreRules(user, authEmail).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', authSessionKey, actualConversationId] });
     });
-  }, [actualConversationId, authEmail, user, queryClient]);
+  }, [authSessionKey, actualConversationId, authEmail, user, queryClient]);
 
   useEffect(() => {
-    if (!conversation?.id || !authEmail) return;
+    if (!authSessionKey || !conversation?.id || !authEmail) return;
     if (repairDoneConvRef.current === conversation.id) return;
     repairDoneConvRef.current = conversation.id;
     repairConversationParticipants(conversation, { meEmail: authEmail }).then(() => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', authSessionKey, conversation.id] });
     });
-  }, [conversation?.id, authEmail, queryClient]);
+  }, [authSessionKey, conversation?.id, authEmail, queryClient]);
 
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ['messages', actualConversationId],
+    queryKey: ['messages', authSessionKey, actualConversationId],
     queryFn: () => entities.Message.filter(
       { conversation_id: actualConversationId },
       'created_date'
     ),
-    enabled: !!actualConversationId,
+    enabled: !!authSessionKey && !!actualConversationId && !!authEmail,
     refetchInterval: 3000 // Refresh every 3 seconds
   });
+
+  // Only render thread rows owned by the current auth session (auth-switch safe).
+  const visibleMessages =
+    authSessionKey && actualConversationId && authEmail ? messages : [];
 
   const { data: otherUser } = useQuery({
     queryKey: ['otherUser', conversation?.id, adminEmail],
@@ -266,14 +304,14 @@ export default function Chat() {
   // Mark messages as read
   useEffect(() => {
     const markAsRead = async () => {
-      if (!authEmail || !actualConversationId || !conversation) return;
+      if (!authSessionKey || !authEmail || !actualConversationId || !conversation) return;
       
       try {
         if (user) {
           await ensureUserDocEmailForFirestoreRules(user, authEmail);
         }
         const me = normalizeEmail(authEmail);
-        const unreadMessages = messages.filter(
+        const unreadMessages = visibleMessages.filter(
           (m) => areEmailVariants(m.receiver_email, me) && !m.is_read
         );
         
@@ -294,7 +332,7 @@ export default function Chat() {
     };
     
     markAsRead();
-  }, [messages, authEmail, actualConversationId, conversation, queryClient, user]);
+  }, [visibleMessages, authSessionKey, authEmail, actualConversationId, conversation, queryClient, user]);
 
   const scrollMessagesToBottom = (behavior = 'auto') => {
     const el = messagesContainerRef.current;
@@ -306,13 +344,13 @@ export default function Chat() {
   useEffect(() => {
     if (isLoading || initialScrollDoneRef.current) return;
     initialScrollDoneRef.current = true;
-    if (messages.length === 0) return;
+    if (visibleMessages.length === 0) return;
     requestAnimationFrame(() => scrollMessagesToBottom('auto'));
-  }, [isLoading, messages.length, actualConversationId]);
+  }, [isLoading, visibleMessages.length, actualConversationId, authSessionKey]);
 
   const sendMutation = useMutation({
     mutationFn: async (messageText) => {
-      if (!authEmail || !actualConversationId || !otherUser?.email) return;
+      if (!authSessionKey || !authEmail || !actualConversationId || !otherUser?.email) return;
       
       const senderNorm = normalizeEmail(authEmail);
       const receiverNorm = normalizeEmail(otherUser.email);
@@ -335,8 +373,8 @@ export default function Chat() {
       return newMessage;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
-      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['messages', authSessionKey, actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', authSessionKey, actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       queryClient.invalidateQueries({ queryKey: ['unreadMessages'] });
       setMessage('');
@@ -354,13 +392,13 @@ export default function Chat() {
   };
 
   const handleAdminDeleteMessage = async (msg) => {
-    if (userData?.role !== 'admin' || !actualConversationId) return;
+    if (userData?.role !== 'admin' || !authSessionKey || !actualConversationId) return;
     if (!window.confirm('Энэ мессежийг устгах уу?')) return;
     try {
       await deleteMessage(msg.id);
       await syncConversationLastMessageFromMessages(actualConversationId);
-      queryClient.invalidateQueries({ queryKey: ['messages', actualConversationId] });
-      queryClient.invalidateQueries({ queryKey: ['conversation', actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['messages', authSessionKey, actualConversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversation', authSessionKey, actualConversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       toast({ title: 'Мессеж устгагдлаа' });
     } catch (err) {
@@ -479,14 +517,14 @@ export default function Chat() {
                 </div>
               ))}
             </div>
-          ) : messages.length > 0 ? (
+          ) : visibleMessages.length > 0 ? (
             <div className="space-y-4">
-              {messages.map((msg, index) => {
+              {visibleMessages.map((msg, index) => {
                 const isOwnMessage =
                   areEmailVariants(msg.sender_email, authEmail) ||
                   normalizeEmail(msg.sender_email) === myEmailNorm;
                 const showDate = index === 0 || 
-                  format(new Date(messages[index - 1].created_date), 'yyyy-MM-dd') !== 
+                  format(new Date(visibleMessages[index - 1].created_date), 'yyyy-MM-dd') !== 
                   format(new Date(msg.created_date), 'yyyy-MM-dd');
                 
                 return (
@@ -572,7 +610,7 @@ export default function Chat() {
             />
             <Button
               onClick={handleSend}
-              disabled={!message.trim() || sendMutation.isPending || !otherUser?.email}
+              disabled={!authSessionKey || !message.trim() || sendMutation.isPending || !otherUser?.email}
               className="h-11 w-11 rounded-xl bg-amber-600 hover:bg-amber-700 flex-shrink-0"
               size="icon"
             >
