@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -58,17 +58,39 @@ export default function MessagesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState([]);
+  const [rowsOwnerUid, setRowsOwnerUid] = useState("");
   const [meEmail, setMeEmail] = useState("");
   const [adminEmail, setAdminEmail] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletingConv, setDeletingConv] = useState(false);
   const loadSeqRef = useRef(0);
+  const currentUserUid = user?.uid || "";
+  const visibleRows = useMemo(
+    () => (rowsOwnerUid && rowsOwnerUid === currentUserUid ? rows : []),
+    [currentUserUid, rows, rowsOwnerUid]
+  );
+
+  useEffect(() => {
+    if (!currentUserUid || (rowsOwnerUid && rowsOwnerUid !== currentUserUid)) {
+      setRows([]);
+      setRowsOwnerUid("");
+      setMeEmail("");
+      setAdminEmail(null);
+      setDeleteTarget(null);
+      setSearchQuery("");
+      setLoading(!!currentUserUid);
+      setRefreshing(false);
+    }
+  }, [currentUserUid, rowsOwnerUid]);
 
   const load = useCallback(async () => {
     const seq = ++loadSeqRef.current;
-    if (!auth.currentUser) {
+    const loadUserUid = auth.currentUser?.uid || "";
+    if (!loadUserUid) {
       setRows([]);
+      setRowsOwnerUid("");
+      setMeEmail("");
       setLoading(false);
       setRefreshing(false);
       return;
@@ -84,6 +106,7 @@ export default function MessagesScreen({ navigation }) {
     }
     if (!auth.currentUser?.uid) {
       setRows([]);
+      setRowsOwnerUid("");
       setMeEmail("");
       setLoading(false);
       setRefreshing(false);
@@ -164,8 +187,9 @@ export default function MessagesScreen({ navigation }) {
               const tb = new Date(b.last_message_time || b.last_message_date || 0).getTime();
               return tb - ta;
             });
-          if (seq === loadSeqRef.current) {
+          if (seq === loadSeqRef.current && auth.currentUser?.uid === loadUserUid) {
             setRows(deduped);
+            setRowsOwnerUid(loadUserUid);
             notifyUnreadTabBadge();
           }
           break;
@@ -233,18 +257,18 @@ export default function MessagesScreen({ navigation }) {
   );
 
   const filteredRows = useMemo(() => {
-    if (!searchQuery.trim()) return rows;
+    if (!searchQuery.trim()) return visibleRows;
     const q = searchQuery.toLowerCase().trim();
-    return rows.filter(
+    return visibleRows.filter(
       (r) =>
         (r.otherName || "").toLowerCase().includes(q) ||
         (r.otherEmail || "").toLowerCase().includes(q) ||
         (r.last_message || "").toLowerCase().includes(q)
     );
-  }, [rows, searchQuery]);
+  }, [visibleRows, searchQuery]);
 
   const hasAdminConversation =
-    adminEmail && rows.some((r) => normalizeEmail(r.otherEmail) === normalizeEmail(adminEmail));
+    adminEmail && visibleRows.some((r) => normalizeEmail(r.otherEmail) === normalizeEmail(adminEmail));
   const showAdminBtn = adminEmail && !hasAdminConversation;
 
   const openDeleteConversationModal = useCallback((item) => {
@@ -279,7 +303,7 @@ export default function MessagesScreen({ navigation }) {
     () => (
       <View style={styles.headerSection}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerSub}>{rows.length} харилцаа</Text>
+          <Text style={styles.headerSub}>{visibleRows.length} харилцаа</Text>
         </View>
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
@@ -299,7 +323,7 @@ export default function MessagesScreen({ navigation }) {
         ) : null}
       </View>
     ),
-    [rows.length, searchQuery, showAdminBtn, filteredRows.length, openAdminChat]
+    [visibleRows.length, searchQuery, showAdminBtn, filteredRows.length, openAdminChat]
   );
 
   const onRefresh = useCallback(() => {
@@ -375,7 +399,7 @@ export default function MessagesScreen({ navigation }) {
     );
   }
 
-  if (loading && rows.length === 0) {
+  if (loading && visibleRows.length === 0) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#ea580c" />
