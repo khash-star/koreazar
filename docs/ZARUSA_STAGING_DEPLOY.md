@@ -1,4 +1,4 @@
-# Zarusa staging deploy — Washington DC / DMV MVP
+# ZAR-USA staging deploy — Washington DC / DMV MVP
 
 **Order matters.** Do not skip steps.
 
@@ -17,9 +17,38 @@ SHOW COLUMNS FROM listings LIKE 'region_code';
 SHOW INDEX FROM listings WHERE Key_name = 'listings_country_region_index';
 ```
 
-## 2) PHP upload (cPanel → api.zarkorea.com document root)
+## 2) PHP upload (api.zarkorea.com document root)
 
-Generate upload bundle:
+Uploads `api/index.php` + `api/regions.php` only. Do **not** delete
+`bootstrap.php`, `banned_content.php`, `.env`, or `.htaccess` on the server.
+
+### Preferred — SSH/SCP (Windows PowerShell)
+
+```powershell
+# once: copy scripts/deploy-zarusa-api.env.example → scripts/deploy-zarusa-api.local.env
+# fill ZARUSA_DEPLOY_HOST / USER / REMOTE_DIR / SSH_KEY (and optional DB_*)
+npm run deploy:zarusa-api
+```
+
+| Flag / env | Effect |
+|------------|--------|
+| `-SkipMigration` | Upload PHP only; do not run SQL over SSH |
+| `-SkipVerify` | Skip post-deploy `smoke:zarusa-api` |
+| `-DryRun` | Print planned actions only |
+
+`*.local.env` is gitignored — never commit credentials.
+
+### Fallback — FTP
+
+```powershell
+# same local.env (or ZARUSA_FTP_* env vars)
+npm run deploy:zarusa-api:ftp
+```
+
+Optional one-time MySQL RBAC runner can be skipped with `ZARUSA_SKIP_MIGRATION=1`.
+Requires `curl` available as `curl.exe` on Windows.
+
+### Manual — package then cPanel upload
 
 ```powershell
 npm run package:zarusa-api
@@ -32,8 +61,6 @@ Upload from `deploy/zarusa-api-upload/`:
 | `api/index.php` | `index.php` |
 | `api/regions.php` | `regions.php` |
 
-Do **not** delete `bootstrap.php`, `banned_content.php`, `.env`, `.htaccess`.
-
 ## 3) Verify API (from repo root)
 
 ```powershell
@@ -42,8 +69,8 @@ npm run smoke:zarusa-api
 
 After successful deploy + migration, expect:
 
-- KR listings OK
-- US listings include `region_code` (or empty until US rows exist)
+- KR listings exclude US/JP rows and every row with a non-empty `region_code`
+- US listings include `region_code=washington-dc` (or the result is empty until scoped US rows exist)
 - `GET ...&country_code=US&region_code=chicago` → empty array
 
 ## 4) Mobile staging build (optional — not store submit)
@@ -56,7 +83,7 @@ npx eas build --platform android --profile production-us
 Checklist on device:
 
 - [ ] App opens **Main** directly (no invite screen)
-- [ ] Header: **ZARUSA — DC / DMV**
+- [ ] Header: **ZAR-USA — DC / DMV**
 - [ ] Home feed: US listings only, washington-dc scoped
 - [ ] Create listing: state picker **DC, VA, MD only**
 - [ ] KR `production` build unchanged (no region param)
