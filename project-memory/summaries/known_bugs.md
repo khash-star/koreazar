@@ -11,7 +11,7 @@
 | US / regional rows appear on KR home | API `append_kr_listing_read_filter` + client `filterListingsForMarket`; data correction via `api/sql/fix_us_listings_country_code.sql` after backup | `docs/TROUBLESHOOTING.md`, `docs/ZARUSA_REGION_PHASES.md` |
 | US admin “Home” drops to KR `/` | Admin back-links must use `useMarketHomePath` | `src/hooks/useMarketHomePath.js` |
 | Web admin UI works, PHP listing write 403 | MySQL `users` missing/`firebase_uid` or email mismatch; PHP scope lookup is UID then email | `docs/ZARUSA_REGION_PHASES.md` |
-| `/us` shows KR in country selector | US config `lockCountrySelector: true`; `getSelectableCountryCodes()` | `src/config/countries/us.js`, `src/config/country.js` |
+| `/us` shows KR in country selector | US is already in `ENABLED_COUNTRIES`; lock is `lockCountrySelector` on `us.js` via `getSelectableCountryCodes()` | `src/config/countries/us.js`, `src/config/country.js` |
 | Phone OTP chat permission denied | Participant emails must include phone auth variants (`resolveAuthEmail`) | `docs/CHAT_SYSTEM.md`, `docs/TROUBLESHOOTING.md` |
 
 ## Likely resolved / obsolete

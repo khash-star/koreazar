@@ -1,7 +1,7 @@
 # Koreazar — Project Memory
 
 > Canonical developer reference for the Koreazar (Zarkorea) monorepo.
-> **Updated:** 2026-08-10 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
+> **Updated:** 2026-08-24 · Derived from repository scan (`MEMORY_ANALYSIS_REPORT.md`) and live codebase.
 > **Related docs:** [ARCHITECTURE.md](./ARCHITECTURE.md) · [FIREBASE.md](./FIREBASE.md) · [CHAT_SYSTEM.md](./CHAT_SYSTEM.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) · root [README.md](../README.md)
 
 ---
@@ -158,6 +158,7 @@ Template: `api/.env.example`.
 | **Mobile in `mobile/`** | Separate Expo app; constants synced via `npm run sync-listings` from web `src/constants/listings.js` |
 | **URL-first market scope** | `/`, `/kr`, `/us`, `/jp`; route-only resolution tags writes so stored preferences cannot change data ownership |
 | **US region lock** | Web, mobile, and PHP registries default ZAR-USA to `washington-dc`; API enforces DC/VA/MD and strict region reads |
+| **US selector lock ≠ ENABLED list** | `ENABLED_COUNTRIES` includes KR+US; `/us` hides KR via `lockCountrySelector` on `src/config/countries/us.js` |
 | **Scoped admin roles** | `super_admin`, `country_admin`, and `region_admin` are shared via `npm run sync-admin-roles`; Firestore and MySQL checks mirror scope |
 | **Chat push via Cloud Function** | `onChatMessageCreatedPush` on `messages/{messageId}` create → Expo Push API |
 | **Security headers on Vercel** | CSP, HSTS, X-Frame-Options in `vercel.json` |

@@ -196,7 +196,7 @@ Build script: `npm run build` → `sync-listings` + `sync-admin-roles` +
 | `mobile/src/config/firebase.web.js` | Firebase init (Expo web) |
 | `mobile/src/services/` | Parallel services to web (listings via `apiClient.js`) |
 | `mobile/app.config.js` | Resolves `GOOGLE_SERVICES_JSON` / `GOOGLE_SERVICE_INFO_PLIST` for EAS |
-| `mobile/app.json` | Expo config: slug `zarkorea-app`, scheme `zarkorea`, version `1.0.5` |
+| `mobile/app.json` | Expo config: slug `zarkorea-app`, scheme `zarkorea`, version `1.0.5` (iOS `47` / Android `43`) |
 
 ### Platform split
 

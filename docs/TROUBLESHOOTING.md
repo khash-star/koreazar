@@ -14,6 +14,8 @@
 | Permission denied (Firestore) | `firestore.rules` deploy, `users/{uid}.email` |
 | Index алдаа | `firebase deploy --only firestore:indexes` |
 | Зар харагдахгүй | PHP API `?action=health`, `VITE_API_BASE_URL` |
+| KR нүүр дээр US зар | API `append_kr_listing_read_filter` + client `filterListingsForMarket` |
+| `/us` selector-д KR гарна | US config `lockCountrySelector` — US already in `ENABLED_COUNTRIES` |
 | Чат ажиллахгүй | Нэвтрэлт, participant email, indexes |
 | Push ирэхгүй | Functions deploy, FCM V1, Expo token |
 | Mobile crash нээхэд | EAS Firebase env дутуу |
@@ -306,6 +308,16 @@ role-ийн талбар дутуу.
 
 **Шийдэл:** Admin page back-link `useMarketHomePath`-ийг ашиглана
 (`src/hooks/useMarketHomePath.js`). Scoped US admin-д `/us` буцаана.
+
+### `/us` дээр улс сонгогчид KR гарна
+
+**Шалтгаан:** `ENABLED_COUNTRIES` дээр US байгаа ч `/us` lock хийгдээгүй
+гэж андуурах.
+
+**Шийдэл:** `src/config/countries/us.js` дээр `lockCountrySelector: true`.
+`getSelectableCountryCodes()` энэ үед зөвхөн US буцаана. US-ийг
+`ENABLED_COUNTRIES`-оос хасах хэрэггүй — тэр жагсаалт KR нүүр дээрх
+нийтийн selector-д зориулагдсан.
 
 ### KR нүүр дээр US зар харагдана
 
