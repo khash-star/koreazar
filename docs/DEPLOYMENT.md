@@ -55,6 +55,7 @@ flowchart TB
 | `outputDirectory` | `dist` |
 | `installCommand` | `npm install` |
 | `devCommand` | `npm run dev` |
+| `cleanUrls` | `false` |
 
 ### Build pipeline
 
@@ -72,6 +73,26 @@ Rewrites non-file paths to `/index.html`. Special routes:
 
 - `/favicon.ico` → `/favicon.svg`
 - `/.well-known/assetlinks.json` — Digital Asset Links for Android TWA (`public/.well-known/assetlinks.json`)
+
+### Official domain and SEO artifacts
+
+`zarkorea.com` is the canonical public web domain. `vercel.json` permanently redirects the Vercel preview host to the official domain:
+
+| Source host | Destination |
+|-------------|-------------|
+| `https://koreazar.vercel.app/` | `https://zarkorea.com/` |
+| `https://koreazar.vercel.app/:path+` | `https://zarkorea.com/:path*` |
+
+The app also publishes static SEO files from `public/`:
+
+| File | Purpose |
+|------|---------|
+| `public/robots.txt` | Allows public pages, blocks private/admin/auth-only routes, points crawlers to the sitemap |
+| `public/sitemap.xml` | Lists canonical public URLs under `https://zarkorea.com/` |
+| `index.html` | Canonical link, robots meta, Open Graph/Twitter tags, JSON-LD for organization, website search, and Android app |
+| `src/constants/appUrls.js` | Official Play Store package/link used by footer and SEO copy (`com.zarkorea.twa`) |
+
+When adding or renaming public routes, update `public/sitemap.xml` and review `public/robots.txt` in the same PR. Do not add private pages (`/Admin*`, `/Profile`, `/Chat`, `/Messages`, user-specific listing management) to the sitemap.
 
 ### Security headers
 
@@ -110,6 +131,24 @@ After deploy, confirm:
 - https://zarkorea.com/manifest.json
 - Service worker registered (DevTools → Application)
 - Icons at `/icon-192.png`, `/icon-512.png`
+
+### Domain and SEO verification
+
+After deploy, confirm:
+
+```bash
+curl -I https://koreazar.vercel.app/
+curl -I https://koreazar.vercel.app/ListingDetail
+curl -I https://zarkorea.com/robots.txt
+curl -I https://zarkorea.com/sitemap.xml
+```
+
+Expected:
+
+- `koreazar.vercel.app` responds with a permanent redirect to the same path on `https://zarkorea.com`.
+- `robots.txt` includes `Sitemap: https://zarkorea.com/sitemap.xml`.
+- `sitemap.xml` contains only `https://zarkorea.com/...` URLs.
+- The rendered home page has `<link rel="canonical" href="https://zarkorea.com/">`.
 
 ---
 
@@ -309,6 +348,7 @@ Documented in `docs/PLAY_STORE_SETUP.md`:
 |--------|------|
 | `zarkorea.com` | Vercel (web SPA) |
 | `api.zarkorea.com` | PHP API server |
+| `koreazar.vercel.app` | Vercel preview host; permanently redirected to `zarkorea.com` |
 
 DNS guides at repo root: `DOMAIN_SETUP_GUIDE.md`, `CLOUDFLARE_VERCEL_DNS.md`.
 
@@ -337,6 +377,8 @@ Does not deploy Firebase or EAS automatically — those are manual or separate p
 - [ ] Firestore indexes deployed if queries changed
 - [ ] `manifest.json` and SW served on production
 - [ ] Privacy page live at `/Privacy`
+- [ ] `koreazar.vercel.app` redirects to `zarkorea.com`
+- [ ] `robots.txt`, `sitemap.xml`, canonical link, and app links reference `https://zarkorea.com`
 
 ### Firebase
 
@@ -388,6 +430,7 @@ Extended playbook: `project-memory/devops/rollback-workflow.md`.
 | Android push silent failure | Upload FCM V1 to Expo credentials |
 | Storage 403 | Deploy `storage.rules` |
 | API CORS/auth failures | Verify `FIREBASE_WEB_API_KEY` on server |
+| Search indexing wrong host | Verify Vercel host redirect, canonical tag, `robots.txt`, and `sitemap.xml` all point to `zarkorea.com` |
 
 ---
 

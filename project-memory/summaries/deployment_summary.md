@@ -7,8 +7,11 @@
 
 - **Platform:** Vercel
 - **Build:** `npm run build` → `dist/`
+- **Canonical domain:** `https://zarkorea.com`
+- **Preview host redirect:** `koreazar.vercel.app` permanently redirects same-path requests to `zarkorea.com` via `vercel.json`
 - **Canonical deploy guides (pick 1–2):** `VERCEL_DEPLOYMENT_GUIDE.md`, `VERCEL_ENV_SETUP.md`
 - **Env vars:** `VITE_FIREBASE_*` on Vercel (see `FIREBASE_VERCEL_SETUP.md`)
+- **SEO/public artifacts:** `index.html` canonical/OG/JSON-LD, `public/robots.txt`, `public/sitemap.xml`, `src/constants/appUrls.js`
 
 ## Firebase ops
 
@@ -21,6 +24,7 @@
 ## DNS / domain
 
 - Production domain documented as **zarkorea.com**
+- Vercel preview host **koreazar.vercel.app** should not index separately; verify permanent redirect after deploy
 - Cloudflare + Vercel: `CLOUDFLARE_VERCEL_DNS.md`, `DOMAIN_SETUP_GUIDE.md`
 - **Risk:** older docs mention `zarmongolia.com` — verify live DNS
 
