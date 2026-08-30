@@ -10,16 +10,53 @@ import {
   limit,
   orderBy,
   query,
+  serverTimestamp,
+  setDoc,
   where,
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
+import { deleteListing, getListingsByCreator } from '@/services/listingService';
 
 async function deleteSnapshotDocs(snap, collectionName) {
   await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, collectionName, d.id))));
 }
 
+async function scrubUserProfileForDeletion(uid) {
+  await setDoc(
+    doc(db, 'users', uid),
+    {
+      accountDeleted: true,
+      deletedAt: serverTimestamp(),
+      displayName: '',
+      phone: '',
+      phoneNumber: '',
+      city: '',
+      district: '',
+      kakao_id: '',
+      wechat_id: '',
+      whatsapp: '',
+      facebook: '',
+      blocked_seller_emails: [],
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function deleteOwnedApiListingsForUser(email) {
+  for (let page = 0; page < 20; page += 1) {
+    const listings = await getListingsByCreator(email, 100);
+    if (listings.length === 0) return;
+    await Promise.all(listings.map((listing) => deleteListing(listing.id)));
+    if (listings.length < 100) return;
+  }
+  throw new Error('Зарын мэдээлэл олон байна. Түр хүлээгээд дахин оролдоно уу.');
+}
+
 export async function deleteAllFirestoreDataForUser(uid, email) {
   if (!uid || !email) throw new Error('UID эсвэл имэйл байхгүй');
+
+  await deleteOwnedApiListingsForUser(email);
 
   const savedQ = query(
     collection(db, 'saved_listings'),
@@ -109,5 +146,5 @@ export async function deleteAllFirestoreDataForUser(uid, email) {
     await deleteSnapshotDocs(uSnap, 'ai_usage');
   }
 
-  await deleteDoc(doc(db, 'users', uid));
+  await scrubUserProfileForDeletion(uid);
 }
