@@ -8,6 +8,22 @@
 
 App icon badge + tab badges are unchanged (polling + `appIconBadge.js`).
 
+Mobile chat architecture, conversation repair, and platform send/keyboard
+constraints are documented in [`MOBILE_CHAT.md`](MOBILE_CHAT.md).
+
+### Runtime details
+
+- `pushTokenService.ensureChatPushPermissions()` creates Android notification
+  channel `chat` with high importance before requesting a token.
+- `PushNotificationBootstrap` retries token registration after login. Android
+  waits 1200ms first, then retries with `[0, 2000, 5000]` delays because FCM can
+  be late immediately after app start.
+- Function payload data is:
+  `{ type: "chat", conversation_id, other_user_email }`.
+- Notification taps open Chat directly. The thread is still expected to appear in
+  Messages because conversations store `participant_uids`; legacy threads may
+  need the backfill below.
+
 ## Deploy (required for push to work)
 
 From repo root (Firebase CLI logged in, project selected):
@@ -52,7 +68,24 @@ Docs: [Expo FCM credentials](https://docs.expo.dev/push-notifications/fcm-creden
 | 3 | User A sends chat from web or mobile |
 | 4 | User B receives push with app backgrounded / killed |
 | 5 | Tap notification → opens Chat with sender |
-| 6 | Logout removes device token doc |
+| 6 | Return to Messages; the same thread remains visible for the phone OTP user |
+| 7 | Logout removes device token doc |
+
+## Legacy conversation backfill
+
+For conversations created before `participant_uids`, push taps can open Chat while
+the Messages list stays empty for phone OTP users. Current clients call
+`repairConversationParticipants()`, but run the backfill once for production data
+after deploying indexes:
+
+```bash
+cd functions
+node scripts/backfill-conversation-participant-uids.js --dry-run
+node scripts/backfill-conversation-participant-uids.js
+```
+
+The script requires Firebase Admin credentials. Use `--dry-run` first and confirm
+the target Firebase project before writing.
 
 ## Troubleshooting
 
@@ -63,3 +96,4 @@ Docs: [Expo FCM credentials](https://docs.expo.dev/push-notifications/fcm-creden
 | Token but no push | Function not deployed; receiver has no `users` doc with matching `email` |
 | Expo `DeviceNotRegistered` | Stale token; re-login; function prunes doc automatically |
 | Permission granted, still no token | Android: wait after login (app retries); check Metro/device logs for `registerPushTokenForUid` / `getExpoPushTokenAsync` |
+| Push opens Chat but thread missing from Messages | Missing `participant_uids` or phone email variant drift; run the backfill above and verify `firestore.indexes.json` is deployed |
