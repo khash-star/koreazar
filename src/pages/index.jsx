@@ -68,9 +68,10 @@ function LayoutWrapper({ children, currentPageName }) {
     return <Layout currentPageName={currentPageName}>{children}</Layout>;
 }
 
-// Country prefixes wired into routing. Only KR is a public/live market
-// (see `ENABLED_COUNTRIES` in `src/config/country.js`) — US/JP routes stay
-// mounted so they can be tested directly by URL without being advertised.
+// Country prefixes wired into routing. Public/live markets are listed in
+// ENABLED_COUNTRIES (currently KR + US). JP stays mounted so it can be
+// tested at /jp without being advertised. /us also locks the selector via
+// lockCountrySelector on the US country config.
 const COUNTRY_ROUTE_PREFIXES = ['kr', 'us', 'jp'];
 
 // Pages available under a country prefix, e.g. `/us/CreateListing`.
