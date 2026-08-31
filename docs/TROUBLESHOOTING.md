@@ -1,6 +1,6 @@
 # Zarkorea — Troubleshooting
 
-> Түгээмэл асуудал, шалтгаан, шийдэл.  
+> Түгээмэл асуудал, шалтгаан, шийдэл.
 > **Эх сурвалж:** кодын сан, production deploy туршлага, `project-memory/known-bugs.md`
 
 ---
@@ -14,6 +14,8 @@
 | Permission denied (Firestore) | `firestore.rules` deploy, `users/{uid}.email` |
 | Index алдаа | `firebase deploy --only firestore:indexes` |
 | Зар харагдахгүй | PHP API `?action=health`, `VITE_API_BASE_URL` |
+| KR нүүр дээр US зар | API `append_kr_listing_read_filter` + client `filterListingsForMarket` |
+| `/us` selector-д KR гарна | US config `lockCountrySelector` — US already in `ENABLED_COUNTRIES` |
 | Чат ажиллахгүй | Нэвтрэлт, participant email, indexes |
 | Push ирэхгүй | Functions deploy, FCM V1, Expo token |
 | Mobile crash нээхэд | EAS Firebase env дутуу |
@@ -122,7 +124,7 @@ firebase deploy --only firestore:rules
 firebase deploy --only firestore:indexes
 ```
 
-Эсвэл алдааны мессеж дээрх Console холбоосоор индекс үүсгэнэ.  
+Эсвэл алдааны мессеж дээрх Console холбоосоор индекс үүсгэнэ.
 Жагсаалт: `firestore.indexes.json`, [FIRESTORE_SCHEMA.md](./FIRESTORE_SCHEMA.md).
 
 ### Чат inbox хоосон (permission алдаагүй)
@@ -247,7 +249,7 @@ npx eas credentials
 # Android → production → FCM V1 → service account JSON upload
 ```
 
-Дараа нь logout → login, дахин туршина.  
+Дараа нь logout → login, дахин туршина.
 `mobile/docs/CHAT_PUSH_SETUP.md`
 
 ### iOS OK, Android чимээгүй
@@ -262,7 +264,7 @@ npx eas credentials
 firebase deploy --only functions
 ```
 
-Functions Logs: Firebase Console → `onChatMessageCreatedPush`  
+Functions Logs: Firebase Console → `onChatMessageCreatedPush`
 Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 ---
@@ -271,10 +273,63 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 ### Admin хуудас харагдахгүй
 
-**Шалтгаан:** `users/{uid}.role` != `admin`.
+**Шалтгаан:** `users/{uid}.role` танигдсан admin role биш, эсвэл scoped
+role-ийн талбар дутуу.
 
-**Шийдэл:** Firebase Console → Firestore → `users` → `role: "admin"`.  
-`ADMIN_SETUP_GUIDE.md`
+**Шийдэл:**
+
+- Global: `role` нь `super_admin` (legacy `admin` бас дэмжинэ)
+- Country: `country_admin` + `admin_country_code`
+- US region: `region_admin` + `admin_country_code: "US"` +
+  `admin_region_code: "washington-dc"`
+- Web `AdminPanel`-ийн role assignment зөвхөн super admin-д харагдана
+- PHP API parity-д MySQL `users` scope баганууд migration хийгдсэн эсэхийг
+  шалгана
+
+Дэлгэрэнгүй: [ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
+
+### Web admin UI ажиллана, PHP listing moderation 403
+
+**Шалтгаан:** Firestore дээр role байгаа ч MySQL `users` мөр олдохгүй
+эсвэл scope багана хоосон.
+
+**Шийдэл:**
+
+1. MySQL `users` дээр `firebase_uid` эсвэл `email` Firebase token-той таарах
+   эсэхийг шалгана (`get_app_admin_scope` эхлээд UID, дараа нь email).
+2. Role/scope-ийг `admin_set_user_role` эсвэл `user_sync`-аар MySQL руу
+   дахин бичнэ.
+3. `APP_ADMIN_UIDS` зөвхөн super-admin override — region/country admin-д
+   найдах хэрэггүй.
+
+### US admin «Нүүр» дархад KR `/` руу орно
+
+**Шалтгаан:** Admin route prefix байхгүй; буруу home link.
+
+**Шийдэл:** Admin page back-link `useMarketHomePath`-ийг ашиглана
+(`src/hooks/useMarketHomePath.js`). Scoped US admin-д `/us` буцаана.
+
+### `/us` дээр улс сонгогчид KR гарна
+
+**Шалтгаан:** `ENABLED_COUNTRIES` дээр US байгаа ч `/us` lock хийгдээгүй
+гэж андуурах.
+
+**Шийдэл:** `src/config/countries/us.js` дээр `lockCountrySelector: true`.
+`getSelectableCountryCodes()` энэ үед зөвхөн US буцаана. US-ийг
+`ENABLED_COUNTRIES`-оос хасах хэрэггүй — тэр жагсаалт KR нүүр дээрх
+нийтийн selector-д зориулагдсан.
+
+### KR нүүр дээр US зар харагдана
+
+**Шалтгаан:** Migration үед US мөр `country_code=KR` (эсвэл хоосон) +
+`region_code` үлдсэн.
+
+**Шийдэл:**
+
+- API: `append_kr_listing_read_filter` (`api/regions.php`)
+- Client: `filterListingsForMarket` (`src/utils/listingCountry.js`)
+- Өгөгдөл засах: backup хийсний дараа
+  `api/sql/fix_us_listings_country_code.sql`-ийг хянаж ажиллуулна
 
 ### Admin зар батлахад нүүр дээр харагдахгүй
 
@@ -283,6 +338,7 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 **Шийдэл:**
 - API-аар зарын `status` шалгах
 - `listingAutoApprove: true` бол шууд `active`
+- US/KR market filter зөв `country_code` / `region_code` илгээж байгаа эсэх
 
 ---
 
@@ -305,7 +361,7 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 **Шийдэл:**
 - Vercel → Domains → DNS records шалгах
-- Cloudflare ашиглавал proxy + SSL mode  
+- Cloudflare ашиглавал proxy + SSL mode
 Root: `DOMAIN_SETUP_GUIDE.md`, `CLOUDFLARE_VERCEL_DNS.md`
 
 ### API CORS алдаа
