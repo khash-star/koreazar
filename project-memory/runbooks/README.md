@@ -5,3 +5,9 @@ Operational notes for production checks — templates only; verify against live 
 | Runbook | Use |
 |---------|-----|
 | `production-verification.md` | After deploy or infra-related tasks |
+
+Local setup and common pitfalls live in canonical docs (do not duplicate):
+
+- Web install: root `README.md` + `.env.example`
+- API upload / Linux vs Windows helpers: `docs/ZARUSA_STAGING_DEPLOY.md`, `docs/DEPLOYMENT.md`
+- Failures: `docs/TROUBLESHOOTING.md` (phone OTP chat variants, unprefixed KR writes, KR/US feed leak)
