@@ -61,10 +61,26 @@ flowchart TB
 ```bash
 npm install
 npm run build
-# Runs: sync-listings → generate-pwa-icons → vite build
+# Runs: sync-listings → sync-admin-roles → generate-pwa-icons → vite build
 ```
 
 Output: `dist/index.html`, hashed assets, `manifest.json`, service worker (`sw.js` / Workbox).
+
+### Developer scripts (repo root `package.json`)
+
+| Script | Use |
+|--------|-----|
+| `npm run dev` / `build` / `preview` | Web Vite |
+| `npm run sync-listings` | Copy `src/constants/listings.js` → mobile |
+| `npm run sync-admin-roles` | Copy `src/constants/adminRoles.js` → mobile |
+| `npm run verify:zarusa-registry` | Web / mobile / PHP US region registry parity |
+| `npm run smoke:zarusa-api` | Node smoke against the live API URL (cross-platform) |
+| `npm run deploy:zarusa-api` | Windows PowerShell SCP of `index.php` + `regions.php` |
+| `npm run deploy:zarusa-api:ftp` | Windows FTP (`curl.exe`) |
+| `npm run package:zarusa-api` | Windows bundle for manual cPanel upload |
+
+Linux/macOS API upload: copy the two PHP files yourself, then smoke. Details:
+[`ZARUSA_STAGING_DEPLOY.md`](./ZARUSA_STAGING_DEPLOY.md).
 
 ### SPA routing
 
@@ -157,10 +173,29 @@ Composite indexes may take minutes to build in Firebase Console. Query errors in
 | File | Role |
 |------|------|
 | `index.php` | Router (`action=` parameter) |
+| `regions.php` | US region registry + listing read/write scope helpers |
 | `bootstrap.php` | DB connection, auth helpers |
 | `banned_content.php` | Content filter |
 | `.htaccess` | Apache rewrite |
 | `sql/schema.sql` | MySQL schema |
+
+### Deploying PHP (`index.php` + `regions.php`)
+
+| Command | When |
+|---------|------|
+| `npm run deploy:zarusa-api` | Preferred SSH/SCP — **Windows PowerShell** (`scripts/deploy-zarusa-api.ps1`); needs gitignored `scripts/deploy-zarusa-api.local.env` |
+| `npm run deploy:zarusa-api:ftp` | FTP fallback (Node). Invokes **`curl.exe`**, so it is also Windows-oriented |
+| `npm run package:zarusa-api` | Manual cPanel bundle — **Windows PowerShell**; output under `deploy/zarusa-api-upload/` |
+| `npm run smoke:zarusa-api` | Cross-platform Node smoke (`scripts/smoke-zarusa-dmv-api.mjs`) |
+
+**Linux / macOS:** do not expect the PowerShell/`curl.exe` helpers to run.
+Copy `api/index.php` and `api/regions.php` into the API document root
+(cPanel/SFTP/scp). Do **not** delete `bootstrap.php`, `banned_content.php`,
+`.env`, or `.htaccess`. Then run `npm run smoke:zarusa-api` from the repo
+root. Never commit `*.local.env` or paste host/password values into docs.
+
+Staging order, flags (`-SkipMigration`, `-SkipVerify`, `-DryRun`), and smoke checks:
+[`docs/ZARUSA_STAGING_DEPLOY.md`](./ZARUSA_STAGING_DEPLOY.md).
 
 ### Server environment (`api/.env`)
 
@@ -202,11 +237,15 @@ Default fallback in code: `https://api.zarkorea.com/index.php`
 | Name | Zarkorea |
 | Slug | `zarkorea-app` |
 | Scheme | `zarkorea` |
-| Version | `1.0.4` |
-| iOS buildNumber | `46` |
-| Android versionCode | `41` |
+| Version | `1.0.5` |
+| iOS buildNumber | `47` |
+| Android versionCode | `43` |
 | Bundle ID / package | `com.zarkorea.twa` |
 | EAS projectId | `96d89595-cf78-48c8-9695-5c2cc7af53f4` |
+
+`production-us` applies `mobile/app.config.js` overrides at build time:
+display name `ZAR-USA`, scheme `zarusa`, and bundle/package
+`com.zarusa.app`. The Expo slug and EAS project remain shared.
 
 ### Build profiles (`mobile/eas.json`)
 
@@ -215,6 +254,7 @@ Default fallback in code: `https://api.zarkorea.com/index.php`
 | `development` | Dev client, internal distribution |
 | `preview` | Internal APK (Android `buildType: apk`) |
 | `production` | Store release; `autoIncrement: true`; Android AAB with local credentials |
+| `production-us` | Extends `production`; sets `EXPO_PUBLIC_ACTIVE_COUNTRY=US` for the separate ZAR-USA store apps |
 
 ### NPM scripts (`mobile/package.json`)
 
@@ -224,7 +264,14 @@ npm run release:ios          # eas build --profile production --platform ios
 npm run release:android      # eas build --profile production --platform android
 npm run release:submit:ios   # eas submit --latest
 npm run release:submit:android
+npm run release:ios:us       # eas build --profile production-us --platform ios
+npm run release:android:us   # eas build --profile production-us --platform android
+npm run submit:ios:us        # eas submit --profile production-us --latest
+npm run submit:android:us
 ```
+
+ZAR-USA build identity, native Firebase file resolution, and staging gates:
+[`mobile/docs/ZARUSA_BUILD.md`](../mobile/docs/ZARUSA_BUILD.md).
 
 ### Production environment variables
 
@@ -253,9 +300,14 @@ npx eas env:push production --path .env --force
 cd mobile
 eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production
 eas env:create --name GOOGLE_SERVICE_INFO_PLIST --type file --value ./GoogleService-Info.plist --environment production
+# If ZAR-USA uses a separate iOS Firebase app:
+eas env:create --name GOOGLE_SERVICE_INFO_PLIST_US --type file --value ./GoogleService-Info.zarusa.plist --environment production
 ```
 
-`mobile/app.config.js` resolves these paths on the EAS builder.
+`mobile/app.config.js` resolves these paths on the EAS builder. For a US
+build, `GOOGLE_SERVICE_INFO_PLIST_US` takes precedence and falls back to
+`GOOGLE_SERVICE_INFO_PLIST`; Android uses `GOOGLE_SERVICES_JSON` for both
+profiles.
 
 ### Android push (FCM V1)
 
