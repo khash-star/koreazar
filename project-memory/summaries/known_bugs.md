@@ -7,6 +7,7 @@
 
 | Symptom | Source doc | Notes |
 |---------|------------|--------|
+| Unauthenticated `PATCH {"views": n+1}` returned full US listings that GET 404s (inactive/empty `region_code`) | `api/index.php` listing PATCH + `enforce_us_listing_row_visible()` | Public view increment now uses the same region 404 as GET by id |
 | Base44 redirect on login | `docs/archive/historical-fixes/TROUBLESHOOTING.md` | Migration-era; likely obsolete |
 | Migration status conflicts | `docs/archive/migration-snapshots/` | Snapshots may disagree with `README.md` |
 

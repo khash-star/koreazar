@@ -250,26 +250,40 @@ function enforce_us_listing_write_region(PDO $pdo, array &$payload): void
 }
 
 /**
- * Hide US listings outside active region on GET by id (404).
+ * True when a listing may be returned on unauthenticated GET / view increment.
+ * KR/JP rows are unchanged. US rows must be in the single active launch region.
+ *
+ * @param array<string, mixed> $row
+ */
+function listing_is_us_region_visible(PDO $pdo, array $row): bool
+{
+    if (!table_has($pdo, 'listings', 'region_code')) {
+        return true;
+    }
+
+    $country = normalize_listing_country_code((string) ($row['country_code'] ?? 'KR'));
+    if ($country !== 'US') {
+        return true;
+    }
+
+    $region = normalize_listing_region_code((string) ($row['region_code'] ?? ''));
+    $default = get_default_us_region_code();
+
+    return $region !== '' && is_active_us_region($region) && $region === $default;
+}
+
+/**
+ * Hide US listings outside active region on public GET / view increment (404).
  *
  * @param array<string, mixed> $row
  */
 function enforce_us_listing_row_visible(PDO $pdo, array $row): void
 {
-    if (!table_has($pdo, 'listings', 'region_code')) {
+    if (listing_is_us_region_visible($pdo, $row)) {
         return;
     }
 
-    $country = normalize_listing_country_code((string) ($row['country_code'] ?? 'KR'));
-    if ($country !== 'US') {
-        return;
-    }
-
-    $region = normalize_listing_region_code((string) ($row['region_code'] ?? ''));
-    $default = get_default_us_region_code();
-    if ($region === '' || !is_active_us_region($region) || $region !== $default) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
+    http_response_code(404);
+    echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
