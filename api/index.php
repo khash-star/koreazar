@@ -341,7 +341,8 @@ try {
                 // Allow public, view-only increment used by listing detail page.
                 $existingViews = isset($existing['views']) ? (int) $existing['views'] : 0;
                 $requestedViews = isset($payload['views']) ? (int) $payload['views'] : $existingViews;
-                if (!($isViewOnlyPayload && $requestedViews === $existingViews + 1)) {
+                $isPublicViewIncrement = $isViewOnlyPayload && $requestedViews === $existingViews + 1;
+                if (!$isPublicViewIncrement) {
                     $authUser = require_firebase_user();
                     enforce_listing_ownership($pdo, $existing, $authUser);
                     enforce_listing_promotion_privileges($pdo, $authUser, $payload, $existing, false);
@@ -349,6 +350,9 @@ try {
                         api_respond_prohibited_listing();
                         break;
                     }
+                } else {
+                    // Same 404 as GET by id — do not leak region-hidden US rows via views PATCH.
+                    enforce_us_listing_row_visible($pdo, $existing);
                 }
 
                 $setParts = [];
