@@ -113,6 +113,16 @@ service cloud.firestore {
       );
     }
 
+    // Banner-request owner: uid on new writes; email fallback for legacy docs.
+    function ownsBannerRequest(data) {
+      return request.auth != null && (
+        (data.created_by_uid is string && data.created_by_uid == request.auth.uid) ||
+        (authEmailLower().size() > 0 &&
+          data.created_by is string &&
+          data.created_by.lower() == authEmailLower())
+      );
+    }
+
     function isMessageConversationParticipant() {
       return request.auth != null &&
         resource.data.conversation_id is string &&
@@ -173,8 +183,9 @@ service cloud.firestore {
     }
 
     match /banner_requests/{requestId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if isAppAdmin() || ownsBannerRequest(resource.data);
+      allow create: if ownsBannerRequest(request.resource.data)
+        && request.resource.data.created_by_uid == request.auth.uid;
       allow update, delete: if isAppAdmin();
     }
 
