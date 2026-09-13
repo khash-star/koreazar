@@ -156,11 +156,15 @@ export const filterBannerRequests = async (filters = {}) => {
 
 export const createBannerRequest = async (data) => {
   try {
+    const { requireResolvedAuthEmail } = await import('@/services/authService');
+    const { email: userEmail, user } = await requireResolvedAuthEmail();
     const requestsRef = collection(db, 'banner_requests');
     const requestData = {
       ...data,
       created_date: Timestamp.now(),
-      status: data.status || 'pending'
+      status: data.status || 'pending',
+      created_by: userEmail,
+      created_by_uid: user.uid,
     };
     
     const docRef = await addDoc(requestsRef, requestData);
