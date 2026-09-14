@@ -1,6 +1,6 @@
 # Zarkorea — Security
 
-> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.  
+> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.
 > **Эх сурвалж:** `vercel.json`, `firestore.rules`, `storage.rules`, `src/utils/security.js`, `api/bootstrap.php`
 
 ---
@@ -107,17 +107,26 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 
 ### PHP API Bearer token
 
-Бичих endpoint-ууд `Authorization: Bearer {Firebase ID token}` шаарддаг (`api/bootstrap.php` → `require_firebase_user()`).
+Бичих endpoint-ууд `Authorization: Bearer {Firebase ID token}` шаарддаг (`api/bootstrap.php` → `require_firebase_user()`), **except** `PATCH action=listing` when the body is only `views` incremented by one (`listingService.isViewCountOnlyBump`). That view bump is public and does not run `enforce_us_listing_row_visible`. `GET action=listing` is public; US rows outside the active region 404.
 
 Шалгалтанд `FIREBASE_WEB_API_KEY` (серверийн `.env`) ашиглана — **client-д бүү илгээ**.
 
 ### Admin эрх
 
-- Firestore: `users/{uid}.role == 'admin'` (`firestore.rules` → `isAdmin()`)
-- PHP: `APP_ADMIN_UIDS` (comma-separated Firebase UID) — зарын admin override
-- Admin өөрөө `role` талбарыг өөрчлөхгүй (rules хориглоно)
+- Firestore global admin: `admin` (legacy alias) эсвэл `super_admin`
+- Scoped roles: `country_admin` + `admin_country_code`; `region_admin` +
+  `admin_region_code`
+- PHP: MySQL `users.role` + scope баганууд; `APP_ADMIN_UIDS` нь
+  super-admin override
+- PHP scope lookup: `APP_ADMIN_UIDS` → `users.firebase_uid` → fallback
+  `users.email` (legacy rows without Firebase UID)
+- Зөвхөн super admin role/scope assign хийнэ. Хэрэглэгч өөрийн `role`,
+  `isAdmin`, `admin_country_code`, `admin_region_code`-ийг өөрчилж болохгүй.
+- Region admin хэрэглэгч удирдах, broadcast хийх, global config өөрчлөх
+  эрхгүй.
 
-Тохируулах: root `ADMIN_SETUP_GUIDE.md`.
+Тохируулах ба scope matrix:
+[ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ---
 
@@ -172,7 +181,8 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 
 ### Тусгай логик
 
-- **View count:** Auth хэрэглэгч зөвхөн `views` талбарыг +1 increment хийж болно (`listings` rules).
+- **View count (legacy Firestore `listings`):** Auth хэрэглэгч зөвхөн `views` талбарыг +1 increment хийж болно (`firestore.rules`).
+- **View count (MySQL listings API):** unauthenticated `PATCH` when the body is only `views` = existing + 1 (`api/index.php`). Other listing writes require Bearer.
 - **Утасны хэрэглэгч:** `authEmailLower()` — token.email хоосон бол `users/{uid}.email` ашиглана.
 - **Чат:** `participant_uids` эсвэл имэйлээр оролцогч шалгана.
 
