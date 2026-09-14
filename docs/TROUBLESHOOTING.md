@@ -1,6 +1,6 @@
 # Zarkorea — Troubleshooting
 
-> Түгээмэл асуудал, шалтгаан, шийдэл.  
+> Түгээмэл асуудал, шалтгаан, шийдэл.
 > **Эх сурвалж:** кодын сан, production deploy туршлага, `project-memory/known-bugs.md`
 
 ---
@@ -14,7 +14,13 @@
 | Permission denied (Firestore) | `firestore.rules` deploy, `users/{uid}.email` |
 | Index алдаа | `firebase deploy --only firestore:indexes` |
 | Зар харагдахгүй | PHP API `?action=health`, `VITE_API_BASE_URL` |
-| Чат ажиллахгүй | Нэвтрэлт, participant email, indexes |
+| KR нүүр дээр US зар | API `append_kr_listing_read_filter` + client `filterListingsForMarket` |
+| `/us` selector-д KR гарна | US config `lockCountrySelector` — US already in `ENABLED_COUNTRIES` |
+| US зар detail 404 | `GET listing` + `enforce_us_listing_row_visible` (`region_code`) |
+| Баннер буруу market | `banner_ads.country_code` хоосон = KR |
+| Чат ажиллахгүй | Нэвтрэлт, participant email variants, indexes |
+| Утасны OTP inbox хоосон | `emailQueryVariants` (KR `82` / US `1`) + `participant_uids` |
+| `/CreateListing` US биш KR зар | Unprefixed write → `resolveRouteCountryCode()` = null → KR. Use `/us/CreateListing` |
 | Push ирэхгүй | Functions deploy, FCM V1, Expo token |
 | Mobile crash нээхэд | EAS Firebase env дутуу |
 
@@ -122,20 +128,28 @@ firebase deploy --only firestore:rules
 firebase deploy --only firestore:indexes
 ```
 
-Эсвэл алдааны мессеж дээрх Console холбоосоор индекс үүсгэнэ.  
+Эсвэл алдааны мессеж дээрх Console холбоосоор индекс үүсгэнэ.
 Жагсаалт: `firestore.indexes.json`, [FIRESTORE_SCHEMA.md](./FIRESTORE_SCHEMA.md).
 
 ### Чат inbox хоосон (permission алдаагүй)
 
-**Шалтгаан:** Participant email таарахгүй, `participant_uids` дутуу.
+**Шалтгаан:** Participant email таарахгүй, `participant_uids` дутуу, эсвэл
+KR/US утасны синтетик имэйл хувилбар зөрсөн.
 
 **Шийдэл:**
-- `resolveChatParticipantEmail()` зөв имэйл буцааж байгаа эсэх
+- `resolveChatParticipantEmail()` / `resolveAuthEmail()` зөв имэйл буцааж
+  байгаа эсэх (token.email OTP-д хоосон байж болно)
+- `emailQueryVariants()` / `areEmailVariants()` ашиглах — raw string
+  equality бүү хэрэглэ
+- KR: `phone_82…@phone.zarkorea.com` ↔ national digits without `82`
+- US: `phone_1` + 10 digits ↔ 10-digit national (`src/utils/emailNormalize.js`)
 - Хуучин conversation-д `participant_uids` backfill:
 
 ```bash
 node functions/scripts/backfill-conversation-participant-uids.js
 ```
+
+`users/{uid}.email` Firestore дээр байх ёстой — `ensureUserDocEmailForFirestoreRules`.
 
 ---
 
@@ -175,6 +189,36 @@ firebase deploy --only storage
 ```
 
 `VITE_FIREBASE_STORAGE_BUCKET` / `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` Console-ийн bucket-тай таарна.
+
+### US ListingDetail 404 (Home-д харагдахгүй зар)
+
+**Шалтгаан:** `GET action=listing&id=` `enforce_us_listing_row_visible` ажиллуулна. US мөрийн `region_code` хоосон, inactive, эсвэл `washington-dc` биш бол 404. KR feed isolation (`GET listings`) энэ helper-ийг дууддаггүй.
+
+**Шийдэл:**
+- ID зөв MySQL numeric эсэх
+- Мөрийн `country_code` / `region_code`-ийг DB-д шалгах
+- Feed-д харагдах US зар л detail-д нээгдэнэ гэж үзэх
+
+### VIP / Онцгой зар 403
+
+**Шалтгаан:** `enforce_listing_promotion_privileges` — `featured`/`vip` болон promo expiry-г зөвхөн scoped admin өөрчилнө.
+
+**Шийдэл:** `/UpgradeListing` дээр энгийн хэрэглэгч зөвхөн `regular` сонгоно. Админ `AdminAllListings`-ээс confer.
+
+### Баннер KR дээр гарч US дээр гарахгүй
+
+**Шалтгаан:** `AdminBannerRequests` approve нь `banner_ads`-д `country_code` тавихгүй. Home `isBannerVisibleForCountry` хоосон/байхгүй утгыг KR гэж үзнэ.
+
+**Шийдэл:**
+- US/GLOBAL баннерыг `AdminBanners` дээр `country_code` тохируулж үүсгэх
+- Approve-оор гарсан баннерыг засахдаа `US` эсвэл `GLOBAL` тавих
+- `/RequestBannerAd` prefixгүй тул Storage folder `useActiveCountry()` (localStorage) ашиглана — listing write-ийн URL-only дүрэм биш
+
+### “Миний баннер хүсэлт” хоосон
+
+**Шалтгаан:** Хуудас `created_by == authEmail` шүүнэ, гэхдээ одоогийн submit payload `created_by` бичдэггүй.
+
+**Шийдэл:** Firestore `banner_requests` document дээр `created_by` байгаа эсэхийг шалгах. Админ жагсаалт (`BannerRequest.list`) бүх хүсэлтийг авна.
 
 ---
 
@@ -247,7 +291,7 @@ npx eas credentials
 # Android → production → FCM V1 → service account JSON upload
 ```
 
-Дараа нь logout → login, дахин туршина.  
+Дараа нь logout → login, дахин туршина.
 `mobile/docs/CHAT_PUSH_SETUP.md`
 
 ### iOS OK, Android чимээгүй
@@ -262,7 +306,7 @@ npx eas credentials
 firebase deploy --only functions
 ```
 
-Functions Logs: Firebase Console → `onChatMessageCreatedPush`  
+Functions Logs: Firebase Console → `onChatMessageCreatedPush`
 Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 ---
@@ -271,10 +315,72 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 ### Admin хуудас харагдахгүй
 
-**Шалтгаан:** `users/{uid}.role` != `admin`.
+**Шалтгаан:** `users/{uid}.role` танигдсан admin role биш, эсвэл scoped
+role-ийн талбар дутуу.
 
-**Шийдэл:** Firebase Console → Firestore → `users` → `role: "admin"`.  
-`ADMIN_SETUP_GUIDE.md`
+**Шийдэл:**
+
+- Global: `role` нь `super_admin` (legacy `admin` бас дэмжинэ)
+- Country: `country_admin` + `admin_country_code`
+- US region: `region_admin` + `admin_country_code: "US"` +
+  `admin_region_code: "washington-dc"`
+- Web `AdminPanel`-ийн role assignment зөвхөн super admin-д харагдана
+- PHP API parity-д MySQL `users` scope баганууд migration хийгдсэн эсэхийг
+  шалгана
+
+Дэлгэрэнгүй: [ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
+
+### Web admin UI ажиллана, PHP listing moderation 403
+
+**Шалтгаан:** Firestore дээр role байгаа ч MySQL `users` мөр олдохгүй
+эсвэл scope багана хоосон.
+
+**Шийдэл:**
+
+1. MySQL `users` дээр `firebase_uid` эсвэл `email` Firebase token-той таарах
+   эсэхийг шалгана (`get_app_admin_scope` эхлээд UID, дараа нь email).
+2. Role/scope-ийг `admin_set_user_role` эсвэл `user_sync`-аар MySQL руу
+   дахин бичнэ.
+3. `APP_ADMIN_UIDS` зөвхөн super-admin override — region/country admin-д
+   найдах хэрэггүй.
+
+### US admin «Нүүр» дархад KR `/` руу орно
+
+**Шалтгаан:** Admin route prefix байхгүй; буруу home link.
+
+**Шийдэл:** Admin page back-link `useMarketHomePath`-ийг ашиглана
+(`src/hooks/useMarketHomePath.js`). Scoped US admin-д `/us` буцаана.
+
+### `/us` дээр улс сонгогчид KR гарна
+
+**Шалтгаан:** `ENABLED_COUNTRIES` дээр US байгаа ч `/us` lock хийгдээгүй
+гэж андуурах.
+
+**Шийдэл:** `src/config/countries/us.js` дээр `lockCountrySelector: true`.
+`getSelectableCountryCodes()` энэ үед зөвхөн US буцаана. US-ийг
+`ENABLED_COUNTRIES`-оос хасах хэрэггүй — тэр жагсаалт KR нүүр дээрх
+нийтийн selector-д зориулагдсан.
+
+### `/CreateListing` (prefixгүй) US биш KR зар үүсгэнэ
+
+**Шалтгаан:** `resolveRouteCountryCode()` URL-оос л уншина. `/CreateListing`
+дээр үр дүн `null` → caller KR гэж үзнэ. `localStorage`-ийн US сонголт
+бичихэд нөлөөлөхгүй.
+
+**Шийдэл:** ZAR-USA зар `/us/CreateListing` (эсвэл `/us/EditListing`) дээр
+үүсгэнэ. Display-only хуудас (`/Login`, `/AIBot`) country prefixгүй.
+
+### KR нүүр дээр US зар харагдана
+
+**Шалтгаан:** Migration үед US мөр `country_code=KR` (эсвэл хоосон) +
+`region_code` үлдсэн.
+
+**Шийдэл:**
+
+- API: `append_kr_listing_read_filter` (`api/regions.php`)
+- Client: `filterListingsForMarket` (`src/utils/listingCountry.js`)
+- Өгөгдөл засах: backup хийсний дараа
+  `api/sql/fix_us_listings_country_code.sql`-ийг хянаж ажиллуулна
 
 ### Admin зар батлахад нүүр дээр харагдахгүй
 
@@ -283,6 +389,7 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 **Шийдэл:**
 - API-аар зарын `status` шалгах
 - `listingAutoApprove: true` бол шууд `active`
+- US/KR market filter зөв `country_code` / `region_code` илгээж байгаа эсэх
 
 ---
 
@@ -305,7 +412,7 @@ Receiver `users` collection-д `email` таарч байгаа эсэх.
 
 **Шийдэл:**
 - Vercel → Domains → DNS records шалгах
-- Cloudflare ашиглавал proxy + SSL mode  
+- Cloudflare ашиглавал proxy + SSL mode
 Root: `DOMAIN_SETUP_GUIDE.md`, `CLOUDFLARE_VERCEL_DNS.md`
 
 ### API CORS алдаа
@@ -385,9 +492,21 @@ firebase deploy --only storage
 # Mobile
 cd mobile && npx expo start -c
 
-# Категори sync
+# Категори + admin role sync (web → mobile)
 npm run sync-listings
+npm run sync-admin-roles
+
+# US region registry гурван копи ижил эсэх
+npm run verify:zarusa-registry
+
+# API health/scope smoke (Node; Linux/macOS OK)
+npm run smoke:zarusa-api
 ```
+
+Windows only (PowerShell / `curl.exe`): `deploy:zarusa-api`,
+`deploy:zarusa-api:ftp`, `package:zarusa-api`. Linux/macOS дээр
+`api/index.php` + `api/regions.php`-ийг гараар upload хийнэ —
+[ZARUSA_STAGING_DEPLOY.md](./ZARUSA_STAGING_DEPLOY.md).
 
 ---
 
@@ -396,6 +515,7 @@ npm run sync-listings
 | Асуудлын төрөл | Баримт |
 |----------------|--------|
 | Deploy | [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| ZAR-USA API upload | [ZARUSA_STAGING_DEPLOY.md](./ZARUSA_STAGING_DEPLOY.md) |
 | Firebase | [FIREBASE.md](./FIREBASE.md) |
 | Schema / index | [FIRESTORE_SCHEMA.md](./FIRESTORE_SCHEMA.md) |
 | Security | [SECURITY.md](./SECURITY.md) |
