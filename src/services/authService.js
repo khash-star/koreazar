@@ -32,6 +32,7 @@ import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
 import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from '@/utils/emailNormalize';
 import { isAppAdmin, isSuperAdmin, ROLES, validateAdminRoleAssignment } from '@/constants/adminRoles';
+import { safeRedirectPath } from '@/utils/safeRedirectPath';
 
 /** Client profile updates must never set these (admin / identity fields). */
 const PROTECTED_USER_DOC_FIELDS = new Set([
@@ -599,33 +600,12 @@ export const onAuthChange = (callback) => {
 };
 
 /**
- * Same-origin path only – prevents open redirect
- * @param {string} url - Full URL or path
- * @returns {string|null} Safe path or null
- */
-function toSafePath(url) {
-  if (!url || typeof url !== 'string') return null;
-  let path = url.trim();
-  try {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      const u = new URL(path);
-      if (u.origin !== window.location.origin) return null;
-      path = u.pathname + u.search;
-    }
-    if (!path || path === '/' || path.startsWith('/Login')) return null;
-    return path.startsWith('/') ? path : '/' + path;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Login хуудас руу чиглүүлэх
  * @param {string} redirectUrl - Нэвтрэсний дараа чиглүүлэх URL эсвэл path (optional)
  */
 export const redirectToLogin = (redirectUrl = null) => {
   const currentPath = window.location.pathname + window.location.search;
-  const safePath = redirectUrl ? toSafePath(redirectUrl) : (currentPath && currentPath !== '/' && !currentPath.startsWith('/Login') ? currentPath : null);
+  const safePath = safeRedirectPath(redirectUrl || currentPath);
 
   if (safePath) {
     try {
