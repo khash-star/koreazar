@@ -27,16 +27,7 @@ import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
 import { COUNTRIES, countryCodeFromPath } from '@/config/country';
-
-/** Same-origin path only – prevents open redirect */
-function safeRedirectPath(url) {
-  if (!url || typeof url !== 'string') return null;
-  const s = url.trim();
-  if (s.startsWith('http://') || s.startsWith('https://')) return null;
-  if (/[<>"']/.test(s)) return null;
-  const path = s.startsWith('/') ? s : '/' + s;
-  return path === '/' || path.startsWith('/Login') ? null : path;
-}
+import { safeRedirectPath } from '@/utils/safeRedirectPath';
 
 function peekStoredLoginRedirect() {
   try {
