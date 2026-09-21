@@ -458,8 +458,9 @@ export default function Home() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 pt-0 pb-24 md:pb-12 mt-0 md:mt-0">
-        {/* Placeholder-market notice: US/JP are not live yet — this must
-            never claim to be a real market until ENABLED_COUNTRIES adds it. */}
+        {/* Placeholder-market notice: shown when the route country is not in
+            ENABLED_COUNTRIES (currently JP). US is enabled; /us is selector-
+            locked separately via lockCountrySelector. */}
         {!isMarketEnabled && (
           <div
             role="status"
