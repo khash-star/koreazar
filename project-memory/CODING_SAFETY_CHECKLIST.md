@@ -42,7 +42,7 @@ Aligned with `.cursor/rules/project-memory.mdc` and `PROJECT_MEMORY.md`.
 
   | Area | Rule |
   |------|------|
-  | **Admin routing** | Do not weaken, bypass, or reroute admin pages/guards; respect `users.role` RBAC. |
+  | **Admin routing** | Do not weaken, bypass, or reroute admin pages/guards. Respect scoped RBAC (`super_admin` / `country_admin` / `region_admin` in `adminRoles.js`); keep `useMarketHomePath` on admin back-links. |
   | **Session logic** | Preserve auth persistence, login/logout flows, and protected-route behavior (web + mobile). |
   | **Firebase / FCM** | Keep existing Auth, Firestore, Storage, and push/FCM integration paths; do not add parallel Firebase clients. |
   | **Agents SQL / display** | Keep data access (queries/SQL or service layer) separate from UI/display components; do not mix fetch logic into presentational components or duplicate query paths. |
