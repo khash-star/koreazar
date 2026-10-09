@@ -23,7 +23,7 @@ import {
   resolveChatParticipantEmail,
   isFirestorePermissionDenied,
 } from "../services/conversationService.js";
-import { normalizeEmail, isSyntheticPhoneAuthEmail, areEmailVariants } from "../utils/emailNormalize.js";
+import { normalizeEmail, participantEmailOrEmpty, isSyntheticPhoneAuthEmail, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, subscribeMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { showAlert } from "../utils/showAlert";
 import { getAdminEmail, getUserByEmail } from "../services/userProfileService.js";
@@ -105,15 +105,19 @@ export default function MessagesScreen({ navigation }) {
             }
             all = await listConversationsForCurrentUser();
           }
-          const otherEmails = [
-            ...new Set(
-              all.map((c) => {
-                const p1 = normalizeEmail(c.participant_1);
-                const imP1 = me && (p1 === me || areEmailVariants(p1, me));
-                return imP1 ? c.participant_2 : c.participant_1;
-              })
-            ),
-          ];
+          const resolveRow = (conv) => {
+            const p1 = normalizeEmail(conv.participant_1);
+            const p2 = normalizeEmail(conv.participant_2);
+            let imP1 = !!(me && (p1 === me || areEmailVariants(p1, me)));
+            if (!me && user?.uid && Array.isArray(conv.participant_uids) && conv.participant_uids.includes(user.uid)) {
+              if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
+              else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
+            }
+            const other = participantEmailOrEmpty(imP1 ? conv.participant_2 : conv.participant_1);
+            return { imP1, other };
+          };
+
+          const otherEmails = [...new Set(all.map((c) => resolveRow(c).other).filter(Boolean))];
 
           const nameMap = new Map();
           await Promise.all(
@@ -128,14 +132,8 @@ export default function MessagesScreen({ navigation }) {
           );
 
           const enriched = all.map((conv) => {
-            const p1 = normalizeEmail(conv.participant_1);
-            const p2 = normalizeEmail(conv.participant_2);
-            let imP1 = !!(me && (p1 === me || areEmailVariants(p1, me)));
-            if (!me && user?.uid && Array.isArray(conv.participant_uids) && conv.participant_uids.includes(user.uid)) {
-              if (isSyntheticPhoneAuthEmail(p1) && !isSyntheticPhoneAuthEmail(p2)) imP1 = true;
-              else if (!isSyntheticPhoneAuthEmail(p1) && isSyntheticPhoneAuthEmail(p2)) imP1 = false;
-            }
-            const other = imP1 ? conv.participant_2 : conv.participant_1;
+            const { imP1, other } = resolveRow(conv);
+            if (!other) return null;
             const unread = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
             return {
               ...conv,
@@ -143,7 +141,7 @@ export default function MessagesScreen({ navigation }) {
               otherName: nameMap.get(other) || other.split("@")[0],
               unreadCount: unread || 0,
             };
-          });
+          }).filter(Boolean);
 
           const seen = new Set();
           const deduped = enriched

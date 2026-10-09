@@ -45,7 +45,7 @@ import {
 import { getListingImageUrl } from "../utils/imageUrl.js";
 import { formatListingPrice } from "../utils/formatPrice.js";
 import { navigateToHomeListing } from "../utils/navigationHelpers.js";
-import { normalizeEmail, areEmailVariants } from "../utils/emailNormalize.js";
+import { normalizeEmail, participantEmailOrEmpty, areEmailVariants } from "../utils/emailNormalize.js";
 import { notifyUnreadTabBadge, notifyMessagesListRefresh } from "../utils/unreadBadgeEvents.js";
 import { blurActiveElementWeb } from "../utils/blurActiveElementWeb.js";
 
@@ -261,11 +261,13 @@ export default function ChatScreen({ route, navigation }) {
       notifyMessagesListRefresh();
 
       const meNorm = normalizeEmail(me);
-      const other =
+      const other = participantEmailOrEmpty(
         normalizeEmail(activeConv.participant_1) === meNorm ||
         areEmailVariants(activeConv.participant_1, meNorm)
           ? activeConv.participant_2
-          : activeConv.participant_1;
+          : activeConv.participant_1
+      );
+      if (!other) return;
       const admin = await getAdminEmail();
       let displayName;
       if (admin && normalizeEmail(other) === normalizeEmail(admin)) displayName = "АДМИН";

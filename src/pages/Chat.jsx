@@ -20,7 +20,7 @@ import {
   isSellerBlockedByViewer,
   ensureUserDocEmailForFirestoreRules,
 } from '@/services/authService';
-import { normalizeEmail, areEmailVariants } from '@/utils/emailNormalize';
+import { normalizeEmail, participantEmailOrEmpty, areEmailVariants } from '@/utils/emailNormalize';
 import {
   deleteMessage,
   syncConversationLastMessageFromMessages,
@@ -223,9 +223,12 @@ export default function Chat() {
     queryKey: ['otherUser', conversation?.id, adminEmail],
     queryFn: async () => {
       if (!conversation || !authEmail) return null;
-      const otherEmail = areEmailVariants(conversation.participant_1, authEmail)
-        ? conversation.participant_2
-        : conversation.participant_1;
+      const otherEmail = participantEmailOrEmpty(
+        areEmailVariants(conversation.participant_1, authEmail)
+          ? conversation.participant_2
+          : conversation.participant_1
+      );
+      if (!otherEmail) return null;
       
       // Get admin email if not already set
       let currentAdminEmail = adminEmail;
