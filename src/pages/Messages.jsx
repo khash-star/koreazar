@@ -18,7 +18,7 @@ import {
   createConversation,
   deleteConversationAndMessages,
 } from '@/services/conversationService';
-import { normalizeEmail } from '@/utils/emailNormalize';
+import { normalizeEmail, participantEmailOrEmpty } from '@/utils/emailNormalize';
 import { toast } from '@/components/ui/use-toast';
 
 export default function Messages() {
@@ -62,14 +62,14 @@ export default function Messages() {
 
       const allConvs = await listConversations();
 
+      const otherParticipant = (conv) => {
+        const p1 = normalizeEmail(conv.participant_1);
+        const imP1 = userEmail && p1 === userEmail;
+        return participantEmailOrEmpty(imP1 ? conv.participant_2 : conv.participant_1);
+      };
+
       const otherEmails = [
-        ...new Set(
-          allConvs.map((conv) => {
-            const p1 = normalizeEmail(conv.participant_1);
-            const imP1 = userEmail && p1 === userEmail;
-            return imP1 ? conv.participant_2 : conv.participant_1;
-          })
-        ),
+        ...new Set(allConvs.map(otherParticipant).filter(Boolean)),
       ];
 
       const userDataMap = new Map();
@@ -86,14 +86,15 @@ export default function Messages() {
         })
       );
 
-      return allConvs.map((conv) => {
+      return allConvs.flatMap((conv) => {
         const p1 = normalizeEmail(conv.participant_1);
         const imP1 = userEmail && p1 === userEmail;
-        const otherEmail = imP1 ? conv.participant_2 : conv.participant_1;
+        const otherEmail = otherParticipant(conv);
+        if (!otherEmail) return [];
         const unreadCount = imP1 ? conv.unread_count_p1 : conv.unread_count_p2;
         const userInfo = userDataMap.get(otherEmail) || { displayName: otherEmail.split('@')[0] };
 
-        return {
+        return [{
           ...conv,
           otherUser: {
             email: otherEmail,
@@ -101,7 +102,7 @@ export default function Messages() {
             full_name: userInfo.displayName,
           },
           unreadCount,
-        };
+        }];
       });
     },
     enabled: !authLoading && !!userEmail,

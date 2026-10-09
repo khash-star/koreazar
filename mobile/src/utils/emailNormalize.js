@@ -3,6 +3,16 @@ export function normalizeEmail(e) {
   return String(e || "").trim().toLowerCase();
 }
 
+/**
+ * Conversation participant fields are only safe to render when they are strings.
+ * Numbers, nulls, and missing fields must not be coerced — callers were calling
+ * `.split` on the raw value, so one poisoned document rejected the whole inbox query.
+ */
+export function participantEmailOrEmpty(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
 /** Утасны нэвтрэлтэд зар/saved_listings created_by тогтвортой байх синтетик имэйл */
 export function phoneToAuthEmail(phoneE164) {
   const digits = String(phoneE164 || "").replace(/[^\d]/g, "");
