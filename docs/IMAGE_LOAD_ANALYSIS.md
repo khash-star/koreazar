@@ -1,40 +1,63 @@
-# Зургийн ачааллын дүн шинжилгээ
+# Зургийн ачааллын зам
 
-## Асуудал
+Home дээрх зураг Firestore `getDocs()` дуустал хүлээдэггүй. Зар MySQL API-аас, баннер Firestore-оос ирнэ. URL ирсний дараа л Storage татагдана.
 
-Сайт эхлэхэд зураг удаан харагдана — skeleton удаан үзэгдэнэ.
-
-## Шалтгаан (Critical Path)
+## Critical path
 
 ```
-1. HTML (index.html) татагдана
-2. JS bundle (main.jsx + deps) татагдана
-3. React mount → Home component render
-4. useQuery: bannerAds + listings → Firestore getDocs() дуудна
-5. ⏳ Firestore хариу хүлээх (ГҮҮН ШАЛТГААН — ~0.5–2s)
-6. Data ирсэн → banner + картууд render, <img> элементүүд үүснэ
-7. Browser Firebase Storage-аас зургийг татна
-8. Зураг харагдана
+1. index.html + Vite bundle
+2. Home mount, useMarketPageMeta (title/icons; canonical-ийг өөрчлөхгүй)
+3. Зэрэг:
+   - Баннер: BannerAd.filter({ is_active: true }) → Firestore banner_ads
+   - Зар: Listing.filter(..., 100) → PHP GET action=listings
+4. Client: filterListingsForMarket, promo expiry, VIP эрэмбэ
+5. URL → Firebase Storage (эсвэл legacy images/ URL)
 ```
 
-**Гол саатуулагч:** Зурагны URL нь зөвхөн Firestore-аас ирсний дараа л мэдэгдэнэ. Иймээс зураг татах эхлэхээс өмнө Firestore-ийн хариуг хүлээх ёстой.
+**Саатуулагч:** эхний зургийн URL нь API/Firestore хариунаас өмнө мэдэгдэхгүй. `index.html` `firebasestorage.googleapis.com`, `firestore.googleapis.com`, `firebaseinstallations.googleapis.com` руу preconnect хийнэ. Listings host (`api.zarkorea.com`) preconnect-д байхгүй.
 
-## Дэд шалтгаанууд
+## Кэш
 
-| Шалтгаан | Нөлөө | Тайлбар |
-|----------|-------|---------|
-| Firestore latency | Өндөр | getDocs() round-trip; сүлжээний хурд, бүс нутаг |
-| Firestore preconnect байхгүй | Дунд | firestore.googleapis.com-д preconnect хийгээгүй |
-| Cache (staleTime) ашиглаагүй | Дунд | Дахин ороход ч шинээр fetch хийнэ |
-| Эхний картын зураг lazy | Бага | Эхний 1–2 карт above-the-fold боловч loading="lazy" |
+| Өгөгдөл | staleTime | Эх сурвалж |
+|---------|-----------|------------|
+| QueryClient default | 3 мин | `src/App.jsx` |
+| Home баннер | 30 мин (`gcTime` 60 мин, focus/reconnect refetch байхгүй) | `src/pages/Home.jsx` |
+| Home зарууд | default 3 мин (тусдаа staleTime байхгүй) | `Home.jsx` `useQuery` |
 
-## Хийсэн сайжруулалт
+## Home feed цонх
 
-1. **Firestore preconnect** — index.html дээр `<link rel="preconnect" href="https://firestore.googleapis.com">` нэмнэ
-2. **staleTime** — listings/bannerAds 2–5 мин cache; дахин ороход өмнөх өгөгдлийг шууд харуулна
-3. **Эхний 2 карт eager** — above-the-fold картуудын зураг loading="eager" болгоно
+`api/index.php` `ORDER BY created_at DESC`, `limit` 1–100 (default 50). Web Home **100**, mobile Home **50** (`getLatestListings(50)`). VIP эрэмбэ (`vip` → `featured` → `regular`, дараа нь `created_date`) client дээр. Цонхноос гадуурх хуучин VIP Home-д гарахгүй. Web search болон min/max үнэ энэ цонхон дотор л шүүнэ.
 
-## Хийх боломжтой (нэмэлт)
+`listing_type_expires` өнгөрсөн бол client харагдах `listing_type`-ийг `regular` болгоно. MySQL руу буцааж бичихгүй.
 
-- **Firebase Auth defer** — Login/Register хэрэггүй үед auth iframe хожимдож ачаалах
-- **SSR/SSG** — анхны HTML-д banner/listings байрлуулбал хамгийн их сайжирна (их хөдөлмөр)
+Баннер: `entities.BannerAd.filter` нь `is_active` байхад `_orderBy`-г хэрэглэхгүй. `filterBannerAds` үргэлж `order` **ASC**. Home-ийн `'-order'` аргумент эрэмбэд нөлөөлөхгүй.
+
+## Listing зураг
+
+Web upload (`createImageVariants` in `src/components/utils/imageCompressor.jsx`):
+
+- Зөвхөн WebP. `canvas.toBlob(..., 'image/webp')` амжилтгүй бол reject — JPEG/PNG fallback байхгүй.
+- 3:2 төв crop, дараа нь resize: `w800` (q 0.78), `w640` (0.76), `w400` (0.75), `w150` (0.72).
+- MySQL `images[]` объект: `{ w800, w640, w400, w150 }`.
+- Хязгаар: 10 зураг, файл 5MB (`src/utils/limits.js`).
+
+Унших (`src/utils/imageUrl.js`, mobile mirror):
+
+- `getListingImageUrl` variant хоосон бол дараагийн хэмжээнд унана (`w800` → `w640` → `w400` → `w150`).
+- String URL (legacy) srcset үүсгэхгүй.
+- Home карт: `w400` + srcset `400w/640w/800w`, `sizes` 312px / 350px. Эхний 2 карт `loading="eager"` (`isAboveFold={index < 2}`). `w150` нь blur placeholder.
+- LCP: эхний баннерын `image_url`, эсвэл байхгүй бол эхний зарын `w400`-ийг `<link rel="preload">` хийнэ.
+
+Mobile create (`mobile/src/screens/CreateListingScreen.js`) нэг upload хийж **дөрвөн түлхүүрт ижил URL** бичнэ (`quality: 0.85`). Web srcset тэр зар дээр жижиг variant сонгохгүй.
+
+## Баннер зураг
+
+`compressImage` — WebP, aspect crop биш, max box:
+
+| Дуудлага | Хэмжээ | Quality |
+|----------|--------|---------|
+| `AdminBanners.jsx` | 1200×600 | 0.8 |
+| `RequestBannerAd.jsx` | 800×400 | 0.82 |
+| Default | 1000×1000 | 0.75 |
+
+Storage зам: `docs/ARCHITECTURE.md` image pipeline.

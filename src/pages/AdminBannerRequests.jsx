@@ -66,7 +66,8 @@ export default function AdminBannerRequests() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ request }) => {
-      // Create banner ad
+      // Create banner ad. country_code is omitted — Home treats missing as KR
+      // (`isBannerVisibleForCountry`). Set US/GLOBAL via AdminBanners instead.
       await entities.BannerAd.create({
         image_url: request.image_url,
         link: request.link,
