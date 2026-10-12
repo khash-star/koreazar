@@ -7,11 +7,13 @@ Historical incident notes, migration snapshots, and superseded guides moved from
 | Topic | Path |
 |-------|------|
 | Troubleshooting | `docs/TROUBLESHOOTING.md` |
-| Deployment | `docs/DEPLOYMENT.md`, `VERCEL_DEPLOYMENT_GUIDE.md`, `VERCEL_ENV_SETUP.md` |
+| Deployment | `docs/DEPLOYMENT.md` (primary); root `VERCEL_*` guides are secondary |
 | Firebase | `docs/FIREBASE.md`, `docs/SECURITY.md` |
 | Firestore indexes | `docs/FIRESTORE_INDEXES.md` |
-| Admin setup | `ADMIN_SETUP_GUIDE.md` |
-| Doc inventory | `project-memory/reports/MEMORY_ANALYSIS_REPORT.md` |
+| Multi-market / ZAR-USA | `docs/ZARUSA_REGION_PHASES.md`, `docs/ZARUSA_STAGING_DEPLOY.md` |
+| Admin setup | `docs/ZARUSA_REGION_PHASES.md` (scoped RBAC); root `ADMIN_SETUP_GUIDE.md` is secondary |
+| Repo entry / setup | root `README.md` → then `docs/PROJECT_MEMORY.md` |
+| Doc inventory | `project-memory/reports/MEMORY_ANALYSIS_REPORT.md` (paths may predate this archive) |
 
 Subfolders:
 
