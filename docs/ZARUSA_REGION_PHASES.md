@@ -92,6 +92,17 @@ match the Firebase token.
 
 When **Chicago** activates: assign a separate `region_admin` with `admin_region_code: "chicago"`.
 
+**Script (Firestore only):** `functions/scripts/set-region-admin.js`
+
+```bash
+cd functions
+# Point at a gitignored Admin SDK JSON. Do not commit the key file.
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/adminsdk.json
+node scripts/set-region-admin.js user@example.com washington-dc region_admin
+```
+
+The Auth user must already exist. The script merges `users/{uid}` and **always** sets `admin_country_code` to `US`, including when the third argument is not `region_admin`. It does not call `admin_set_user_role`. MySQL stays unchanged until a super admin saves the same assignment in `AdminPanel` (`setUserAdminRoleBySuperAdmin` → `syncAdminRoleToMySql`) or an operator runs a reviewed `UPDATE`. The user must sign out and back in. Prefer the Admin Panel path when MySQL parity matters; the script’s printed SQL is a hint, not an executed migration.
+
 Region admins cannot manage users, broadcast messages, or change global
 config. Banners have country scope but no region field, so a region admin can
 moderate US banners; listing moderation remains region-specific.

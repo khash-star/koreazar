@@ -101,6 +101,17 @@
 
 **Шийдэл:** Root `FACEBOOK_LOGIN_SETUP.md` — Authorized domains, Facebook App тохиргоо.
 
+### Бүртгэл устгасан ч зар / чат үлдэнэ
+
+**Шалтгаан:** Profile delete зөвхөн Firestore adjunct + Auth user. MySQL `listings` / `users` болон Storage файл хөндөгдөхгүй. Чат query нэг имэйл (`==`); phone variant мөр үлдэнэ. Shared conversation уствал нөгөө оролцогчийн thread хамт арилна.
+
+**Шийдэл:**
+
+- Үлдсэн зарыг MySQL / admin listing UI-аар шалгана. Firestore `listings` index алдааг энэ шинж тэмдэгтэй бүү андуур.
+- Web phone OTP: Auth `user.email` хоосон тул `deleteAccountWithPassword` шууд зогсоно. Mobile phone-only нууц үг шаардахгүй (`deleteAccountForCurrentUser`).
+- `auth/requires-recent-login` гарвал Firestore аль хэдийн цэвэрлэгдсэн, Auth user үлдсэн байж болно — дахин нэвтэрч устгалтыг дуусгана.
+- Дэлгэрэнгүй: `docs/SECURITY.md` §9.1
+
 ### /us-аас нэвтрээд KR нүүр (/) руу буцсан
 
 **Шалтгаан:** `/Login` unprefixed. Redirect байхгүй бол `createPageUrl('Home')` → `/`.

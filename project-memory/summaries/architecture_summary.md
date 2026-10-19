@@ -52,4 +52,6 @@
 | Chat and push | `docs/CHAT_SYSTEM.md`, `mobile/docs/CHAT_PUSH_SETUP.md` |
 | Home feed window + images | `docs/IMAGE_LOAD_ANALYSIS.md` (PHP limit, then client VIP sort) |
 | Firestore composite indexes | `docs/FIRESTORE_INDEXES.md` (not the home listing feed) |
+| Account deletion | `docs/SECURITY.md` §9.1 — Firestore adjunct + Auth only; MySQL listings and Storage objects remain |
+| PWA manifest URL | `vite.config.js` emits `manifest.json` (not `.webmanifest`) |
 | Historical incident notes | `docs/archive/` (not canonical) |

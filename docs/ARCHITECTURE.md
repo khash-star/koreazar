@@ -307,6 +307,19 @@ sequenceDiagram
 
 Phone OTP users get synthetic emails (`phoneToAuthEmail`) so Firestore chat rules can match participants.
 
+### Account deletion boundary
+
+Profile delete is Apple 5.1.1(v) UI, not a full data wipe.
+
+| | Web `deleteAccountWithPassword` | Mobile `deleteAccountForCurrentUser` |
+|--|----------------------------------|--------------------------------------|
+| Reauth | Always email/password. Throws if Auth `user.email` is empty, so phone-only web accounts stop here | Password provider reauths; phone-only (`!user.email` plus a phone) skips the password |
+| Identity used for queries | Auth `user.email` only | `getResolvedAuthEmail()` (Firestore email, else synthetic phone email) |
+| Firestore removed | `saved_listings` by `created_by`, legacy `listings`, conversations where `participant_1` or `participant_2` equals that email **and every message in those threads**, AI conversations/messages/usage, `users/{uid}` | Same, plus `saved_listings` by `user_uid`, and `user_push_tokens/{uid}/devices/*` (best-effort; token unregister runs first) |
+| Left in place | MySQL `listings` and `users`, Storage objects, `banner_requests`, `listing_reports`, `feedback_messages`, rows keyed by a phone email **variant** (`emailQueryVariants` is not used) | Same leftovers |
+
+Firestore deletes run **before** `deleteUser`. If Auth then returns `auth/requires-recent-login`, the adjunct data is already gone and the Auth user still exists. Shared chat threads are removed for the other participant too. Detail: `docs/SECURITY.md`.
+
 ---
 
 ## Home page data path (performance-critical)

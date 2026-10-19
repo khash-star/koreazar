@@ -128,7 +128,7 @@ to `/us/...` defaults to `+1`. Do not add an absolute off-site `?redirect=`.
 | Profile талбар? | authService + Firestore rules + user_sync payload |
 | Route guard? | `redirectToLogin` (sessionStorage + full-page `/Login`), `state.from` on Home, `useAuth`, `useAdminAccess` / `isAppAdmin` |
 | Scoped admin? | `adminRoles.js` + Firestore rules + MySQL `users.role` parity |
-| Бүртгэл устгах? | `deleteAccountWithPassword` / `accountDeletion.js` — Apple 5.1.1(v) |
+| Бүртгэл устгах? | Web `deleteAccountWithPassword` (password only; Auth `user.email` шаардана). Mobile `deleteAccountForCurrentUser` (phone-only нууц үггүй). Firestore adjunct + Auth. MySQL зар/Storage үлдэнэ. `docs/SECURITY.md` §9.1 |
 
 ### 2. Firestore rules
 

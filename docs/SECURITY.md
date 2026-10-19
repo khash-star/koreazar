@@ -248,7 +248,36 @@ firebase deploy --only storage
 | Push token | Зөвхөн өөрийн `user_push_tokens/{uid}` |
 | Native config | `google-services.json` gitignore; EAS file env |
 | Expo Go | Android push найдвартай биш — EAS build шаардлагатай |
-| Account deletion | Apple 5.1.1(v) — `accountDeletion.js` Firestore + Auth устгана |
+| Account deletion | Apple 5.1.1(v) UI. Firestore adjunct + Auth user. MySQL зар, Storage файл үлдэнэ — доорх хэсэг |
+
+---
+
+## 9.1 Бүртгэл устгах — юу арилдаг, юу үлддэг
+
+UI (“зар, чат устгагдана”) нь MySQL заруудыг хамрахгүй. Код: `src/services/accountDeletion.js`, `mobile/src/services/accountDeletion.js`.
+
+**Арилна (Firestore, яг тэр имэйлээр):**
+
+- `saved_listings` (`created_by`). Mobile нэмж `user_uid`-аар устгана. Web `user_uid` мөрийг хайнагүй.
+- Legacy Firestore `listings` (`created_by` + `created_date` desc).
+- `conversations` нь `participant_1` эсвэл `participant_2` тухайн имэйлтэй тэнцүү бол **бүх thread** (нөгөө талын мессеж хамт).
+- `ai_conversations`, `ai_messages`, `ai_usage`.
+- `users/{uid}`.
+- Mobile: `unregisterCurrentPushToken`, дараа нь `user_push_tokens/{uid}/devices/*` (best-effort). Web push token хөндөхгүй.
+
+**Үлдэнэ:**
+
+- MySQL `listings` ба `users` (PHP API дээр account-delete action байхгүй).
+- Storage зураг (`listings/…`, `banners/…`, `users/{uid}/profile/…`).
+- `banner_requests`, `listing_reports`, `feedback_messages`.
+- Phone email **variant** (`emailQueryVariants`). Устгалт `==` нэг имэйл; чат уншилт variant-уудыг хайдаг.
+
+**Платформ:**
+
+- Web `deleteAccountWithPassword`: Auth `user.email` хоосон бол `Нэвтэрсэн хэрэглэгч олдсонгүй`. Нууц үгээр `EmailAuthProvider` reauth. Phone OTP хэрэглэгчийн synthetic имэйл зөвхөн Firestore `users.email` дээр байдаг тул web устгалт түүнийг ашиглахгүй.
+- Mobile `deleteAccountForCurrentUser`: password provider бол нууц үг; `isPhoneOnlyAccount` (`!user.email` + утас) бол нууц үггүй. Query имэйл нь `getResolvedAuthEmail()`.
+- Хоёуланд нь Firestore цэвэрлэгээ `deleteUser`-ээс **өмнө**. `auth/requires-recent-login` гарвал өгөгдөл аль хэдийн арилсан, Auth user үлдэнэ.
+- Profile баталгаажуулалт: `УСТГАХ` гэж яг бичнэ (`Profile.jsx`, `ProfileTabScreen.js`).
 
 ---
 
