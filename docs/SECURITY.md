@@ -1,6 +1,6 @@
 # Zarkorea — Security
 
-> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.  
+> Хамгаалалтын архитектур, хэрэгжүүлсэн хяналтууд, дүрэм, зөвлөмж.
 > **Эх сурвалж:** `vercel.json`, `firestore.rules`, `storage.rules`, `src/utils/security.js`, `api/bootstrap.php`
 
 ---
@@ -103,21 +103,36 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 | Утас OTP | Синтетик имэйл → Firestore rules-тай нийцүүлэх |
 | Дахин баталгаажуулалт | Бүртгэл устгахад `reauthenticateWithCredential` |
 
+Post-login redirect (`Login.jsx`, `authService.redirectToLogin`):
+
+- `toSafePath` — same-origin `http(s)` URL-ийг `pathname+search` болгоно; өөр origin reject
+- `safeRedirectPath` — зөвхөн in-app path; `http://` / `https://` prefix reject
+- Хоёулаа `/` болон `/Login*`-ийг ignore (open-redirect / loop-оос сэргийлнэ)
+
 Файлууд: `src/services/authService.js`, `src/contexts/AuthContext.jsx`, `mobile/src/services/authService.js`.
 
 ### PHP API Bearer token
 
-Бичих endpoint-ууд `Authorization: Bearer {Firebase ID token}` шаарддаг (`api/bootstrap.php` → `require_firebase_user()`).
+Бичих endpoint-ууд `Authorization: Bearer {Firebase ID token}` шаарддаг (`api/bootstrap.php` → `require_firebase_user()`), **except** `PATCH action=listing` when the body is only `views` incremented by one (`listingService.isViewCountOnlyBump`). That view bump is public and does not run `enforce_us_listing_row_visible`. `GET action=listing` is public; US rows outside the active region 404.
 
 Шалгалтанд `FIREBASE_WEB_API_KEY` (серверийн `.env`) ашиглана — **client-д бүү илгээ**.
 
 ### Admin эрх
 
-- Firestore: `users/{uid}.role == 'admin'` (`firestore.rules` → `isAdmin()`)
-- PHP: `APP_ADMIN_UIDS` (comma-separated Firebase UID) — зарын admin override
-- Admin өөрөө `role` талбарыг өөрчлөхгүй (rules хориглоно)
+- Firestore global admin: `admin` (legacy alias) эсвэл `super_admin`
+- Scoped roles: `country_admin` + `admin_country_code`; `region_admin` +
+  `admin_region_code`
+- PHP: MySQL `users.role` + scope баганууд; `APP_ADMIN_UIDS` нь
+  super-admin override
+- PHP scope lookup: `APP_ADMIN_UIDS` → `users.firebase_uid` → fallback
+  `users.email` (legacy rows without Firebase UID)
+- Зөвхөн super admin role/scope assign хийнэ. Хэрэглэгч өөрийн `role`,
+  `isAdmin`, `admin_country_code`, `admin_region_code`-ийг өөрчилж болохгүй.
+- Region admin хэрэглэгч удирдах, broadcast хийх, global config өөрчлөх
+  эрхгүй.
 
-Тохируулах: root `ADMIN_SETUP_GUIDE.md`.
+Тохируулах ба scope matrix:
+[ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ---
 
@@ -172,7 +187,8 @@ CSP өөрчлөхөд `vercel.json` болон шинэ integration-ийн до
 
 ### Тусгай логик
 
-- **View count:** Auth хэрэглэгч зөвхөн `views` талбарыг +1 increment хийж болно (`listings` rules).
+- **View count (legacy Firestore `listings`):** Auth хэрэглэгч зөвхөн `views` талбарыг +1 increment хийж болно (`firestore.rules`).
+- **View count (MySQL listings API):** unauthenticated `PATCH` when the body is only `views` = existing + 1 (`api/index.php`). Other listing writes require Bearer.
 - **Утасны хэрэглэгч:** `authEmailLower()` — token.email хоосон бол `users/{uid}.email` ашиглана.
 - **Чат:** `participant_uids` эсвэл имэйлээр оролцогч шалгана.
 
@@ -232,7 +248,36 @@ firebase deploy --only storage
 | Push token | Зөвхөн өөрийн `user_push_tokens/{uid}` |
 | Native config | `google-services.json` gitignore; EAS file env |
 | Expo Go | Android push найдвартай биш — EAS build шаардлагатай |
-| Account deletion | Apple 5.1.1(v) — `accountDeletion.js` Firestore + Auth устгана |
+| Account deletion | Apple 5.1.1(v) UI. Firestore adjunct + Auth user. MySQL зар, Storage файл үлдэнэ — доорх хэсэг |
+
+---
+
+## 9.1 Бүртгэл устгах — юу арилдаг, юу үлддэг
+
+UI (“зар, чат устгагдана”) нь MySQL заруудыг хамрахгүй. Код: `src/services/accountDeletion.js`, `mobile/src/services/accountDeletion.js`.
+
+**Арилна (Firestore, яг тэр имэйлээр):**
+
+- `saved_listings` (`created_by`). Mobile нэмж `user_uid`-аар устгана. Web `user_uid` мөрийг хайнагүй.
+- Legacy Firestore `listings` (`created_by` + `created_date` desc).
+- `conversations` нь `participant_1` эсвэл `participant_2` тухайн имэйлтэй тэнцүү бол **бүх thread** (нөгөө талын мессеж хамт).
+- `ai_conversations`, `ai_messages`, `ai_usage`.
+- `users/{uid}`.
+- Mobile: `unregisterCurrentPushToken`, дараа нь `user_push_tokens/{uid}/devices/*` (best-effort). Web push token хөндөхгүй.
+
+**Үлдэнэ:**
+
+- MySQL `listings` ба `users` (PHP API дээр account-delete action байхгүй).
+- Storage зураг (`listings/…`, `banners/…`, `users/{uid}/profile/…`).
+- `banner_requests`, `listing_reports`, `feedback_messages`.
+- Phone email **variant** (`emailQueryVariants`). Устгалт `==` нэг имэйл; чат уншилт variant-уудыг хайдаг.
+
+**Платформ:**
+
+- Web `deleteAccountWithPassword`: Auth `user.email` хоосон бол `Нэвтэрсэн хэрэглэгч олдсонгүй`. Нууц үгээр `EmailAuthProvider` reauth. Phone OTP хэрэглэгчийн synthetic имэйл зөвхөн Firestore `users.email` дээр байдаг тул web устгалт түүнийг ашиглахгүй.
+- Mobile `deleteAccountForCurrentUser`: password provider бол нууц үг; `isPhoneOnlyAccount` (`!user.email` + утас) бол нууц үггүй. Query имэйл нь `getResolvedAuthEmail()`.
+- Хоёуланд нь Firestore цэвэрлэгээ `deleteUser`-ээс **өмнө**. `auth/requires-recent-login` гарвал өгөгдөл аль хэдийн арилсан, Auth user үлдэнэ.
+- Profile баталгаажуулалт: `УСТГАХ` гэж яг бичнэ (`Profile.jsx`, `ProfileTabScreen.js`).
 
 ---
 
