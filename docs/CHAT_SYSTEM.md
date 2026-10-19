@@ -9,7 +9,7 @@
 
 The chat system lets buyers and sellers message each other about listings. Data is stored in **Firestore** (`conversations`, `messages`). The UI uses **React Query** on web and equivalent patterns on mobile. **Push notifications** are delivered via a **Cloud Function** and the **Expo Push API** for mobile clients.
 
-Admin users can send messages to all users (`sendMessageToAllUsers`).
+`super_admin` and `country_admin` can broadcast (`sendMessageToAllUsers`); `region_admin` cannot.
 
 ---
 
@@ -108,6 +108,8 @@ flowchart LR
 | `created_date` | timestamp | Creation time |
 | `listing_id` | string | Optional linked listing |
 
+Clients assume `participant_1` and `participant_2` are strings. `normalizeEmail()` stringifies the value it is given, but the inbox passes the *other* participant straight to `.split('@')` (`src/pages/Messages.jsx`, the Chat header query in `src/pages/Chat.jsx`, `mobile/src/screens/MessagesScreen.js`). A missing or non-string participant throws. On web, Messages uses React Query with `retry: false`, so one bad row hides every other thread. The Chat header query fails the same way, and send stays off because `otherUser` never resolves. Mobile `load()` logs the error and leaves the first open empty. Repair the document to two email strings; the current UI does not skip the bad row.
+
 ### `messages/{messageId}`
 
 | Field | Type | Description |
@@ -179,9 +181,18 @@ Chat.jsx useEffect on messages
 
 Phone users may not have `auth.token.email`. The system:
 
-1. Uses `resolveChatParticipantEmail()` — checks Auth email, then `users/{uid}.email`, then synthetic email from phone (`phoneToAuthEmail`).
-2. Maintains `participant_uids` via `buildParticipantUids()` for UID-based inbox queries.
-3. Firestore rules use `authEmailLower()` and `participant_uids.hasAny([request.auth.uid])`.
+1. `AuthContext` exposes `authEmail` through `resolveAuthEmail()` — profile
+   email, then Auth email, then synthetic phone email.
+2. `resolveChatParticipantEmail()` applies the same canonical value before
+   conversation queries.
+3. `emailQueryVariants()` and `areEmailVariants()` match legacy/current phone
+   synthetic emails with or without the KR `82` or US `1` country prefix
+   (`src/utils/emailNormalize.js`; mirrored on mobile). Empty inbox after
+   phone login is usually a variant mismatch, not a missing index.
+4. `buildParticipantUids()` maintains `participant_uids` for UID-based inbox
+   queries.
+5. Firestore rules use `authEmailLower()` and
+   `participant_uids.hasAny([request.auth.uid])`.
 
 Indexes required: see `firestore.indexes.json` (`conversations` × 3, `messages` × 1).
 
@@ -231,10 +242,14 @@ Full checklist: `mobile/docs/CHAT_PUSH_SETUP.md`.
 
 ## Admin messaging
 
-Admins (`users.role == 'admin'`) can:
+All app-admin roles (`admin`/`super_admin`, `country_admin`, `region_admin`)
+can read/update conversations under Firestore rules. Broadcast capability is
+narrower:
 
-- Read/update any conversation (rules allow `isAdmin()`)
-- Call `sendMessageToAllUsers()` in `conversationService.js` — creates conversations/messages for all users (batch operation)
+- `super_admin` and `country_admin` can call `sendMessageToAllUsers()` in
+  `conversationService.js` (batch conversation/message creation).
+- `region_admin` cannot broadcast or manage users (`canBroadcast()` in
+  `src/constants/adminRoles.js`).
 
 Operational walkthrough: root `ADMIN_MESSAGE_REPLY_FLOW.md`.
 
