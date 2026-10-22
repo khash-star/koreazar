@@ -14,6 +14,7 @@ import {
 import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebase";
 import { deleteAllFirestoreDataForUser } from "./accountDeletion";
+import { deleteAllListingsForFirebaseUid } from "./listingService";
 import { buildApiUrl, requestJson } from "./apiClient";
 import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from "../utils/emailNormalize.js";
 import {
@@ -456,6 +457,7 @@ export async function deleteAccountForCurrentUser(password = "") {
     /* best-effort */
   }
 
+  await deleteAllListingsForFirebaseUid(uid);
   await deleteAllFirestoreDataForUser(uid, resolvedEmail);
 
   try {
