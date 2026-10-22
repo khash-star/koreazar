@@ -30,6 +30,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import { deleteAllFirestoreDataForUser } from '@/services/accountDeletion';
+import { deleteAllListingsForFirebaseUid } from '@/services/listingService';
 import { normalizeEmail, phoneToAuthEmail, emailQueryVariants } from '@/utils/emailNormalize';
 import { isAppAdmin, isSuperAdmin, ROLES, validateAdminRoleAssignment } from '@/constants/adminRoles';
 
@@ -470,6 +471,7 @@ export const deleteAccountWithPassword = async (password) => {
 
   const uid = user.uid;
   const email = user.email;
+  await deleteAllListingsForFirebaseUid(uid);
   await deleteAllFirestoreDataForUser(uid, email);
 
   try {

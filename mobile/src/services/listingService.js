@@ -4,6 +4,7 @@ import { getActiveMobileRegionCode } from "../config/region.js";
 import { toDate } from "../utils/firestoreDates";
 import { buildApiUrl, requestJson } from "./apiClient";
 import { filterListingsForMarket } from "../utils/listingCountry";
+import { ownedListingQueryParams, purgeOwnedMysqlListings } from "../utils/purgeOwnedMysqlListings";
 
 function buildMarketListingsParams(extra = {}) {
   const marketCode = getActiveMobileCountryCode();
@@ -353,6 +354,25 @@ export async function deleteListing(id) {
   });
   invalidateLatestListingsCache();
   listingDetailCache.delete(mysqlId);
+}
+
+/** Account deletion: public feeds read MySQL, so Firestore cleanup is not enough. */
+export async function deleteAllListingsForFirebaseUid(firebaseUid) {
+  const headers = await getAuthHeaders();
+  const result = await purgeOwnedMysqlListings({
+    firebaseUid,
+    listByStatus: async ({ status, limit }) => {
+      const payload = await requestJson(
+        buildApiUrl("listings", ownedListingQueryParams(firebaseUid, status, limit)),
+        { headers, retries: 1 }
+      );
+      return Array.isArray(payload?.data) ? payload.data : [];
+    },
+    deleteById: (id) => deleteListing(id),
+  });
+  invalidateLatestListingsCache();
+  listingDetailCache.clear();
+  return result;
 }
 
 export async function getPendingListingsCount() {

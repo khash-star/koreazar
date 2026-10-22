@@ -3,6 +3,7 @@ import { auth } from '@/firebase/config';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 import { appendAdminListingQueryParams } from '@/constants/adminRoles';
 import { filterListingsForMarket } from '@/utils/listingCountry';
+import { ownedListingQueryParams, purgeOwnedMysqlListings } from '@/utils/purgeOwnedMysqlListings';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
@@ -232,6 +233,32 @@ export const deleteListing = async (id) => {
     console.error('Error deleting listing:', error);
     throw error;
   }
+};
+
+/**
+ * Account deletion: remove every MySQL listing for this Firebase uid
+ * before the auth user is deleted. Public feeds read MySQL, not Firestore.
+ */
+export const deleteAllListingsForFirebaseUid = async (firebaseUid) => {
+  const headers = await getAuthHeaders();
+  return purgeOwnedMysqlListings({
+    firebaseUid,
+    listByStatus: async ({ status, limit }) => {
+      const payload = await requestJson(
+        buildApiUrl('listings', ownedListingQueryParams(firebaseUid, status, limit)),
+        { headers }
+      );
+      return Array.isArray(payload?.data) ? payload.data : [];
+    },
+    deleteById: async (id) => {
+      const mysqlId = parseMysqlListingId(id);
+      if (!mysqlId) throw new Error('Зарын ID буруу байна.');
+      await requestJson(buildApiUrl('listing', { id: mysqlId }), {
+        method: 'DELETE',
+        headers,
+      });
+    },
+  });
 };
 
 /**
