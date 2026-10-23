@@ -3,6 +3,7 @@ import { auth } from '@/firebase/config';
 import { appendUsRegionScopeParams } from '@/utils/usRegionScope';
 import { appendAdminListingQueryParams } from '@/constants/adminRoles';
 import { filterListingsForMarket } from '@/utils/listingCountry';
+import { resolveListingsStatusParam } from '@/utils/listingListStatus';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.zarkorea.com/index.php';
 
@@ -126,11 +127,7 @@ export const filterListings = async (filters = {}, orderByField = '-created_date
     if (scopedFilters.customer_id != null && scopedFilters.customer_id !== '') {
       params.customer_id = String(scopedFilters.customer_id);
     }
-    if (scopedFilters.status !== undefined && scopedFilters.status !== null && scopedFilters.status !== '') {
-      params.status = scopedFilters.status;
-    } else if (!scopedFilters.created_by) {
-      params.status = 'active';
-    }
+    params.status = resolveListingsStatusParam(scopedFilters);
 
     const fetchOptions = options.adminUserData ? { headers: await getAuthHeaders() } : {};
     const payload = await requestJson(buildApiUrl('listings', params), fetchOptions);
