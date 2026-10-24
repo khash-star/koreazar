@@ -29,8 +29,7 @@ import { useMarketHomePath } from '@/hooks/useMarketHomePath';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { getListingAutoApprove, setListingAutoApprove } from '@/services/appConfigService';
-
-const AUTO_APPROVE_KEY = 'admin_auto_approve_listings';
+import { shouldRunListingAutoApprove } from '@/utils/listingAutoApprove';
 
 export default function AdminNewListings() {
   const queryClient = useQueryClient();
@@ -41,30 +40,37 @@ export default function AdminNewListings() {
   const [deleteId, setDeleteId] = useState(null);
   const [aiCheckResults, setAiCheckResults] = useState({}); // { listingId: { approved, reason, score, suggestions } }
   const [checkingListingId, setCheckingListingId] = useState(null);
-  const [autoApprove, setAutoApproveState] = useState(() => {
-    try {
-      return localStorage.getItem(AUTO_APPROVE_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [autoApprove, setAutoApproveState] = useState(false);
   const [autoApproveLoaded, setAutoApproveLoaded] = useState(false);
+  const approvedIdsRef = useRef(new Set());
 
   useEffect(() => {
+    let cancelled = false;
     getListingAutoApprove()
       .then((v) => {
-        setAutoApproveState(v);
+        if (cancelled) return;
+        setAutoApproveState(v === true);
         setAutoApproveLoaded(true);
       })
-      .catch(() => setAutoApproveLoaded(true));
+      .catch(() => {
+        if (cancelled) return;
+        setAutoApproveState(false);
+        setAutoApproveLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const setAutoApprove = (value) => {
-    setAutoApproveState(value);
+  const setAutoApprove = async (value) => {
+    const next = value === true;
     try {
-      localStorage.setItem(AUTO_APPROVE_KEY, String(value));
-    } catch { /* ignore */ }
-    setListingAutoApprove(value).catch(() => {});
+      await setListingAutoApprove(next);
+      setAutoApproveState(next);
+      if (!next) approvedIdsRef.current.clear();
+    } catch (error) {
+      alert(error?.message || 'Автоматаар зөвшөөрөх тохиргоо хадгалагдсангүй.');
+    }
   };
 
   const { data: listings = [], isLoading } = useQuery({
@@ -95,9 +101,11 @@ export default function AdminNewListings() {
     },
   });
 
-  const approvedIdsRef = useRef(new Set());
   useEffect(() => {
-    if (!autoApprove) return;
+    if (!shouldRunListingAutoApprove(autoApproveLoaded, autoApprove)) {
+      if (autoApproveLoaded && !autoApprove) approvedIdsRef.current.clear();
+      return;
+    }
     if (listings.length === 0) {
       approvedIdsRef.current.clear();
       return;
@@ -107,7 +115,7 @@ export default function AdminNewListings() {
       approvedIdsRef.current.add(l.id);
       updateStatusMutation.mutate({ id: l.id, status: 'active' });
     });
-  }, [autoApprove, listings]);
+  }, [autoApprove, autoApproveLoaded, listings]);
 
   const handleApprove = (id) => {
     updateStatusMutation.mutate({ id, status: 'active' });
