@@ -10,10 +10,12 @@
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | `/` (Home) loads | ☐ | ☐ | |
+| `/us` loads ZAR-USA home (selector locked) | ☐ | ☐ | |
 | `/Login` loads | ☐ | ☐ | |
 | `/Register` loads | ☐ | ☐ | |
 | `/ListingDetail?id=<valid>` opens correct listing | ☐ | ☐ | |
-| `/CreateListing` (auth required) | ☐ | ☐ | |
+| `/CreateListing` (auth required) | ☐ | ☐ | Unprefixed create tags KR |
+| `/us/CreateListing` (auth required) | ☐ | ☐ | Tags US + washington-dc |
 | `/MyListings`, `/SavedListings`, `/Messages`, `/Chat` | ☐ | ☐ | If touched |
 | Browser back/forward on SPA | ☐ | ☐ | |
 | No redirect to legacy Base44 login | ☐ | ☐ | |
@@ -28,6 +30,7 @@
 | Banner strip loads (`banner_ads`) | ☐ | ☐ | |
 | Open listing from card → detail | ☐ | ☐ | |
 | Create listing → redirects to detail with new ID | ☐ | ☐ | See root `TESTING_FLOW.md` |
+| Auto-approve off: new ad absent from web My Listings | ☐ | ☐ | API default `status=active`. Same query on Profile. Pending shows on mobile `getMyListings` |
 | Edit own listing | ☐ | ☐ | |
 | Save / unsave listing | ☐ | ☐ | |
 
@@ -50,7 +53,9 @@
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | Register new user → Firestore `users` doc | ☐ | ☐ | |
-| Login → Home, session persists on refresh | ☐ | ☐ | |
+| Login → Home, session persists on refresh | ☐ | ☐ | Bare `/Login` returns KR `/` |
+| Login from `/us` Home → returns to `/us`, phone `+1` | ☐ | ☐ | Uses `state.from` |
+| Guarded page → `redirectToLogin` → return to same path | ☐ | ☐ | sessionStorage, not Router state |
 | Logout → guest UI | ☐ | ☐ | |
 | Protected route blocks guest | ☐ | ☐ | |
 | Password reset email (if touched) | ☐ | ☐ | |

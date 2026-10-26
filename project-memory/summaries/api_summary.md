@@ -1,34 +1,58 @@
 # API Summary
 
-> AI memory placeholder — no formal REST/OpenAPI docs in repository.  
+> No OpenAPI/generated SDK exists.
 > **Quick load:** `../PROJECT_MEMORY.md`
+> **Canonical detail:** `../../docs/ARCHITECTURE.md`,
+> `../../docs/FIRESTORE_SCHEMA.md`
 
 ## Backend surface
 
 | Layer | Notes |
-|-------|--------|
-| **Firestore** | Primary data API via client SDK + security rules |
-| **Firebase Auth** | Email/password; OAuth setup in separate guides |
-| **Firebase Storage** | Image uploads for listings |
-| **Vercel serverless** | Functions under repo API folder; undocumented route catalog |
-| **Entity wrappers** | `src/api/entities.js` — Conversation/Message helpers |
+|-------|-------|
+| **PHP/MySQL** | Listings, user sync, AI proxy, scoped admin role sync; hosted separately at `api.zarkorea.com` |
+| **Firestore** | Users, banners, chat, saved pointers, reports/feedback, AI state, config, push-token state |
+| **Firebase Auth** | Identity and Bearer tokens for PHP writes |
+| **Firebase Storage** | Country-aware listing/banner paths plus profile and legacy paths |
+| **Cloud Functions** | Firestore message-create trigger sends Expo chat push |
+| **Entity wrappers** | `src/api/entities.js` is the page-facing API wrapper |
 
-## Third-party integrations (setup docs only)
+## PHP actions and market parameters
 
-| Integration | Source doc |
-|-------------|------------|
-| OpenAI (AIBot) | `OPENAI_SETUP.md` |
-| Kakao login | `KAKAO_LOGIN_SETUP.md` |
-| Facebook login | `FACEBOOK_LOGIN_SETUP.md` |
+| Action | Method / access |
+|--------|-----------------|
+| `health` | GET, public |
+| `listings` | GET public: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (missing → `active`; `all` skips the predicate; other values are case-sensitive), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
+| `listings` | POST Bearer create; required `title` + `category`; server sets `created_by` |
+| `listing` | GET public; US rows outside active `washington-dc` 404 (`enforce_us_listing_row_visible`). PUT/PATCH Bearer except public `views` +1 (does not re-run GET visibility). DELETE Bearer |
+| `user_sync` | POST/PUT/PATCH, Bearer |
+| `admin_set_user_role` | POST, super admin only |
+| `ai_chat`, `ai_moderate` | POST, Bearer |
 
-## Gaps (intentional)
+`api/regions.php` is part of the API contract: US reads/writes default to
+`washington-dc`, inactive regions return no rows, and KR reads exclude
+regional rows. Schema migrations are documented in
+`docs/MULTI_COUNTRY_DB_MIGRATION_PLAN.md` and
+`docs/ZARUSA_STAGING_DEPLOY.md`.
 
-- No Swagger / OpenAPI file
-- No generated client SDK docs
-- Do **not** index `node_modules/**/README.md` as project API memory
+Admin API authority (`get_app_admin_scope`): `APP_ADMIN_UIDS` override, then
+MySQL `users.firebase_uid`, then legacy `users.email`. Keep Firestore and
+MySQL role/scope mirrored via `admin_set_user_role` / `user_sync`.
 
-## Placeholder slots
+KR feed isolation: `append_kr_listing_read_filter` (API) plus client
+`filterListingsForMarket`. Deploy helpers and smoke order:
+`docs/ZARUSA_STAGING_DEPLOY.md`.
 
-- [ ] Vercel function route list (method + path)
-- [ ] Firestore collection ↔ service mapping
-- [ ] Required env vars matrix (web vs mobile vs serverless)
+Owner-list status is not “all statuses” on web. `filterListings` omits
+`status` when `created_by` is set, and a missing parameter is `active`.
+Mobile `getMyListings` sends `status=all`. `listingAutoApprove` is read by
+create forms only; PHP stores the client `status` and does not publish
+pending rows. Detail: `docs/ARCHITECTURE.md`.
+
+## Client configuration
+
+- Web API base: `VITE_API_BASE_URL`
+- Mobile API base: `EXPO_PUBLIC_API_BASE_URL`
+- Server secrets: names only in `docs/PROJECT_MEMORY.md`; never copy values
+  into docs or client env.
+
+Do **not** treat vendor README files as project API documentation.
