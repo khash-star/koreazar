@@ -1,23 +1,24 @@
 # Koreazar — AI Project Memory
 
-> **Source:** Canonical project-authored docs in `docs/` only (4 files).  
-> **Updated:** 2026-05-28 · See `summaries/` and `reports/` for broader inventory.  
-> **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.  
-> **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.  
-> **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.  
-> **PR / release / deploy / rollback:** Use `devops/README.md` and playbooks (`pull-request-workflow.md`, `deployment-gates.md`, `release-workflow.md`, `rollback-workflow.md`).  
-> **QA / testing:** After code changes run applicable `qa/` playbooks (`qa/README.md`, `qa/test-strategy.md`); before release use `qa/pre-release-qa-checklist.md`; fill `templates/test-report.md`.  
+> **Canonical product/stack:** `docs/PROJECT_MEMORY.md` and `docs/ARCHITECTURE.md` (code wins over this file).
+> **Updated:** 2026-09-21 · Agent workflows stay in this folder; product facts live in `docs/`.
+> **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.
+> **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.
+> **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.
+> **PR / release / deploy / rollback:** Use `devops/README.md` and playbooks (`pull-request-workflow.md`, `deployment-gates.md`, `release-workflow.md`, `rollback-workflow.md`).
+> **QA / testing:** After code changes run applicable `qa/` playbooks (`qa/README.md`, `qa/test-strategy.md`); before release use `qa/pre-release-qa-checklist.md`; fill `templates/test-report.md`.
 > **Full agent order:** `AGENT_TASK_WORKFLOW.md` (Task → memory → code → review → QA → DevOps → memory update).
 
 ---
 
 ## Project overview
 
-- **Product:** Koreazar (Zarkorea) — Mongolian-language classified ads for users in South Korea.
-- **Web app:** Vite 6 + React 18 SPA (`react-router`), built to `dist/`, hosted on **Vercel** at **https://zarkorea.com**.
-- **Data:** Firebase **Firestore** (listings, banners) and **Firebase Storage** (images).
-- **Android distribution (documented path):** Wrap the deployed PWA as a **TWA** via Bubblewrap for Google Play (`com.zarkorea.twa`).
-- **Privacy:** Play Store flow expects https://zarkorea.com/Privacy.
+- **Product:** Koreazar — Mongolian-language classifieds: **Zarkorea** (KR, https://zarkorea.com) and **ZAR-USA** (Washington DC / DMV, `/us`). JP is scaffolded at `/jp` but not in `ENABLED_COUNTRIES`.
+- **Web:** Vite 6 + React 18 SPA at repo root → Vercel `dist/`.
+- **Mobile:** Expo in `mobile/` only. KR `production` (`com.zarkorea.twa`); ZAR-USA `production-us` (`com.zarusa.app`, `EXPO_PUBLIC_ACTIVE_COUNTRY=US`). Version scan: `1.0.5` / iOS `47` / Android `43`.
+- **Listings:** PHP + MySQL at `https://api.zarkorea.com/index.php` (`api/`). Firestore `listings` is legacy.
+- **Firebase (`koreazar-32e7a`):** Auth, Firestore (chat, banners, users, config), Storage, Cloud Functions (chat push).
+- **Privacy:** https://zarkorea.com/Privacy
 
 ---
 
@@ -28,34 +29,35 @@
 | Layer | Choice |
 |-------|--------|
 | UI | React 18 SPA |
-| Build | Vite 6 |
-| Routing | Client-side (`/`, `/Login`, `/ListingDetail?id=...`, etc.) |
-| Hosting | Vercel → `dist/` |
+| Build | Vite 6 (`sync-listings` → `sync-admin-roles` → PWA icons → `vite build`) |
+| Routing | `/` is KR home; market prefixes `/kr`, `/us`, `/jp`; admin routes unprefixed |
+| Markets | `ENABLED_COUNTRIES` = `KR` + `US`; `/us` selector lock is `lockCountrySelector` |
+| Hosting | Vercel → `dist/` (`manifest.json` + Workbox SW) |
 
 ### Home page data path (performance-critical)
 
 1. Load `index.html` → JS bundle → mount `Home`.
-2. `useQuery` fetches **banner ads** + **listings** via Firestore `getDocs()` (~0.5–2s typical).
-3. Only after Firestore returns are image URLs known; browser then fetches from Firebase Storage.
+2. `useMarketPageMeta()` sets title / description / icons for the active market.
+3. React Query fetches **banners** (Firestore) and **listings** (PHP API with `country_code` / `region_code`).
+4. Client applies `filterListingsForMarket` (defense in depth; API `append_kr_listing_read_filter` is authoritative for KR).
+5. Image URLs from those responses are fetched from Firebase Storage.
 
-**Bottleneck:** Image loading cannot start until the Firestore round-trip completes.
+**Bottleneck:** Images cannot start until listing/banner data returns. SQL returns the newest 100 (web) or 50 (mobile) rows before the client VIP sort. See `docs/IMAGE_LOAD_ANALYSIS.md`.
 
-### PWA (planned / incremental)
+### Market isolation (do not weaken)
 
-- Add **vite-plugin-pwa**: manifest + Workbox service worker, `registerType: 'autoUpdate'`.
-- Precache static assets; `navigateFallback: '/index.html'` for SPA routes.
-- Manifest branding: name `Koreazar`, theme `#ea580c`, `start_url: '/'`.
-- PWA is a **prerequisite** for Play Store TWA packaging.
+| Layer | Behavior |
+|-------|----------|
+| Writes | URL-only `resolveRouteCountryCode()` — never tag from `localStorage`. Unprefixed `/CreateListing` → KR |
+| US reads/writes | Default `region_code=washington-dc`; states DC/VA/MD only |
+| KR reads | Exclude US/JP and any row with a non-empty `region_code` |
+| Admin back-links | `useMarketHomePath` so scoped US admins return to `/us` |
+| Post-login return | `/Login` unprefixed: `state.from` / `?redirect=` / `loginRedirect`, else KR `/` |
+| Canonical SEO | `index.html` canonical stays `https://zarkorea.com/`; sitemap has no `/us` |
 
 ### Firestore query indexes
 
-Defined in **`firestore.indexes.json`** (see `docs/FIRESTORE_INDEXES.md`):
-
-| Use case | Fields |
-|----------|--------|
-| Active listings (home) | `status` ASC, `created_date` DESC |
-| My listings | `created_by` ASC, `created_date` DESC |
-| Category filter | `status` ASC, `category` ASC, `created_date` DESC |
+Chat / banners / saved listings use **`firestore.indexes.json`** (`docs/FIRESTORE_INDEXES.md`). Home listing feeds are **MySQL**, not these Firestore listing indexes.
 
 ---
 
@@ -63,30 +65,36 @@ Defined in **`firestore.indexes.json`** (see `docs/FIRESTORE_INDEXES.md`):
 
 ### Web (Vercel)
 
-- Build output: `dist/` (`index.html` + hashed assets).
-- After PWA plugin: expect `manifest.webmanifest` and `sw.js` in `dist/`.
-- Deploy Firestore indexes: `firebase deploy --only firestore:indexes` (or create via Console link on index errors).
+- Build output: `dist/` (`index.html`, hashed assets, `manifest.json`, Workbox `sw.js`).
+- Env: `VITE_FIREBASE_*`, `VITE_API_BASE_URL` (names only; values stay in the dashboard).
 
-### Android Play Store (TWA)
+### PHP API (`api.zarkorea.com`)
 
-1. PWA live on Vercel with valid **manifest** + **service worker**.
-2. `npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.webmanifest`
-3. App ID: `com.zarkorea.twa`; start URL `/`; theme `#ea580c`.
-4. Update **`public/.well-known/assetlinks.json`** with real **SHA-256** signing fingerprint from Bubblewrap init.
-5. Redeploy web so `assetlinks.json` is served; verify Digital Asset Links.
+Vercel does **not** deploy `api/`. Use `npm run deploy:zarusa-api` (SCP), `deploy:zarusa-api:ftp`, or `package:zarusa-api`. Credentials: gitignored `scripts/deploy-zarusa-api.local.env`. Runbook: `docs/ZARUSA_STAGING_DEPLOY.md`.
+
+### Mobile (EAS)
+
+- KR: `production` / `com.zarkorea.twa` — `mobile/docs/IOS_ANDROID_RELEASE_CHECKLIST.md`
+- US: `production-us` / `com.zarusa.app` — `mobile/docs/ZARUSA_BUILD.md`
+- TWA/Play historical path: `docs/PLAY_STORE_SETUP.md` (native Expo is the current store path)
 
 ### Environment
 
-- Firebase keys via Vite `VITE_*` env vars on Vercel (not duplicated here).
+- Web `VITE_*`, mobile `EXPO_PUBLIC_*`, API `api/.env` — names in `docs/PROJECT_MEMORY.md`, never values.
 
 ---
 
 ## Admin system notes
 
-The four canonical `docs/` files **do not** define admin RBAC. For AI tasks involving admin:
+Scoped RBAC is implemented. Canonical matrix: `docs/ZARUSA_REGION_PHASES.md` Phase 2.
 
-- Treat admin as **out of scope** in this memory file until `ADMIN_SETUP_GUIDE.md` (repo root) is ingested separately.
-- Product areas that typically need admin (banners, listing moderation, broadcast messages) are not specified in the `docs/` quartet.
+| Role | Scope |
+|------|--------|
+| `super_admin` (legacy `admin`) | Global KR + US; only role that assigns roles |
+| `country_admin` + `admin_country_code` | One country |
+| `region_admin` + `admin_region_code` | One US region (e.g. `washington-dc`); no user management or broadcast |
+
+Source of truth: `src/constants/adminRoles.js` → `npm run sync-admin-roles`. Firestore UI checks and PHP `get_app_admin_scope()` (UID, then email) must stay in sync via `admin_set_user_role` / `user_sync`. Assignment UI: `AdminPanel` (super admin). QA: `qa/admin-rbac-tests.md`.
 
 ---
 
@@ -94,12 +102,14 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 
 | Decision | Rationale |
 |----------|-----------|
-| **Indexes as code** | `firestore.indexes.json` + CLI deploy; `docs/FIRESTORE_INDEXES.md` is canonical (root copy archived). |
-| **Firestore-before-images** | Listing/banner documents carry image URLs; no image fetch until Firestore responds. |
-| **Mitigations for LCP** | `preconnect` to `firestore.googleapis.com`; React Query `staleTime` 2–5 min; `loading="eager"` on first two cards. |
-| **PWA via vite-plugin-pwa** | Incremental, non-breaking steps; plugin order after `nonBlockingCss` in `vite.config.js`. |
-| **TWA over native wrapper (Android doc path)** | Reuses web app; requires correct `assetlinks.json` + manifest URL. |
-| **SPA + Workbox fallback** | All navigations serve `index.html` except SW/workbox assets. |
+| **Hybrid backend** | Listings in MySQL/PHP; chat, banners, saved, AI, config in Firestore |
+| **URL-first market scope** | Stored preference must never change listing country/region ownership |
+| **US selector lock ≠ ENABLED list** | US is enabled; `/us` hides KR via `lockCountrySelector` |
+| **Dual-layer KR feed isolation** | API filter + client `filterListingsForMarket` |
+| **Scoped admin + MySQL mirror** | UI/rules/API all check scope; PHP looks up `firebase_uid` then `email` |
+| **Indexes as code** | `firestore.indexes.json` + CLI deploy (`docs/FIRESTORE_INDEXES.md`) |
+| **PWA via vite-plugin-pwa** | `manifest.json`, Workbox, `registerType: 'autoUpdate'` |
+| **SPA + Workbox fallback** | Non-file navigations serve `index.html` |
 
 ---
 
@@ -107,12 +117,12 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| **Missing Firestore composite indexes** | Home/category/my-listings queries fail at runtime | Deploy `firestore.indexes.json`; use Console link from error |
-| **Wrong or placeholder `assetlinks.json` fingerprint** | TWA / Play integrity fails | Replace `00:00:00:...` with Bubblewrap SHA-256; redeploy |
-| **PWA not deployed before TWA** | Bubblewrap init or store review fails | Ship manifest + SW on production domain first |
-| **Manifest URL mismatch** | Init uses wrong origin | Use `https://zarkorea.com/manifest.webmanifest` |
-| **Stale documentation elsewhere in repo** | Wrong paths (`zar-746103b7/`), domains (`zarmongolia.com`), or Firebase project IDs | Prefer this file + `docs/*`; verify against live Vercel/Firebase console |
-| **Doc vs code drift on PWA** | `PWA_IMPLEMENTATION_PLAN.md` may lag actual `vite.config.js` | Confirm `vite-plugin-pwa` in repo before Play/TWA steps |
+| **US rows on KR home** | Cross-market leak | Keep API + client filters; review `api/sql/fix_us_listings_country_code.sql` after backup |
+| **Firestore admin works, PHP 403** | Scoped admin cannot moderate listings | Mirror MySQL `users` role/scope (`firebase_uid` or email) |
+| **Missing region/RBAC columns** | API filters/roles fail | Staging `SHOW COLUMNS` first; `docs/ZARUSA_STAGING_DEPLOY.md` |
+| **Missing Firestore composite indexes** | Chat/banner queries fail | Deploy `firestore.indexes.json` |
+| **Wrong EAS Firebase env** | Mobile auth/crash | Match Console; `mobile/docs/EAS_PRODUCTION_ENV.md` |
+| **Stale root / archived markdown** | Wrong stack (Base44, Firestore listings) | Prefer `docs/*` + this file; `docs/archive/` is historical |
 
 ---
 
@@ -141,4 +151,4 @@ The four canonical `docs/` files **do not** define admin RBAC. For AI tasks invo
 | `reports/MEMORY_ANALYSIS_REPORT.md` | Full 66-file markdown audit |
 
 **Canonical doc sources for this file:**  
-`docs/FIRESTORE_INDEXES.md` · `docs/IMAGE_LOAD_ANALYSIS.md` · `docs/PWA_IMPLEMENTATION_PLAN.md` · `docs/PLAY_STORE_SETUP.md`
+`docs/PROJECT_MEMORY.md` · `docs/ARCHITECTURE.md` · `docs/DEPLOYMENT.md` · `docs/ZARUSA_REGION_PHASES.md` · `docs/TROUBLESHOOTING.md` · `docs/FIRESTORE_INDEXES.md`

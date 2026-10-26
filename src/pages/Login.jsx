@@ -28,7 +28,9 @@ import { createPageUrl } from '@/utils';
 import { useActiveCountry } from '@/hooks/useActiveCountry';
 import { COUNTRIES, countryCodeFromPath } from '@/config/country';
 
-/** Same-origin path only – prevents open redirect */
+/** Same-origin in-app path only — used for ?redirect=, state.from, sessionStorage.
+ *  Rejects http(s) prefixes. Guarded pages use authService.toSafePath, which
+ *  unwraps same-origin absolute URLs before storing loginRedirect. */
 function safeRedirectPath(url) {
   if (!url || typeof url !== 'string') return null;
   const s = url.trim();

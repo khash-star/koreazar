@@ -1,6 +1,10 @@
 # PWA нэмэх төлөвлөгөө
 
-Одоогийн бүтэц, үйлдлүүдийг эвдэхгүйгээр PWA нэмэх алхмууд. Нэг бүрчлэн шалгаад хэрэгжүүлнэ.
+> **Одоогийн төлөв (2026-10):** PWA аль хэдийн суусан. Доорх алхмууд нь анхны rollout-ийн тэмдэглэл. Дахин `npm i vite-plugin-pwa` хийх, эсвэл “manifest байхгүй” гэж үзэх хэрэггүй.
+>
+> Эх сурвалж: `vite.config.js` (`VitePWA`, `registerType: 'autoUpdate'`, `manifestFilename: 'manifest.json'`). Тойм: `docs/ARCHITECTURE.md`. Deploy шалгалт: `docs/DEPLOYMENT.md`.
+
+Production manifest URL: `https://zarkorea.com/manifest.json`. Зарим host `*.webmanifest`-д 403 өгдөг тул `.webmanifest` URL бүү ашигла. `navigateFallback` нь `/index.html`. Workbox Firebase Storage / GCS зургийг `CacheFirst` (30 хоног, 100 entry) кэшэлнэ. Theme `#ea580c`, `start_url` `/`.
 
 ---
 
@@ -8,8 +12,8 @@
 
 - **Одоогийн бүтэц:** Vite 6 + React 18, SPA (react-router), Vercel deploy
 - **Routing:** `/` = Home, `/Login`, `/ListingDetail?id=...` гэх мэт
-- **Build output:** `dist/` — index.html, assets/
-- **Төлөв:** manifest, service worker байхгүй
+- **Build output:** `dist/` — index.html, assets/, `manifest.json`, service worker
+- **Төлөв:** plugin `vite.config.js` дээр идэвхтэй. Энэ файлын үлдсэн алхмууд түүхэн дараалал
 
 ---
 
@@ -155,4 +159,4 @@ Worker-д `worker-src 'self'` нэмбэл найдвартай.
 | 5     | vercel.json CSP                   | Бага   |
 | 6–7   | Шалгалт                           | —      |
 
-Бүх алхамыг дарааллаар хийж, алхам бүрийн дараа build + шалгалт хийнэ.
+Эдгээр алхмууд аль хэдийн хийгдсэн. Шинэ PWA өөрчлөлтийг `vite.config.js` дээрээс шалгаад `npm run build` → `dist/manifest.json` байгаа эсэхийг баталгаажуул.
