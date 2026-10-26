@@ -17,6 +17,8 @@
 | VIP or search result missing on Home | SQL returns newest N (`created_at DESC`, web 100 / mobile 50, cap 100); client then sorts VIP. Search/price filter that window only | `docs/IMAGE_LOAD_ANALYSIS.md`, `api/index.php` |
 | Login from `/us` lands on KR `/` | Home must pass `state.from`; guarded pages must call `redirectToLogin`. Bare `/Login` is KR | `docs/TROUBLESHOOTING.md`, `Login.jsx` |
 | Preview/default host indexed | Only `koreazar.vercel.app` 301s to `zarkorea.com`; sitemap has no `/us` | `vercel.json`, `docs/DEPLOYMENT.md` |
+| Pending (or sold) ad missing on web My Listings / Profile | Those pages omit `status`; API defaults a missing parameter to `active`. Mobile `getMyListings` uses `status=all` (newest 20) | `docs/ARCHITECTURE.md`, `docs/TROUBLESHOOTING.md` |
+| Auto-approve expected to publish on the server | Firestore flag changes the create POST. Any admin client that loaded `true` also PATCHes its pending page (scoped admins included; web limit 100). A failed web Firestore write leaves `localStorage` on | `AdminNewListings.jsx`, `appConfigService.js` |
 
 ## Likely resolved / obsolete
 

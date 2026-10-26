@@ -84,7 +84,7 @@ koreazar/
 
 The platform uses a **hybrid backend**:
 
-1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes. `country_code`, `state_code`, and `region_code` scope KR/US/JP data.
+1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes. `country_code`, `state_code`, and `region_code` scope KR/US/JP data. `GET listings` treats a missing `status` as `active` (`status=all` returns every status). Web My Listings omits `status`, so pending rows stay off that page. `config/app.listingAutoApprove` is read by create forms only.
 2. **Banners, chat, saved listings, AI, config** — **Firestore** (`bannerService.js`, `conversationService.js`, etc.). Banners use `country_code`; missing/blank remains KR.
 3. **Images** — **Firebase Storage** (`storageService.js`): new listing paths use `listings/{country}/{year}/{listingId}/...`, banners use `banners/{country}/{bannerId}/...`, and legacy `images/` URLs remain valid.
 4. **Auth** — **Firebase Authentication** (email/password, phone OTP on mobile, Facebook on web).

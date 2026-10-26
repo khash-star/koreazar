@@ -1,7 +1,7 @@
 # Koreazar — AI Project Memory
 
 > **Canonical product/stack:** `docs/PROJECT_MEMORY.md` and `docs/ARCHITECTURE.md` (code wins over this file).
-> **Updated:** 2026-09-21 · Agent workflows stay in this folder; product facts live in `docs/`.
+> **Updated:** 2026-10-26 · Agent workflows stay in this folder; product facts live in `docs/`.
 > **Before code changes:** Read `CODING_SAFETY_CHECKLIST.md`.
 > **Complex work** (reviews, architecture, production-sensitive): Read `SENIOR_DEVELOPER_SYSTEM.md`.
 > **After code changes:** Run `reviews/self-review-workflow.md`; see `reports/AI_SELF_REVIEW_SYSTEM.md` for production-sensitive review.
@@ -43,6 +43,8 @@
 5. Image URLs from those responses are fetched from Firebase Storage.
 
 **Bottleneck:** Images cannot start until listing/banner data returns. SQL returns the newest 100 (web) or 50 (mobile) rows before the client VIP sort. See `docs/IMAGE_LOAD_ANALYSIS.md`.
+
+**Listing status:** a missing `GET listings` `status` is `active`. Web My Listings and Profile omit it, so pending rows stay hidden. Mobile `getMyListings` sends `status=all`. `listingAutoApprove` is a client flag; PHP does not publish pending rows. See `docs/ARCHITECTURE.md`.
 
 ### Market isolation (do not weaken)
 

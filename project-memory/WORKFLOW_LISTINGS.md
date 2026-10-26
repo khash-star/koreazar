@@ -73,8 +73,10 @@ CreateListing.jsx
   → entities.Listing.create
   → listingService.createListing (POST + Bearer token)
   → enforce_us_listing_write_region (US → washington-dc, DC/VA/MD)
+  → getListingAutoApprove() (Firestore; алдаа → false)
+  → POST status active|pending
+  → PHP stores that string (flag-ийг уншихгүй; талбар байхгүй бол pending)
   → MySQL insert
-  → [optional] getListingAutoApprove() → status active/pending
 ```
 
 ### Зураг
@@ -133,7 +135,10 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 
 ### 6. Admin moderation
 
-- `config/app.listingAutoApprove` — шинэ зар шууд `active`
+- `config/app.listingAutoApprove` — client flag. Create form POST `active`/`pending`. PHP уншихгүй.
+- Switch UI: `canManageGlobalConfig` (`super_admin` эсвэл legacy `admin`). Flag `true` үед country/region admin ч өөрийн pending жагсаалтыг PATCH `active` хийнэ (серверийн job биш, API limit 100).
+- Web owner list (`MyListings`, `Profile`): `created_by` л илгээнэ, `status` байхгүй → API default `active`. Pending энд гарахгүй. Mobile `getMyListings` `status=all` (fallback `active`/`pending`/`sold`), limit 20.
+- `GET listing&id=` status шүүхгүй. Home үргэлж `status=active`.
 - Admin pages: status өөрчлөх → API PATCH (scope-д багтсан listing л)
 - US admin back-link: `useMarketHomePath` → `/us` (KR root `/` руу бүү унагаа)
 
@@ -147,7 +152,7 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 | 2 | KR Home — US/JP/`region_code`тай зар **харагдахгүй** |
 | 3 | `/us` Home — зөвхөн US `washington-dc` |
 | 4 | Категори/шүүлт (market scope-той) |
-| 5 | Зар үүсгэх (зурагтай), My Listings дээр гарна |
+| 5 | Зар үүсгэх (зурагтай). `pending` бол web My Listings/Profile дээр гарахгүй; mobile `getMyListings` дээр гарна |
 | 6 | ListingDetail — view count нэмэгдэнэ |
 | 7 | Хадгалах (saved_listings) |
 | 8 | Засах / устгах — зөвхөн эзэн |

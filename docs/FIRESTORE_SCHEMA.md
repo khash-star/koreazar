@@ -311,9 +311,9 @@ Expo push token (зөвхөн mobile).
 
 | Талбар | Төрөл | Тайлбар |
 |--------|-------|---------|
-| `listingAutoApprove` | boolean | `true` бол шинэ зар шууд `active` |
+| `listingAutoApprove` | boolean | Create form уншина. `true` бол POST `status=active`, үгүй бол `pending`. PHP энэ document-ийг уншихгүй |
 
-**Rules:** Унших — auth; бичих — admin.
+**Rules:** Унших — дурын нэвтэрсэн хэрэглэгч. Бичих — `isSuperAdmin()` (`users.role` нь `admin` эсвэл `super_admin`). Country/region admin бичихгүй, switch харахгүй. Flag `true` бол тэдний нээсэн admin pending жагсаалт мөн PATCH хийнэ. Серверийн job биш. Дэлгэрэнгүй: [ARCHITECTURE.md](./ARCHITECTURE.md) «Listing status and owner lists».
 
 ---
 

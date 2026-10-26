@@ -30,6 +30,7 @@
 | Banner strip loads (`banner_ads`) | ☐ | ☐ | |
 | Open listing from card → detail | ☐ | ☐ | |
 | Create listing → redirects to detail with new ID | ☐ | ☐ | See root `TESTING_FLOW.md` |
+| Auto-approve off: new ad absent from web My Listings | ☐ | ☐ | API default `status=active`. Same query on Profile. Pending shows on mobile `getMyListings` |
 | Edit own listing | ☐ | ☐ | |
 | Save / unsave listing | ☐ | ☐ | |
 

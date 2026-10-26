@@ -21,6 +21,7 @@
 | Чат ажиллахгүй | Нэвтрэлт, participant email variants, indexes |
 | Утасны OTP inbox хоосон | `emailQueryVariants` (KR `82` / US `1`) + `participant_uids` |
 | `/CreateListing` US биш KR зар | Unprefixed write → `resolveRouteCountryCode()` = null → KR. Use `/us/CreateListing` |
+| Шинэ зар web «Миний зарууд» дээр алга | `created_by` шүүлт `status` илгээдэггүй → API default `active`. Pending нь mobile `getMyListings` дээр |
 | Push ирэхгүй | Functions deploy, FCM V1, Expo token |
 | Mobile crash нээхэд | EAS Firebase env дутуу |
 
@@ -411,14 +412,39 @@ role-ийн талбар дутуу.
 - Өгөгдөл засах: backup хийсний дараа
   `api/sql/fix_us_listings_country_code.sql`-ийг хянаж ажиллуулна
 
-### Admin зар батлахад нүүр дээр харагдахгүй
+### Шинэ зар web «Миний зарууд» / Profile дээр алга
 
-**Шалтгаан:** MySQL `status` талбар, `config/app.listingAutoApprove`.
+**Шалтгаан:** `MyListings.jsx` ба `Profile.jsx` `created_by: authEmail` илгээгээд `status` илгээдэггүй. `filterListings` нь `created_by` байвал `status` параметр орхино. `GET listings` дээр параметр байхгүй бол PHP `status=active` тавина. Pending, rejected, sold, expired мөр ирэхгүй. Sold «Идэвхжүүлэх» цэс тийм мөр ачаалагдаагүй тул ажиллахгүй.
+
+Энэ шүүлт нэг имэйл (`LOWER(created_by)`). `emailQueryVariants`, `firebase_uid`, `customer_id` ашиглахгүй. Хоёр хуудас нэг React Query түлхүүр хуваалцана: `['myListings', authEmail, routeCountryCode]`, limit 100.
+
+**Хүлээлт:**
+
+- Mobile `MyListingsScreen` → `getMyListings(..., 20)` нь `status=all` (хоосон/алдаатай бол `active`+`pending`+`sold`). Pending хамгийн шинэ 20 дотор харагдана. 60 секундээс шинэ хоосон биш үр дүнг эхлээд зураад дараа нь дахин татна.
+- Гараар: `GET ?action=listings&created_by=<email>&status=pending` эсвэл `status=all` (`all` нь case-insensitive; бусад утга яг таарна).
+- `status=all` хоосон буцаавал хуучин API биш, тухайн шүүлтэд мөр байхгүй гэсэн үг. Дараагийн fallback зөвхөн `active` / `pending` / `sold`.
+
+### «Автоматаар зөвшөөрөх» ба pending зар
+
+**Шалтгаан:** `config/app.listingAutoApprove` бол client flag. Create form (`CreateListing.jsx`, `CreateListingScreen.js`) уншаад POST body-д `status` тавина. Уншилт амжилтгүй бол `pending`. PHP энэ document-ийг уншихгүй, body-ийн `status`-ийг хадгална (талбар байхгүй бол `pending`).
+
+Switch UI нь серверийн job биш. Харагдах нь `canManageGlobalConfig` (`super_admin` эсвэл legacy `admin`). Country/region admin switch харахгүй, гэхдээ flag `true` бол тэдний нээсэн pending жагсаалт мөн PATCH `active` хийнэ (өөрийн scope дотор). Firestore write нь `isSuperAdmin()` (`admin` эсвэл `super_admin`); унших нь дурын нэвтэрсэн хэрэглэгч.
 
 **Шийдэл:**
-- API-аар зарын `status` шалгах
-- `listingAutoApprove: true` бол шууд `active`
-- US/KR market filter зөв `country_code` / `region_code` илгээж байгаа эсэх
+
+- Firestore `config/app.listingAutoApprove === true` эсэхийг шалгана.
+- Web switch `localStorage` түлхүүр `admin_auto_approve_listings`-ийг Firestore-оос өмнө уншина. Read амжилтгүй бол local утга үлдэнэ. Write амжилтгүй бол UI `true` хэвээр, бусад клиент хуучин flag-ийг уншина. Нэг pending id PATCH амжилтгүй болвол жагсаалт хоосон болох хүртэл дахин оролдохгүй. Refetch 10 секунд.
+- Mobile эхлээд `false`, дараа нь Firestore. Read амжилтгүй бол AsyncStorage `admin_auto_approve_listings`. Write амжилтгүй бол switch буцна. Амжилтгүй id тухайн дэлгэц хаагдах хүртэл (эсвэл super admin switch унтраах хүртэл) алгасна. Foreground дээр ~25 секунд тутам шинэчилнэ.
+- Нүүр дээр гарах нөхцөл: MySQL `status=active`, дээр нь market filter (`country_code` / `region_code`). Admin pending жагсаалт 200 гэж асуусан ч API хамгийн ихдээ 100 буцаана.
+
+### Admin зар батлахад нүүр дээр харагдахгүй
+
+**Шалтгаан:** MySQL `status` `active` биш, эсвэл market filter таараагүй.
+
+**Шийдэл:**
+- `GET ?action=listing&id=` эсвэл `status=all` жагсаалтаар `status` шалгах. Detail нь `active` шаарддаггүй; Home шаарддаг.
+- `listingAutoApprove: true` нь зөвхөн дараагийн create-ийн body-д `active` тавина. Өмнөх pending мөрийг сервер өөрөө солихгүй.
+- US/KR шүүлт зөв `country_code` / `region_code` илгээж байгаа эсэх.
 
 ---
 

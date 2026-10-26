@@ -186,7 +186,7 @@ Hosted separately at `https://api.zarkorea.com/index.php`. Actions (from `api/in
 | Action | Method | Auth | Purpose |
 |--------|--------|------|---------|
 | `health` | GET | No | DB connectivity check |
-| `listings` | GET | No | List/filter. Query: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (default `active`), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
+| `listings` | GET | No | List/filter. Query: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (missing → `active`; `all` skips the predicate), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
 | `listings` | POST | Bearer | Create listing. Required body: `title`, `category`. Server sets `created_by` from the token |
 | `listing` | GET | No | Single listing by numeric `id`. US rows outside the active region return 404 (`enforce_us_listing_row_visible`) |
 | `listing` | PUT/PATCH | Bearer except view +1 | Update. A payload that is only `views` incremented by one is public and does not re-run GET visibility |
@@ -223,9 +223,38 @@ copy. Database prerequisites and rollout order are in
 
 **List vs detail:** `GET listings` isolates KR/US feeds. `GET listing&id=` is a
 public by-id lookup: KR rows are returned; US rows whose `region_code` is
-empty, inactive, or not the default `washington-dc` 404. ListingDetail uses
-`entities.Listing.filter({ id })` → `getListing`. The unauthenticated
-views+1 PATCH does not call `enforce_us_listing_row_visible`.
+empty, inactive, or not the default `washington-dc` 404. The detail lookup
+does not require `status=active`, so a pending or rejected row is readable by
+numeric id. ListingDetail uses `entities.Listing.filter({ id })` →
+`getListing`. The unauthenticated views+1 PATCH does not call
+`enforce_us_listing_row_visible`.
+
+### Listing status and owner lists
+
+`listings.status` is an exact string. PHP does not read
+`config/app.listingAutoApprove`. Create forms do, then POST `status`.
+
+| Writer | What it stores |
+|--------|----------------|
+| Web `CreateListing.jsx`, mobile `CreateListingScreen.js` | `active` when `getListingAutoApprove()` is true, otherwise `pending`. A failed read is treated as false |
+| Admin approve / reject | `active` or `rejected` |
+| Owner reactivate (My Listings / Profile) | `sold` → `active`, and only if that row is already in the list |
+| `extract_listing_payload` when `status` is omitted | `pending` |
+
+No current screen writes `sold` or `expired`. Those badges render only for rows that already have the value. Any signed-in creator can POST `status=active`; the flag is not enforced in `api/index.php`.
+
+**List query.** A missing `status` parameter becomes `active`. `status=all` (any case) or an empty `status=` skips the predicate. Every other value is a case-sensitive match (`Active` does not match `active`). Results are `ORDER BY created_at DESC`. `limit` is clamped to 1–100 (default 50). Admin pending queries request 200 and still receive at most 100.
+
+**Web owner pages only receive `active`.** `MyListings.jsx` and `Profile.jsx` call `Listing.filter` with `created_by: authEmail` and no `status`. `filterListings` then omits the parameter because `created_by` is set, and the API default fills `active`. Pending, rejected, sold, and expired rows never arrive, so the sold “reactivate” item on those pages does not run. The filter is one email (`LOWER(created_by)`), not `emailQueryVariants`, `firebase_uid`, or `customer_id`. Both pages share the React Query key `['myListings', authEmail, routeCountryCode]` and the service default limit of 100. Home and `listListings` always send `status=active`.
+
+**Mobile owner lists request every status.** `MyListingsScreen` calls `getMyListings(email, customerId, 20)`. That merges separate `firebase_uid`, `customer_id`, and `created_by` queries. Each query tries `status=all` first and, when that returns rows, keeps every status inside the newest 20. An empty or failed `status=all` falls back to `active`, `pending`, and `sold` only. A non-empty result younger than 60 seconds is painted immediately, and the screen still refetches.
+
+**Auto-approve switch.** The control is visible only to `canManageGlobalConfig` (`super_admin` or legacy role `admin`). Country and region admins do not see it, but they still load the flag. Firestore `config/{docId}` allows any signed-in read and those same two roles to write.
+
+The flag does not install a server job. Any admin client that has loaded `listingAutoApprove === true` PATCHes the pending page it has loaded, including a scoped admin who cannot toggle the switch:
+
+- Web `AdminNewListings.jsx` seeds `localStorage` key `admin_auto_approve_listings`, then replaces it if the Firestore read succeeds. A failed read keeps the local value. Toggling writes localStorage immediately and ignores a failed `setListingAutoApprove`. A `useEffect` PATCHes each loaded pending id once per non-empty result and does not retry a failed PATCH until that result becomes empty. The pending query refetches every 10 seconds while the flag is on.
+- Mobile `AdminScreen.js` starts from false, then applies the Firestore value. A failed read falls back to AsyncStorage key `admin_auto_approve_listings`. A failed write reverts the switch. Failed ids are skipped until the screen unmounts, or until a super admin turns the switch off. The pending list refreshes about every 25 seconds while the app is foregrounded and the flag is on.
 
 ### Banners and listing upgrades
 

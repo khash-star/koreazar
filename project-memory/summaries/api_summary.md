@@ -21,7 +21,7 @@
 | Action | Method / access |
 |--------|-----------------|
 | `health` | GET, public |
-| `listings` | GET public: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (default `active`), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
+| `listings` | GET public: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (missing → `active`; `all` skips the predicate; other values are case-sensitive), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
 | `listings` | POST Bearer create; required `title` + `category`; server sets `created_by` |
 | `listing` | GET public; US rows outside active `washington-dc` 404 (`enforce_us_listing_row_visible`). PUT/PATCH Bearer except public `views` +1 (does not re-run GET visibility). DELETE Bearer |
 | `user_sync` | POST/PUT/PATCH, Bearer |
@@ -41,6 +41,12 @@ MySQL role/scope mirrored via `admin_set_user_role` / `user_sync`.
 KR feed isolation: `append_kr_listing_read_filter` (API) plus client
 `filterListingsForMarket`. Deploy helpers and smoke order:
 `docs/ZARUSA_STAGING_DEPLOY.md`.
+
+Owner-list status is not “all statuses” on web. `filterListings` omits
+`status` when `created_by` is set, and a missing parameter is `active`.
+Mobile `getMyListings` sends `status=all`. `listingAutoApprove` is read by
+create forms only; PHP stores the client `status` and does not publish
+pending rows. Detail: `docs/ARCHITECTURE.md`.
 
 ## Client configuration
 
