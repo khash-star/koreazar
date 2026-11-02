@@ -26,7 +26,7 @@
 | `listing` | GET public; US rows outside active `washington-dc` 404 (`enforce_us_listing_row_visible`). PUT/PATCH Bearer except public `views` +1 (does not re-run GET visibility). DELETE Bearer |
 | `user_sync` | POST/PUT/PATCH, Bearer |
 | `admin_set_user_role` | POST, super admin only |
-| `ai_chat`, `ai_moderate` | POST, Bearer |
+| `ai_chat`, `ai_moderate` | POST, Bearer. `ai_chat` clamps temperature to 0–1.5 and `max_tokens` to 32–1200. It does not read Firestore `ai_usage`; the web page cap of 20 is client-only and fails open when the usage write is denied |
 
 `api/regions.php` is part of the API contract: US reads/writes default to
 `washington-dc`, inactive regions return no rows, and KR reads exclude

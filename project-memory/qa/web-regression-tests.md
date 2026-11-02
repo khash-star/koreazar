@@ -32,7 +32,7 @@
 | Create listing → redirects to detail with new ID | ☐ | ☐ | See root `TESTING_FLOW.md` |
 | Auto-approve off: new ad absent from web My Listings | ☐ | ☐ | API default `status=active`. Same query on Profile. Pending shows on mobile `getMyListings` |
 | Edit own listing | ☐ | ☐ | |
-| Save / unsave listing | ☐ | ☐ | |
+| Save / unsave listing | ☐ | ☐ | HTTP 404 detail deletes the Firestore save, including a US row outside `washington-dc`. A non-404 error hides the heart; saving again adds a second doc |
 
 ---
 

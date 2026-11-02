@@ -175,15 +175,15 @@ Post-login redirect (`Login.jsx`, `authService.redirectToLogin`):
 | `listings` | Бүгд | Auth create; owner/admin update/delete |
 | `banner_ads` | Бүгд | Admin only |
 | `banner_requests` | Auth | Auth create; admin update |
-| `listing_reports` | Reporter / admin | Auth create; admin update |
-| `feedback_messages` | Admin | Auth create |
-| `saved_listings` | Auth | Owner create/delete |
+| `listing_reports` | Мэдэгдэгч эсвэл `isAppAdmin()` | Create: `reporter_uid` эсвэл `reporter_email`. Update/delete: дурын app admin (market scope байхгүй) |
+| `feedback_messages` | `isSuperAdmin()` | Create: `user_uid` эсвэл `email`. Country/region admin уншихгүй |
+| `saved_listings` | Auth | Owner create/delete (`user_uid` эсвэл `created_by`) |
 | `conversations` | Participant / admin | Participant / admin |
 | `messages` | Auth | Auth create; sender/receiver/admin update |
 | `ai_*` | Owner (`user_email`) | Owner |
 | `user_push_tokens` | Owner uid | Owner uid |
 | `config` | Auth | Admin |
-| `ai_usage` | Owner / admin | Owner |
+| `ai_usage` | `get`: байхгүй doc, token email, эсвэл super admin. `list`: auth | Create/update: `user_email` яг `token.email` |
 
 ### Тусгай логик
 
@@ -191,6 +191,8 @@ Post-login redirect (`Login.jsx`, `authService.redirectToLogin`):
 - **View count (MySQL listings API):** unauthenticated `PATCH` when the body is only `views` = existing + 1 (`api/index.php`). Other listing writes require Bearer.
 - **Утасны хэрэглэгч:** `authEmailLower()` — token.email хоосон бол `users/{uid}.email` ашиглана.
 - **Чат:** `participant_uids` эсвэл имэйлээр оролцогч шалгана.
+- **Saved resolve:** `GET listing` HTTP 404 бол web/mobile хадгалалтыг Firestore-оос устгана. 404-д US region хаалт орно. Бусад алдаа мөрийг үлдээгээд зүрхийг хоосон харуулна.
+- **AI квот:** `AIBot.jsx` өдөрт 20. Шалгалт client дээр. `ai_usage` бичилт token.email-тэй яг таарахгүй бол (утас OTP) хязгаар алгасаад `ai_chat` хариулна.
 
 Deploy:
 
@@ -285,9 +287,10 @@ UI (“зар, чат устгагдана”) нь MySQL заруудыг ха�
 
 `src/utils/limits.js`:
 
-- Хэрэглэгч тутамд хамгийн ихдээ **50 зар**
+- Хэрэглэгч тутамд хамгийн ихдээ **50 зар** (`MAX_LISTINGS_PER_USER`). Энэ нь AI хязгаар биш
 - Зар тутамд **10 зураг**
 - Ярилцлага тутамд **1000 мессеж**
+- AI өдрийн хязгаар энд байхгүй. Web `AIBot.jsx` **20** асуулт, зөвхөн client. PHP `ai_chat` тоолохгүй (`docs/ARCHITECTURE.md`)
 
 Firebase Free Tier-ийн read/write хязгаарлалтыг бодож query limit, `staleTime` (3 мин) ашиглана.
 

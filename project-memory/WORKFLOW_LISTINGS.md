@@ -130,8 +130,18 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 
 ### 5. Saved listings (Firestore)
 
-- Collection: `saved_listings` — `listing_id` (MySQL ID string), `user_uid`, `created_by`
-- Rules: owner by uid or email
+- Collection: `saved_listings` — `listing_id`, `user_uid`, `created_by` (`requireResolvedAuthEmail`), `created_date`. Давхардал шалгахгүй.
+- Жагсаалт яг нэг `created_by`. `emailQueryVariants` биш. Web `orderBy(created_date desc)` + composite index. Mobile client sort.
+- `GET listing` HTTP 404 → resolve (`fetchSavedListingsResolved` / `getSavedListingsWithDetails`) мөрийг устгана. US region хаалт (хоосон / идэвхгүй / `washington-dc` биш) мөн 404. Бусад алдаа устгахгүй, зүрх хоосон харагдаад дахин хадгалахад хоёр дахь doc үүснэ.
+- Mobile detail cache 120 секунд бол тэр hit дээр API/404 устгалт алгасна.
+- Rules: унших — auth. Create/delete — `user_uid` эсвэл `created_by.lower() == authEmailLower()`.
+
+### 5b. Reports ба feedback
+
+- Web гомдол `reporter_uid` бичихгүй. Mobile бичнэ. Create: uid эсвэл `reporter_email`.
+- `AdminListingReports`: super admin бүх Firestore жагсаалт. Country/region admin зөвхөн `Listing.list(limit 2000)` огтлолцол — API `status` default `active`, limit **100**. Хуучин/pending гомдол дэлгэцэнд алга.
+- Report update rule: `isAppAdmin()`, market scope байхгүй. UI `reviewed` / `rejected`.
+- Feedback read/update/delete: `isSuperAdmin()` л. Web `user_uid` бичихгүй. Админ жагсаалт байхгүй.
 
 ### 6. Admin moderation
 
@@ -154,7 +164,7 @@ Commit `mobile/src/constants/listings.js` before EAS build.
 | 4 | Категори/шүүлт (market scope-той) |
 | 5 | Зар үүсгэх (зурагтай). `pending` бол web My Listings/Profile дээр гарахгүй; mobile `getMyListings` дээр гарна |
 | 6 | ListingDetail — view count нэмэгдэнэ |
-| 7 | Хадгалах (saved_listings) |
+| 7 | Хадгалах (saved_listings). 404 detail мөрийг устгана; бусад алдаа зүрхийг хоосон харуулж давхар doc үүсгэж болно |
 | 8 | Засах / устгах — зөвхөн эзэн |
 | 9 | Scoped admin approve (region/country) — scope-оос гадуур 403 |
 | 10 | Non-admin cannot self-assign VIP/featured |

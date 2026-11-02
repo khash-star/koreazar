@@ -19,6 +19,10 @@
 | Preview/default host indexed | Only `koreazar.vercel.app` 301s to `zarkorea.com`; sitemap has no `/us` | `vercel.json`, `docs/DEPLOYMENT.md` |
 | Pending (or sold) ad missing on web My Listings / Profile | Those pages omit `status`; API defaults a missing parameter to `active`. Mobile `getMyListings` uses `status=all` (newest 20) | `docs/ARCHITECTURE.md`, `docs/TROUBLESHOOTING.md` |
 | Auto-approve expected to publish on the server | Firestore flag changes the create POST. Any admin client that loaded `true` also PATCHes its pending page (scoped admins included; web limit 100). A failed web Firestore write leaves `localStorage` on | `AdminNewListings.jsx`, `appConfigService.js` |
+| Saved heart empty, or a save disappears | Resolve deletes the Firestore row on `GET listing` HTTP 404, including US rows outside `washington-dc`. Other errors hide the heart and the next tap `addDoc`s a duplicate. Query is one `created_by`, not phone variants | `savedListingsResolve.js`, `savedListingService.js` |
+| Country/region admin missing a listing report | UI intersects reports with the newest 100 `active` listings (`Listing.list` asks for 2000; API clamps and defaults status). Super admin sees the full Firestore list. Rules let any app admin update any report | `AdminListingReports.jsx`, `firestore.rules` |
+| Feedback invisible to country/region admin | Read/update/delete is `isSuperAdmin()` only. No admin list screen. Web footer omits `user_uid` | `Layout.jsx`, `firestore.rules` |
+| AI daily cap of 20 does not stop requests | Cap is web-client only. `ai_usage` writes must match `token.email` exactly, so phone OTP fails open and PHP `ai_chat` still answers | `AIBot.jsx`, `aiUsageService.js`, `api/index.php` |
 
 ## Likely resolved / obsolete
 

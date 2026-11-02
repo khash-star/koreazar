@@ -256,6 +256,29 @@ The flag does not install a server job. Any admin client that has loaded `listin
 - Web `AdminNewListings.jsx` seeds `localStorage` key `admin_auto_approve_listings`, then replaces it if the Firestore read succeeds. A failed read keeps the local value. Toggling writes localStorage immediately and ignores a failed `setListingAutoApprove`. A `useEffect` PATCHes each loaded pending id once per non-empty result and does not retry a failed PATCH until that result becomes empty. The pending query refetches every 10 seconds while the flag is on.
 - Mobile `AdminScreen.js` starts from false, then applies the Firestore value. A failed read falls back to AsyncStorage key `admin_auto_approve_listings`. A failed write reverts the switch. Failed ids are skipped until the screen unmounts, or until a super admin turns the switch off. The pending list refreshes about every 25 seconds while the app is foregrounded and the flag is on.
 
+### Saved listings, reports, and feedback
+
+**Saved listings** are Firestore `saved_listings` rows, not MySQL. Web `SavedListing.create` (`src/api/entities.js`) and mobile `saveListing` write `listing_id`, `user_uid`, `created_by` from `requireResolvedAuthEmail()`, and `created_date`. Nothing checks for an existing row before `addDoc`.
+
+Opening a surface that resolves saves deletes the Firestore document when `GET ?action=listing` returns HTTP 404:
+
+| Client | Resolver | Callers |
+|--------|----------|---------|
+| Web | `fetchSavedListingsResolved` | `ListingCard`, `ListingDetail`, `SavedListings` (shared query `['savedListings', uid]`) |
+| Mobile | `getSavedListingsWithDetails` | `SavedListingsScreen` only. `ListingDetailScreen` uses `findSavedDocId`, which does not delete. The detail lookup inside the resolver uses a 120s in-memory cache, so a hit skips the API and does not delete |
+
+That 404 is a missing row or a US row rejected by `enforce_us_listing_row_visible` (empty, inactive, or not default `washington-dc`). An id that `parseMysqlListingId` rejects, and any non-404 failure, drop the row from the resolved list and leave the document in place. The heart then looks unsaved, and the next save creates a second document.
+
+The query is exact `created_by == getResolvedAuthEmail()`. It does not use `emailQueryVariants`. Web also `orderBy`s `created_date` descending and needs the `saved_listings` composite index. Mobile sorts in memory and does not query that index.
+
+Rules allow any signed-in read. Create and delete require `user_uid == auth.uid` or `created_by.lower() == authEmailLower()`.
+
+**Listing reports** are Firestore `listing_reports`. Web `ListingDetail` writes `reporter_email` and does not set `reporter_uid`. Mobile `createListingReport` writes both. Create is allowed when `reporter_uid` is the auth uid or `reporter_email` matches `authEmailLower()`. Read is the reporter or `isAppAdmin()`. Update and delete are any app admin; the rules do not check country or region.
+
+`AdminListingReports` shows the full `orderBy(created_date desc)` list to super admins. A country or region admin keeps a report only when `listing_id` is in `Listing.list('-created_date', 2000, { adminUserData })`. That call sends no `status`, so the API default is `active`, and `limit` is clamped to 100. Reports for pending, sold, rejected, deleted, or older listings remain in Firestore and disappear from the scoped screen. The buttons write `status` `reviewed` or `rejected` plus `reviewed_at` as an ISO string.
+
+**Feedback** is Firestore `feedback_messages`. The web footer (`Layout.jsx`) writes `name`, `phone`, `email`, `message`, `page`, and `source`. It does not set `user_uid`. Mobile `createFeedback` sets `user_uid`. Create succeeds when `user_uid` matches auth or `email` matches `authEmailLower()`. Read, update, and delete are `isSuperAdmin()` only (`admin` or `super_admin`). Country and region admins cannot read the collection, and no admin screen lists it.
+
 ### Banners and listing upgrades
 
 `/RequestBannerAd` and `/UpgradeListing` stay unprefixed.
@@ -387,9 +410,16 @@ Mobile-created listings do not have distinct widths, so web `srcset` cannot pick
 
 ## AI assistant
 
-- **Web page:** `src/pages/AIBot.jsx`
-- **Storage:** Firestore `ai_conversations`, `ai_messages`, `ai_usage`
-- **Inference:** PHP `action=ai_chat` proxies to OpenAI (`OPENAI_API_KEY`, `OPENAI_MODEL` on server)
+Web only. Mobile Profile opens `https://zarkorea.com/AIBot`. The route is unprefixed.
+
+| Piece | Behavior |
+|-------|----------|
+| Proxy | `POST ?action=ai_chat` requires a Firebase Bearer token and forwards `messages`. Model is `OPENAI_MODEL`, otherwise `gpt-4o-mini`. Client temperature `0.7` is clamped to 0–1.5. Client `max_tokens` 500 is clamped to 32–1200. PHP does not read `ai_usage` |
+| Page cap | `AIBot.jsx` passes `DAILY_LIMIT` 20 into `getAIResponse` (the function default is also 20). `checkDailyLimit`'s own default argument is 50 and this page does not use it |
+| Counter | Doc id `ai_usage/{resolvedEmail}_{YYYY-MM-DD}`. `recordAIUsage` adds gpt-4o-mini rates ($0.15 / $0.60 per 1M tokens) even when `OPENAI_MODEL` is different |
+| Fail open | Create/update requires `user_email == request.auth.token.email` (exact match, not lowercased). A phone OTP token usually has no email, so the write is `permission-denied`. `checkDailyLimit` then reports the cap as unused and the proxy still answers |
+
+Threads are `ai_conversations` and `ai_messages`, keyed by the resolved email.
 
 ---
 

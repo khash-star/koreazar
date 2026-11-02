@@ -44,7 +44,7 @@
 
 **Bottleneck:** Images cannot start until listing/banner data returns. SQL returns the newest 100 (web) or 50 (mobile) rows before the client VIP sort. See `docs/IMAGE_LOAD_ANALYSIS.md`.
 
-**Listing status:** a missing `GET listings` `status` is `active`. Web My Listings and Profile omit it, so pending rows stay hidden. Mobile `getMyListings` sends `status=all`. `listingAutoApprove` is a client flag; PHP does not publish pending rows. See `docs/ARCHITECTURE.md`.
+**Listing status:** a missing `GET listings` `status` is `active`. Web My Listings and Profile omit it, so pending rows stay hidden. Mobile `getMyListings` sends `status=all`. `listingAutoApprove` is a client flag; PHP does not publish pending rows. Saved-list resolve deletes a Firestore row when detail GET is HTTP 404. Scoped admins only see listing reports inside the newest 100 active listings. Feedback read is super admin only. The AI cap of 20 is web-client only. See `docs/ARCHITECTURE.md`.
 
 ### Market isolation (do not weaken)
 

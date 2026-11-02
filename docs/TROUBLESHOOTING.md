@@ -437,6 +437,24 @@ Switch UI нь серверийн job биш. Харагдах нь `canManageGl
 - Mobile эхлээд `false`, дараа нь Firestore. Read амжилтгүй бол AsyncStorage `admin_auto_approve_listings`. Write амжилтгүй бол switch буцна. Амжилтгүй id тухайн дэлгэц хаагдах хүртэл (эсвэл super admin switch унтраах хүртэл) алгасна. Foreground дээр ~25 секунд тутам шинэчилнэ.
 - Нүүр дээр гарах нөхцөл: MySQL `status=active`, дээр нь market filter (`country_code` / `region_code`). Admin pending жагсаалт 200 гэж асуусан ч API хамгийн ихдээ 100 буцаана.
 
+### Хадгалсан зар алга, эсвэл зүрх хоосон
+
+**Шалтгаан:** Web `fetchSavedListingsResolved` болон mobile `getSavedListingsWithDetails` `GET ?action=listing` HTTP 404 буцаахад Firestore `saved_listings` мөрийг устгана. 404 нь устсан зар, эсвэл US `region_code` хоосон, идэвхгүй, default `washington-dc` биш мөр. Web дээр `ListingCard`, `ListingDetail`, `SavedListings` нэг query (`['savedListings', uid]`) хуваалцана.
+
+`parseMysqlListingId` таарахгүй ID болон 404-ээс өөр алдаа мөрийг устгахгүй, жагсаалтаас хасна. Зүрх хоосон харагдаад дахин дарахад `addDoc` хоёр дахь мөр үүсгэнэ. Давхардал шалгахгүй.
+
+Жагсаалт `created_by == getResolvedAuthEmail()` — нэг имэйл, `emailQueryVariants` биш. Web `orderBy(created_date desc)` тул `saved_listings` composite index хэрэгтэй. Mobile санах ой дээр эрэмбэлнэ. Устгалт зөвхөн `SavedListingsScreen` дээр. Тэнд detail cache 120 секунд бол API дуудахгүй. `ListingDetailScreen` `findSavedDocId` ашиглана, 404-оор устгахгүй.
+
+### Гомдол country/region админ дээр алга
+
+**Шалтгаан:** `AdminListingReports` super admin-д Firestore-ийн бүх гомдлыг харуулна (`orderBy created_date desc`, limit байхгүй). Country/region admin зөвхөн `Listing.list('-created_date', 2000)` доторх `listing_id`-тай гомдлыг үлдээнэ. Тэр дуудлага `status` илгээхгүй тул API `active` тавина, `limit` хамгийн ихдээ 100. Pending, sold, rejected, устсан, эсвэл цонхноос хуучин зарын гомдол Firestore-д үлдэнэ.
+
+Web `ListingDetail` `reporter_uid` бичдэггүй. Create нь `reporter_email == authEmailLower()` эсвэл `reporter_uid == auth.uid` үед зөвшөөрөгдөнө. Mobile хоёуланг бичнэ. Update rule нь `isAppAdmin()` — улс/бүс шалгахгүй. Товч `reviewed` эсвэл `rejected`, дээр нь `reviewed_at` ISO string бичнэ.
+
+### Санал хүсэлт админ дээр харагдахгүй
+
+**Шалтгаан:** `feedback_messages` унших, засах, устгах нь `isSuperAdmin()` (`admin` эсвэл `super_admin`). Country/region admin уншиж чадахгүй. Жагсаах админ хуудас байхгүй — Firestore console. Web footer (`Layout.jsx`) `user_uid` бичдэггүй; `email` таарвал create болно. Mobile `user_uid` бичнэ.
+
 ### Admin зар батлахад нүүр дээр харагдахгүй
 
 **Шалтгаан:** MySQL `status` `active` биш, эсвэл market filter таараагүй.
@@ -452,12 +470,18 @@ Switch UI нь серверийн job биш. Харагдах нь `canManageGl
 
 ### AI хариу ирэхгүй
 
-**Шалтгаан:** OpenAI key сервер дээр байхгүй.
+**Шалтгаан:** OpenAI key сервер дээр байхгүй, эсвэл Bearer token байхгүй.
 
 **Шийдэл:**
-- PHP: `OPENAI_API_KEY`, `OPENAI_MODEL` (`api/.env`)
-- Endpoint: `POST ?action=ai_chat` (Bearer token)
-- `ai_usage` permission алдаа функцийг блоклохгүй (warning лог)
+- PHP: `OPENAI_API_KEY`, `OPENAI_MODEL` (`api/.env`, байхгүй бол `gpt-4o-mini`)
+- Endpoint: `POST ?action=ai_chat` (Bearer). `temperature` 0–1.5, `max_tokens` 32–1200 дотор хавчина
+- Mobile тусдаа чат байхгүй. Profile `https://zarkorea.com/AIBot` нээнэ
+
+### Өдрийн 20 хязгаар тооцохгүй
+
+**Шалтгаан:** Хязгаар зөвхөн web client. `AIBot.jsx` 20 дамжуулна. PHP `ai_chat` `ai_usage` уншихгүй. `checkDailyLimit`-ийн default аргумент 50 боловч энэ хуудас ашиглахгүй.
+
+`ai_usage` create/update нь `user_email == request.auth.token.email` (яг тэнцүү, `lower()` биш). Утас OTP token дээр имэйл байхгүй тул бичилт `permission-denied`. `checkDailyLimit` тэгвэл хязгаарыг ашиглаагүй гэж буцааж, proxy хариу өгнө. Зардлын тооцоо үргэлж gpt-4o-mini үнэ ($0.15 / $0.60 per 1M), `OPENAI_MODEL` өөрчлөгдсөн ч өөрчлөгдөхгүй. Document id: `{resolvedEmail}_{YYYY-MM-DD}`.
 
 ---
 

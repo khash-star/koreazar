@@ -155,11 +155,14 @@ market, country admin өөрийн улс, region admin US banner удирдан
 | `reason` | string | Шалтгаан |
 | `details` | string | Нэмэлт тайлбар |
 | `reporter_email` | string | Мэдэгдэгчийн имэйл |
-| `reporter_uid` | string | Мэдэгдэгчийн Firebase uid (утас OTP) |
-| `status` | string | `pending` (default) |
+| `reporter_uid` | string | Mobile бичнэ. Web `ListingDetail` энэ талбарыг тавихгүй |
+| `status` | string | `pending` (default). Админ UI `reviewed` эсвэл `rejected` |
+| `reviewed_at` | string | Админ UI ISO string. Анхны create дээр байхгүй |
 | `created_date` | timestamp | auto |
 
-**Rules:** Унших — мэдэгдэгч эсвэл admin; үүсгэх — auth; засах — admin.
+`listing_owner` ба `category` зөвхөн web payload. Mobile `listing_id`, `listing_title`, `reason`, `details`, `reporter_uid`, `reporter_email` бичнэ.
+
+**Rules:** Унших — `reporter_uid` / `reporter_email` таарсан мэдэгдэгч, эсвэл `isAppAdmin()`. Үүсгэх — `reporter_uid == auth.uid` эсвэл `reporter_email.lower() == authEmailLower()`. Засах/устгах — дурын app admin (улс/бүсийн scope байхгүй). Country/region админ UI хамгийн ихдээ 100 `active` зартай огтлолцоно (`docs/ARCHITECTURE.md`).
 
 ---
 
@@ -171,11 +174,12 @@ Footer санал хүсэлт.
 |--------|---------|
 | `name`, `phone`, `email` | Холбоо барих |
 | `message` | Саналын текст |
-| `user_uid` | Илгээгчийн uid (утас OTP) |
+| `user_uid` | Mobile бичнэ. Web footer (`Layout.jsx`) тавихгүй |
+| `page`, `source` | Web footer нэмэлт (`source: footer`) |
 | `status` | `new` (default) |
 | `created_date` | timestamp |
 
-**Rules:** Үүсгэх — auth; унших/засах — admin.
+**Rules:** Үүсгэх — `user_uid == auth.uid` эсвэл `email.lower() == authEmailLower()`. Унших/засах/устгах — `isSuperAdmin()` (`admin` эсвэл `super_admin`). Country/region admin уншихгүй. Жагсаах админ хуудас байхгүй.
 
 ---
 
@@ -190,9 +194,11 @@ Footer санал хүсэлт.
 | `created_by` | string | Хэрэглэгчийн имэйл |
 | `created_date` | timestamp | auto |
 
-**Индекс:** `created_by` ASC, `created_date` DESC.
+**Индекс:** `created_by` ASC, `created_date` DESC. Web `orderBy` ашиглана. Mobile энэ индексийг ашиглахгүй, санах ой дээр эрэмбэлнэ.
 
-**Rules:** Унших — auth; үүсгэх/устгах — өөрийн `user_uid` эсвэл имэйл.
+**Rules:** Унших — нэвтэрсэн дурын хэрэглэгч. Үүсгэх/устгах — `user_uid == auth.uid` эсвэл `created_by.lower() == authEmailLower()`.
+
+`GET listing` HTTP 404 (устсан зар, эсвэл US region хаалт) resolve хийхэд мөрийг устгана. Бусад алдаа устгахгүй. Дэлгэрэнгүй: `docs/ARCHITECTURE.md`.
 
 ---
 
@@ -286,6 +292,8 @@ AI ярианы мессеж.
 | `completion_tokens` | number | Completion token |
 | `estimated_cost` | number | Тооцоолсон зардал |
 | `last_request_date` | timestamp | Сүүлийн хүсэлт |
+
+**Rules:** `get` — документ байхгүй, эсвэл `user_email == request.auth.token.email` (яг тэнцүү), эсвэл `isSuperAdmin()`. `list` — нэвтэрсэн дурын хэрэглэгч. Create/update мөн token имэйлтэй яг тэнцүү `user_email` шаардана. Утас OTP (token.email хоосон) бичилт `permission-denied`; web AI хязгаар fail-open. PHP энэ collection-ийг уншихгүй.
 
 ---
 

@@ -114,14 +114,14 @@ Native Firebase files (gitignored, supplied via EAS or local):
 | `listings/{listingId}` | Legacy Firestore listings if any | Public read; owner or matching admin scope write |
 | `banner_ads/{id}` | Homepage banners | Public read; matching admin country scope write |
 | `banner_requests/{id}` | User banner requests | Auth create/read; admin update |
-| `listing_reports/{id}` | Listing reports | Owner or admin read |
-| `feedback_messages/{id}` | Footer feedback | Auth create; admin read |
-| `saved_listings/{id}` | Saved listings | Owner by `user_uid` or email |
+| `listing_reports/{id}` | Listing reports | Reporter or any app admin read; update is not market-scoped. Scoped admin UI only intersects the newest 100 active listings |
+| `feedback_messages/{id}` | Footer / profile feedback | Create by uid or matching email. Read/update/delete: `isSuperAdmin()` only. No admin list screen |
+| `saved_listings/{id}` | Saved listings | Any auth read; owner create/delete. HTTP 404 on `GET listing` deletes the row during resolve |
 | `conversations/{id}` | Chat threads | Participants or admin |
 | `messages/{id}` | Chat messages | Auth read/create; sender/receiver update |
 | `ai_conversations/{id}` | AI bot threads | Owner by `user_email` |
 | `ai_messages/{id}` | AI messages | Owner by `user_email` |
-| `ai_usage/{id}` | AI quota tracking | Owner by `user_email` |
+| `ai_usage/{id}` | Client-side AI counter (`{email}_{YYYY-MM-DD}`) | Create/update requires `user_email` equal to `request.auth.token.email`. Phone OTP writes fail open; PHP does not enforce the cap |
 | `user_push_tokens/{uid}/devices/{id}` | Expo push tokens | Owner read/write only |
 | `config/{docId}` | App config (e.g. listing auto-approve) | Auth read; super-admin write |
 

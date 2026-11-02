@@ -52,6 +52,8 @@
 | Chat and push | `docs/CHAT_SYSTEM.md`, `mobile/docs/CHAT_PUSH_SETUP.md` |
 | Home feed window + images | `docs/IMAGE_LOAD_ANALYSIS.md` (PHP limit, then client VIP sort) |
 | Listing status / owner lists | `docs/ARCHITECTURE.md` — missing `status` means `active`; web owner pages omit it; auto-approve is a client flag, and any admin client that loaded `true` PATCHes its pending page |
+| Saved listings / reports / feedback | `docs/ARCHITECTURE.md` — 404 detail deletes a save; scoped report UI is the newest 100 active listings; feedback read is super admin only |
+| AI daily cap | `docs/ARCHITECTURE.md` — web `AIBot` 20, client-only; PHP `ai_chat` does not enforce it |
 | Firestore composite indexes | `docs/FIRESTORE_INDEXES.md` (not the home listing feed) |
 | Account deletion | `docs/SECURITY.md` §9.1 — Firestore adjunct + Auth only; MySQL listings and Storage objects remain |
 | PWA manifest URL | `vite.config.js` emits `manifest.json` (not `.webmanifest`) |
