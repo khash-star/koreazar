@@ -25,13 +25,13 @@ npm install -g @bubblewrap/cli
 
 ### 2.2 Анхны тохиргоо
 
-Шинэ Bubblewrap CLI нь `--manifest` заавал шаардана. Сайтын manifest URL:
+Шинэ Bubblewrap CLI нь `--manifest` заавал шаардана. Production файл нь `manifest.json` (`vite.config.js` → `manifestFilename`). `manifest.webmanifest` ихэнх host дээр 403.
 
 ```bash
-npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.webmanifest
+npx @bubblewrap/cli init --manifest=https://zarkorea.com/manifest.json
 ```
 
-(Хэрэв алдаа гарвал `--manifest=https://zarkorea.com` эсвэл локал `twa-manifest.json` ашиглана.)
+(Хэрэв алдаа гарвал локал `twa-manifest.json` ашиглана. Одоогийн store app нь Expo native — `mobile/docs/PLAY_STORE_RN_REPLACE_TWA.md`. TWA нь хуучин зам.)
 
 Хариулах асуултууд:
 
