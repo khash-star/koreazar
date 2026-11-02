@@ -599,7 +599,9 @@ export const onAuthChange = (callback) => {
 };
 
 /**
- * Same-origin path only – prevents open redirect
+ * Same-origin path only – used by redirectToLogin before sessionStorage.
+ * Absolute http(s) URLs are kept only when origin matches window.location.
+ * Login.jsx safeRedirectPath is stricter (paths only) for ?redirect= / state.
  * @param {string} url - Full URL or path
  * @returns {string|null} Safe path or null
  */

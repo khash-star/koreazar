@@ -73,6 +73,8 @@ export default function RequestBannerAd() {
       const { file_url } = await UploadFile({
         file: compressed,
         kind: 'banner',
+        // Unprefixed `/RequestBannerAd` — useActiveCountry may follow
+        // localStorage. Listing writes use URL-only resolveRouteCountryCode.
         countryCode: activeCountry.countryCode,
         bannerId: draftBannerKeyRef.current,
       });
