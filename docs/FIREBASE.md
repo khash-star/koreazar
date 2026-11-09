@@ -110,26 +110,29 @@ Native Firebase files (gitignored, supplied via EAS or local):
 
 | Collection | Access pattern | Rules summary |
 |------------|----------------|---------------|
-| `users/{userId}` | Profile read (public); owner/admin write | Owners cannot self-promote `role` to admin |
-| `listings/{listingId}` | Legacy Firestore listings if any | Public read; owner/admin write |
-| `banner_ads/{id}` | Homepage banners | Public read; admin write |
+| `users/{userId}` | Profile read (public); owner/scoped-admin write | Protected role/scope fields require super admin |
+| `listings/{listingId}` | Legacy Firestore listings if any | Public read; owner or matching admin scope write |
+| `banner_ads/{id}` | Homepage banners | Public read; matching admin country scope write |
 | `banner_requests/{id}` | User banner requests | Auth create/read; admin update |
-| `listing_reports/{id}` | Listing reports | Owner or admin read |
-| `feedback_messages/{id}` | Footer feedback | Auth create; admin read |
-| `saved_listings/{id}` | Saved listings | Owner by `user_uid` or email |
+| `listing_reports/{id}` | Listing reports | Reporter or any app admin read; update is not market-scoped. Scoped admin UI only intersects the newest 100 active listings |
+| `feedback_messages/{id}` | Footer / profile feedback | Create by uid or matching email. Read/update/delete: `isSuperAdmin()` only. No admin list screen |
+| `saved_listings/{id}` | Saved listings | Any auth read; owner create/delete. HTTP 404 on `GET listing` deletes the row during resolve |
 | `conversations/{id}` | Chat threads | Participants or admin |
 | `messages/{id}` | Chat messages | Auth read/create; sender/receiver update |
 | `ai_conversations/{id}` | AI bot threads | Owner by `user_email` |
 | `ai_messages/{id}` | AI messages | Owner by `user_email` |
-| `ai_usage/{id}` | AI quota tracking | Owner by `user_email` |
+| `ai_usage/{id}` | Client-side AI counter (`{email}_{YYYY-MM-DD}`) | Create/update requires `user_email` equal to `request.auth.token.email`. Phone OTP writes fail open; PHP does not enforce the cap |
 | `user_push_tokens/{uid}/devices/{id}` | Expo push tokens | Owner read/write only |
-| `config/{docId}` | App config (e.g. listing auto-approve) | Auth read; admin write |
+| `config/{docId}` | App config (e.g. listing auto-approve) | Auth read; super-admin write |
 
 Rules file: `firestore.rules` (version `2`).
 
 ### Helper functions in rules
 
-- `isAdmin()` — `users/{uid}.role == 'admin'`
+- `isSuperAdmin()` — `admin` (legacy) or `super_admin`
+- `isAppAdmin()` — global, country, or region admin role
+- `adminCanModerateListing()` / `adminCanModerateBanner()` — compare
+  `admin_country_code` / `admin_region_code` with document scope
 - `authEmailLower()` — token email or `users/{uid}.email` (supports phone OTP users)
 - `isConversationParticipant()` — match by `participant_uids` or `participant_1` / `participant_2` email
 - `isMessageSenderOrReceiver()` — match `sender_email` / `receiver_email`
@@ -168,12 +171,16 @@ Rules: `storage.rules`
 
 | Path pattern | Read | Write |
 |--------------|------|-------|
-| `images/**` | Public | Authenticated |
+| `images/**` | Public | Authenticated (legacy flat folder) |
 | `public/**` | Public | Authenticated |
 | `users/{userId}/**` | Public | Owner (`uid` match) |
-| `listings/{listingId}/**` | Public | Authenticated |
-| `banners/**` | Public | Authenticated |
+| `listings/{country}/{year}/{listingId}/**` | Public | Authenticated (`kr` / `us` / `jp`) |
+| `listings/{listingId}/**` | Public | Authenticated (legacy path) |
+| `banners/{country}/{bannerId}/**` | Public | Authenticated |
+| `banners/**` | Public | Authenticated (legacy flat folder) |
 | All other paths | Denied | Denied |
+
+Path builders: `src/utils/storagePaths.js` (mobile mirror under `mobile/src/utils/`).
 
 `firebase.json` does **not** include storage rules. Deploy separately:
 
@@ -229,16 +236,20 @@ After auth, `authService` ensures `users/{uid}` exists with email for Firestore 
 
 ---
 
-## Admin role
+## Admin roles
 
-Set in Firestore Console:
+Stored in Firestore `users/{firebaseUid}`:
 
-```
-users/{firebaseUid}
-  role: "admin"
-```
+| Role | Required scope | Access |
+|------|----------------|--------|
+| `admin` / `super_admin` | — | Global; role assignment and config |
+| `country_admin` | `admin_country_code` | One country |
+| `region_admin` | `admin_country_code: "US"` + `admin_region_code` | One active US region |
 
-Checked by `isAdmin()` in `firestore.rules` and admin UI gates. See root `ADMIN_SETUP_GUIDE.md`.
+Roles are checked in `firestore.rules`, admin UI gates, and the PHP/MySQL API.
+Only a super admin can assign roles through the web `AdminPanel`; users
+cannot modify their own protected role/scope fields. See
+[ZARUSA_REGION_PHASES.md](./ZARUSA_REGION_PHASES.md).
 
 ---
 
