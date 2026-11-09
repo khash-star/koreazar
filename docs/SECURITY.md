@@ -153,8 +153,23 @@ Post-login redirect (`Login.jsx`, `authService.redirectToLogin`):
 
 ### Хориглосон агуулга
 
-- Client: `src/utils/bannedContent.js` — чат, зарын текст
-- Server: `api/banned_content.php` — API proxy
+Хоёр тусдаа зам. `banned_content.php` нь OpenAI proxy биш.
+
+**Түлхүүр үг** — `src/utils/bannedContent.js`, `mobile/src/utils/bannedContent.js`, `api/banned_content.php` (phrase/word жагсаалт ижил):
+
+- Web/mobile зар илгээхийн өмнө `checkBannedListingFields`. PHP create болон view-оос өөр PATCH `api_find_banned_in_listing_payload`.
+- PHP зөвхөн хадгалагддаг текст: `title`, `description`, `phone`, `kakao_id`, `wechat_id`, `whatsapp`, `facebook`, `location`, `subcategory`. `vehicle_*`, `electronics_*`, `realestate_*`, `job_*`, `contact_name` API-д унадаггүй тул server шалгалтад байхгүй.
+- Чат Firestore руу шууд бичигдэнэ. `checkBannedContent` зөвхөн client.
+- Таарвал HTTP 400 `{ "error": "prohibited_content", "message": "Гарчиг, тайлбар эсвэл холбоо барих талбарт зохисгүй үг агуулагдсан байна. Текстээ өөрчилнө үү." }`. `listingService` `message`-ийг харуулна.
+- Зөвхөн `views` +1 PATCH энэ шалгалтыг алгасна.
+- JS phrase хайлт NFKC хийнэ. PHP phrase нь `mb_strtolower` substring, word нь `/\b…\b/iu`. NFKC зөвхөн client.
+
+**AI санал** — `checkListingWithAI` (`src/services/aiService.js`) → `POST ?action=ai_moderate`:
+
+- Дуудагч нь `AdminNewListings` товч. Үр дүн зөвлөмж; `status` бичихгүй.
+- PHP зөвхөн `systemPrompt` ба `userPrompt` авна. Body-ийн `listing` талбар хаягдана. Temperature `0.3`, `max_tokens` 500, `response_format` JSON object.
+- Prompt дахь үнийн мөр үргэлж `₩`, зарын `country_code`-оос хамаарахгүй.
+- Endpoint admin role шалгахгүй. Bearer token хангалттай. Хандалтыг UI хуудас хязгаарлана.
 
 ### React XSS
 

@@ -76,8 +76,13 @@ CreateListing.jsx
   → getListingAutoApprove() (Firestore; алдаа → false)
   → POST status active|pending
   → PHP stores that string (flag-ийг уншихгүй; талбар байхгүй бол pending)
+  → extract_listing_payload whitelist (бусад JSON түлхүүр хаягдана)
   → MySQL insert
 ```
+
+Хадгалагдах түлхүүр: `category`, `subcategory`, `title`, `description`, `price`, `is_negotiable`, `condition`, `status`, `listing_type`, `listing_type_expires`, `location`, `country_code`, `state_code`, `phone`, `kakao_id`, `wechat_id`, `whatsapp`, `facebook`, `views`, `images`. Web form-ийн `vehicle_*` / `electronics_*` / `realestate_*` / `job_*` болон mobile `contact_name` баганагүй тул edit дээр хоосон буцаана. `region_code`-ийг client биш US helper тавина.
+
+`formatListingPrice`: `null` / `''` / тоон `0` (free категори орно) → «Үнэ тохирно». Бусад нь зарын `country_code` (KR `₩`, US `$`, JP `¥`). Хориглосон үг: HTTP 400 `prohibited_content` — зөвхөн хадгалагддаг текст. Views +1 алгасна.
 
 ### Зураг
 
@@ -95,7 +100,7 @@ CreateListing.jsx
 
 | Асуулт | Заавар |
 |--------|--------|
-| Зарын талбар нэмэх? | MySQL schema (`api/sql/`) + `api/index.php` + `listingService` + UI form |
+| Зарын талбар нэмэх? | `extract_listing_payload` whitelist + `INSERT` + `api/sql/schema.sql` + UI. Form дангаараа хадгалагдахгүй |
 | Зөвхөн UI? | Pages/screens; API contract хөндөхгүй |
 | Категори/байршил? | `src/constants/listings.js` → `npm run sync-listings` |
 | Firestore `listings`? | Зөвхөн legacy/account deletion — шинэ feature бүү тавь |

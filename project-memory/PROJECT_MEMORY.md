@@ -125,6 +125,8 @@ Source of truth: `src/constants/adminRoles.js` → `npm run sync-admin-roles`. F
 | **Missing Firestore composite indexes** | Chat/banner queries fail | Deploy `firestore.indexes.json` |
 | **Wrong EAS Firebase env** | Mobile auth/crash | Match Console; `mobile/docs/EAS_PRODUCTION_ENV.md` |
 | **Stale root / archived markdown** | Wrong stack (Base44, Firestore listings) | Prefer `docs/*` + this file; `docs/archive/` is historical |
+| **Category fields not in MySQL** | Edit form looks blank | Whitelist + `INSERT` + schema; form-only fields are dropped |
+| **`user_sync` clears profile columns** | MySQL phone/city/district NULL after email login | Empty strings are written as NULL; `ok: true` can hide a swallowed error |
 
 ---
 

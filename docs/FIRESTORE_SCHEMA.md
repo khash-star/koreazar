@@ -353,8 +353,8 @@ script-ээр орно.
 
 | Хүснэгт | Түлхүүр талбарууд | Нэмэлт migration |
 |---------|-------------------|------------------|
-| `users` | `id`, `firebase_uid`, `email`, `role`, `admin_country_code`, `admin_region_code` | `migration_admin_rbac_phase2.sql` |
-| `listings` | `id`, `firebase_uid`, `customer_id`, `category`, `title`, `status`, `images` (JSON), `country_code`, `state_code`, `region_code` | `migration_listings_country_code.sql`, `migration_region_dmv_mvp.sql` |
+| `users` | `id`, `firebase_uid`, `email`, `display_name`, `phone`, `city`, `district`, `role`, `admin_country_code`, `admin_region_code` | `schema.sql` adds `phone`/`city`/`district`; `migration_admin_rbac_phase2.sql` adds admin scope |
+| `listings` | `id`, `firebase_uid`, `customer_id`, `category`, `subcategory`, `title`, `description`, `price`, `status`, `images` (JSON), `country_code`, `state_code`, `region_code`, contact columns (`phone`, `kakao_id`, `wechat_id`, `whatsapp`, `facebook`) | `migration_listings_country_code.sql`, `migration_region_dmv_mvp.sql` |
 | `listing_images` | `listing_id`, `storage_url`, `sort_order` | Base schema |
 
 API:
@@ -365,7 +365,15 @@ API:
   `washington-dc` return 404 (`enforce_us_listing_row_visible`)
 - `PATCH ?action=listing&id=...` with only `views` = existing + 1 is public
   and does not re-run GET visibility; other writes require Bearer token
-- `POST ?action=listings` create and `DELETE ?action=listing` require Bearer
+- `POST ?action=listings` create and `DELETE ?action=listing` require Bearer.
+  Create keeps only the `extract_listing_payload` whitelist. `vehicle_*`,
+  `electronics_*`, `realestate_*`, `job_*`, and `contact_name` are not columns
+  and are dropped. `region_code` is assigned by the US write helper, not copied
+  from the body
+- `POST/PUT/PATCH ?action=user_sync` writes token `email` (empty token does not
+  clear it). Empty `phone`, `city`, and `district` are stored as NULL. Empty
+  `display_name` is skipped. `ok: true` still returns when the upsert swallows
+  an error
 - `POST ?action=admin_set_user_role` requires a super-admin token and mirrors
   the role/scope into MySQL
 - PHP admin scope reads MySQL `users` by `firebase_uid`, then falls back to

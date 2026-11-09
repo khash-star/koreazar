@@ -217,7 +217,7 @@ Requires **EAS development or production build** (not Expo Go on Android for rel
 **Function:** `onChatMessageCreatedPush` (`functions/index.js`, region `asia-northeast3`)
 
 1. Normalize `receiver_email`; skip if same as sender
-2. `findUidByEmail` → query `users` where `email == receiver`
+2. `findUidByEmail` → query `users` where `email == receiver` (exact after trim + lower). This does not use `emailQueryVariants`. A phone-variant mismatch logs `chat push: no uid for receiver` and returns. Tokens must start with `ExponentPushToken`
 3. Load tokens from `user_push_tokens/{uid}/devices/*`
 4. Send batch to Expo Push API with `channelId: "chat"`, `data.type: "chat"`, `conversation_id`, `other_user_email`
 5. Prune stale tokens on `DeviceNotRegistered` / `InvalidCredentials`

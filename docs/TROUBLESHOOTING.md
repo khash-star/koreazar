@@ -22,7 +22,9 @@
 | Утасны OTP inbox хоосон | `emailQueryVariants` (KR `82` / US `1`) + `participant_uids` |
 | `/CreateListing` US биш KR зар | Unprefixed write → `resolveRouteCountryCode()` = null → KR. Use `/us/CreateListing` |
 | Шинэ зар web «Миний зарууд» дээр алга | `created_by` шүүлт `status` илгээдэггүй → API default `active`. Pending нь mobile `getMyListings` дээр |
-| Push ирэхгүй | Functions deploy, FCM V1, Expo token |
+| Push ирэхгүй | Functions deploy, FCM V1, Expo token, `users.email` яг тэнцүү (variant биш) |
+| Машин/ажил талбар edit дээр хоосон | API whitelist — `vehicle_*` / `job_*` хадгалагдахгүй |
+| Нэвтэрсний дараа MySQL `phone` хоосон | `user_sync` хоосон `phone`/`city`/`district`-ийг NULL бичнэ |
 | Mobile crash нээхэд | EAS Firebase env дутуу |
 
 ---
@@ -112,6 +114,15 @@
 - Web phone OTP: Auth `user.email` хоосон тул `deleteAccountWithPassword` шууд зогсоно. Mobile phone-only нууц үг шаардахгүй (`deleteAccountForCurrentUser`).
 - `auth/requires-recent-login` гарвал Firestore аль хэдийн цэвэрлэгдсэн, Auth user үлдсэн байж болно — дахин нэвтэрч устгалтыг дуусгана.
 - Дэлгэрэнгүй: `docs/SECURITY.md` §9.1
+
+### Нэвтэрсний дараа MySQL `users.phone` / `city` / `district` хоосон
+
+**Шалтгаан:** `user_sync` хэсэгчилсэн update биш. Web `login` ба mobile `loginWithEmail` `{}` илгээнэ. Client хоосон `phone`, `city`, `district`-ийг `""` болгож, PHP `NULL` бичнэ. Web Profile `phone` илгээдэг ч `city`/`district` илгээдэггүй тул тэр хоёр багана цэвэрлэгдэнэ. `display_name` хоосон бол бичигдэхгүй. `email` зөвхөн token-оос, хоосон token хуучин email-ийг арилгахгүй.
+
+**Шийдэл:**
+- `ok: true` нь мөр өөрчлөгдсөн гэсэн үг биш — upsert доторх алдаа залгигдана
+- Phone OTP sync нэр бөглөгдсөний дараа `phone`-той дуудагдана
+- Token email болон `users.email` хоёул хоосон үед л listing `created_by` MySQL `phone`-оос синтетик email үүсгэнэ. Phone цэвэрлэгдсэн бол тэр fallback алга
 
 ### /us-аас нэвтрээд KR нүүр (/) руу буцсан
 
@@ -207,6 +218,26 @@ GET https://api.zarkorea.com/index.php?action=health
 - Нэвтэрсэн эсэх
 - PHP сервер дээр `FIREBASE_WEB_API_KEY` тохируулагдсан эсэх
 - Token хугацаа дууссан бол дахин нэвтрэх
+
+### Категорийн нэмэлт талбар хадгалагдахгүй
+
+**Шинж тэмдэг:** Машин, электроник, үл хөдлөх, ажил, эсвэл mobile `contact_name` бөглөөд хадгалсан ч `EditListing` дээр хоосон.
+
+**Шалтгаан:** `extract_listing_payload` эдгээр түлхүүрийг хаяна. `listings` хүснэгтэд багана байхгүй. `region_code`-ийг client биш, US write helper `washington-dc` гэж тавина.
+
+**Шийдэл:** Шинэ талбар хэрэгтэй бол whitelist, `INSERT` багана, `api/sql/schema.sql` гурвыг хамт нэмнэ. Form input дангаараа үлдэхгүй.
+
+### Үнэ «Үнэ тохирно» гэж гарна
+
+**Шалтгаан:** `formatListingPrice` нь `null`, хоосон, эсвэл тоон `0` (`"0.00"` орно) дээр Монгол «Үнэ тохирно» буцаана. Web `free` категори `price: 0` илгээнэ. Бусад үнэ зарын `country_code`-оор: KR `₩`, US `$`, JP `¥`. Танигдахгүй код KR.
+
+**Шийдэл:** US дээр `$0` хүлээж болохгүй. `is_negotiable` нь тусдаа «тохирно» шошго (web). Mobile detail non-zero үнэнд ` (тохирно)` залгана.
+
+### Зар 400 `prohibited_content`
+
+**Шалтгаан:** Хадгалагддаг текст талбарт хориглосон үг. Хариу `{ "error": "prohibited_content", "message": "…" }`. Client alert тэр `message`.
+
+**Шийдэл:** `vehicle_*` дээрх client шалгалт серверт давтагдахгүй — тэдгээр талбар хадгалагдахгүй. Чат PHP-оор дамжихгүй. Views +1 энэ шалгалтад орохгүй. AI товч (`ai_moderate`) статус өөрчлөхгүй.
 
 ### Зургийн upload 403 (Storage)
 
@@ -336,8 +367,8 @@ npx eas credentials
 firebase deploy --only functions
 ```
 
-Functions Logs: Firebase Console → `onChatMessageCreatedPush`
-Receiver `users` collection-д `email` таарч байгаа эсэх.
+Functions Logs: Firebase Console → `onChatMessageCreatedPush`.
+`findUidByEmail` нь `users.email ==` яг тэнцүү (trim + lower). `emailQueryVariants` ашиглахгүй. Зөрвөл лог `chat push: no uid for receiver` гээд буцна. Token `ExponentPushToken` гэж эхлэх ёстой.
 
 ---
 

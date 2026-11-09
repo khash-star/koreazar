@@ -31,7 +31,8 @@
 | Open listing from card → detail | ☐ | ☐ | |
 | Create listing → redirects to detail with new ID | ☐ | ☐ | See root `TESTING_FLOW.md` |
 | Auto-approve off: new ad absent from web My Listings | ☐ | ☐ | API default `status=active`. Same query on Profile. Pending shows on mobile `getMyListings` |
-| Edit own listing | ☐ | ☐ | |
+| Edit own listing | ☐ | ☐ | `vehicle_*` / `job_*` stay empty — API whitelist drops them |
+| Price `0` or free category shows «Үнэ тохирно»; US non-zero shows `$` | ☐ | ☐ | `formatListingPrice` |
 | Save / unsave listing | ☐ | ☐ | HTTP 404 detail deletes the Firestore save, including a US row outside `washington-dc`. A non-404 error hides the heart; saving again adds a second doc |
 
 ---

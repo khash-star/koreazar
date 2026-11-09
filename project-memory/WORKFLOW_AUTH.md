@@ -50,10 +50,19 @@ Register.jsx → authService.register
 
 ```
 Login.jsx → signInWithEmailAndPassword
+  → syncUserToMySql(user, {})   # phone/city/district хоосон → MySQL NULL
   → AuthContext onAuthChange
   → ensureUserDocEmailForFirestoreRules
   → getMe() → Firestore users/{uid}
 ```
+
+`user_sync` хэсэгчилсэн биш. Client үргэлж `display_name`, `phone`, `city`, `district` илгээнэ; дутуу талбар `""`. PHP:
+
+- `email` — token-оос. Хоосон token хуучин email-ийг арилгахгүй (`COALESCE`)
+- `display_name` — trim хоосон бол алгасна
+- `phone` / `city` / `district` — `""` бол `NULL` гэж бичнэ (багана байгаа үед)
+
+Web Profile `city`/`district` илгээдэггүй тул хадгалахад тэр хоёр цэвэрлэгдэнэ. Phone OTP sync нэр бөглөгдсөний дараа `phone`-той. `{ ok: true }` upsert алдааг залгисан ч буцна. Дэлгэрэнгүй: `docs/ARCHITECTURE.md`.
 
 ### Утас + OTP (mobile / web)
 

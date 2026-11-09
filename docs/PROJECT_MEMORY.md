@@ -84,10 +84,10 @@ koreazar/
 
 The platform uses a **hybrid backend**:
 
-1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes. `country_code`, `state_code`, and `region_code` scope KR/US/JP data. `GET listings` treats a missing `status` as `active` (`status=all` returns every status). Web My Listings omits `status`, so pending rows stay off that page. `config/app.listingAutoApprove` is read by create forms only.
+1. **Listings** — Primary store is **MySQL** via `api/index.php` (`listingService.js` → `VITE_API_BASE_URL`). Firebase ID token sent as `Authorization: Bearer` on writes. `country_code`, `state_code`, and `region_code` scope KR/US/JP data. `GET listings` treats a missing `status` as `active` (`status=all` returns every status). Web My Listings omits `status`, so pending rows stay off that page. `config/app.listingAutoApprove` is read by create forms only. Create drops any JSON key outside `extract_listing_payload` (`vehicle_*`, `job_*`, `contact_name`). Numeric price `0` displays as «Үнэ тохирно».
 2. **Banners, chat, saved listings, AI, config** — **Firestore** (`bannerService.js`, `conversationService.js`, etc.). Banners use `country_code`; missing/blank remains KR. Saved resolve deletes a row when `GET listing` is HTTP 404. Feedback reads are super-admin only. The AI daily cap (20) is enforced only in the web client.
 3. **Images** — **Firebase Storage** (`storageService.js`): new listing paths use `listings/{country}/{year}/{listingId}/...`, banners use `banners/{country}/{bannerId}/...`, and legacy `images/` URLs remain valid.
-4. **Auth** — **Firebase Authentication** (email/password, phone OTP on mobile, Facebook on web).
+4. **Auth** — **Firebase Authentication** (email/password, phone OTP on mobile, Facebook on web). `user_sync` writes empty `phone` / `city` / `district` as NULL; email/password login sends those fields empty.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for request flows and [FIREBASE.md](./FIREBASE.md) for collections and rules.
 
@@ -203,6 +203,8 @@ and migration caveat.
 | Non-admin VIP/featured 403 | `enforce_listing_promotion_privileges`; promote from `AdminAllListings` |
 | US listing detail 404 | `GET listing` hides US rows outside active `washington-dc` |
 | API deploy scripts on Linux/macOS | PowerShell/`curl.exe` helpers are Windows-only; copy the two PHP files, then `smoke:zarusa-api` |
+| Category form fields vanish on edit | They are not in the listing whitelist or schema. Add whitelist + `INSERT` + SQL together |
+| MySQL phone/city/district cleared on login | `user_sync` stores empty strings as NULL. Do not treat `ok: true` as proof the row changed |
 
 ---
 

@@ -22,9 +22,9 @@
 |--------|-----------------|
 | `health` | GET, public |
 | `listings` | GET public: `category`, `subcategory`, `created_by`, `customer_id`, `firebase_uid`, `status` (missing → `active`; `all` skips the predicate; other values are case-sensitive), `country_code`, `state_code`, `region_code`, `limit` (1–100, default 50) |
-| `listings` | POST Bearer create; required `title` + `category`; server sets `created_by` |
+| `listings` | POST Bearer create; required `title` + `category`; server sets `created_by`. Body is whitelisted — `vehicle_*`, `job_*`, `contact_name`, and client `region_code` are dropped. US `region_code` is assigned `washington-dc` |
 | `listing` | GET public; US rows outside active `washington-dc` 404 (`enforce_us_listing_row_visible`). PUT/PATCH Bearer except public `views` +1 (does not re-run GET visibility). DELETE Bearer |
-| `user_sync` | POST/PUT/PATCH, Bearer |
+| `user_sync` | POST/PUT/PATCH, Bearer. Token `email` only (empty token does not clear it). Empty `phone`/`city`/`district` are written as NULL. Empty `display_name` is skipped. `ok: true` even when the upsert swallows an error |
 | `admin_set_user_role` | POST, super admin only |
 | `ai_chat`, `ai_moderate` | POST, Bearer. `ai_chat` clamps temperature to 0–1.5 and `max_tokens` to 32–1200. It does not read Firestore `ai_usage`; the web page cap of 20 is client-only and fails open when the usage write is denied |
 

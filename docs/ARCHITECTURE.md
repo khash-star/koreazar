@@ -191,7 +191,7 @@ Hosted separately at `https://api.zarkorea.com/index.php`. Actions (from `api/in
 | `listing` | GET | No | Single listing by numeric `id`. US rows outside the active region return 404 (`enforce_us_listing_row_visible`) |
 | `listing` | PUT/PATCH | Bearer except view +1 | Update. A payload that is only `views` incremented by one is public and does not re-run GET visibility |
 | `listing` | DELETE | Bearer | Owner or scoped admin |
-| `user_sync` | POST/PUT/PATCH | Bearer | Sync Firebase user to MySQL |
+| `user_sync` | POST/PUT/PATCH | Bearer | Sync Firebase user to MySQL. Not a partial update — empty `phone` / `city` / `district` are stored as NULL |
 | `admin_set_user_role` | POST | Super admin | Sync a scoped role to MySQL |
 | `ai_chat` | POST | Bearer | OpenAI proxy |
 | `ai_moderate` | POST | Bearer | Content moderation proxy |
@@ -255,6 +255,18 @@ The flag does not install a server job. Any admin client that has loaded `listin
 
 - Web `AdminNewListings.jsx` seeds `localStorage` key `admin_auto_approve_listings`, then replaces it if the Firestore read succeeds. A failed read keeps the local value. Toggling writes localStorage immediately and ignores a failed `setListingAutoApprove`. A `useEffect` PATCHes each loaded pending id once per non-empty result and does not retry a failed PATCH until that result becomes empty. The pending query refetches every 10 seconds while the flag is on.
 - Mobile `AdminScreen.js` starts from false, then applies the Firestore value. A failed read falls back to AsyncStorage key `admin_auto_approve_listings`. A failed write reverts the switch. Failed ids are skipped until the screen unmounts, or until a super admin turns the switch off. The pending list refreshes about every 25 seconds while the app is foregrounded and the flag is on.
+
+### Fields the create API stores
+
+`extract_listing_payload` keeps only `category`, `subcategory`, `title`, `description`, `price`, `is_negotiable`, `condition`, `status`, `listing_type`, `listing_type_expires`, `location`, `country_code`, `state_code`, `phone`, `kakao_id`, `wechat_id`, `whatsapp`, `facebook`, `views`, and `images`. Every other JSON key is dropped before `INSERT`. `api/sql/schema.sql` has no columns for them.
+
+Web `CreateListing.jsx` / `EditListing.jsx` still collect `vehicle_*`, `electronics_*`, `realestate_*`, and `job_*`. Mobile create still sends `contact_name`. `EditListing.jsx` copies those keys back off the API row, so they are blank after reload. Adding a persisted field means the whitelist, the `INSERT` column list, and the schema — a form input alone does not survive.
+
+`region_code` is not in the whitelist. `enforce_us_listing_write_region` assigns `washington-dc` for US and unsets it otherwise, so a client `region_code` does not stick. `created_by` and `firebase_uid` are server-set. An omitted `country_code` becomes `KR`. An omitted `status` becomes `pending`.
+
+**Price display.** `formatListingPrice` (`src/utils/formatPrice.js` and `mobile/src/utils/formatPrice.js`) returns `Үнэ тохирно` when the value is null, `''`, or numerically `0`, including MySQL `"0.00"` and the web free category (the form posts `0`). Any other number is prefixed with the symbol for the listing `country_code`: KR `₩` (`ko-KR`), US `$` (`en-US`), JP `¥` (`ja-JP`). An unknown code uses KR. Web detail adds a separate `тохирно` label when `is_negotiable` is set. Mobile detail passes `negotiable` and appends ` (тохирно)` only when the price is non-zero.
+
+**Keyword block.** Create and any PATCH that is not the public views+1 bump call `api_find_banned_in_listing_payload`. A match is HTTP 400 `{ "error": "prohibited_content", "message": "…" }`. The PHP check covers only the stored text keys above. Chat never hits this helper. The optional admin AI suggestion (`checkListingWithAI` → `ai_moderate`) does not write `status`. Detail: [`SECURITY.md`](./SECURITY.md).
 
 ### Saved listings, reports, and feedback
 
@@ -358,6 +370,20 @@ sequenceDiagram
 ```
 
 Phone OTP users get synthetic emails (`phoneToAuthEmail`) so Firestore chat rules can match participants.
+
+### `user_sync` is not a partial update
+
+Web `syncUserToMySql` and mobile `syncUserToMySql` always POST `display_name`, `phone`, `city`, and `district`. A missing profile field is sent as `""`. `upsert_user_profile_best_effort` then:
+
+| Field | Rule |
+|-------|------|
+| `email` | Taken from the Firebase token, never the JSON body. An empty token email does not clear the column (`COALESCE` in `upsert_user_best_effort`; the profile update skips an empty email) |
+| `display_name` | Written only when the trimmed `display_name` or `displayName` is non-empty |
+| `phone`, `city`, `district` | `""` becomes SQL `NULL` and is written whenever the column exists |
+
+Email/password login calls sync with `{}` (`login` on web, `loginWithEmail` on mobile), so those three columns become NULL. Web Profile sends `phone` from the form and does not send city or district, so a web profile save clears MySQL `city` and `district`. Phone OTP sync runs once the name step is done and includes `phone`.
+
+A valid token still returns `{ "ok": true, "uid", "email", "customer_id" }`. Errors inside the upsert are swallowed, so `ok: true` does not prove the row changed. The client copies a numeric `customer_id` onto Firestore `users.customerId`. `resolve_auth_email_for_listing` reads MySQL `users.phone` only after both the token email and `users.email` are empty; a cleared phone removes that fallback.
 
 ### Account deletion boundary
 

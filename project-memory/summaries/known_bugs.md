@@ -23,6 +23,9 @@
 | Country/region admin missing a listing report | UI intersects reports with the newest 100 `active` listings (`Listing.list` asks for 2000; API clamps and defaults status). Super admin sees the full Firestore list. Rules let any app admin update any report | `AdminListingReports.jsx`, `firestore.rules` |
 | Feedback invisible to country/region admin | Read/update/delete is `isSuperAdmin()` only. No admin list screen. Web footer omits `user_uid` | `Layout.jsx`, `firestore.rules` |
 | AI daily cap of 20 does not stop requests | Cap is web-client only. `ai_usage` writes must match `token.email` exactly, so phone OTP fails open and PHP `ai_chat` still answers | `AIBot.jsx`, `aiUsageService.js`, `api/index.php` |
+| Vehicle / job / contact fields empty after save | `extract_listing_payload` drops keys that are not listing columns. Edit reloads blanks. US `region_code` is assigned server-side | `api/index.php`, `CreateListing.jsx`, `docs/ARCHITECTURE.md` |
+| MySQL `phone` / `city` / `district` NULL after email login | `user_sync` writes empty strings as NULL. Web and mobile email login sync `{}`. Web profile save also clears city and district | `authService.js`, `upsert_user_profile_best_effort` |
+| Chat push missing for a phone user who can open the thread | `findUidByEmail` is exact `users.email ==`, not `emailQueryVariants`. Log: `chat push: no uid for receiver` | `functions/index.js`, `docs/CHAT_SYSTEM.md` |
 
 ## Likely resolved / obsolete
 
