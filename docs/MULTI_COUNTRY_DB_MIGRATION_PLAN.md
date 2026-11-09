@@ -156,3 +156,19 @@ After running these, functionally verify via the API:
 listings as before the migration (all of them, since KR is the only market
 with real data); `?country_code=US` / `?country_code=JP` should return an
 empty array until real US/JP listings are created.
+
+## 6. Post-migration US row correction (ops)
+
+If US regional rows were written with `country_code` left as `KR` / blank while
+`region_code` is set, they can pollute analytics and confuse operators even
+though KR feeds exclude them at runtime
+(`append_kr_listing_read_filter` + `filterListingsForMarket`).
+
+1. Take a listings backup (section 1).
+2. Review and run `api/sql/fix_us_listings_country_code.sql` (idempotent):
+   sets `country_code='US'` where country is KR/blank **and** `region_code`
+   is non-empty.
+3. Re-check counts: `SELECT country_code, COUNT(*) FROM listings GROUP BY country_code;`
+
+Do **not** run the fix SQL without a backup or explicit production approval.
+See also `docs/ZARUSA_REGION_PHASES.md` → “KR feed isolation”.

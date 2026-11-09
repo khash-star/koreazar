@@ -32,10 +32,11 @@ export const DEFAULT_COUNTRY_CODE = 'KR';
 
 /**
  * Countries that are publicly live and selectable via the country selector.
- * US/JP stay wired into routing, schema, and storage so they can be tested
- * directly by URL (`/us`, `/jp`), but must not be advertised as live
- * markets until this list is updated. Update this — and only this — to
- * launch a new market.
+ * JP stays wired into routing, schema, and storage so it can be tested at
+ * `/jp`, but is not advertised until added here. Update this list — and
+ * only this list — to launch a new market. `/us` is already enabled; the
+ * ZAR-USA selector lock is `lockCountrySelector` on the US country config,
+ * not absence from this array.
  */
 export const ENABLED_COUNTRIES = ['KR', 'US'];
 
