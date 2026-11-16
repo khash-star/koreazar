@@ -88,6 +88,7 @@ profile-ийг удирдаж болно.
 - `country_code`: `KR`, `US`, `JP`; хуучин/хоосон утгыг runtime KR гэж үзнэ.
 - `state_code`: US мужийн 2 тэмдэгт code.
 - `region_code`: US community scope; одоогоор зөвхөн `washington-dc` active.
+- `price`: `DECIMAL(15,2)`. Native PDO буцаалт нь `"15000.00"` мөр (`map_listing_row` тоо болгохгүй). Mobile засвар цифр бус тэмдэгтийг хассан тул энэ мөрийг `1500000` гэж хадгална. Web `Number()` `15000` хэвээр.
 - `featured` / `vip` (and promo expiry extend): PHP
   `enforce_listing_promotion_privileges` — scoped admin only.
 

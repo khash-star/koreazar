@@ -26,6 +26,7 @@
 | Vehicle / job / contact fields empty after save | `extract_listing_payload` drops keys that are not listing columns. Edit reloads blanks. US `region_code` is assigned server-side | `api/index.php`, `CreateListing.jsx`, `docs/ARCHITECTURE.md` |
 | MySQL `phone` / `city` / `district` NULL after email login | `user_sync` writes empty strings as NULL. Web and mobile email login sync `{}`. Web profile save also clears city and district | `authService.js`, `upsert_user_profile_best_effort` |
 | Chat push missing for a phone user who can open the thread | `findUidByEmail` is exact `users.email ==`, not `emailQueryVariants`. Log: `chat push: no uid for receiver` | `functions/index.js`, `docs/CHAT_SYSTEM.md` |
+| Mobile edit multiplies a listing price | `DECIMAL(15,2)` is returned as `"15000.00"`; the editor strips non-digits, so a save writes `1500000`. The field is prefilled with that value, and the next save multiplies again. A new create typed as digits is not inflated. Web `Number()` keeps `15000`. Cards stay correct until the mobile save | `CreateListingScreen.js`, `api/bootstrap.php`, `docs/TROUBLESHOOTING.md` |
 
 ## Likely resolved / obsolete
 

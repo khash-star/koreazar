@@ -84,6 +84,8 @@ CreateListing.jsx
 
 `formatListingPrice`: `null` / `''` / тоон `0` (free категори орно) → «Үнэ тохирно». Бусад нь зарын `country_code` (KR `₩`, US `$`, JP `¥`). Хориглосон үг: HTTP 400 `prohibited_content` — зөвхөн хадгалагддаг текст. Views +1 алгасна.
 
+Mobile засвар (`CreateListingScreen`): `DECIMAL(15,2)` `"15000.00"` мөрөөс цифр бус тэмдэгтийг хассан тул хадгалалт `1500000` болно (`.00` бол 100×). Талбар нээнгүүт өссөн цифр харагдана. Дахин хадгалахад дахин үржинэ. Шинэ зарын эхний POST цифрээр бичигддэг тул өсөхгүй. Web `Number(formData.price)` `"15000.00"`-ийг `15000` гэж хадгална. PDO native prepare + `map_listing_row` үнийг тоо болгохгүй.
+
 ### Зураг
 
 - Web: `createImageVariants` — WebP only, 3:2, `w800`/`w640`/`w400`/`w150`. JPEG fallback байхгүй
