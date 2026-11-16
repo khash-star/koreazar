@@ -26,6 +26,7 @@ import { isUsMobileMarket } from "../config/country.js";
 import { getActiveMobileRegionCode } from "../config/region.js";
 import { getActiveUsRegionStateCodes } from "../config/regions/us.js";
 import { activeCurrencySymbol } from "../utils/formatPrice.js";
+import { priceToInputDigits } from "../utils/priceDigits.js";
 import { formatUsStateLabel } from "../constants/usStates.js";
 import { categoryInfo, locations, subcategoryConfig, conditionOptions as _conditionOptions } from "../constants/listingForm.js";
 
@@ -152,10 +153,7 @@ export default function CreateListingScreen({ navigation }) {
           category: listing.category || "",
           subcategory: listing.subcategory || "",
           condition: listing.condition || "used",
-          price:
-            listing.category === "free"
-              ? ""
-              : String(listing.price ?? "").replace(/\D/g, ""),
+          price: listing.category === "free" ? "" : priceToInputDigits(listing.price),
           is_negotiable: listing.is_negotiable === false || listing.is_negotiable === 0 ? false : true,
           location: listing.location || "",
           state_code: listing.state_code || "",
@@ -253,7 +251,7 @@ export default function CreateListingScreen({ navigation }) {
       return;
     }
     const isFreeCategory = form.category === "free";
-    const priceNum = isFreeCategory ? 0 : Number(form.price?.replace(/\D/g, "")) || 0;
+    const priceNum = isFreeCategory ? 0 : Number(priceToInputDigits(form.price)) || 0;
     if (!isFreeCategory && priceNum <= 0) {
       showAlert("Алдаа", `Үнэ оруулна уу (${currencySymbol}).`);
       return;
