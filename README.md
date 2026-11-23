@@ -1,86 +1,60 @@
-# Koreazar App - Classified Ads Platform
+# Koreazar / Zarkorea
 
-🇲🇳 Монгол хэл дээрх ангилалт зар мэдээллийн платформ (South Korea)
+Mongolian-language classifieds platform: **Zarkorea** (Korea) and **ZAR-USA** (Washington DC / DMV). Web and Expo mobile share Firebase Auth/Firestore/Storage and a PHP + MySQL listings API.
 
-## 📋 Stack
+## Stack
 
-- **Frontend**: React + Vite + TailwindCSS
-- **Backend**: Vercel Serverless Functions
-- **Database**: Firebase Firestore
-- **Authentication**: Firebase Auth
-- **Storage**: Firebase Storage
-- **Hosting**: Vercel
+| Layer | Technology |
+|-------|------------|
+| Web | React 18 + Vite 6 + Tailwind — repo root → Vercel (`dist/`) |
+| Mobile | Expo / React Native — `mobile/` only |
+| Auth / chat / storage | Firebase project `koreazar-32e7a` |
+| Listings API | PHP + MySQL at `api.zarkorea.com` (`api/`) |
+| Push | Cloud Functions → Expo Push |
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-- Firebase account
-- Vercel account
-
-### Installation
+## Quick start (web)
 
 ```bash
-# Dependencies суулгах
 npm install
-
-# Development server эхлүүлэх
+cp .env.example .env   # fill VITE_FIREBASE_* and VITE_API_BASE_URL
 npm run dev
 ```
 
-### Environment Variables
+- Root `/` is the KR home. Market routes: `/kr`, `/us` (JP is scaffolded at `/jp`).
+- Production web: https://zarkorea.com · API: https://api.zarkorea.com/index.php
 
-`.env` файл үүсгээд (`.env.example`-ийг ашиглах):
+Mobile setup: `mobile/` + [`mobile/docs/`](./mobile/docs/). ZAR-USA builds use the `production-us` EAS profile.
 
-```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=koreazar-32e7a.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abc123
-```
+## Documentation (canonical)
 
-### Building for Production
+| Doc | Topic |
+|-----|--------|
+| [`docs/PROJECT_MEMORY.md`](./docs/PROJECT_MEMORY.md) | Product/stack overview and doc map |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | System design, markets, data flows |
+| [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) | Vercel, Firebase, EAS, PHP API deploy |
+| [`docs/FIREBASE.md`](./docs/FIREBASE.md) | Auth, Firestore, Storage, Functions |
+| [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md) | Common failures and fixes |
+| [`docs/IMAGE_LOAD_ANALYSIS.md`](./docs/IMAGE_LOAD_ANALYSIS.md) | Home feed window and image variants |
+| [`docs/FIRESTORE_INDEXES.md`](./docs/FIRESTORE_INDEXES.md) | Firestore indexes (Home listings are MySQL) |
+| [`docs/ZARUSA_REGION_PHASES.md`](./docs/ZARUSA_REGION_PHASES.md) | ZAR-USA region + scoped admin RBAC |
+| [`docs/ZARUSA_STAGING_DEPLOY.md`](./docs/ZARUSA_STAGING_DEPLOY.md) | US staging checklist and DB gates |
+| [`project-memory/`](./project-memory/) | Agent workflows, QA playbooks, summaries |
 
-```bash
-npm run build
-```
+Historical / superseded guides live under [`docs/archive/`](./docs/archive/) — not canonical.
 
-## 📚 Documentation
+Secondary root guides that are still useful: [`FIREBASE_VERCEL_SETUP.md`](./FIREBASE_VERCEL_SETUP.md), [`VERCEL_ENV_SETUP.md`](./VERCEL_ENV_SETUP.md), [`GITHUB_SETUP.md`](./GITHUB_SETUP.md).
 
-- [Migration Analysis](./MIGRATION_ANALYSIS.md) - Base44 SDK-ийг судласан тайлан
-- [Firebase + Vercel Setup](./FIREBASE_VERCEL_SETUP.md) - Firebase болон Vercel тохируулах заавар
-- [Migration Roadmap](./MIGRATION_ROADMAP.md) - Migration хийх алхмууд
-- [GitHub Setup](./GITHUB_SETUP.md) - GitHub repository тохируулах
+## Multi-market notes (developers)
 
-## 🔄 Migration Status
+- Public selector: `ENABLED_COUNTRIES` in `src/config/country.js` (currently `KR` + `US`).
+- `/us` locks the country selector via `lockCountrySelector` on the US config.
+- Listing writes use **URL** country (`resolveRouteCountryCode`), not `localStorage`. Unprefixed `/CreateListing` tags KR — use `/us/CreateListing` for ZAR-USA.
+- Banner requests (`/RequestBannerAd`) stay unprefixed and use `useActiveCountry()` for Storage. Approving a request without `country_code` shows the banner on KR; set market on `/AdminBanners`.
+- KR feeds are isolated by API (`append_kr_listing_read_filter`) and client (`filterListingsForMarket`). US listing **detail** 404s outside active `washington-dc`.
+- Admin pages are unprefixed; back-links use `useMarketHomePath` so US admins return to `/us`.
+- `/Login` is unprefixed. After auth, return to `state.from` / `?redirect=` / `sessionStorage.loginRedirect`, else KR `/`. Login from `/us` Home should return to `/us`.
+- Canonical host is `https://zarkorea.com` (`vercel.json` 301 from `koreazar.vercel.app`; `/mn` → `/kr`). Sitemap/canonical do not currently list `/us`.
 
-⚠️ **Migration хийгдэж байна**: Base44 SDK → Firebase + Vercel
-
-- [x] GitHub repository үүсгэгдсэн
-- [ ] Firebase project тохируулагдсан
-- [ ] Vercel deploy хийгдсэн
-- [ ] Authentication migration
-- [ ] Backend API migration
-- [ ] Frontend integration
-- [ ] Testing & cleanup
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-src/
-  ├── api/          # API clients (migrating from base44)
-  ├── components/   # React components
-  ├── pages/        # Page components
-  ├── firebase/     # Firebase configuration
-  └── utils/        # Utility functions
-```
-
-## 📝 License
+## License
 
 Copyright © 2026 KHASH Co Ltd

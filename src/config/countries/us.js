@@ -1,12 +1,11 @@
 /**
  * United States (US) country configuration.
  *
- * Soft-launch market: listings/state filtering, currency, and per-country
- * storage paths ARE wired into the data path (MySQL `country_code` +
- * `state_code`, production DB migration applied). Still hidden from the
- * public country selector via `ENABLED_COUNTRIES` in `../country.js` until
- * launch content (banner, verified listings) is ready — see
- * `US_LAUNCH_STATE_CODES` in `src/constants/usStates.js` (DC, VA, MD for DMV MVP).
+ * Live market: `ENABLED_COUNTRIES` already includes US. `/us` is locked to
+ * ZAR-USA by `lockCountrySelector: true` — do not treat “US not in
+ * ENABLED_COUNTRIES” as the reason KR is hidden on that route. Listings use
+ * MySQL `country_code` + `state_code` + `region_code` (washington-dc MVP).
+ * States: `US_LAUNCH_STATE_CODES` in `src/constants/usStates.js` (DC, VA, MD).
  */
 export const us = {
   countryCode: 'US',
