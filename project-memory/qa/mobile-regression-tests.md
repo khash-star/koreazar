@@ -25,6 +25,7 @@
 | Home tab loads listings + banners | ☐ | ☐ | |
 | Category strip selection filters list | ☐ | ☐ | |
 | Listing detail from tap | ☐ | ☐ | |
+| Edit listing, save without retyping price | ☐ | ☐ | Known failure: API `"15000.00"` is stored as `1500000` and grows again on the next save. Retype the whole units. Web edit uses `Number()` |
 | Auth screens: Login, Register | ☐ | ☐ | |
 | Saved listings tab | ☐ | ☐ | |
 | Profile / My listings | ☐ | ☐ | |
@@ -40,6 +41,7 @@
 | Landscape photos not cropped wrong | ☐ | ☐ | |
 | Gallery swipe on detail | ☐ | ☐ | |
 | `expo-image` loads Storage URLs | ☐ | ☐ | |
+| 11th image is not added; file over 15MB fails | ☐ | ☐ | Cap is `slice(0, 10 - images.length)` plus `uploadImageFromUri`. `limits.js` 5MB/10 is not imported. Submit still requires one image |
 
 ---
 

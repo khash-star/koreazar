@@ -32,7 +32,7 @@ Checklist after code changes. Use with `self-review-workflow.md`.
 - [ ] Create/edit listing upload succeeds  
 - [ ] Images appear in Storage and on detail view  
 - [ ] Format validation (JPG, PNG, WEBP) still enforced  
-- [ ] Size limit (~5MB) respected  
+- [ ] Size limit matches the client: web original ≤ 5MB, mobile upload ≤ 15MB. `limits.js` is not the check. Web has no image-count cap; mobile stops at 10
 - [ ] No 403 from unpublished storage rules (production)  
 - [ ] Mobile native vs web storage shims still used correctly  
 

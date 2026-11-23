@@ -45,7 +45,7 @@ Align with repo root `SECURITY.md`.
 ## Unsafe uploads
 
 - [ ] MIME/type check (JPG, PNG, WEBP)  
-- [ ] Size cap (~5MB) enforced client-side (and rules where applicable)  
+- [ ] Size cap is the page/upload helper, not `limits.js` or `storage.rules` (web original ≤ 5MB, mobile ≤ 15MB). Rules do not check size or content-type
 - [ ] Filenames/paths sanitized; no directory traversal  
 - [ ] User content not executed as HTML without sanitization (`src/utils/security.js`)  
 

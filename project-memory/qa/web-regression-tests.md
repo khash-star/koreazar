@@ -10,10 +10,12 @@
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | `/` (Home) loads | ☐ | ☐ | |
+| `/us` loads ZAR-USA home (selector locked) | ☐ | ☐ | |
 | `/Login` loads | ☐ | ☐ | |
 | `/Register` loads | ☐ | ☐ | |
 | `/ListingDetail?id=<valid>` opens correct listing | ☐ | ☐ | |
-| `/CreateListing` (auth required) | ☐ | ☐ | |
+| `/CreateListing` (auth required) | ☐ | ☐ | Unprefixed create tags KR |
+| `/us/CreateListing` (auth required) | ☐ | ☐ | Tags US + washington-dc |
 | `/MyListings`, `/SavedListings`, `/Messages`, `/Chat` | ☐ | ☐ | If touched |
 | Browser back/forward on SPA | ☐ | ☐ | |
 | No redirect to legacy Base44 login | ☐ | ☐ | |
@@ -28,8 +30,12 @@
 | Banner strip loads (`banner_ads`) | ☐ | ☐ | |
 | Open listing from card → detail | ☐ | ☐ | |
 | Create listing → redirects to detail with new ID | ☐ | ☐ | See root `TESTING_FLOW.md` |
-| Edit own listing | ☐ | ☐ | |
-| Save / unsave listing | ☐ | ☐ | |
+| Auto-approve off: new ad absent from web My Listings | ☐ | ☐ | API default `status=active`. Same query on Profile. Pending shows on mobile `getMyListings` |
+| Edit own listing | ☐ | ☐ | `vehicle_*` / `job_*` stay empty — API whitelist drops them |
+| Price `0` or free category shows «Үнэ тохирно»; US non-zero shows `$` | ☐ | ☐ | `formatListingPrice` |
+| Web edit of `"15000.00"` saves `15000` | ☐ | ☐ | `Number(formData.price)`. Mobile edit strips non-digits — see mobile regression |
+| 11th listing image still uploads; a file over 5MB does not | ☐ | ☐ | No count cap. 5MB is hardcoded on the original file, not `limits.js` |
+| Save / unsave listing | ☐ | ☐ | HTTP 404 detail deletes the Firestore save, including a US row outside `washington-dc`. A non-404 error hides the heart; saving again adds a second doc |
 
 ---
 
@@ -50,7 +56,9 @@
 | Check | Pass | Fail | Notes |
 |-------|:----:|:----:|-------|
 | Register new user → Firestore `users` doc | ☐ | ☐ | |
-| Login → Home, session persists on refresh | ☐ | ☐ | |
+| Login → Home, session persists on refresh | ☐ | ☐ | Bare `/Login` returns KR `/` |
+| Login from `/us` Home → returns to `/us`, phone `+1` | ☐ | ☐ | Uses `state.from` |
+| Guarded page → `redirectToLogin` → return to same path | ☐ | ☐ | sessionStorage, not Router state |
 | Logout → guest UI | ☐ | ☐ | |
 | Protected route blocks guest | ☐ | ☐ | |
 | Password reset email (if touched) | ☐ | ☐ | |

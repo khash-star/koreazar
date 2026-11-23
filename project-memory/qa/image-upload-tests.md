@@ -12,8 +12,11 @@ Web (`src/`) and mobile (`mobile/`) — use `../qa/image-upload-tests.md` with p
 | Upload completes without 403 | ☐ | ☐ | |
 | Progress / loading state acceptable | ☐ | ☐ | |
 | Multiple images if supported | ☐ | ☐ | |
-| Reject invalid format (non JPG/PNG/WEBP) | ☐ | ☐ | |
-| Reject oversize file (~5MB) | ☐ | ☐ | |
+| Reject invalid format (non JPG/PNG/WEBP) | ☐ | ☐ | Web listing and banner pages. Native create re-encodes to JPEG before the 15MB check |
+| Reject web original over 5MB | ☐ | ☐ | `CreateListing` / `EditListing` only. `limits.js` is not called |
+| Reject mobile file over 15MB | ☐ | ☐ | `uploadImageFromUri`. A 6MB original is allowed on mobile and rejected on web |
+| Web allows an 11th image; mobile stops at 10 | ☐ | ☐ | Mobile full grid returns with no alert. Web create also allows zero images; mobile requires one |
+| 51st listing still creates | ☐ | ☐ | `MAX_LISTINGS_PER_USER` has no caller |
 
 ---
 
