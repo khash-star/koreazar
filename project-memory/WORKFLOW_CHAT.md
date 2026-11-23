@@ -77,7 +77,7 @@ Deploy: `firebase deploy --only firestore:indexes`
 
 ### 5. UI / polling / layout
 
-- Web `Chat.jsx`: `refetchInterval` (~3s) — `limits.js` `MESSAGES_REFRESH_INTERVAL` (5s)-тай зөрчилдөхгүй шалгах.
+- Web `Chat.jsx`: `refetchInterval: 3000`. `limits.js` `MESSAGES_REFRESH_INTERVAL` (5s) уншигдахгүй. Thread `listMessages` default 100; mobile Chat 120. `MAX_MESSAGES_PER_CONVERSATION` 1000 шалгагдахгүй.
 - Scroll: зөвхөн **нээхэд** болон **өөрийн send**-ийн дараа доош — poll/refetch дунд jump бүү хий.
 - `Layout.jsx`: Chat дээр bottom nav нууна; Chat + Messages дээр footer нууна (`hideFooter`).
 - Unread: `unread_count_p1` / `unread_count_p2` — хоёр талын логикийг хамтад нь шинэчил; mark-read `areEmailVariants` ашиглана.

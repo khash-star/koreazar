@@ -53,6 +53,7 @@
 | Home feed window + images | `docs/IMAGE_LOAD_ANALYSIS.md` (PHP limit, then client VIP sort) |
 | Listing status / owner lists | `docs/ARCHITECTURE.md` — missing `status` means `active`; web owner pages omit it; auto-approve is a client flag, and any admin client that loaded `true` PATCHes its pending page |
 | Listing write whitelist / price | `docs/ARCHITECTURE.md` — category-specific form fields are dropped; numeric `0` displays as «Үнэ тохирно»; mobile edit strips the `DECIMAL` string (`"15000.00"` → `1500000`) |
+| Upload caps | `docs/SECURITY.md` §10 — `limits.js` is unused. Web 5MB and no image count. Mobile 10 images and 15MB. `listing_images` is not written |
 | `user_sync` | `docs/ARCHITECTURE.md` — empty `phone`/`city`/`district` become NULL; email login sends `{}` |
 | Saved listings / reports / feedback | `docs/ARCHITECTURE.md` — 404 detail deletes a save; scoped report UI is the newest 100 active listings; feedback read is super admin only |
 | AI daily cap | `docs/ARCHITECTURE.md` — web `AIBot` 20, client-only; PHP `ai_chat` does not enforce it |

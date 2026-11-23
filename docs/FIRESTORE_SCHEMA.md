@@ -356,7 +356,7 @@ script-ээр орно.
 |---------|-------------------|------------------|
 | `users` | `id`, `firebase_uid`, `email`, `display_name`, `phone`, `city`, `district`, `role`, `admin_country_code`, `admin_region_code` | `schema.sql` adds `phone`/`city`/`district`; `migration_admin_rbac_phase2.sql` adds admin scope |
 | `listings` | `id`, `firebase_uid`, `customer_id`, `category`, `subcategory`, `title`, `description`, `price`, `status`, `images` (JSON), `country_code`, `state_code`, `region_code`, contact columns (`phone`, `kakao_id`, `wechat_id`, `whatsapp`, `facebook`) | `migration_listings_country_code.sql`, `migration_region_dmv_mvp.sql` |
-| `listing_images` | `listing_id`, `storage_url`, `sort_order` | Base schema |
+| `listing_images` | `listing_id`, `storage_url`, `sort_order` | Schema only. `api/index.php` and clients do not read or write it; galleries use `listings.images` |
 
 API:
 
@@ -410,16 +410,16 @@ firebase deploy --only firestore:indexes
 
 ## Хязгаарлалт (client)
 
-`src/utils/limits.js`:
+`src/utils/limits.js` доорх тоог зарладаг. Ямар ч дэлгэц, сервис import хийхгүй. PHP болон `storage.rules` ч эдгээрийг шалгахгүй. Бодит хязгаар: `docs/SECURITY.md` §7 ба §10.
 
-| Хязгаар | Утга |
-|---------|------|
-| `MAX_LISTINGS_PER_USER` | 50 |
-| `MAX_IMAGES_PER_LISTING` | 10 |
-| `MAX_IMAGE_SIZE` | 5 MB |
-| `MAX_MESSAGES_PER_CONVERSATION` | 1000 |
-| `MESSAGE_FETCH_LIMIT` | 100 |
-| `LISTINGS_PER_PAGE` | 20 |
+| Тогтмол | Зарлагдсан | Юу ажилладаг |
+|---------|------------|--------------|
+| `MAX_LISTINGS_PER_USER` | 50 | Шалгалт байхгүй |
+| `MAX_IMAGES_PER_LISTING` | 10 | Mobile `slice(0, 10 - images.length)` л. Web тоолохгүй |
+| `MAX_IMAGE_SIZE` | 5 MB | Web Create/Edit локал 5MB. Mobile upload 15MB |
+| `MAX_MESSAGES_PER_CONVERSATION` | 1000 | `createMessage` тоолохгүй |
+| `MESSAGE_FETCH_LIMIT` | 100 | Уншигдахгүй. Web `listMessages` default 100, mobile Chat 120 |
+| `LISTINGS_PER_PAGE` | 20 | Уншигдахгүй. Feed цонх API default 50, web Home 100 |
 
 ---
 

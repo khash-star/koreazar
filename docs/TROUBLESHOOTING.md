@@ -259,6 +259,14 @@ firebase deploy --only storage
 
 `VITE_FIREBASE_STORAGE_BUCKET` / `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` Console-ийн bucket-тай таарна.
 
+### 11 дэх зураг, 6MB файл, эсвэл 51 дэх зар
+
+**Шинж тэмдэг:** Баримт «10 зураг / 5MB / 50 зар» гэсэн ч web 11 дэх зургийг хадгална, 6MB эх файл web дээр татгалзаад mobile дээр орно, эсвэл хэрэглэгч 50-аас олон зар үүсгэнэ. Mobile 10 зураг дүүрсэн үед «Зураг нэмэх» юу ч хэлэлгүй буцна. Web зураггүй зар үүснэ; mobile «Дор хаяж 1 зураг» гэж зогсоно.
+
+**Шалтгаан:** `src/utils/limits.js` (`MAX_IMAGES_PER_LISTING`, `MAX_IMAGE_SIZE`, `MAX_LISTINGS_PER_USER`, `canUploadImage`, `validateImageSize`, `canCreateListing`) ямар ч дэлгэц import хийхгүй. Web `CreateListing.jsx` / `EditListing.jsx` эх файл дээр JPG/PNG/WEBP болон `5 * 1024 * 1024` шалгаад тоо хязгаарлахгүй. Mobile `CreateListingScreen` `slice(0, 10 - images.length)`. Upload `15 * 1024 * 1024` (`storageService.native.js`, `storageService.web.js`). PHP `images`-ийг `json_encode` хийгээд тоолохгүй. `storage.rules` хэмжээ шалгахгүй. `listing_images` хүснэгтийг API уншихгүй.
+
+**Шийдэл:** Хязгаарыг `limits.js` дээр өөрчилж бүтээгдэхүүн өөрчлөгдөнө гэж бүү үз. Web 5MB болон mobile 10/15MB-ийг тухайн файл дээрээ засна. `MAX_MESSAGES_PER_CONVERSATION` 1000 мөн ашиглагдахгүй: web thread 100, mobile Chat 120 мессеж татна.
+
 ### US ListingDetail 404 (Home-д харагдахгүй зар)
 
 **Шалтгаан:** `GET action=listing&id=` `enforce_us_listing_row_visible` ажиллуулна. US мөрийн `region_code` хоосон, inactive, эсвэл `washington-dc` биш бол 404. KR feed isolation (`GET listings`) энэ helper-ийг дууддаггүй.

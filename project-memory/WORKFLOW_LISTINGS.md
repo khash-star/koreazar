@@ -91,7 +91,7 @@ Mobile засвар (`CreateListingScreen`): `DECIMAL(15,2)` `"15000.00"` мөр
 - Web: `createImageVariants` — WebP only, 3:2, `w800`/`w640`/`w400`/`w150`. JPEG fallback байхгүй
 - Mobile create: нэг URL-ийг дөрвөн variant түлхүүрт хуулна — web srcset жижигрүүлэхгүй
 - Storage paths: `listings/{kr|us|jp}/{year}/{listingId}/…` (`storagePaths.js`); legacy `images/` still valid
-- Limits: `src/utils/limits.js` — 10 зураг, 5MB
+- Limits: `limits.js` import хийгдэхгүй. Web эх файл 5MB + JPG/PNG/WEBP, тоо байхгүй, зураггүй зар болно. Mobile 10 зураг (`slice`), 15MB, дор хаяж 1. PHP/`storage.rules` тоолохгүй. `listing_images` хүснэгт ашиглагдахгүй (`listings.images`). `docs/SECURITY.md` §10
 - Home цонх: SQL `created_at DESC` + limit (web 100, mobile 50, API max 100). VIP sort client. Search/үнэ тухайн цонхон дотор. Дэлгэрэнгүй `docs/IMAGE_LOAD_ANALYSIS.md`
 
 ---

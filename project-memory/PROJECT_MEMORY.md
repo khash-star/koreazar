@@ -128,6 +128,7 @@ Source of truth: `src/constants/adminRoles.js` → `npm run sync-admin-roles`. F
 | **Category fields not in MySQL** | Edit form looks blank | Whitelist + `INSERT` + schema; form-only fields are dropped |
 | **`user_sync` clears profile columns** | MySQL phone/city/district NULL after email login | Empty strings are written as NULL; `ok: true` can hide a swallowed error |
 | **Mobile edit of a DECIMAL price** | Saved price grows (`.00` → 100×, then again on the next save) | Retype the whole units before save. Web `Number()` keeps `"15000.00"` as `15000`. `docs/TROUBLESHOOTING.md` |
+| **`limits.js` treated as the upload cap** | 11th web image, a 6MB mobile photo, or a 51st listing still saves | Nothing imports that file. Web is 5MB with no count. Mobile is 10 images and 15MB. `docs/SECURITY.md` §10 |
 
 ---
 

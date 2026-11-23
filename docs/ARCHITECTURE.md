@@ -434,6 +434,14 @@ Web path builders live in `src/utils/storagePaths.js` and are mirrored under
 `mobile/src/utils/storagePaths.js`. Existing legacy URLs remain valid.
 Mobile-created listings do not have distinct widths, so web `srcset` cannot pick a smaller file for those rows.
 
+**Upload caps are not `src/utils/limits.js`.** Nothing imports that module. `canCreateListing`, `canUploadImage`, `validateImageSize`, and `validateBannerSize` have no callers. PHP `json_encode`s `images` and does not count files or listings per user. `storage.rules` allows any authenticated write, with no size or content-type check.
+
+Web create and edit reject an original file over 5MB (`5 * 1024 * 1024`) or outside `image/jpeg`, `image/jpg`, `image/png`, and `image/webp`, then build the WebP variants. They do not cap `images.length`, and create does not require a photo. Mobile `pickImage` keeps at most 10 (`assets.slice(0, 10 - images.length)`); a full set returns with no alert. Submit requires at least one image. Files over 15MB fail inside `uploadImageFromUri`.
+
+`api/sql/schema.sql` also creates `listing_images` (`listing_id`, `sort_order`, `storage_url`). `api/index.php` and the clients never read or write it. The gallery is `listings.images`.
+
+The same unused file declares `MAX_MESSAGES_PER_CONVERSATION` 1000, `MESSAGE_FETCH_LIMIT` 100, and `LISTINGS_PER_PAGE` 20. Web `listMessages` defaults to 100, mobile `ChatScreen` requests 120, and `createMessage` does not stop at 1000. The home window stays the PHP limit (default 50, web Home 100). Banner create checks MIME and then `compressImage`; it does not read `MAX_BANNER_SIZE` or `MAX_BANNERS`.
+
 ---
 
 ## AI assistant

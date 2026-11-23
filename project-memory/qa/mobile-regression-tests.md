@@ -41,6 +41,7 @@
 | Landscape photos not cropped wrong | ☐ | ☐ | |
 | Gallery swipe on detail | ☐ | ☐ | |
 | `expo-image` loads Storage URLs | ☐ | ☐ | |
+| 11th image is not added; file over 15MB fails | ☐ | ☐ | Cap is `slice(0, 10 - images.length)` plus `uploadImageFromUri`. `limits.js` 5MB/10 is not imported. Submit still requires one image |
 
 ---
 

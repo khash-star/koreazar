@@ -34,6 +34,7 @@
 | Edit own listing | ☐ | ☐ | `vehicle_*` / `job_*` stay empty — API whitelist drops them |
 | Price `0` or free category shows «Үнэ тохирно»; US non-zero shows `$` | ☐ | ☐ | `formatListingPrice` |
 | Web edit of `"15000.00"` saves `15000` | ☐ | ☐ | `Number(formData.price)`. Mobile edit strips non-digits — see mobile regression |
+| 11th listing image still uploads; a file over 5MB does not | ☐ | ☐ | No count cap. 5MB is hardcoded on the original file, not `limits.js` |
 | Save / unsave listing | ☐ | ☐ | HTTP 404 detail deletes the Firestore save, including a US row outside `washington-dc`. A non-404 error hides the heart; saving again adds a second doc |
 
 ---

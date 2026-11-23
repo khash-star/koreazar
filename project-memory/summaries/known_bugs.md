@@ -27,6 +27,7 @@
 | MySQL `phone` / `city` / `district` NULL after email login | `user_sync` writes empty strings as NULL. Web and mobile email login sync `{}`. Web profile save also clears city and district | `authService.js`, `upsert_user_profile_best_effort` |
 | Chat push missing for a phone user who can open the thread | `findUidByEmail` is exact `users.email ==`, not `emailQueryVariants`. Log: `chat push: no uid for receiver` | `functions/index.js`, `docs/CHAT_SYSTEM.md` |
 | Mobile edit multiplies a listing price | `DECIMAL(15,2)` is returned as `"15000.00"`; the editor strips non-digits, so a save writes `1500000`. The field is prefilled with that value, and the next save multiplies again. A new create typed as digits is not inflated. Web `Number()` keeps `15000`. Cards stay correct until the mobile save | `CreateListingScreen.js`, `api/bootstrap.php`, `docs/TROUBLESHOOTING.md` |
+| Docs say 10 images, 5MB, and 50 listings | `limits.js` is never imported. Web create/edit hardcodes 5MB and does not count images (a listing may have zero). Mobile keeps 10 and rejects files over 15MB, and requires one image. PHP and `storage.rules` enforce none of these. `listing_images` is unused | `src/utils/limits.js`, `CreateListing.jsx`, `CreateListingScreen.js`, `docs/SECURITY.md` |
 
 ## Likely resolved / obsolete
 

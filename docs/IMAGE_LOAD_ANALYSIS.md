@@ -39,7 +39,7 @@ Web upload (`createImageVariants` in `src/components/utils/imageCompressor.jsx`)
 - Зөвхөн WebP. `canvas.toBlob(..., 'image/webp')` амжилтгүй бол reject — JPEG/PNG fallback байхгүй.
 - 3:2 төв crop, дараа нь resize: `w800` (q 0.78), `w640` (0.76), `w400` (0.75), `w150` (0.72).
 - MySQL `images[]` объект: `{ w800, w640, w400, w150 }`.
-- Хязгаар: 10 зураг, файл 5MB (`src/utils/limits.js`).
+- Хязгаар `limits.js`-ээс уншигдахгүй. Web эх файл ≤ 5MB (JPG/PNG/WEBP), зургийн тоо байхгүй, зураггүй зар болно. Mobile хамгийн ихдээ 10 зураг, файл ≤ 15MB, дор хаяж 1 зураг. PHP болон `storage.rules` тоолохгүй. Дэлгэрэнгүй `docs/SECURITY.md` §10.
 
 Унших (`src/utils/imageUrl.js`, mobile mirror):
 

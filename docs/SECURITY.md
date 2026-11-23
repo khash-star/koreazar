@@ -239,11 +239,12 @@ firebase deploy --only storage
 
 | Хяналт | Утга / байршил |
 |--------|----------------|
-| Зургийн формат | JPG, PNG, WEBP |
-| Зургийн хэмжээ | 5 MB (`limits.js` → `MAX_IMAGE_SIZE`) |
-| Баннер хэмжээ | 10 MB (`MAX_BANNER_SIZE`) |
-| Зураг багтаалт | Client compression (`imageCompressor.jsx`) |
-| Storage | Firebase Storage authenticated write |
+| Web зар / баннер формат | JPG, PNG, WEBP. Input `accept="image/*"` байсан ч `file.type` таарахгүй бол alert |
+| Web зарын хэмжээ | `CreateListing.jsx` / `EditListing.jsx` локал `5 * 1024 * 1024`, WebP variant-аас өмнөх эх файл. `validateImageSize` дуудагдахгүй |
+| Mobile upload | `uploadImageFromUri` 15MB-аас их бол татгалзана (`storageService.native.js`, `storageService.web.js`) |
+| Баннер хэмжээ | `RequestBannerAd` / `AdminBanners` MIME шалгаад `compressImage`. `MAX_BANNER_SIZE` уншихгүй |
+| Зураг багтаалт | Web listing: `createImageVariants` (WebP 3:2). Баннер: `compressImage` |
+| Storage rules | Auth write. Хэмжээ, content-type шалгалт байхгүй (`storage.rules`) |
 
 ---
 
@@ -300,14 +301,22 @@ UI (“зар, чат устгагдана”) нь MySQL заруудыг ха�
 
 ## 10. Client хязгаарлалт (abuse prevention)
 
-`src/utils/limits.js`:
+`src/utils/limits.js` тогтмол болон `canCreateListing` / `canUploadImage` / `validateImageSize` / `validateBannerSize` **ямар ч модуль import хийхгүй**. PHP зар, зураг, мессеж тоолохгүй. `storage.rules` хэмжээ шалгахгүй.
 
-- Хэрэглэгч тутамд хамгийн ихдээ **50 зар** (`MAX_LISTINGS_PER_USER`). Энэ нь AI хязгаар биш
-- Зар тутамд **10 зураг**
-- Ярилцлага тутамд **1000 мессеж**
-- AI өдрийн хязгаар энд байхгүй. Web `AIBot.jsx` **20** асуулт, зөвхөн client. PHP `ai_chat` тоолохгүй (`docs/ARCHITECTURE.md`)
+| Тогтмол | Бодит хэрэгжилт |
+|---------|-----------------|
+| `MAX_LISTINGS_PER_USER` 50 | Шалгалт байхгүй. 51 дэх зар үүснэ. AI хязгаар биш |
+| `MAX_IMAGES_PER_LISTING` 10 | Mobile `pickImage`: `assets.slice(0, 10 - images.length)`. 10 дүүрсэн үед чимээгүй буцна. Web тоолохгүй. PHP `images` JSON-ийг бүтнээр хадгална |
+| `MAX_IMAGE_SIZE` 5MB | Зөвхөн web Create/Edit-ийн локал `maxSize`. Mobile upload 15MB |
+| `MAX_MESSAGES_PER_CONVERSATION` 1000 | `createMessage` тоолохгүй. Web `listMessages` default **100**. Mobile `ChatScreen` **120** авна. `MESSAGE_FETCH_LIMIT` уншигдахгүй |
+| `LISTINGS_PER_PAGE` 20 | Ашиглагдахгүй. Feed цонх API default 50, web Home 100 |
+| `MAX_BANNERS` 10 / `MAX_BANNER_SIZE` 10MB | Ашиглагдахгүй |
 
-Firebase Free Tier-ийн read/write хязгаарлалтыг бодож query limit, `staleTime` (3 мин) ашиглана.
+Web зар зураггүй үүснэ. Mobile submit дор хаяж 1 зураг шаардана. `listing_images` хүснэгт schema-д байгаа ч `api/index.php` болон client бичдэггүй; галерей `listings.images`.
+
+AI өдрийн хязгаар энд байхгүй. Web `AIBot.jsx` **20** асуулт, зөвхөн client. PHP `ai_chat` тоолохгүй (`docs/ARCHITECTURE.md`).
+
+Firebase Free Tier-ийн read/write-ийг query limit, `staleTime` (3 мин) хязгаарлана. Тэр тоонууд `limits.js`-ээс уншигдахгүй.
 
 ---
 
